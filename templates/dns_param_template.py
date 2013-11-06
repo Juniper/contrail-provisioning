@@ -1,8 +1,6 @@
 import string
 
 template = string.Template("""
-IFMAP_SERVER=$__contrail_ifmap_srv_ip__
-IFMAP_PORT=$__contrail_ifmap_srv_port__
 IFMAP_USER=$__contrail_ifmap_usr__
 IFMAP_PASWD=$__contrail_ifmap_paswd__
 COLLECTOR=$__contrail_collector__

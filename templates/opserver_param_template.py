@@ -1,9 +1,9 @@
 import string
 
 template = string.Template("""
-REDIS_SERVER=$__contrail_redis_server__
 REDIS_SERVER_PORT=$__contrail_redis_server_port__
 REDIS_QUERY_PORT=$__contrail_redis_query_port__
+HOST_IP=$__contrail_host_ip__
 COLLECTOR=$__contrail_collector__
 COLLECTOR_PORT=$__contrail_collector_port__
 HTTP_SERVER_PORT=$__contrail_http_server_port__

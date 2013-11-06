@@ -18,6 +18,7 @@ class SetupVncDatabase(object):
        
         self_ip = self._args.self_ip
         dir = self._args.dir
+        data_dir = self._args.data_dir
         initial_token = self._args.initial_token
         seed_list = self._args.seed_list
         
@@ -27,6 +28,9 @@ class SetupVncDatabase(object):
         if dir:                     
             setup_args_str = setup_args_str + " --database_dir %s" \
                                  % (dir)
+        if data_dir:                     
+            setup_args_str = setup_args_str + " --data_dir %s" \
+                                 % (data_dir)
         if initial_token:
             setup_args_str = setup_args_str + " --database_initial_token %s" \
                                  % (initial_token)
@@ -41,7 +45,7 @@ class SetupVncDatabase(object):
     def _parse_args(self, args_str):
         '''
         Eg. python setup-vnc-database.py --self_ip 10.84.13.23 --dir /usr/share/cassandra
-            --initial_token 0 --seed_list 10.84.13.23 10.84.13.24
+            --initial_token 0 --seed_list 10.84.13.23 10.84.13.24 --data_dir /home/cassandra
         '''
 
         # Source any specified config/ini file
@@ -77,6 +81,7 @@ class SetupVncDatabase(object):
         parser.add_argument("--dir", help = "Directory where database binary exists")
         parser.add_argument("--initial_token", help = "Initial token for database node")
         parser.add_argument("--seed_list", help = "List of seed nodes for database", nargs='+')
+        parser.add_argument("--data_dir", help = "Directory where database stores data")
         self._args = parser.parse_args(remaining_argv)
     #end _parse_args
 
