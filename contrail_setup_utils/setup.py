@@ -67,6 +67,7 @@ from contrail_config_templates import vizd_param_template
 from contrail_config_templates import qe_param_template
 from contrail_config_templates import opserver_param_template
 from contrail_config_templates import vnc_api_lib_ini_template
+from contrail_config_templates import agent_param_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -215,12 +216,14 @@ class Setup(object):
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--database_listen_ip", help = "Listen IP Address of database node", default = '127.0.0.1')
         parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
+        parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--num_collector_nodes", help = "Number of Collector Nodes", type = int)
         parser.add_argument("--redis_master_ip", help = "IP Address of Redis Master Node")
         parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
+        parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 7)
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -365,7 +368,7 @@ class Setup(object):
         if not mtu:
             # for debian
             mtu = local(
-              "ifconfig %s | grep MTU | sed 's/.*MTU.\([0-9]\+\).*/\1/g'" % dev,
+              r"ifconfig %s | grep MTU | sed 's/.*MTU.\([0-9]\+\).*/\1/g'" % dev,
                 capture = True).strip ()
         if mtu and mtu != '1500': return mtu
         return ''
@@ -508,14 +511,15 @@ HWADDR=%s
         use_certs = True if self._args.use_certs else False
 
         # TODO till post of openstack-horizon.spec is fixed...
-        if 'config' in self._args.role:
+        if 'openstack' in self._args.role:
             pylibpath = local ('/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"', capture = True)
             local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
 
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
-        hosts_entry = '%s %s' %(cfgm_ip, hostname)
-        with settings( warn_only= True) :
-            local('grep -q \'%s\' /etc/hosts || echo \'%s %s\' >> /etc/hosts' %(cfgm_ip, cfgm_ip, hosts_entry))
+        if 'database' in self._args.role:
+            hosts_entry = '%s %s' %(cfgm_ip, hostname)
+            with settings( warn_only= True) :
+                local('grep -q \'%s\' /etc/hosts || echo \'%s %s\' >> /etc/hosts' %(cfgm_ip, cfgm_ip, hosts_entry))
         
         # Disable selinux
         with lcd(temp_dir_name):
@@ -568,6 +572,11 @@ HWADDR=%s
         if os.path.exists('/opt/contrail/control-venv/archive'):
             with lcd("/opt/contrail/control-venv/archive"):
                 local("source ../bin/activate && pip install *")
+ 
+        # database venv instalation
+        if os.path.exists('/opt/contrail/database-venv/archive'):
+            with lcd("/opt/contrail/database-venv/archive"):
+                local("source ../bin/activate && pip install *")
 
         if 'openstack' in self._args.role:
             self.service_token = self._args.service_token
@@ -610,6 +619,7 @@ HWADDR=%s
             cassandra_dir = self._args.database_dir
             initial_token = self._args.database_initial_token
             seed_list = self._args.database_seed_list
+            data_dir = self._args.data_dir
             if not cassandra_dir:
                 raise ArgumentError('Undefined cassandra directory')
             conf_dir = os.path.join(cassandra_dir, CASSANDRA_CONF_DIR)
@@ -623,6 +633,16 @@ HWADDR=%s
             self.replace_in_file(conf_file, 'listen_address: ', 'listen_address: ' + listen_ip)
             self.replace_in_file(conf_file, 'cluster_name: ', 'cluster_name: \'Contrail\'')
             self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
+            if data_dir:
+                saved_cache_dir = os.path.join(data_dir, 'saved_caches')
+                self.replace_in_file(conf_file, 'saved_caches_directory:', 'saved_caches_directory: ' + saved_cache_dir)
+                commit_log_dir = os.path.join(data_dir, 'commitlog')
+                self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
+                cass_data_dir = os.path.join(data_dir, 'data')
+                cass_data_dir = cass_data_dir.replace('/','\\/')
+                local("sudo sed -n '1!N; s/data_file_directories:\\n    -.*/data_file_directories:\\n    - %s/; p' %s > %s.new" \
+                      % (cass_data_dir, conf_file, conf_file))
+                local("sudo mv %s.new %s" % (conf_file, conf_file))
             if initial_token:
                 self.replace_in_file(conf_file, 'initial_token:', 'initial_token: ' + initial_token)
             if seed_list:
@@ -662,13 +682,15 @@ HWADDR=%s
             redis_uve_server = '127.0.0.1'         
             self_collector_ip = self._args.self_collector_ip
             if self._args.num_collector_nodes:
-                redis_uve_server = self._args.redis_master_ip
                 redis_uve_conf = '/etc/contrail/redis-uve.conf'
                 sentinel_conf = '/etc/contrail/sentinel.conf'
                 # Update sentinel conf
                 with settings(warn_only = True):
+                    sentinel_quorum = self._args.num_collector_nodes - 1
+                    if sentinel_quorum < 1:
+                        sentinel_quorum = 1
                     local("sudo sed 's/sentinel monitor mymaster.*/sentinel monitor mymaster %s 6381 %s/g' %s > %s.new" \
-                          % (self._args.redis_master_ip, str(self._args.num_collector_nodes - 1), sentinel_conf, sentinel_conf))
+                          % (self._args.redis_master_ip, str(sentinel_quorum), sentinel_conf, sentinel_conf))
                     local("sudo mv %s.new %s" % (sentinel_conf, sentinel_conf))
                 # Update redis conf based on role
                 if self._args.redis_role == "slave":
@@ -676,21 +698,17 @@ HWADDR=%s
                         local("sudo sed 's/# slaveof.*/slaveof %s 6381/g' %s > %s.new" \
                               % (self._args.redis_master_ip, redis_uve_conf, redis_uve_conf))
                         local("sudo mv %s.new %s" % (redis_uve_conf, redis_uve_conf))
-                        local("sudo sed 's/slave-priority.*/slave-priority 0/g' %s > %s.new" \
-                              % (redis_uve_conf, redis_uve_conf))
-                        local("sudo mv %s.new %s" % (redis_uve_conf, redis_uve_conf))
  
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
                              '__contrail_log_local__': '--log-local',
                              '__contrail_log_level__' : 'SYS_DEBUG',
-                             '__contrail_redis_server__': redis_uve_server,
-                             '__contrail_redis_server_port__' : '6381',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
                              '__contrail_http_server_port__' : '8089',
-                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
+                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
+                             '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl}
             self._template_substitute_write(vizd_param_template.template,
                                            template_vals, temp_dir_name + '/vizd_param')
             local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
@@ -711,11 +729,11 @@ HWADDR=%s
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',
                              '__contrail_log_level__' : 'SYS_DEBUG',
-                             '__contrail_redis_server__': redis_uve_server,
                              '__contrail_redis_server_port__' : '6381',
                              '__contrail_redis_query_port__' : '6380',
                              '__contrail_http_server_port__' : '8090',
                              '__contrail_rest_api_port__' : '8081',
+                             '__contrail_host_ip__' : self_collector_ip, 
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_collector__': '127.0.0.1',
                              '__contrail_collector_port__': '8086'}
@@ -771,7 +789,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'schema-transformer',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_zookeeper_server_ip__': '127.0.0.1',
+                             '__contrail_zookeeper_server_ip__': cfgm_ip,
                              '__contrail_zookeeper_server_port__': '2181',
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/schema_xfer_key.pem',
@@ -796,7 +814,7 @@ HWADDR=%s
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_openstack_ip__': openstack_ip,
-                             '__contrail_zookeeper_server_ip__': '127.0.0.1',
+                             '__contrail_zookeeper_server_ip__': cfgm_ip,
                              '__contrail_zookeeper_server_port__': '2181',
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
@@ -815,9 +833,9 @@ HWADDR=%s
             local("sudo mv %s/svc_monitor.conf /etc/contrail/svc_monitor.conf" %(temp_dir_name))
 
             template_vals = {
-                             '__contrail_zk_server_ip__': '127.0.0.1',
+                             '__contrail_zk_server_ip__': cfgm_ip,
                              '__contrail_zk_server_port__': '2181',
-                             '__contrail_listen_ip_addr__': cfgm_ip,
+                             '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
                              '__contrail_log_local__': 'True',
                              '__contrail_log_file__': '/var/log/contrail/discovery.log',
@@ -844,9 +862,7 @@ HWADDR=%s
         if 'control' in self._args.role:
             control_ip = self._args.control_ip
             certdir = '/var/lib/puppet/ssl' if self._args.puppet_server else '/etc/contrail/ssl'
-            template_vals = {'__contrail_ifmap_srv_ip__': cfgm_ip,
-                             '__contrail_ifmap_srv_port__': '8444' if use_certs else '8443',
-                             '__contrail_ifmap_usr__': '%s' %(control_ip),
+            template_vals = {'__contrail_ifmap_usr__': '%s' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s' %(control_ip),
                              '__contrail_collector__': collector_ip,
                              '__contrail_collector_port__': '8086',
@@ -862,9 +878,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/control_param')
             local("sudo mv %s/control_param /etc/contrail/control_param" %(temp_dir_name))
 
-            dns_template_vals = {'__contrail_ifmap_srv_ip__': cfgm_ip,
-                             '__contrail_ifmap_srv_port__': '8444' if use_certs else '8443',
-                             '__contrail_ifmap_usr__': '%s.dns' %(control_ip),
+            dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
                              '__contrail_collector__': collector_ip,
                              '__contrail_collector_port__': '8086',
@@ -931,6 +945,12 @@ HWADDR=%s
 
 
         if 'compute' in self._args.role :
+            template_vals = {'__contrail_discovery_ip__': cfgm_ip
+                            }
+            self._template_substitute_write(agent_param_template.template,
+                                            template_vals, temp_dir_name + '/vrouter_nodemgr_param')
+            local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
+
             openstack_ip = self._args.openstack_ip
             compute_ip = self._args.compute_ip
             discovery_ip = self._args.cfgm_ip
