@@ -85,10 +85,9 @@ enabled=1
 gpgcheck=0
 """)
 
-CASSANDRA_BIN_DIR = 'bin'
-CASSANDRA_CONF_DIR = 'conf'
-CASSANDRA_CONF = 'cassandra.yaml'
-CASSANDRA_ENV = 'cassandra-env.sh'
+CASSANDRA_CONF = '/etc/cassandra/conf'
+CASSANDRA_CONF_FILE = 'cassandra.yaml'
+CASSANDRA_ENV_FILE = 'cassandra-env.sh'
 
 class ExtList (list):
     def findex (self, fun):
@@ -214,6 +213,8 @@ class Setup(object):
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies keystone token validation)",
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
+        parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
+        parser.add_argument("--cfgm_index", help = "Index of this cfgm node")
         parser.add_argument("--database_listen_ip", help = "Listen IP Address of database node", default = '127.0.0.1')
         parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
         parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
@@ -622,10 +623,9 @@ HWADDR=%s
             data_dir = self._args.data_dir
             if not cassandra_dir:
                 raise ArgumentError('Undefined cassandra directory')
-            conf_dir = os.path.join(cassandra_dir, CASSANDRA_CONF_DIR)
+            conf_dir = CASSANDRA_CONF
             cnd = os.path.exists(conf_dir)
-            cnd = cnd and os.path.exists(conf_dir)
-            conf_file = os.path.join(conf_dir, CASSANDRA_CONF)
+            conf_file = os.path.join(conf_dir, CASSANDRA_CONF_FILE)
             cnd = cnd and os.path.exists(conf_file)
             if not cnd:
                 raise ArgumentError('%s does not appear to be a cassandra source directory' % cassandra_dir)
@@ -633,22 +633,19 @@ HWADDR=%s
             self.replace_in_file(conf_file, 'listen_address: ', 'listen_address: ' + listen_ip)
             self.replace_in_file(conf_file, 'cluster_name: ', 'cluster_name: \'Contrail\'')
             self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
+            self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
+            self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
             if data_dir:
                 saved_cache_dir = os.path.join(data_dir, 'saved_caches')
                 self.replace_in_file(conf_file, 'saved_caches_directory:', 'saved_caches_directory: ' + saved_cache_dir)
                 commit_log_dir = os.path.join(data_dir, 'commitlog')
                 self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
                 cass_data_dir = os.path.join(data_dir, 'data')
-                cass_data_dir = cass_data_dir.replace('/','\\/')
-                local("sudo sed -n '1!N; s/data_file_directories:\\n    -.*/data_file_directories:\\n    - %s/; p' %s > %s.new" \
-                      % (cass_data_dir, conf_file, conf_file))
-                local("sudo mv %s.new %s" % (conf_file, conf_file))
-            if initial_token:
-                self.replace_in_file(conf_file, 'initial_token:', 'initial_token: ' + initial_token)
+                self.replace_in_file(conf_file, '    - /var/lib/cassandra/data', '    - ' + cass_data_dir)
             if seed_list:
                 self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')    
 
-            env_file = os.path.join(conf_dir, CASSANDRA_ENV)
+            env_file = os.path.join(conf_dir, CASSANDRA_ENV_FILE)
             cnd = os.path.exists(env_file)
             if not cnd:
                 raise ArgumentError('%s does not appear to be a cassandra source directory' % cassandra_dir)
@@ -764,6 +761,7 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
+                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
                             }
             self._template_substitute_write(api_server_conf_template.template,
                                             template_vals, temp_dir_name + '/api_server.conf')
@@ -789,8 +787,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'schema-transformer',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_zookeeper_server_ip__': cfgm_ip,
-                             '__contrail_zookeeper_server_port__': '2181',
+                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/schema_xfer_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/schema_xfer.pem',
@@ -814,8 +811,7 @@ HWADDR=%s
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_openstack_ip__': openstack_ip,
-                             '__contrail_zookeeper_server_ip__': cfgm_ip,
-                             '__contrail_zookeeper_server_port__': '2181',
+                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/svc_monitor.pem',
@@ -833,7 +829,7 @@ HWADDR=%s
             local("sudo mv %s/svc_monitor.conf /etc/contrail/svc_monitor.conf" %(temp_dir_name))
 
             template_vals = {
-                             '__contrail_zk_server_ip__': cfgm_ip,
+                             '__contrail_zk_server_ip__': ','.join(self._args.zookeeper_ip_list),
                              '__contrail_zk_server_port__': '2181',
                              '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
@@ -853,6 +849,11 @@ HWADDR=%s
 
             # set high session timeout to survive glance led disk activity
             local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
+            zk_index = 1
+            for zk_ip in self._args.zookeeper_ip_list:
+                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
+                zk_index = zk_index + 1
+            local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
             # bump up max-connections=2048
             with settings(warn_only = True):
                 ret = local("sudo grep -q '^max-connections' /etc/qpidd.conf")
@@ -961,9 +962,8 @@ HWADDR=%s
             vhost_ip = compute_ip
             multi_net= False
             if non_mgmt_ip :
-                if non_mgmt_ip != compute_ip:
-                    multi_net= True
-                    vhost_ip= non_mgmt_ip
+                multi_net= True
+                vhost_ip= non_mgmt_ip
 
             dev = None
             compute_dev = None
@@ -1182,12 +1182,9 @@ SUBCHANNELS=1,2,3
             quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
-            with settings(host_string = 'root@%s' %(openstack_ip), password = env.password):
-                put("/opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py",
-                    "/root/setup-quantum-in-keystone.py")
-                quant_args = "--quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s" \
-                              %(quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token)
-                run("python /root/setup-quantum-in-keystone.py %s" %(quant_args))
+            quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s" \
+                          %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token)
+            local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:
             if self._args.num_collector_nodes:

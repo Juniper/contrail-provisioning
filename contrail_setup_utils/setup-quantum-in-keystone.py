@@ -30,7 +30,8 @@ class QuantumSetup(object):
         self._args_quant_ip = self._args.quant_server_ip
         self._args_quant_url = "http://%s:9696" % (self._args_quant_ip)
 
-        self._auth_url = "http://127.0.0.1:35357/v2.0"
+        self._args_ks_ip = self._args.ks_server_ip
+        self._auth_url = "http://%s:35357/v2.0" % (self._args_ks_ip)
      
 
         # Flag to enable/disable quantum if needed
@@ -54,8 +55,9 @@ class QuantumSetup(object):
 
     def _parse_quant_args(self, args_str):
         '''
-        Eg. python quantum_server_setup.py --quant_server_ip <ip-address> 
-                 --tenant <id> --user <user> --password <passwd> --svc_password <passwd>
+        Eg. python quantum_server_setup.py -- ks_server_ip <ip-address> 
+                 --quant_server_ip <ip-address> --tenant <id> --user <user>
+                 --password <passwd> --svc_password <passwd>
         '''
 
         # Source any specified config/ini file
@@ -67,6 +69,7 @@ class QuantumSetup(object):
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
 
         keystone_server_defaults = {
+            'ks_server_ip': '127.0.0.1',
             'quant_server_ip': '127.0.0.1',
             'tenant': 'admin',
             'user': 'admin',
@@ -93,6 +96,7 @@ class QuantumSetup(object):
         all_defaults = { 'keystone': keystone_server_defaults }
         parser.set_defaults(**all_defaults)
 
+        parser.add_argument("--ks_server_ip", help = "IP Address of quantum server")
         parser.add_argument("--quant_server_ip", help = "IP Address of quantum server")
         parser.add_argument("--tenant", help = "Tenant ID on keystone server")
         parser.add_argument("--user", help = "User ID to access keystone server")

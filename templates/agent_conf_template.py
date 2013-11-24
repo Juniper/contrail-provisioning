@@ -13,6 +13,9 @@ template = string.Template("""
         <eth-port>
             <name>$__contrail_eth_if__</name>
         </eth-port>
+	<metadata-proxy>
+            <shared-secret></shared-secret>
+        </metadata-proxy></agent>
         $__contrail_discovery_server__
     </agent>
 </config>
