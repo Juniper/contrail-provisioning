@@ -22,6 +22,8 @@ class SetupVncVrouter(object):
         ncontrols = self._args.ncontrols
         non_mgmt_ip = self._args.non_mgmt_ip
         non_mgmt_gw = self._args.non_mgmt_gw
+        vgw_public_subnet = self._args.public_subnet
+        vgw_public_vn_name = self._args.public_vn_name
         if not self._args.openstack_mgmt_ip :
             openstack_mgmt_ip = openstack_ip
         else:
@@ -37,6 +39,9 @@ class SetupVncVrouter(object):
         if non_mgmt_ip: 
             setup_args_str = setup_args_str + " --non_mgmt_ip %s " %(non_mgmt_ip)
             setup_args_str = setup_args_str + " --non_mgmt_gw %s " %(non_mgmt_gw)
+        if vgw_public_subnet and  vgw_public_vn_name:
+            setup_args_str = setup_args_str + " --vgw_public_subnet %s " %(vgw_public_subnet)
+            setup_args_str = setup_args_str + " --vgw_public_vn_name %s " %(vgw_public_vn_name)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -66,6 +71,8 @@ class SetupVncVrouter(object):
             'ncontrols': '2',
             'non_mgmt_ip': None,
             'non_mgmt_gw': None,
+            'public_subnet': None,
+            'public_vn_name': None,
         }
 
         if args.conf_file:
@@ -95,6 +102,8 @@ class SetupVncVrouter(object):
         parser.add_argument("--ncontrols", help = "Number of control-nodes in the system")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
+        parser.add_argument("--public_subnet", help = "Subnet of the virtual network used for public access")
+        parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
 
         self._args = parser.parse_args(remaining_argv)
 

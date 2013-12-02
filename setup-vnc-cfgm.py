@@ -31,7 +31,10 @@ class SetupVncCfgm(object):
             setup_args_str = setup_args_str + " --multi_tenancy"
         setup_args_str = setup_args_str + " --cassandra_ip_list %s" \
                              %(' '.join(self._args.cassandra_ip_list))    
-        
+        setup_args_str = setup_args_str + " --zookeeper_ip_list %s" \
+                             %(' '.join(self._args.zookeeper_ip_list))    
+        setup_args_str = setup_args_str + " --cfgm_index %s" \
+                             %(self._args.cfgm_index) 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
         setup_obj.run_services()
@@ -41,7 +44,10 @@ class SetupVncCfgm(object):
         '''
         Eg. python setup-vnc-cfgm.py --self_ip 10.1.5.11 --openstack_ip 10.1.5.12 
             --collector_ip 10.1.5.12 --service_token contrail123
-            --cassandra_ip_list 10.1.5.11 10.1.5.12 optional: --use_certs, --multi_tenancy
+            --cassandra_ip_list 10.1.5.11 10.1.5.12 
+            --zookeeper_ip_list 10.1.5.11 10.1.5.12
+            --cfgm_index 1
+            optional: --use_certs, --multi_tenancy
         '''
 
         # Source any specified config/ini file
@@ -90,6 +96,10 @@ class SetupVncCfgm(object):
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
+        parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
+                            nargs='+', type=str)
+        parser.add_argument("--cfgm_index", help = "The index of this cfgm node")
+  
 
         self._args = parser.parse_args(remaining_argv)
 
