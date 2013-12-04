@@ -225,6 +225,13 @@ class Setup(object):
         parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 7)
+        parser.add_argument("--storage-master", help = "IP Address of storage master node")
+        parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
+        parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
+        parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
+        parser.add_argument("--storage-disk-config", help = "Disk list to be used for distrubuted storage", nargs="+", type=str)
+        parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--live-migration", help = "Live migration enabled")
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -1207,6 +1214,27 @@ SUBCHANNELS=1,2,3
 
         if 'webui' in self._args.role:
             local("sudo ./contrail_setup_utils/webui-server-setup.sh")
+
+        if 'storage' in self._args.role:
+            # Storage Configurations
+            # Setup Ceph services
+            storage_setup_args = " --storage-master %s" %(self._args.storage_master)
+            storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
+            storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
+            storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
+            storage_setup_args = storage_setup_args + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))    
+            storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
+            with settings(host_string=self._args.storage_master):
+                run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
+
+            # Setup NFS services for live migration
+
+            # Setup Live migration services
+            live_migration_status = self._args.live_migration
+            if live_migration_status == 'enabled':
+                for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run("sudo /opt/contrail/contrail_installer/contrail_setup_utils/compute-live-migration-setup.sh")
 
     #end run_services
 
