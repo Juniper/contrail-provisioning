@@ -1185,6 +1185,19 @@ SUBCHANNELS=1,2,3
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s" \
                           %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
+            #TO DO:Retry with catching the exception
+            time.sleep(20)        
+            metadata_args = "--admin_user %s\
+                 --admin_password %s --linklocal_service_name metadata\
+                 --linklocal_service_ip 169.254.169.254\
+                 --linklocal_service_port 80\
+                 --ipfabric_service_ip %s\
+                 --ipfabric_service_port 8775\
+                 --oper add"%(ks_admin_user, ks_admin_password, self._args.cfgm_ip)
+            try:                                
+                local("python /opt/contrail/utils/provision_linklocal.py %s" %(metadata_args))
+            except Exception as e:
+                print e
 
         if 'collector' in self._args.role:
             if self._args.num_collector_nodes:
