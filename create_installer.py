@@ -115,6 +115,8 @@ class CreateInstaller(object):
                           'contrail_setup_utils/quantum-server-setup.sh',
                           'contrail_setup_utils/setup-quantum-in-keystone.py',
                           'contrail_setup_utils/setup-service-token.sh',
+                          'contrail_setup_utils/storage-ceph-setup.py',
+                          'contrail_setup_utils/compute-live-migration-setup.sh',
                           'devstack-cleanup.py',                 
                           'setup-all-in-one.py',                 
                           'reset-all-in-one.py',                 
@@ -133,6 +135,7 @@ class CreateInstaller(object):
                           'setup-vnc-database.py',
                           'reset-vnc-database.py',
                           'setup-vnc-openstack.py',
+                          'setup-vnc-storage.py'
                          ]
 
         with lcd("%s" %(temp_dir_name)):
