@@ -856,6 +856,9 @@ HWADDR=%s
 
             # set high session timeout to survive glance led disk activity
             local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
+            local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
+            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=10/log4j.appender.ROLLINGFILE.MaxBackupIndex=10/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
+            local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
                 local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
