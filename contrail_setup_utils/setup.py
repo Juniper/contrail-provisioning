@@ -1185,7 +1185,8 @@ SUBCHANNELS=1,2,3
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s" \
                           %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
-            time.sleep(20)        
+            time.sleep(20)
+            #TODO need to add retry        
             metadata_args = "--admin_user %s\
                  --admin_password %s --linklocal_service_name metadata\
                  --linklocal_service_ip 169.254.169.254\
