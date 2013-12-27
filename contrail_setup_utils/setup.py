@@ -706,7 +706,6 @@ HWADDR=%s
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
                              '__contrail_log_local__': '--log-local',
-                             '__contrail_log_level__' : 'SYS_DEBUG',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -719,7 +718,6 @@ HWADDR=%s
 
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/qe.log',
                              '__contrail_log_local__': '--log-local',
-                             '__contrail_log_level__' : 'SYS_DEBUG',
                              '__contrail_redis_server__': '127.0.0.1',
                              '__contrail_redis_server_port__' : '6380',
                              '__contrail_http_server_port__' : '8091',
@@ -732,7 +730,6 @@ HWADDR=%s
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',
-                             '__contrail_log_level__' : 'SYS_DEBUG',
                              '__contrail_redis_server_port__' : '6381',
                              '__contrail_redis_query_port__' : '6380',
                              '__contrail_http_server_port__' : '8090',
