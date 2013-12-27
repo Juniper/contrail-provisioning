@@ -7,7 +7,6 @@ REDIS_SERVER_PORT=$__contrail_redis_server_port__
 HTTP_SERVER_PORT=$__contrail_http_server_port__
 LOG_FILE=$__contrail_log_file__
 LOG_LOCAL=$__contrail_log_local__
-LOG_LEVEL=$__contrail_log_level__
 COLLECTOR=$__contrail_collector__
 COLLECTOR_PORT=$__contrail_collector_port__
 """)
