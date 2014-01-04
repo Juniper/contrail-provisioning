@@ -948,7 +948,7 @@ HWADDR=%s
                     local('sudo echo \']\' >> /etc/libvirt/qemu.conf')
                     self._fixed_qemu_conf = True
                 # add "alias bridge off" in /etc/modprobe.conf for Centos
-                if  dist == 'centos':
+                if  dist == 'centos' or dist == 'redhat':
                     local('sudo echo "alias bridge off" > /etc/modprobe.conf')
 
 
