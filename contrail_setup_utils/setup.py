@@ -68,6 +68,10 @@ from contrail_config_templates import qe_param_template
 from contrail_config_templates import opserver_param_template
 from contrail_config_templates import vnc_api_lib_ini_template
 from contrail_config_templates import agent_param_template
+from contrail_config_templates import contrail_api_ini_template
+from contrail_config_templates import contrail_api_svc_template
+from contrail_config_templates import contrail_discovery_ini_template
+from contrail_config_templates import contrail_discovery_svc_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -131,7 +135,9 @@ class Setup(object):
         cfgm_defaults = {
             'cfgm_ip': '127.0.0.1',
             'openstack_ip': '127.0.0.1',
+            'redis_ip': '127.0.0.1',
             'service_token': '',
+            'n_api_workers': '1',
             'multi_tenancy': False,
         }
         openstack_defaults = {
@@ -215,6 +221,10 @@ class Setup(object):
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
         parser.add_argument("--cfgm_index", help = "Index of this cfgm node")
+        parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
+        parser.add_argument("--n_api_workers",
+            help="Number of API/discovery worker processes to be launched",
+            default='1')
         parser.add_argument("--database_listen_ip", help = "Listen IP Address of database node", default = '127.0.0.1')
         parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
         parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
@@ -603,6 +613,7 @@ HWADDR=%s
             openstack_ip = self._args.openstack_ip
             compute_ip = self._args.compute_ip
             cfgm_ip = self._args.cfgm_ip
+            quantum_port = self._args.quantum_port
             if not self.service_token:
                 with settings(host_string = 'root@%s' %(openstack_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
@@ -615,7 +626,10 @@ HWADDR=%s
                                             %(self.service_token, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(openstack_ip, temp_dir_name))
-            local("echo 'QUANTUM=%s' >> %s/ctrl-details" %(cfgm_ip, temp_dir_name))
+            #local("echo 'QUANTUM=%s' >> %s/ctrl-details" %(cfgm_ip, temp_dir_name))
+            local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
+            local("echo 'QUANTUM_PORT=%s' >> %s/ctrl-details" %(quantum_port,
+                                                                temp_dir_name))
             local("echo 'COMPUTE=%s' >> %s/ctrl-details" %(compute_ip, temp_dir_name))
             if 'compute' in self._args.role:
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
@@ -745,6 +759,7 @@ HWADDR=%s
         if 'config' in self._args.role:
             openstack_ip = self._args.openstack_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
+            # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'api-server',
@@ -757,6 +772,7 @@ HWADDR=%s
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_redis_ip__': self._args.redis_master_ip,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
@@ -771,6 +787,30 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/api_server.conf')
             local("sudo mv %s/api_server.conf /etc/contrail/" %(temp_dir_name))
 
+            # supervisor contrail-api.ini
+            n_api_workers = self._args.n_api_workers
+            template_vals = {'__contrail_api_port_base__': '910', # 910x
+                             '__contrail_api_nworkers__': n_api_workers,
+                            }
+            self._template_substitute_write(contrail_api_ini_template.template,
+                                            template_vals, temp_dir_name + '/contrail-api.ini')
+            local("sudo mv %s/contrail-api.ini /etc/contrail/supervisord_config_files/" %(temp_dir_name))
+
+            # initd script wrapper for contrail-api
+            sctl_lines = ''
+            for worker_id in range(int(n_api_workers)):
+                sctl_line = 'supervisorctl -s http://localhost:9004 ' + \
+                            '${1} `basename ${0}:%s`' %(worker_id)
+                sctl_lines = sctl_lines + sctl_line
+
+            template_vals = {'__contrail_supervisorctl_lines__': sctl_lines,
+                            }
+            self._template_substitute_write(contrail_api_svc_template.template,
+                                            template_vals, temp_dir_name + '/contrail-api')
+            local("sudo mv %s/contrail-api /etc/init.d/" %(temp_dir_name))
+            local("sudo chmod a+x /etc/init.d/contrail-api")
+
+            # quantum plugin
             template_vals = {'__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
@@ -782,9 +822,9 @@ HWADDR=%s
                         }
             self._template_substitute_write(quantum_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail_plugin.ini')
-
             local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(temp_dir_name))
 
+            # schema_transformer.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'schema-transformer',
@@ -808,6 +848,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/schema_transformer.conf')
             local("sudo mv %s/schema_transformer.conf /etc/contrail/schema_transformer.conf" %(temp_dir_name))
 
+            # svc_monitor.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'svc-monitor',
@@ -832,6 +873,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/svc_monitor.conf')
             local("sudo mv %s/svc_monitor.conf /etc/contrail/svc_monitor.conf" %(temp_dir_name))
 
+            # discovery.conf
             template_vals = {
                              '__contrail_zk_server_ip__': ','.join(self._args.zookeeper_ip_list),
                              '__contrail_zk_server_port__': '2181',
@@ -839,11 +881,35 @@ HWADDR=%s
                              '__contrail_listen_port__': '5998',
                              '__contrail_log_local__': 'True',
                              '__contrail_log_file__': '/var/log/contrail/discovery.log',
+                             '__contrail_healthcheck_interval__': -1,
                             }
             self._template_substitute_write(discovery_conf_template.template,
                                             template_vals, temp_dir_name + '/discovery.conf')
             local("sudo mv %s/discovery.conf /etc/contrail/" %(temp_dir_name))
 
+            # supervisor contrail-discovery.ini
+            template_vals = {'__contrail_disc_port_base__': '911', # 911x
+                             '__contrail_disc_nworkers__': '1'
+                            }
+            self._template_substitute_write(contrail_discovery_ini_template.template,
+                                            template_vals, temp_dir_name + '/contrail-discovery.ini')
+            local("sudo mv %s/contrail-discovery.ini /etc/contrail/supervisord_config_files/" %(temp_dir_name))
+
+            # initd script wrapper for contrail-discovery
+            sctl_lines = ''
+            for worker_id in range(int(n_api_workers)):
+                sctl_line = 'supervisorctl -s http://localhost:9004 ' + \
+                            '${1} `basename ${0}:%s`' %(worker_id)
+                sctl_lines = sctl_lines + sctl_line
+
+            template_vals = {'__contrail_supervisorctl_lines__': sctl_lines,
+                            }
+            self._template_substitute_write(contrail_discovery_svc_template.template,
+                                            template_vals, temp_dir_name + '/contrail-discovery')
+            local("sudo mv %s/contrail-discovery /etc/init.d/" %(temp_dir_name))
+            local("sudo chmod a+x /etc/init.d/contrail-discovery")
+
+            # vnc_api_lib.ini
             template_vals = {
                              '__contrail_openstack_ip__': openstack_ip,
                             }
@@ -953,7 +1019,9 @@ HWADDR=%s
 
 
         if 'compute' in self._args.role :
-            template_vals = {'__contrail_discovery_ip__': cfgm_ip
+            #template_vals = {'__contrail_discovery_ip__': cfgm_ip
+            #                }
+            template_vals = {'__contrail_discovery_ip__': '127.0.0.1'
                             }
             self._template_substitute_write(agent_param_template.template,
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
@@ -961,7 +1029,8 @@ HWADDR=%s
 
             openstack_ip = self._args.openstack_ip
             compute_ip = self._args.compute_ip
-            discovery_ip = self._args.cfgm_ip
+            #discovery_ip = self._args.cfgm_ip
+            discovery_ip = '127.0.0.1'
             ncontrols = self._args.ncontrols
             physical_interface = self._args.physical_interface
             non_mgmt_ip = self._args.non_mgmt_ip 
@@ -1192,20 +1261,6 @@ SUBCHANNELS=1,2,3
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s" \
                           %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
-
-            time.sleep(20)
-            #TODO: need to add retry        
-            metadata_args = "--admin_user %s\
-                 --admin_password %s --linklocal_service_name metadata\
-                 --linklocal_service_ip 169.254.169.254\
-                 --linklocal_service_port 80\
-                 --ipfabric_service_ip %s\
-                 --ipfabric_service_port 8775\
-                 --oper add"%(ks_admin_user, ks_admin_password, self._args.openstack_ip)
-            try:
-                local("python /opt/contrail/utils/provision_linklocal.py %s" %(metadata_args))
-            except Exception as e:
-                print e
 
         if 'collector' in self._args.role:
             if self._args.num_collector_nodes:

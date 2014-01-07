@@ -18,11 +18,18 @@ class SetupVncCfgm(object):
         self_ip = self._args.self_ip
         openstack_ip = self._args.openstack_ip
         collector_ip = self._args.collector_ip
+        redis_ip = self._args.redis_ip
+        quantum_port = self._args.quantum_port
+        nworkers = self._args.nworkers
         service_token = self._args.service_token
 
         setup_args_str = "--role config "
         setup_args_str = setup_args_str + " --cfgm_ip %s --openstack_ip %s --collector_ip %s " \
                                                       %(self_ip, openstack_ip, collector_ip)
+        setup_args_str = setup_args_str + " --redis_master_ip %s" %(redis_ip)
+        setup_args_str = setup_args_str + " --quantum_port %s" %(quantum_port)
+        setup_args_str = setup_args_str + " --n_api_workers %s" %(nworkers)
+
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
         if self._args.use_certs:
@@ -47,6 +54,7 @@ class SetupVncCfgm(object):
             --cassandra_ip_list 10.1.5.11 10.1.5.12 
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --cfgm_index 1
+            --nworkers 1
             optional: --use_certs, --multi_tenancy
         '''
 
@@ -62,9 +70,11 @@ class SetupVncCfgm(object):
             'self_ip': '127.0.0.1',
             'collector_ip': '127.0.0.1',
             'openstack_ip': '127.0.0.1',
+            'redis_ip': '127.0.0.1',
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': False,
+            'nworkers': '1',
         }
 
         if args.conf_file:
@@ -89,6 +99,8 @@ class SetupVncCfgm(object):
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
         parser.add_argument("--openstack_ip", help = "IP Address of openstack node")
+        parser.add_argument("--redis_ip",
+                            help = "IP Address of redis server")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--use_certs", help = "Use certificates for authentication (irond)",
             action="store_true")
@@ -99,8 +111,13 @@ class SetupVncCfgm(object):
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--cfgm_index", help = "The index of this cfgm node")
+        parser.add_argument("--quantum_port",
+            help = "Quantum Server port",
+            default = '9696')
+        parser.add_argument("--nworkers",
+            help = "Number of worker processes for api and discovery services",
+            default = '1')
   
-
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args

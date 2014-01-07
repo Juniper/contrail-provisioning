@@ -2,7 +2,7 @@ import string
 
 template = string.Template("""
 [DEFAULTS]
-zk_server_ip=127.0.0.1
+zk_server_ip=$__contrail_zk_server_ip__
 zk_server_port=$__contrail_zk_server_port__
 listen_ip_addr=$__contrail_listen_ip_addr__
 listen_port=$__contrail_listen_port__
@@ -14,6 +14,9 @@ ttl_min=300
 
 # maximum time to allow client to cache service information (seconds)
 ttl_max=1800
+
+# health check ping interval <=0 for disabling
+hc_interval=$__contrail_healthcheck_interval__
 
 # maximum hearbeats to miss before server will declare publisher out of
 # service. 
