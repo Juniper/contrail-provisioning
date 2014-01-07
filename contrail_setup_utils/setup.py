@@ -967,31 +967,6 @@ HWADDR=%s
             local("sudo mv %s/dns_param /etc/contrail/dns_param" %(temp_dir_name))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
-                get("/etc/irond/basicauthusers.properties", temp_dir_name)
-                # replace control-node and dns proc creds
-                local("sudo sed -e '/%s:/d' -e '/%s.dns:/d' %s/%s > %s/%s.new" \
-                                  %(control_ip, control_ip, temp_dir_name, 'basicauthusers.properties',
-                                                            temp_dir_name, 'basicauthusers.properties'))
-                local("echo '%s:%s' >> %s/%s.new" \
-                             %(control_ip, control_ip, temp_dir_name, 'basicauthusers.properties'))
-                local("echo '%s.dns:%s.dns' >> %s/%s.new" \
-                             %(control_ip, control_ip, temp_dir_name, 'basicauthusers.properties'))
-                put("%s/%s.new" %(temp_dir_name, 'basicauthusers.properties'),
-                    "/etc/irond/basicauthusers.properties")
-
-                local("rm %s/basicauthusers.properties" %(temp_dir_name))
-                local("rm %s/basicauthusers.properties.new" %(temp_dir_name))
-
-                get("/etc/irond/publisher.properties", temp_dir_name)
-                local("sudo sed '/%s=/d' %s/%s > %s/%s.new" \
-                                  %(control_ip, temp_dir_name, 'publisher.properties',
-                                                temp_dir_name, 'publisher.properties'))
-                local("echo '%s=%s--0000000001-1' >> %s/%s.new" \
-                             %(control_ip, control_ip, temp_dir_name, 'publisher.properties'))
-                put("%s/%s.new" %(temp_dir_name, 'publisher.properties'),
-                    "/etc/irond/publisher.properties")
-                local("rm %s/publisher.properties" %(temp_dir_name))
-                local("rm %s/publisher.properties.new" %(temp_dir_name))
                 if self._args.puppet_server:
                     local("echo '    server = %s' >> /etc/puppet/puppet.conf" \
                         %(self._args.puppet_server))
