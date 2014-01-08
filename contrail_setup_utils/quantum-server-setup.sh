@@ -71,25 +71,9 @@ export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
-if [ $CONTROLLER != $QUANTUM ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
-    openstack-config --set /etc/nova/nova.conf DEFAULT qpid_hostname $CONTROLLER
-    openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_tenant_name service
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_username quantum
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_password $SERVICE_TOKEN
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_auth_url http://$CONTROLLER:35357/v2.0/
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url http://$QUANTUM:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url_timeout 300
-
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password $SERVICE_TOKEN
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
-fi
-
 # Update all config files with service username and password
 for svc in quantum; do
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
