@@ -19,6 +19,4 @@ fi
 chkconfig supervisor-control on
 service supervisor-control restart
 
-chkconfig supervisor-dns on
-service supervisor-dns restart
 
