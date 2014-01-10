@@ -234,7 +234,7 @@ class Setup(object):
         parser.add_argument("--redis_master_ip", help = "IP Address of Redis Master Node")
         parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
-        parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 7)
+        parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 2)
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
