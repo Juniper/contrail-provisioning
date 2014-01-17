@@ -42,6 +42,8 @@ class SetupVncVrouter(object):
         if vgw_public_subnet and  vgw_public_vn_name:
             setup_args_str = setup_args_str + " --vgw_public_subnet %s " %(vgw_public_subnet)
             setup_args_str = setup_args_str + " --vgw_public_vn_name %s " %(vgw_public_vn_name)
+        if self._args.haproxy:
+            setup_args_str = setup_args_str + " --haproxy"
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -52,6 +54,7 @@ class SetupVncVrouter(object):
         '''
         Eg. python setup-vnc-vrouter.py --cfgm_ip 10.1.5.11 --openstack_ip 10.1.5.12
                    --self_ip 10.1.5.12 --service_token 'c0ntrail123' --ncontrols 1
+                   --haproxy
         '''
 
         # Source any specified config/ini file
@@ -73,6 +76,7 @@ class SetupVncVrouter(object):
             'non_mgmt_gw': None,
             'public_subnet': None,
             'public_vn_name': None,
+            'haproxy': False,
         }
 
         if args.conf_file:
@@ -104,6 +108,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
         parser.add_argument("--public_subnet", help = "Subnet of the virtual network used for public access")
         parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
+        parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)
 

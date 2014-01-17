@@ -27,6 +27,8 @@ class SetupVncOpenstack(object):
         setup_args_str = setup_args_str + " --openstack_ip %s " %(self_ip)
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
+        if self._args.haproxy:
+            setup_args_str = setup_args_str + " --haproxy"
         
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -36,7 +38,7 @@ class SetupVncOpenstack(object):
     def _parse_args(self, args_str):
         '''
         Eg. python setup-vnc-openstack.py --self_ip 10.1.5.11 --cfgm_ip 10.1.5.12
-                   -- service_token c0ntrail123
+                   --service_token c0ntrail123 --haproxy
         '''
 
         # Source any specified config/ini file
@@ -51,6 +53,7 @@ class SetupVncOpenstack(object):
             'self_ip': '127.0.0.1',
             'service_token': '',
             'cfgm_ip': '127.0.0.1',
+            'haproxy': False,
         }
 
         if args.conf_file:
@@ -75,6 +78,7 @@ class SetupVncOpenstack(object):
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
         parser.add_argument("--service_token", help = "The service password to access keystone")
+        parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)
 

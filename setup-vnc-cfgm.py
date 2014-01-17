@@ -42,6 +42,8 @@ class SetupVncCfgm(object):
                              %(' '.join(self._args.zookeeper_ip_list))    
         setup_args_str = setup_args_str + " --cfgm_index %s" \
                              %(self._args.cfgm_index) 
+        if self._args.haproxy:
+            setup_args_str = setup_args_str + " --haproxy"
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
         setup_obj.run_services()
@@ -55,7 +57,7 @@ class SetupVncCfgm(object):
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --cfgm_index 1
             --nworkers 1
-            optional: --use_certs, --multi_tenancy
+            optional: --use_certs, --multi_tenancy --haproxy
         '''
 
         # Source any specified config/ini file
@@ -75,6 +77,7 @@ class SetupVncCfgm(object):
             'use_certs': False,
             'multi_tenancy': False,
             'nworkers': '1',
+            'haproxy': False,
         }
 
         if args.conf_file:
@@ -117,6 +120,7 @@ class SetupVncCfgm(object):
         parser.add_argument("--nworkers",
             help = "Number of worker processes for api and discovery services",
             default = '1')
+        parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
   
         self._args = parser.parse_args(remaining_argv)
 

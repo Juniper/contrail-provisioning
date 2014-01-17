@@ -139,10 +139,12 @@ class Setup(object):
             'service_token': '',
             'n_api_workers': '1',
             'multi_tenancy': False,
+            'haproxy': False,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
             'service_token': '',
+            'haproxy': False,
         }
         control_node_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -153,6 +155,7 @@ class Setup(object):
             'compute_ip': '127.0.0.1',
             'openstack_ip': '127.0.0.1',
             'service_token': '',
+            'haproxy': False,
             'ncontrols' : 2,
             'physical_interface': None,
             'non_mgmt_ip': None,
@@ -210,6 +213,7 @@ class Setup(object):
         parser.add_argument("--ncontrols", help = "Number of Control Nodes in the system (for compute role)")
         parser.add_argument("--compute_ip", help = "IP Address of Compute Node (for compute role)")
         parser.add_argument("--service_token", help = "The service password to access keystone")
+        parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -610,6 +614,7 @@ HWADDR=%s
             # check if service token passed as argument else
             # get service token from openstack(role) node and fix local config
             self.service_token = self._args.service_token
+            self.haproxy = self._args.haproxy
             openstack_ip = self._args.openstack_ip
             compute_ip = self._args.compute_ip
             cfgm_ip = self._args.cfgm_ip
@@ -626,8 +631,10 @@ HWADDR=%s
                                             %(self.service_token, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(openstack_ip, temp_dir_name))
-            #local("echo 'QUANTUM=%s' >> %s/ctrl-details" %(cfgm_ip, temp_dir_name))
-            local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
+            if self.haproxy:
+                local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
+            else:
+                local("echo 'QUANTUM=%s' >> %s/ctrl-details" %(cfgm_ip, temp_dir_name))
             local("echo 'QUANTUM_PORT=%s' >> %s/ctrl-details" %(quantum_port,
                                                                 temp_dir_name))
             local("echo 'COMPUTE=%s' >> %s/ctrl-details" %(compute_ip, temp_dir_name))
@@ -994,18 +1001,25 @@ HWADDR=%s
 
 
         if 'compute' in self._args.role :
-            #template_vals = {'__contrail_discovery_ip__': cfgm_ip
-            #                }
-            template_vals = {'__contrail_discovery_ip__': '127.0.0.1'
-                            }
+            self.haproxy = self._args.haproxy
+
+            if self.haproxy:
+                template_vals = {'__contrail_discovery_ip__': '127.0.0.1'
+                                }
+            else:
+                template_vals = {'__contrail_discovery_ip__': cfgm_ip
+                                }
+
             self._template_substitute_write(agent_param_template.template,
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
             local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
 
             openstack_ip = self._args.openstack_ip
             compute_ip = self._args.compute_ip
-            #discovery_ip = self._args.cfgm_ip
-            discovery_ip = '127.0.0.1'
+            if self.haproxy:
+                discovery_ip = '127.0.0.1'
+            else:
+                discovery_ip = self._args.cfgm_ip
             ncontrols = self._args.ncontrols
             physical_interface = self._args.physical_interface
             non_mgmt_ip = self._args.non_mgmt_ip 
