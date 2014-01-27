@@ -160,6 +160,8 @@ class Setup(object):
             'physical_interface': None,
             'non_mgmt_ip': None,
             'non_mgmt_gw': None,
+            'vgw_public_subnet': None,
+            'vgw_public_vn_name': None,
         }
         collector_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -219,6 +221,8 @@ class Setup(object):
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
         parser.add_argument("--use_certs", help = "Use certificates for authentication",
             action="store_true")
+        parser.add_argument("--vgw_public_subnet", help = "Subnet of the virtual network used for public access")
+        parser.add_argument("--vgw_public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies keystone token validation)",
             action="store_true")
@@ -1025,6 +1029,8 @@ HWADDR=%s
             non_mgmt_ip = self._args.non_mgmt_ip 
             non_mgmt_gw = self._args.non_mgmt_gw
             vhost_ip = compute_ip
+            vgw_public_subnet = self._args.vgw_public_subnet
+            vgw_public_vn_name = self._args.vgw_public_vn_name
             multi_net= False
             if non_mgmt_ip :
                 multi_net= True
@@ -1063,10 +1069,15 @@ HWADDR=%s
                     gateway = self.find_gateway (dev)
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
-                with lcd(temp_dir_name):
-                    local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
-                    local("sudo mv agent_param.new /etc/contrail/agent_param")
-
+                if vgw_public_subnet:
+                    vgw_subnet_list=vgw_public_subnet.split("/") 
+                    with lcd(temp_dir_name):
+                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g;s/vgw_subnet_ip=.*/vgw_subnet_ip=%s/g;s/vgw_subnet_mask=.*/vgw_subnet_mask=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list[0],vgw_subnet_list[1]))
+                        local("sudo mv agent_param.new /etc/contrail/agent_param")
+                else:
+                    with lcd(temp_dir_name):
+                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
+                        local("sudo mv agent_param.new /etc/contrail/agent_param")
                 # set agent conf with control node IPs, first remove old ones
                 agent_tree = ET.parse('/etc/contrail/rpm_agent.conf')
                 agent_root = agent_tree.getroot()
@@ -1090,6 +1101,18 @@ HWADDR=%s
                 pn = ET.Element('name')
                 pn.text = dev
                 ethpt_elem.append(pn)
+
+                if vgw_public_vn_name and vgw_public_subnet:
+                    gateway_elem = ET.Element("gateway") 
+                    gateway_elem.set("virtual-network", vgw_public_vn_name) 
+                    virtual_network_interface_elem = ET.Element('interface')
+                    virtual_network_subnet_elem = ET.Element('subnet')
+                    virtual_network_subnet_elem.text = vgw_public_subnet
+                    virtual_network_interface_elem.text = 'vgw'
+                    gateway_elem.append(virtual_network_interface_elem)
+                    gateway_elem.append(virtual_network_subnet_elem)
+                    agent_elem.append(gateway_elem)
+
 
                 self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
                 
