@@ -569,9 +569,14 @@ HWADDR=%s
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
+        ip_fwd_setting = 'net.ipv4.ip_forward = 1'
+        sysctl_file = '/etc/sysctl.conf'
         print pattern
         with settings( warn_only= True) :
             local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
+            local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
+            local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
+            local("rm /tmp/sysctl.new")
             local('sysctl -p')
             local('mkdir -p /var/crashes')
 
