@@ -37,6 +37,9 @@ class SetupVncCollector(object):
         if self._args.analytics_data_ttl is not None:
             setup_args_str = setup_args_str + " --analytics_data_ttl %d" \
                                  % (self._args.analytics_data_ttl)                                                   
+        if self._args.analytics_syslog_port is not None:
+            setup_args_str = setup_args_str + " --analytics_syslog_port %d" \
+                                 % (self._args.analytics_syslog_port)                                                   
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -47,7 +50,7 @@ class SetupVncCollector(object):
         '''
         Eg. python setup-vnc-collector.py --cassandra_ip_list 10.1.1.1 10.1.1.2 
             --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11 
-            --analytics_data_ttl 1
+            --analytics_data_ttl 1 --analytics_syslog_port 3514
         '''
 
         # Source any specified config/ini file
@@ -87,6 +90,7 @@ class SetupVncCollector(object):
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
         parser.add_argument("--num_nodes", help = "Number of collector nodes", type = int)
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
+        parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args

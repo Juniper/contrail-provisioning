@@ -243,6 +243,7 @@ class Setup(object):
         parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 2)
+        parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int, default = -1)
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
@@ -736,7 +737,8 @@ HWADDR=%s
                              '__contrail_listen_port__' : '8086',
                              '__contrail_http_server_port__' : '8089',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
-                             '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl}
+                             '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
+                             '__contrail_analytics_syslog_port__' : '--syslog-port ' + str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
                                            template_vals, temp_dir_name + '/vizd_param')
             local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))

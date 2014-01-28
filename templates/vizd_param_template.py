@@ -11,4 +11,5 @@ HTTP_SERVER_PORT=$__contrail_http_server_port__
 LOG_FILE=$__contrail_log_file__
 LOG_LOCAL=$__contrail_log_local__
 ANALYTICS_DATA_TTL=$__contrail_analytics_data_ttl__
+ANALYTICS_SYSLOG_PORT=$__contrail_analytics_syslog_port__
 """)
