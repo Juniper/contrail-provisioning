@@ -1128,8 +1128,11 @@ HWADDR=%s
                 agent_elem.append(control_elem) 
 
                 agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
+                with settings(warn_only = True):
+                    local("cp %s/agent.conf %s/agent.conf.1" %(temp_dir_name,temp_dir_name))
+                    local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
                 local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf" %(temp_dir_name))
+                local("sudo rm %s/agent.conf*" %(temp_dir_name))
 
 
                 ## make ifcfg-vhost0
