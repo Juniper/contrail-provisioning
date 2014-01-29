@@ -1081,6 +1081,7 @@ HWADDR=%s
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g;s/vgw_subnet_ip=.*/vgw_subnet_ip=%s/g;s/vgw_subnet_mask=.*/vgw_subnet_mask=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list[0],vgw_subnet_list[1]))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
+                        local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
