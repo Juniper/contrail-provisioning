@@ -570,9 +570,14 @@ HWADDR=%s
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
+        ip_fwd_setting = 'net.ipv4.ip_forward = 1'
+        sysctl_file = '/etc/sysctl.conf'
         print pattern
         with settings( warn_only= True) :
             local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
+            local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
+            local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
+            local("rm /tmp/sysctl.new")
             local('sysctl -p')
             local('mkdir -p /var/crashes')
 
@@ -1125,8 +1130,11 @@ HWADDR=%s
                 agent_elem.append(control_elem) 
 
                 agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
+                with settings(warn_only = True):
+                    local("cp %s/agent.conf %s/agent.conf.1" %(temp_dir_name,temp_dir_name))
+                    local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
                 local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf" %(temp_dir_name))
+                local("sudo rm %s/agent.conf*" %(temp_dir_name))
 
 
                 ## make ifcfg-vhost0
