@@ -995,7 +995,7 @@ HWADDR=%s
             with settings(warn_only = True):
                 ret = local("sudo grep -q '^cgroup_device_acl' /etc/libvirt/qemu.conf")
                 if ret.return_code == 1:
-                    if  dist == 'centos':
+                    if  dist in ['centos', 'redhat']:
                         local('sudo echo "clear_emulator_capabilities = 1" >> /etc/libvirt/qemu.conf')
                         local('sudo echo \'user = "root"\' >> /etc/libvirt/qemu.conf')
                         local('sudo echo \'group = "root"\' >> /etc/libvirt/qemu.conf')
