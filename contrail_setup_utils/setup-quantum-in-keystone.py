@@ -10,6 +10,10 @@
 import sys
 import argparse
 import ConfigParser
+
+from fabric.api import run
+from fabric.context_managers import settings
+
 from keystoneclient.v2_0 import client
 from keystoneclient import utils as ksutils
 from keystoneclient import exceptions
@@ -28,6 +32,7 @@ class QuantumSetup(object):
         self._args_svc_passwd = self._args.svc_password
         self._args_tenant_id = self._args.tenant
         self._args_quant_ip = self._args.quant_server_ip
+        self._args_root_password = self._args.root_password
         self._args_quant_url = "http://%s:9696" % (self._args_quant_ip)
 
         self._args_ks_ip = self._args.ks_server_ip
@@ -75,6 +80,7 @@ class QuantumSetup(object):
             'user': 'admin',
             'password': 'contrail123',
             'svc_password': 'contrail123',
+            'root_password': 'c0ntrail123',
         }
 
         if args.conf_file:
@@ -102,6 +108,7 @@ class QuantumSetup(object):
         parser.add_argument("--user", help = "User ID to access keystone server")
         parser.add_argument("--password", help = "Password to access keystone server")
         parser.add_argument("--svc_password", help = "Quantum service password on keystone server")
+        parser.add_argument("--root_password", help = "Root password for keystone server")
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -158,7 +165,8 @@ class QuantumSetup(object):
             quant_user = self.kshandle.users.find(name=self._quant_user_name)
             if quant_user:
                 # user exists! return
-                print "user %s exists!" % (self._quant_user_name)
+                print "user %s exists! updating its password" % (self._quant_user_name)
+                quant_user = self.kshandle.users.update_password(quant_user.id, self._args_svc_passwd)
                 return quant_user.id
         except exceptions.NotFound as e:
             pass
@@ -224,9 +232,10 @@ class QuantumSetup(object):
         try:
             quant_ends = self.kshandle.endpoints.find(service_id=self.quant_svc_id)
             if quant_ends:
-                # service tenant exists! return
-                print "service endpoint exists!"
-                return
+                # service tenant exists! possible that the openstack node is setup independently
+                # delete and recreate it
+                print "Delete existing service endpoint and recreate."
+                self.kshandle.endpoints.delete(quant_ends.id)
         except exceptions.NotFound as e:
             pass
 
@@ -262,6 +271,12 @@ class QuantumSetup(object):
 
         # Create quantum endpoints now
         self.quant_set_endpoints()
+
+        #Fix the quantum url safely as openstack node may have been setup independently
+        with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
+            run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
+            run('service openstack-keystone restart')
+            run('service openstack-nova-api restart')
 
     # end do_quant_setup
 
