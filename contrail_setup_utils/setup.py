@@ -1077,9 +1077,10 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
-                    vgw_subnet_list=vgw_public_subnet.split("/") 
                     with lcd(temp_dir_name):
-                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g;s/vgw_subnet_ip=.*/vgw_subnet_ip=%s/g;s/vgw_subnet_mask=.*/vgw_subnet_mask=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list[0],vgw_subnet_list[1]))
+                        vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
+                        vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
+                        local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
                         local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
@@ -1111,15 +1112,17 @@ HWADDR=%s
                 ethpt_elem.append(pn)
 
                 if vgw_public_vn_name and vgw_public_subnet:
-                    gateway_elem = ET.Element("gateway") 
-                    gateway_elem.set("virtual-network", vgw_public_vn_name) 
-                    virtual_network_interface_elem = ET.Element('interface')
-                    virtual_network_subnet_elem = ET.Element('subnet')
-                    virtual_network_subnet_elem.text = vgw_public_subnet
-                    virtual_network_interface_elem.text = 'vgw'
-                    gateway_elem.append(virtual_network_interface_elem)
-                    gateway_elem.append(virtual_network_subnet_elem)
-                    agent_elem.append(gateway_elem)
+                    vgw_public_vn_name = vgw_public_vn_name[1:-1].split(',')
+                    for i in range(len(vgw_public_vn_name)):
+                        gateway_elem = ET.Element("gateway") 
+                        gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
+                        virtual_network_interface_elem = ET.Element('interface')
+                        virtual_network_subnet_elem = ET.Element('subnet')
+                        virtual_network_subnet_elem.text = vgw_public_subnet[i]
+                        virtual_network_interface_elem.text = 'vgw%s' %(i)
+                        gateway_elem.append(virtual_network_interface_elem)
+                        gateway_elem.append(virtual_network_subnet_elem)
+                        agent_elem.append(gateway_elem)
 
 
                 self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
