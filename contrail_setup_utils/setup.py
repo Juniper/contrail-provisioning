@@ -735,30 +735,21 @@ HWADDR=%s
                         local("sudo mv %s.new %s" % (redis_uve_conf, redis_uve_conf))
  
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
-                             '__contrail_listen_port__' : '8086',
-                             '__contrail_http_server_port__' : '8089',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : '--syslog-port ' + str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
-                                           template_vals, temp_dir_name + '/vizd_param')
-            local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
+                                           template_vals, temp_dir_name + '/collector.conf')
+            local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/qe.log',
-                             '__contrail_log_local__': '--log-local',
-                             '__contrail_redis_server__': '127.0.0.1',
-                             '__contrail_redis_server_port__' : '6380',
-                             '__contrail_http_server_port__' : '8091',
-                             '__contrail_collector__' : '127.0.0.1',
-                             '__contrail_collector_port__' : '8086',
+            template_vals = {
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/qe_param')
-            local("sudo mv %s/qe_param /etc/contrail/qe_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/qe.conf')
+            local("sudo mv %s/qe.conf /etc/contrail/qe.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',
@@ -957,18 +948,15 @@ HWADDR=%s
             template_vals = {'__contrail_ifmap_usr__': '%s' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s' %(control_ip),
                              '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_bgp_port__': '179',
                              '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/control.log',
                             }
             self._template_substitute_write(bgp_param_template.template,
-                                            template_vals, temp_dir_name + '/control_param')
-            local("sudo mv %s/control_param /etc/contrail/control_param" %(temp_dir_name))
+                                            template_vals,
+                                            temp_dir_name + '/control_node.conf')
+            local("sudo mv %s/control_node.conf /etc/contrail/control_node.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
@@ -977,12 +965,11 @@ HWADDR=%s
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_host_ip__': control_ip,
                              '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/dns.log',
                             }
             self._template_substitute_write(dns_param_template.template,
-                                            dns_template_vals, temp_dir_name + '/dns_param')
-            local("sudo mv %s/dns_param /etc/contrail/dns_param" %(temp_dir_name))
+                                            dns_template_vals,
+                                            temp_dir_name + '/dns.conf')
+            local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 if self._args.puppet_server:
