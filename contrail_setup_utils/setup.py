@@ -708,26 +708,7 @@ HWADDR=%s
             local("sudo mv %s.new %s" % (env_file, env_file))
 
         if 'collector' in self._args.role:
-            redis_uve_server = '127.0.0.1'         
             self_collector_ip = self._args.self_collector_ip
-            if self._args.num_collector_nodes:
-                redis_uve_conf = '/etc/contrail/redis-uve.conf'
-                sentinel_conf = '/etc/contrail/sentinel.conf'
-                # Update sentinel conf
-                with settings(warn_only = True):
-                    sentinel_quorum = self._args.num_collector_nodes - 1
-                    if sentinel_quorum < 1:
-                        sentinel_quorum = 1
-                    local("sudo sed 's/sentinel monitor mymaster.*/sentinel monitor mymaster %s 6381 %s/g' %s > %s.new" \
-                          % (self._args.redis_master_ip, str(sentinel_quorum), sentinel_conf, sentinel_conf))
-                    local("sudo mv %s.new %s" % (sentinel_conf, sentinel_conf))
-                # Update redis conf based on role
-                if self._args.redis_role == "slave":
-                    with settings(warn_only = True):
-                        local("sudo sed 's/# slaveof.*/slaveof %s 6381/g' %s > %s.new" \
-                              % (self._args.redis_master_ip, redis_uve_conf, redis_uve_conf))
-                        local("sudo mv %s.new %s" % (redis_uve_conf, redis_uve_conf))
- 
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
                              '__contrail_log_local__': '--log-local',
