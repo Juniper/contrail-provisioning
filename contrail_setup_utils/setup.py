@@ -714,26 +714,7 @@ HWADDR=%s
             local("sudo mv %s.new %s" % (env_file, env_file))
 
         if 'collector' in self._args.role:
-            redis_uve_server = '127.0.0.1'         
             self_collector_ip = self._args.self_collector_ip
-            if self._args.num_collector_nodes:
-                redis_uve_conf = '/etc/contrail/redis-uve.conf'
-                sentinel_conf = '/etc/contrail/sentinel.conf'
-                # Update sentinel conf
-                with settings(warn_only = True):
-                    sentinel_quorum = self._args.num_collector_nodes - 1
-                    if sentinel_quorum < 1:
-                        sentinel_quorum = 1
-                    local("sudo sed 's/sentinel monitor mymaster.*/sentinel monitor mymaster %s 6381 %s/g' %s > %s.new" \
-                          % (self._args.redis_master_ip, str(sentinel_quorum), sentinel_conf, sentinel_conf))
-                    local("sudo mv %s.new %s" % (sentinel_conf, sentinel_conf))
-                # Update redis conf based on role
-                if self._args.redis_role == "slave":
-                    with settings(warn_only = True):
-                        local("sudo sed 's/# slaveof.*/slaveof %s 6381/g' %s > %s.new" \
-                              % (self._args.redis_master_ip, redis_uve_conf, redis_uve_conf))
-                        local("sudo mv %s.new %s" % (redis_uve_conf, redis_uve_conf))
- 
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {
                              '__contrail_discovery_ip__' : cfgm_ip,
@@ -1064,9 +1045,10 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
-                    vgw_subnet_list=vgw_public_subnet.split("/") 
                     with lcd(temp_dir_name):
-                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g;s/vgw_subnet_ip=.*/vgw_subnet_ip=%s/g;s/vgw_subnet_mask=.*/vgw_subnet_mask=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list[0],vgw_subnet_list[1]))
+                        vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
+                        vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
+                        local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
                         local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
@@ -1098,15 +1080,17 @@ HWADDR=%s
                 ethpt_elem.append(pn)
 
                 if vgw_public_vn_name and vgw_public_subnet:
-                    gateway_elem = ET.Element("gateway") 
-                    gateway_elem.set("virtual-network", vgw_public_vn_name) 
-                    virtual_network_interface_elem = ET.Element('interface')
-                    virtual_network_subnet_elem = ET.Element('subnet')
-                    virtual_network_subnet_elem.text = vgw_public_subnet
-                    virtual_network_interface_elem.text = 'vgw'
-                    gateway_elem.append(virtual_network_interface_elem)
-                    gateway_elem.append(virtual_network_subnet_elem)
-                    agent_elem.append(gateway_elem)
+                    vgw_public_vn_name = vgw_public_vn_name[1:-1].split(',')
+                    for i in range(len(vgw_public_vn_name)):
+                        gateway_elem = ET.Element("gateway") 
+                        gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
+                        virtual_network_interface_elem = ET.Element('interface')
+                        virtual_network_subnet_elem = ET.Element('subnet')
+                        virtual_network_subnet_elem.text = vgw_public_subnet[i]
+                        virtual_network_interface_elem.text = 'vgw%s' %(i)
+                        gateway_elem.append(virtual_network_interface_elem)
+                        gateway_elem.append(virtual_network_subnet_elem)
+                        agent_elem.append(gateway_elem)
 
 
                 self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
@@ -1270,7 +1254,7 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
                           %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
-                            root_password=env.password)
+                            env.password)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:
