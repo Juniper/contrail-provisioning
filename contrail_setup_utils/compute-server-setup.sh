@@ -59,7 +59,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
 
 #use contrail specific vif driver
-openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver contrail_vif.contrailvif.VRouterVIFDriver
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
 
 for svc in openstack-nova-compute supervisor-vrouter; do
     chkconfig $svc on
