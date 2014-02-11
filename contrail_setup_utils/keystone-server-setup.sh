@@ -3,24 +3,41 @@
 CONF_DIR=/etc/contrail
 set -x
 
+if [ -f /etc/redhat-release ]; then
+   is_redhat=1
+   is_ubuntu=0
+   web_svc=httpd
+   mysql_svc=mysqld
+   keystone_svc=openstack-keystone
+   msg_svc=qpidd
+fi
+
+if [ -f /etc/lsb-release ]; then
+   is_ubuntu=1
+   is_redhat=0
+   web_svc=apache2
+   mysql_svc=mysql
+   keystone_svc=keystone
+   msg_svc=rabbitmq-server
+fi
+
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
     exit ${3:-1}
 }
 
-chkconfig mysqld 2>/dev/null
+chkconfig $mysql_svc 2>/dev/null
 ret=$?
 if [ $ret -ne 0 ]; then
     echo "MySQL is not enabled, enabling ..."
     chkconfig mysqld on 2>/dev/null
 fi
 
-service mysqld status 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
+mysql_status=`service $mysql_svc status 2>/dev/null`
+if [[ $mysql_status != *running* ]]; then
     echo "MySQL is not active, starting ..."
-    service mysqld restart 2>/dev/null
+    service $mysql_svc restart 2>/dev/null
 fi
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
@@ -53,12 +70,12 @@ SERVICE_PASSWORD=${SERVICE_TOKEN:-$(/opt/contrail/contrail_installer/contrail_se
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_PASSWORD
 
 # Stop keystone if it is already running (to reload the new admin token)
-service openstack-keystone status >/dev/null 2>&1 &&
-service openstack-keystone stop
+service $keystone_svc status >/dev/null 2>&1 &&
+service $keystone_svc stop
 
 # Start and enable the Keystone service
-service openstack-keystone restart
-chkconfig openstack-keystone on
+service $keystone_svc restart
+chkconfig $keystone_svc on
 
 if [ ! -d /etc/keystone/ssl ]; then
     keystone-manage pki_setup
@@ -105,6 +122,14 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@localhost/keystone
+    openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
+    openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
+    openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
+    openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+    openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd   
 done
 
 keystone-manage db_sync
@@ -116,15 +141,15 @@ fi
 
 echo "======= Enabling the keystone services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     service $svc restart
 done
 
-service openstack-keystone restart
+service $keystone_svc restart
 

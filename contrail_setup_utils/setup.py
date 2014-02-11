@@ -234,7 +234,11 @@ class Setup(object):
             help="Number of API/discovery worker processes to be launched",
             default='1')
         parser.add_argument("--database_listen_ip", help = "Listen IP Address of database node", default = '127.0.0.1')
-        parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
+        pdist = platform.dist()[0]
+        if pdist == 'fedora' or pdist == 'centos':  
+            parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
+        if pdist == 'Ubuntu':
+            parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/etc/cassandra')
         parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
@@ -515,6 +519,60 @@ HWADDR=%s
         #end with open...
     #end def migrate_routes
 
+    def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip):
+        with settings(warn_only = True):
+            result = local('grep \"iface vhost0\" /etc/network/interfaces')
+        if result.succeeded :
+            print "Interface vhost0 is already present in /etc/network/interfaces"
+            print "Skipping rewrite of this file"
+            return
+        #endif
+
+        temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
+        local("mv /etc/network/interfaces %s" %(temp_intf_file))
+
+        # populte vhost0 as static
+        local("echo '' >> %s" %(temp_intf_file))
+        local("echo 'auto vhost0' >> %s" %(temp_intf_file))
+        local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
+        local("echo '    pre-up vif --create vhost0 --mac %s' >> %s" %(mac, temp_intf_file))
+        local("echo '    pre-up vif --add vhost0 --mac %s --vrf 0 --mode x --type vhost' >> %s" \
+                                                       %(mac, temp_intf_file))
+        local("echo '    pre-down /etc/contrail/vif-helper delete vhost0' >> %s" %(temp_intf_file))
+        local("echo '    post-down ip link del vhost0' >> %s" %(temp_intf_file))
+        local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
+        local("echo '    network_name application' >> %s" %(temp_intf_file))
+        if vhost_ip:
+            local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
+        if gateway_ip:
+            local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
+
+        domain = self.get_domain_search_list()
+        if domain:
+            local("echo '    dns-search %s' >> %s" %(domain, temp_intf_file))
+        dns_list = self.get_dns_servers(dev)
+        if dns_list:
+            local("echo -n '    dns-nameservers' >> %s" %(temp_intf_file))
+            for dns in dns_list:
+                local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
+        local("echo '\n' >> %s" %(temp_intf_file))
+
+        # remove entry from auto <dev> to auto excluding these pattern
+        # then delete specifically auto <dev>
+        local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+        local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+        # add manual entry for dev
+        local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+        local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+        local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+        local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+        local("echo '' >> %s" %(temp_intf_file))
+
+        # move it to right place
+        local("mv %s /etc/network/interfaces" %(temp_intf_file))
+
+    #end _rewrite_net_interfaces_file
+
     def _replace_discovery_server(self, agent_elem, discovery_ip, ncontrols):
         for srv in agent_elem.findall('discovery-server'):
             agent_elem.remove(srv)
@@ -531,33 +589,51 @@ HWADDR=%s
 
 
     def fixup_config_files(self):
+        pdist = platform.dist()[0]
         temp_dir_name = self._temp_dir_name
         hostname = socket.gethostname()
         cfgm_ip = self._args.cfgm_ip
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
 
+        if pdist == 'Ubuntu':
+            local("ln -sf /bin/true /sbin/chkconfig")
+
         # TODO till post of openstack-horizon.spec is fixed...
         if 'openstack' in self._args.role:
             pylibpath = local ('/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"', capture = True)
-            local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
+            if pdist == 'fedora' or pdist == 'centos':
+                local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
 
+            nova_conf_file = "/etc/nova/nova.conf"
+            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (nova_conf_file))
+            
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
         if 'database' in self._args.role:
             hosts_entry = '%s %s' %(cfgm_ip, hostname)
             with settings( warn_only= True) :
                 local('grep -q \'%s\' /etc/hosts || echo \'%s %s\' >> /etc/hosts' %(cfgm_ip, cfgm_ip, hosts_entry))
+
+            nova_conf_file = "/etc/nova/nova.conf"
+            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (nova_conf_file))
         
         # Disable selinux
         with lcd(temp_dir_name):
-            local("sudo sed 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config > config.new")
-            local("sudo mv config.new /etc/selinux/config")
             with settings(warn_only = True):
+                local("sudo sed 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config > config.new")
+                local("sudo mv config.new /etc/selinux/config")
                 local("setenforce 0")
+                # cleanup in case move had error
+                local("rm config.new")
 
         # Disable iptables
-        local("sudo chkconfig iptables off")
-        local("sudo iptables --flush")
+        with settings(warn_only = True):
+            local("sudo chkconfig iptables off")
+            local("sudo iptables --flush")
 
         # usable core dump 
         initf = '/etc/sysconfig/init'
@@ -565,8 +641,9 @@ HWADDR=%s
             local("sudo sed '/DAEMON_COREFILE_LIMIT=.*/d' %s > %s.new" %(initf, initf))
             local("sudo mv %s.new %s" %(initf, initf))
 
-        core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
-        local("%s >> %s" %(core_unlim, initf))
+        if pdist == 'centos' or pdist == 'fedora':
+            core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
+            local("%s >> %s" %(core_unlim, initf))
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
@@ -588,25 +665,27 @@ HWADDR=%s
  
         with settings(warn_only = True):
             # analytics venv instalation
-            with lcd("/opt/contrail/analytics-venv/archive"):
-                local("source ../bin/activate && pip install *")
+            if os.path.exists('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
+                with lcd("/opt/contrail/analytics-venv/archive"):
+                    local("source ../bin/activate && pip install *")
  
             # api venv instalation
-            with lcd("/opt/contrail/api-venv/archive"):
-                local("source ../bin/activate && pip install *")
+            if os.path.exists('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
+                with lcd("/opt/contrail/api-venv/archive"):
+                    local("source ../bin/activate && pip install *")
  
         # vrouter venv instalation
-        if os.path.exists('/opt/contrail/vrouter-venv/archive'):
+        if os.path.exists('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
             with lcd("/opt/contrail/vrouter-venv/archive"):
                 local("source ../bin/activate && pip install *")
  
         # control venv instalation
-        if os.path.exists('/opt/contrail/control-venv/archive'):
+        if os.path.exists('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
             with lcd("/opt/contrail/control-venv/archive"):
                 local("source ../bin/activate && pip install *")
  
         # database venv instalation
-        if os.path.exists('/opt/contrail/database-venv/archive'):
+        if os.path.exists('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
             with lcd("/opt/contrail/database-venv/archive"):
                 local("source ../bin/activate && pip install *")
 
@@ -616,9 +695,51 @@ HWADDR=%s
                 local("sudo ./contrail_setup_utils/setup-service-token.sh")
             # bump up max-connections=2048
             with settings(warn_only = True):
-                ret = local("sudo grep -q '^max-connections' /etc/qpidd.conf")
-                if ret.return_code == 1:
-                    local('sudo echo "max-connections=2048" >> /etc/qpidd.conf')
+                if pdist == 'centos' or pdist == 'fedora':
+                    qpid_conf = '/etc/qpidd.conf'
+                    ret = local("sudo grep -q '^max-connections' /etc/qpidd.conf")
+                    if ret.return_code == 1:
+                        local('sudo echo "max-connections=2048" >> /etc/qpidd.conf')
+                if pdist == 'Ubuntu':
+                    rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
+                    if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                        local('sudo echo "[" >> %s' % rabbit_conf)
+                        local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                        local('sudo echo "    }" >> %s' % rabbit_conf)
+                        local('sudo echo "]." >> %s' % rabbit_conf)
+
+                #comment out parameters from /etc/nova/api-paste.ini
+                local("sudo sed -i 's/auth_host = /;auth_host = /' /etc/nova/api-paste.ini")
+                local("sudo sed -i 's/auth_port = /;auth_port = /' /etc/nova/api-paste.ini")
+                local("sudo sed -i 's/auth_protocol = /;auth_protocol = /' /etc/nova/api-paste.ini")
+                local("sudo sed -i 's/admin_tenant_name = /;admin_tenant_name = /' /etc/nova/api-paste.ini")
+                local("sudo sed -i 's/admin_user = /;admin_user = /' /etc/nova/api-paste.ini")
+                local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/nova/api-paste.ini")
+
+                #comment out parameters from /etc/cinder/api-paste.ini
+                local("sudo sed -i 's/auth_host = /;auth_host = /' /etc/cinder/api-paste.ini")
+                local("sudo sed -i 's/auth_port = /;auth_port = /' /etc/cinder/api-paste.ini")
+                local("sudo sed -i 's/auth_protocol = /;auth_protocol = /' /etc/cinder/api-paste.ini")
+                local("sudo sed -i 's/admin_tenant_name = /;admin_tenant_name = /' /etc/cinder/api-paste.ini")
+                local("sudo sed -i 's/admin_user = /;admin_user = /' /etc/cinder/api-paste.ini")
+                local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
+
+
+        if 'compute' in self._args.role or 'openstack' in self._args.role:
+            with settings(warn_only = True):
+                if pdist == 'Ubuntu':
+                    local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                else:
+                    local("echo 'qpid_hostname = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+
+        if 'compute' in self._args.role:
+            with settings(warn_only = True):
+                local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+
+            nova_conf_file = "/etc/nova/nova.conf"
+            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (nova_conf_file))
 
         if 'config' in self._args.role or 'compute' in self._args.role or 'openstack' in self._args.role:
             # check if service token passed as argument else
@@ -652,8 +773,20 @@ HWADDR=%s
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
+            neutron_conf_file = "/etc/neutron/neutron.conf"
+            if os.path.exists(neutron_conf_file) and pdist == 'Ubuntu':
+                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (neutron_conf_file))
 
         if 'database' in self._args.role:
+            if pdist == 'fedora' or pdist == 'centos':
+                CASSANDRA_CONF = '/etc/cassandra/conf'
+                CASSANDRA_CONF_FILE = 'cassandra.yaml'
+                CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+            if pdist == 'Ubuntu':
+                CASSANDRA_CONF = '/etc/cassandra/'
+                CASSANDRA_CONF_FILE = 'cassandra.yaml'
+                CASSANDRA_ENV_FILE = 'cassandra-env.sh'
             listen_ip = self._args.database_listen_ip
             cassandra_dir = self._args.database_dir
             initial_token = self._args.database_initial_token
@@ -688,30 +821,24 @@ HWADDR=%s
             if not cnd:
                 raise ArgumentError('%s does not appear to be a cassandra source directory' % cassandra_dir)
 
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
-            local("sudo sed 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s > %s.new" \
-                  % (env_file, env_file))
-            local("sudo mv %s.new %s" % (env_file, env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss220k\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/g' %s" \
+                  % (env_file))
+            local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
+                  % (env_file))
 
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
@@ -821,7 +948,10 @@ HWADDR=%s
                         }
             self._template_substitute_write(quantum_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail_plugin.ini')
-            local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(temp_dir_name))
+            if os.path.exists("/etc/neutron"):
+                local("sudo mv %s/contrail_plugin.ini /etc/neutron/plugins/juniper/contrail/ContrailPlugin.ini" %(temp_dir_name))
+            else:
+                local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(temp_dir_name))
 
             # schema_transformer.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
@@ -919,18 +1049,35 @@ HWADDR=%s
             # set high session timeout to survive glance led disk activity
             local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
             local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
-            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=10/log4j.appender.ROLLINGFILE.MaxBackupIndex=10/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
-            local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
+            if pdist == 'fedora' or pdist == 'centos':
+                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
+                local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
+            if pdist == 'Ubuntu':
+                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
+                local("sudo mv log4j.properties.new /etc/zookeeper/conf_example/log4j.properties")
+
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
                 local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
-            local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+
+            #local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+
             # bump up max-connections=2048
             with settings(warn_only = True):
-                ret = local("sudo grep -q '^max-connections' /etc/qpidd.conf")
-                if ret.return_code == 1:
-                    local('sudo echo "max-connections=2048" >> /etc/qpidd.conf')
+                if pdist == 'centos' or pdist == 'fedora':
+                    qpid_conf = '/etc/qpidd.conf'
+                    ret = local("sudo grep -q '^max-connections' %s" %(qpid_conf))
+                    if ret.return_code == 1:
+                        local('sudo echo "max-connections=2048" >> %s' %(qpid_conf))
+
+                if pdist == 'Ubuntu':
+                    rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
+                    if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                        local('sudo echo "[" >> %s' % rabbit_conf)
+                        local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                        local('sudo echo "    }" >> %s' % rabbit_conf)
+                        local('sudo echo "]." >> %s' % rabbit_conf)
 
         if 'control' in self._args.role:
             control_ip = self._args.control_ip
@@ -970,6 +1117,11 @@ HWADDR=%s
                     local("echo '    server = %s' >> /etc/puppet/puppet.conf" \
                         %(self._args.puppet_server))
 
+            nova_conf_file = "/etc/nova/nova.conf"
+            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (nova_conf_file))
+
         if 'compute' in self._args.role:
             dist = platform.dist()[0]
             # add /dev/net/tun in cgroup_device_acl needed for type=ethernet interfaces
@@ -991,7 +1143,6 @@ HWADDR=%s
                 if  dist == 'centos' or dist == 'redhat':
                     local('sudo echo "alias bridge off" > /etc/modprobe.conf')
 
-
         if 'compute' in self._args.role :
             self.haproxy = self._args.haproxy
 
@@ -1001,7 +1152,6 @@ HWADDR=%s
             else:
                 template_vals = {'__contrail_discovery_ip__': cfgm_ip
                                 }
-
             self._template_substitute_write(agent_param_template.template,
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
             local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
@@ -1058,16 +1208,18 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
+                    vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
+                    vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
                     with lcd(temp_dir_name):
-                        vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
-                        vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
-                        local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list))
-                        local("sudo mv agent_param.new /etc/contrail/agent_param")
-                        local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
+                        if pdist == 'centos' or pdist == 'fedora':
+                            local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list))
+                            local("sudo mv agent_param.new /etc/contrail/agent_param")
+                            local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
                     with lcd(temp_dir_name):
-                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
-                        local("sudo mv agent_param.new /etc/contrail/agent_param")
+                        if pdist == 'centos' or pdist == 'fedora':
+                            local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
+                            local("sudo mv agent_param.new /etc/contrail/agent_param")
                 # set agent conf with control node IPs, first remove old ones
                 agent_tree = ET.parse('/etc/contrail/rpm_agent.conf')
                 agent_root = agent_tree.getroot()
@@ -1117,14 +1269,15 @@ HWADDR=%s
                 agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
                 with settings(warn_only = True):
                     local("cp %s/agent.conf %s/agent.conf.1" %(temp_dir_name,temp_dir_name))
-                    local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
+                    if local("xmllint --format %s/agent.conf.1").succeeded:
+                        local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
                 local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
                 local("sudo rm %s/agent.conf*" %(temp_dir_name))
 
-
-                ## make ifcfg-vhost0
-                with open ('%s/ifcfg-vhost0' % temp_dir_name, 'w') as f:
-                    f.write ('''#Contrail vhost0
+                if pdist == 'centos' or pdist == 'fedora':
+                    ## make ifcfg-vhost0
+                    with open ('%s/ifcfg-vhost0' % temp_dir_name, 'w') as f:
+                        f.write ('''#Contrail vhost0
 DEVICE=vhost0
 ONBOOT=yes
 BOOTPROTO=none
@@ -1136,48 +1289,49 @@ NM_CONTROLLED=no
 #NETWORK MANAGER BUG WORKAROUND
 SUBCHANNELS=1,2,3
 ''' % (vhost_ip, netmask ))
-                    # Don't set gateway and DNS on vhost0 if on non-mgmt network
-                    if not multi_net:
-                        if gateway:
-                           f.write('GATEWAY=%s\n' %( gateway ) )
-                        dns_list = self.get_dns_servers(dev)
-                        for i, dns in enumerate(dns_list):
-                            f.write('DNS%d=%s\n' % (i+1, dns))
-                        domain_list = self.get_domain_search_list()
-                        if domain_list:
-                            f.write('DOMAIN="%s"\n'% domain_list)
+                        # Don't set gateway and DNS on vhost0 if on non-mgmt network
+                        if not multi_net:
+                            if gateway:
+                                f.write('GATEWAY=%s\n' %( gateway ) )
+                            dns_list = self.get_dns_servers(dev)
+                            for i, dns in enumerate(dns_list):
+                                f.write('DNS%d=%s\n' % (i+1, dns))
+                            domain_list = self.get_domain_search_list()
+                            if domain_list:
+                                f.write('DOMAIN="%s"\n'% domain_list)
 
-                    prsv_cfg = []
-                    mtu = self.get_if_mtu (dev)
-                    if mtu:
-                        dcfg = 'MTU=%s' % str(mtu)
-                        f.write(dcfg+'\n')
-                        prsv_cfg.append (dcfg)
-                    f.flush ()
+                        prsv_cfg = []
+                        mtu = self.get_if_mtu (dev)
+                        if mtu:
+                            dcfg = 'MTU=%s' % str(mtu)
+                            f.write(dcfg+'\n')
+                            prsv_cfg.append (dcfg)
+                        f.flush ()
 #            if dev != 'vhost0':
-                    with settings(warn_only = True):
-                        local("sudo mv %s/ifcfg-vhost0 /etc/sysconfig/network-scripts/ifcfg-vhost0" % (temp_dir_name))
-                    ## make ifcfg-$dev
-                    if not os.path.isfile (
-                            '/etc/sysconfig/network-scripts/ifcfg-%s.rpmsave' % dev):
                         with settings(warn_only = True):
-                            local("sudo cp /etc/sysconfig/network-scripts/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s.rpmsave" % (dev, dev))
-                    self._rewrite_ifcfg_file('%s/ifcfg-%s' % (temp_dir_name, dev), dev, prsv_cfg)
+                            local("sudo mv %s/ifcfg-vhost0 /etc/sysconfig/network-scripts/ifcfg-vhost0" % (temp_dir_name))
+                        ## make ifcfg-$dev
+                        if not os.path.isfile (
+                                '/etc/sysconfig/network-scripts/ifcfg-%s.rpmsave' % dev):
+                            with settings(warn_only = True):
+                                local("sudo cp /etc/sysconfig/network-scripts/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s.rpmsave" % (dev, dev))
+                        self._rewrite_ifcfg_file('%s/ifcfg-%s' % (temp_dir_name, dev), dev, prsv_cfg)
 
-                    if multi_net :
-                        self.migrate_routes(dev)
+                        if multi_net :
+                            self.migrate_routes(dev)
 
-                    with settings(warn_only = True):
-                        local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
+                        with settings(warn_only = True):
+                            local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
 
-                        local("sudo chkconfig network on")
-                        local("sudo chkconfig supervisor-vrouter on")
+                            local("sudo chkconfig network on")
+                            local("sudo chkconfig supervisor-vrouter on")
+                # end pdist == centos | fedora
+
+                if pdist == 'Ubuntu':
+                    self._rewrite_net_interfaces_file(dev, mac, vhost_ip, netmask, gateway)
+                # end pdist == ubuntu
+
             else: # of if dev and dev != 'vhost0'
-                # allow for updating anything except self-ip/gw and eth-port
-                with lcd(temp_dir_name):
-                    local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g' /etc/contrail/agent_param > agent_param.new" %(collector_ip))
-                    local("sudo mv agent_param.new /etc/contrail/agent_param")
-
                 local("sudo cp /etc/contrail/agent.conf %s/agent.conf" %(temp_dir_name))
                 agent_tree = ET.parse('%s/agent.conf' %(temp_dir_name))
                 agent_root = agent_tree.getroot()
@@ -1251,6 +1405,7 @@ SUBCHANNELS=1,2,3
     #end do_setup
 
     def run_services(self):
+        pdist = platform.dist()[0]
         if 'database' in self._args.role:
             local("sudo ./contrail_setup_utils/database-server-setup.sh %s" % (self._args.database_listen_ip))
             
@@ -1281,7 +1436,10 @@ SUBCHANNELS=1,2,3
 
         if 'compute' in self._args.role:
             if self._fixed_qemu_conf:
-                local("sudo service libvirtd restart")
+                if pdist == 'centos' or pdist == 'fedora':
+                    local("sudo service libvirtd restart")
+                if pdist == 'Ubuntu':
+                    local("sudo service libvirt-bin restart")
 
         if self._args.compute_ip :
             # running compute-server-setup.sh on cfgm sets nova.conf's

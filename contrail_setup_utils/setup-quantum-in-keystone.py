@@ -7,6 +7,7 @@
 # Setup quantum confguration in keystone server
 #
 
+import os
 import sys
 import argparse
 import ConfigParser
@@ -44,9 +45,13 @@ class QuantumSetup(object):
 
         # some constants
         self._quant_tenant_name = "service"
-        self._quant_svc_name = "quantum"
         self._quant_svc_type = "network"
-        self._quant_user_name = "quantum"
+        if os.path.exists("/etc/neutron"):
+            self._quant_svc_name = "neutron"
+            self._quant_user_name = "neutron"
+        else:
+            self._quant_svc_name = "quantum"
+            self._quant_user_name = "quantum"
         self._quant_admin_name = "admin"
 
         try:
@@ -272,11 +277,12 @@ class QuantumSetup(object):
         # Create quantum endpoints now
         self.quant_set_endpoints()
 
-        #Fix the quantum url safely as openstack node may have been setup independently
-        with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
-            run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
-            run('service openstack-keystone restart')
-            run('service openstack-nova-api restart')
+        if not os.path.exists("/etc/neutron"):
+            #Fix the quantum url safely as openstack node may have been setup independently
+            with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
+                run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
+                run('service openstack-keystone restart')
+                run('service openstack-nova-api restart')
 
     # end do_quant_setup
 
