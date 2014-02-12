@@ -18,7 +18,7 @@ if [ -f /etc/lsb-release ]; then
    is_redhat=0
    MSG_HOST=rabbit_host
    OS_NET=neutron
-   TENANT_NAME=nuetron_admin_tenant_name
+   TENANT_NAME=neutron_admin_tenant_name
    ADMIN_USER=neutron_admin_username
    ADMIN_PASSWD=neutron_admin_password
    ADMIN_AUTH_URL=neutron_admin_auth_url
