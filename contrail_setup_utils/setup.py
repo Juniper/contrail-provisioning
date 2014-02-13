@@ -1388,7 +1388,7 @@ SUBCHANNELS=1,2,3
     #end enable_services
 
     def cleanup(self):
-        os.removedirs(self._temp_dir_name)
+        os.rmdir(self._temp_dir_name)
     #end cleanup
 
     def do_setup(self):
