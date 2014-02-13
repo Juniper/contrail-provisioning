@@ -18,25 +18,59 @@
 CONF_DIR=/etc/contrail
 set -x
 
+if [ -f /etc/redhat-release ]; then
+   is_redhat=1
+   is_ubuntu=0
+   web_svc=httpd
+   mysql_svc=mysqld
+   nova_pfx=openstack-nova
+   msg_svc=qpidd
+   OS_NET=quantum
+   TENANT_NAME=quantum_admin_tenant_name
+   ADMIN_USER=quantum_admin_username
+   ADMIN_PASSWD=quantum_admin_password
+   ADMIN_AUTH_URL=quantum_admin_auth_url
+   OS_URL=quantum_url
+   OS_URL_TIMEOUT=quantum_url_timeout
+   META_DATA_PROXY=service_quantum_metadata_proxy
+fi
+
+if [ -f /etc/lsb-release ]; then
+   is_ubuntu=1
+   is_redhat=0
+   web_svc=apache2
+   mysql_svc=mysql
+   nova_pfx=nova
+   msg_svc=rabbitmq-server
+   OS_NET=neutron
+   TENANT_NAME=neutron_admin_tenant_name
+   ADMIN_USER=neutron_admin_username
+   ADMIN_PASSWD=neutron_admin_password
+   ADMIN_AUTH_URL=neutron_admin_auth_url
+   OS_URL=neutron_url
+   OS_URL_TIMEOUT=neutron_url_timeout
+   META_DATA_PROXY=service_neutron_metadata_proxy
+fi
+
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
     exit ${3:-1}
 }
 
-chkconfig mysqld 2>/dev/null
+chkconfig $mysql_svc 2>/dev/null
 ret=$?
 if [ $ret -ne 0 ]; then
     echo "MySQL is not enabled, enabling ..."
-    chkconfig mysqld on 2>/dev/null
+    chkconfig $mysql_svc on 2>/dev/null
 fi
 
-service mysqld status 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
+mysql_status=`service $mysql_svc status 2>/dev/null`
+if [[ $mysql_status != *running* ]]; then
     echo "MySQL is not active, starting ..."
-    service mysqld restart 2>/dev/null
+    service $mysql_svc restart 2>/dev/null
 fi
+
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -71,6 +105,9 @@ export OS_AUTH_URL=http://127.0.0.1:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
+# must set SQL connection before running nova-manage
+openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@localhost/nova
+
 for APP in nova; do
   openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
 done
@@ -83,20 +120,25 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
 done
 
-openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_tenant_name service
-openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_username quantum
-openstack-config --set /etc/nova/nova.conf DEFAULT quantum_admin_password $SERVICE_TOKEN
-openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url http://$QUANTUM:9696/
-openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url_timeout 300
-openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api quantum
+openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
+openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$QUANTUM:9696/
+openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
+openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_workers 40
-openstack-config --set /etc/nova/nova.conf DEFAULT service_quantum_metadata_proxy True
+openstack-config --set /etc/nova/nova.conf DEFAULT $META_DATA_PROXY True
 # openstack-config --set /etc/nova/nova.conf DEFAULT quantum_metadata_proxy_shared_secret contrail
 openstack-config --set /etc/nova/nova.conf conductor workers 40
 
 openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
+if [ $is_redhat -eq 1 ] ; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend nova.openstack.common.rpc.impl_qpid
+fi
 
 # Hack till we have synchronized time (config node as ntp server). Without this
 # utils.py:service_is_up() barfs and instance deletes not fwded to compute node
@@ -111,23 +153,28 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_instances 100000
 openstack-config --set /etc/nova/nova.conf DEFAULT quota_cores 100000
 openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
+if [ $is_ubuntu -eq 1 ] ; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+    openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+    openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
+fi
+
 echo "======= Enabling the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     chkconfig $svc on
 done
 
 for svc in api objectstore scheduler cert consoleauth novncproxy conductor; do
-    chkconfig openstack-nova-$svc on
+    chkconfig $nova_pfx-$svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     service $svc restart
 done
 
 for svc in api objectstore scheduler cert consoleauth novncproxy conductor; do
-    service openstack-nova-$svc restart
+    service $nova_pfx-$svc restart
 done
-

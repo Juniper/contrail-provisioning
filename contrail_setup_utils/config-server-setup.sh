@@ -18,6 +18,18 @@
 CONF_DIR=/etc/contrail
 set -x
 
+if [ -f /etc/redhat-release ]; then
+   is_redhat=1
+   is_ubuntu=0
+   web_svc=httpd
+fi
+
+if [ -f /etc/issue ]; then
+   is_ubuntu=1
+   is_redhat=0
+   web_svc=apache2
+fi
+
 # Create link /usr/bin/nodejs to /usr/bin/node
 if [ ! -f /usr/bin/nodejs ]; then 
     ln -s /usr/bin/node /usr/bin/nodejs
@@ -25,7 +37,7 @@ fi
 
 echo "======= Enabling the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -35,7 +47,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     service $svc restart
 done
 
@@ -56,5 +68,5 @@ done
 chkconfig supervisor-config on
 service supervisor-config restart
 
-service quantum-server restart
+#service quantum-server restart
 

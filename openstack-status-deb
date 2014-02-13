@@ -1,0 +1,224 @@
+#!/bin/bash
+#
+# Copyright (C) 2012, Red Hat, Inc.
+# Pádraig Brady <pbrady@redhat.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+
+systemctl --version >/dev/null 2>&1 && systemctl=1
+[ "$systemctl" ] || RUNLEVEL=$(LANG=C who -r | sed 's/.*run-level \([0-9]\).*/\1/')
+
+for conf in nova/nova.conf keystone/keystone.conf glance/glance-registry.conf; do
+    if grep -qF 'connection = mysql' /etc/$conf 2>/dev/null; then
+        mysqld='mysql'
+        break;
+    fi
+done
+
+dpkg -l nova-common 2> /dev/null 1> /dev/null && nova='nova'
+dpkg -l glance-common 2> /dev/null 1> /dev/null && glance='glance'
+dpkg -l openstack-dashboard-contrail 2> /dev/null 1> /dev/null && dashboard='apache2'
+dpkg -l keystone 2> /dev/null 1> /dev/null && keystone='keystone'
+dpkg -l openstack-quantum-contrail 2> /dev/null 1> /dev/null && quantum='quantum'
+dpkg -l openstack-swift 2> /dev/null 1> /dev/null && swift='swift'
+dpkg -l cinder-common 2> /dev/null 1> /dev/null && cinder='cinder'
+dpkg -l libvirt0 2> /dev/null 1> /dev/null && libvirtd='libvirt-bin'
+dpkg -l qpidd 2> /dev/null 1> /dev/null && qpidd='qpidd'
+dpkg -l rabbitmq-server 2> /dev/null 1> /dev/null && rabbitmq='rabbitmq-server'
+dpkg -l memcached 2> /dev/null 1> /dev/null && memcached='memcached'
+
+if test "$qpidd" && test "$rabbitmq"; then
+  # Give preference to rabbit
+  # Unless nova is installed and qpid is specifed
+  if test "$nova" && grep -q '^rpc_backend.*qpid' /etc/nova/nova.conf; then
+    rabbitmq=''
+  else
+    qpidd=''
+  fi
+fi
+
+service_installed() {
+  #PAGER= systemctl show $1.service >/dev/null 2>&1 ||
+  #chkconfig --list| grep $1 2>/dev/null
+  initctl show-config $1 2> /dev/null 1> /dev/null
+}
+
+service_enabled() {
+  if [ "$systemctl" ]; then
+    systemctl --quiet is-enabled $1.service 2>/dev/null
+  else
+    #chkconfig --list| grep $1 2>/dev/null
+    initctl show-config $1 | grep -q "^  start on" 2> /dev/null 1> /dev/null
+  fi
+}
+
+if service_enabled openstack-nova-volume 2>/dev/null ||
+   service_enabled openstack-cinder-volume 2>/dev/null; then
+   tgtd='tgtd'
+fi
+lsb_to_string() {
+  case $1 in
+  0) echo "active" ;;
+  1) echo "dead" ;;
+  2) echo "dead" ;;
+  3) echo "inactive" ;;
+  *) echo "unknown" ;;
+  esac
+}
+
+check_sysv_svc() {
+
+  if `echo ${1} | grep "nova" 1>/dev/null 2>&1` || `echo ${1} | grep "glance" 1>/dev/null 2>&1` || `echo ${1} | grep "keystone" 1>/dev/null 2>&1` || `echo ${1} | grep "cinder" 1>/dev/null 2>&1`
+  then
+      printf '%-30s' "openstack-$1:"
+  else
+      printf '%-30s' "$1:"
+  fi
+  install_status=$(service_installed $1 && echo installed || echo not-installed)
+  if [ "$install_status" = 'installed' ]; then
+      bootstatus=$(service_enabled $1 && echo enabled || echo disabled)
+      status=$(service $1 status | grep -s running  >/dev/null 2>/dev/null; lsb_to_string $?)
+  else
+      bootstatus='disabled'
+      status='inactive'
+  fi
+  if [ "$bootstatus" = 'disabled' ]; then
+    bootstatus=' (disabled on boot)'
+  else
+    bootstatus=''
+  fi
+  printf '%s\n' "$status$bootstatus"
+}
+
+check_svc() {
+
+  if [ ! "$systemctl" ]; then
+    check_sysv_svc "$@"
+    return
+  fi
+
+  printf '%-30s' "$1:"
+  bootstatus=$(service_enabled $1 && echo enabled || echo disabled)
+  status=$(systemctl is-active $1.service 2>/dev/null)
+  # For "simple" systemd services you get
+  # "unknown" if you query a non enabled service
+  if [ "$bootstatus" = 'disabled' ]; then
+    bootstatus=' (disabled on boot)'
+    [ $status = 'unknown' ] && status='inactive'
+  else
+    bootstatus=''
+  fi
+  printf '%s\n' "$status$bootstatus"
+}
+
+
+if test "$nova"; then
+  printf "== Nova services ==\n"
+  service_installed nova-cert && cert=cert
+  service_installed nova-conductor && conductor=conductor
+  #for svc in api $cert compute network scheduler volume $conductor; do check_svc "openstack-nova-$svc"; done
+  for svc in api $cert compute network scheduler volume $conductor; do check_svc "nova-$svc"; done
+fi
+
+if test "$glance"; then
+  printf "== Glance services ==\n"
+  for svc in api registry; do check_svc "glance-$svc"; done
+fi
+
+if test "$keystone"; then
+  printf "== Keystone service ==\n"
+  for svc in $keystone; do check_svc "$svc"; done
+fi
+
+if test "$dashboard"; then
+  printf "== Horizon service ==\n"
+  horizon_status="$(curl -s -w '%{http_code}\n' http://localhost -o /dev/null)"
+  if [ "$horizon_status" == 200 ]; then 
+      horizon_status=active
+  else
+      horizon_status=inactive
+  fi
+  printf '%-30s%s\n' "openstack-dashboard:" "$horizon_status"
+fi
+
+if test "$quantum"; then
+  printf "== Quantum services ==\n"
+  # TODO: Update for Folsom which has plugin ini files in a different location
+  if grep -q '^provider = quantum.plugins.linuxbridge' /etc/quantum/plugins.ini 2>/dev/null; then
+    quantum_plugin=quantum-linuxbridge-agent
+  fi
+  if grep -q '^provider = quantum.plugins.openvswitch' /etc/quantum/plugins.ini 2>/dev/null; then
+    quantum_plugin=quantum-openvswitch-agent
+    quantum_support=openvswitch
+  fi
+  for svc in quantum-server $quantum_plugin $quantum_support; do check_svc "$svc"; done
+fi
+
+if test "$swift"; then
+  printf "== Swift services ==\n"
+  check_svc openstack-swift-proxy
+  for ringtype in account container object; do
+    check_svc openstack-swift-$ringtype
+    for service in replicator updater auditor; do
+      if [ $ringtype != 'account' ] || [ $service != 'updater' ]; then
+        : # TODO how to check status of:
+          # swift-init $ringtype-$service
+      fi
+    done
+  done
+fi
+
+if test "$cinder"; then
+  printf "== Cinder services ==\n"
+  for service in api scheduler volume; do
+    check_svc cinder-$service
+  done
+fi
+
+printf "== Support services ==\n"
+#for svc in $mysqld $dashboard $libvirtd $tgtd $qpidd $rabbitmq $memcached; do
+#  check_svc "$svc"
+#done
+for svc in $mysqld $dashboard $libvirtd $tgtd $qpidd $rabbitmq $memcached; do
+  check_svc "$svc"
+done
+
+if test "$keystone"; then
+  printf "== Keystone users ==\n"
+  if ! test "$OS_USERNAME"; then
+    echo "Warning keystonerc not sourced" >&2
+  else
+    keystonerc=1
+    keystone user-list
+  fi
+fi
+
+if test "$keystonerc" && test "$glance"; then
+  printf "== Glance images ==\n"
+  glance index
+fi
+
+if test "$nova"; then
+  if ! test "$keystonerc" && ! test "$NOVA_USERNAME"; then
+    test "$keystone" || echo "Warning novarc not sourced" >&2
+  else
+    printf "== Nova instance flavors ==\n"
+    # Check direct access
+    nova-manage flavor list
+
+    printf "== Nova instances ==\n"
+    # Check access through the API
+    nova list # instances
+  fi
+fi
