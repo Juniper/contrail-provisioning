@@ -10,7 +10,6 @@ template = string.Template("""
 analytics-data-ttl=$__contrail_analytics_data_ttl__
 cassandra-server=$__contrail_cassandra_server_list__
 dup=0
-gen-timeout=0
 hostip=$__contrail_host_ip__ # Retrieved as IPv4 address of `hostname`
 http-server-port=8089
 listen-port=8086
