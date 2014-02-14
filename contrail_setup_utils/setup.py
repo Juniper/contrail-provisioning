@@ -848,7 +848,7 @@ HWADDR=%s
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
-                             '__contrail_analytics_syslog_port__' : '--syslog-port ' + str(self._args.analytics_syslog_port)}
+                             '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
                                            template_vals, temp_dir_name + '/collector.conf')
             local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
