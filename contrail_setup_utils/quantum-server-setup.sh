@@ -47,32 +47,6 @@ if [ $ret -ne 0 ]; then
     chkconfig $mysql_svc on 2>/dev/null
 fi
 
-service $mysql_svc status 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
-    echo "MySQL is not active, starting ..."
-    service $mysql_svc restart 2>/dev/null
-fi
-
-# Use MYSQL_ROOT_PW from the environment or generate a new password
-if [ ! -f $CONF_DIR/mysql.token ]; then
-    if [ -n "$MYSQL_ROOT_PW" ]; then
-	MYSQL_TOKEN=$MYSQL_ROOT_PW
-    else
-	MYSQL_TOKEN=$(openssl rand -hex 10)
-    fi
-    echo $MYSQL_TOKEN > $CONF_DIR/mysql.token
-    chmod 400 $CONF_DIR/mysql.token
-    echo show databases |mysql -u root &> /dev/null
-    if [ $? -eq 0 ] ; then
-        mysqladmin password $MYSQL_TOKEN
-    else
-        error_exit ${LINENO} "MySQL root password unknown, reset and retry"
-    fi
-else
-    MYSQL_TOKEN=$(cat $CONF_DIR/mysql.token)
-fi
-
 source /etc/contrail/ctrl-details
 
 # Check if ADMIN/SERVICE Password has been set
@@ -93,6 +67,7 @@ if [ -d /etc/neutron ]; then
 else
     net_svc_name='quantum'
 fi
+
 for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
