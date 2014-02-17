@@ -23,7 +23,6 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
-   msg_svc=qpidd
 fi
 
 if [ -f /etc/lsb-release ]; then
@@ -31,7 +30,6 @@ if [ -f /etc/lsb-release ]; then
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   msg_svc=rabbitmq-server
 fi
 
 function error_exit
@@ -107,11 +105,7 @@ openstack-config --set /etc/quantum/quantum.conf QUOTAS quota_port -1
 
 if [ -d /etc/neutron ]; then
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.juniper.contrail.contrailplugin.ContrailPlugin
-    if [ $is_redhat -eq 1 ] ; then
-        openstack-config --set /etc/neutron/neutron.conf DEFAULT qpid_hostname $CONTROLLER
-    else
-        openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host $CONTROLLER
-    fi
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host $CONTROLLER
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
 fi
@@ -120,7 +114,7 @@ openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT log_format 
 
 echo "======= Enabling the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -130,7 +124,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
