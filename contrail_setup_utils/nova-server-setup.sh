@@ -131,7 +131,6 @@ openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_workers 40
 openstack-config --set /etc/nova/nova.conf DEFAULT $META_DATA_PROXY True
-# openstack-config --set /etc/nova/nova.conf DEFAULT quantum_metadata_proxy_shared_secret contrail
 openstack-config --set /etc/nova/nova.conf conductor workers 40
 
 openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
