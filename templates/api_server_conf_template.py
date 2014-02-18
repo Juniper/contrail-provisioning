@@ -24,10 +24,11 @@ certfile=$__contrail_certfile_location__
 ca_certs=$__contrail_cacertfile_location__
 
 [KEYSTONE]
-auth_host=$__contrail_openstack_ip__
+auth_host=$__contrail_keystone_ip__
 auth_protocol=http
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
+admin_token=$__contrail_admin_token__
 admin_tenant_name=$__contrail_admin_tenant_name__
 $__contrail_memcached_opt__
 """)
