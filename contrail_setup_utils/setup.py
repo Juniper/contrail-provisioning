@@ -162,6 +162,8 @@ class Setup(object):
             'non_mgmt_gw': None,
             'vgw_public_subnet': None,
             'vgw_public_vn_name': None,
+            'vgw_intf_list': None,
+            'vgw_gateway_routes': None,
         }
         collector_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -223,6 +225,8 @@ class Setup(object):
             action="store_true")
         parser.add_argument("--vgw_public_subnet", help = "Subnet of the virtual network used for public access")
         parser.add_argument("--vgw_public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
+        parser.add_argument("--vgw_intf_list", help = "List of virtual getway intreface")
+        parser.add_argument("--vgw_gateway_routes", help = "Static route to be configured in agent configuration for VGW")
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies keystone token validation)",
             action="store_true")
@@ -1038,6 +1042,8 @@ HWADDR=%s
             vhost_ip = compute_ip
             vgw_public_subnet = self._args.vgw_public_subnet
             vgw_public_vn_name = self._args.vgw_public_vn_name
+            vgw_intf_list = self._args.vgw_intf_list
+            vgw_gateway_routes = self._args.vgw_gateway_routes
             multi_net= False
             if non_mgmt_ip :
                 multi_net= True
@@ -1058,7 +1064,8 @@ HWADDR=%s
                     compute_dev = self.get_device_by_ip (compute_ip)
 
             mac = None
-            if dev and dev != 'vhost0' :
+            #if dev and dev != 'vhost0' :
+            if 1:
                 mac = netifaces.ifaddresses (dev)[netifaces.AF_LINK][0][
                             'addr']
                 if mac:
@@ -1078,9 +1085,18 @@ HWADDR=%s
 
                 if vgw_public_subnet:
                     with lcd(temp_dir_name):
-                        vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
-                        vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
-                        local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_subnet_list))
+                        
+                        # Manipulating the string to use in agent_param
+                        vgw_public_subnet_str=[]
+                        for i in vgw_public_subnet[1:-1].split(";"):
+                            j=i[1:-1].split(",")
+                            j=";".join(j)
+                            vgw_public_subnet_str.append(j)
+                        vgw_public_subnet_str=str(tuple(vgw_public_subnet_str)).replace("'","")
+                        vgw_public_subnet_str=vgw_public_subnet_str.replace(" ","")
+                        vgw_intf_list_str=str(tuple(vgw_intf_list[1:-1].split(";"))).replace(" ","")
+                
+                        local("sudo sed 's@COLLECTOR=.*@COLLECTOR=%s@g;s@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g;s@vgw_intf=.*@vgw_intf=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev,vgw_public_subnet_str,vgw_intf_list_str))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
                         local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
@@ -1112,16 +1128,35 @@ HWADDR=%s
                 ethpt_elem.append(pn)
 
                 if vgw_public_vn_name and vgw_public_subnet:
-                    vgw_public_vn_name = vgw_public_vn_name[1:-1].split(',')
+                    vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
+                    vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
+                    vgw_intf_list = vgw_intf_list[1:-1].split(';')
+                    vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
                         gateway_elem = ET.Element("gateway") 
                         gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
                         virtual_network_interface_elem = ET.Element('interface')
-                        virtual_network_subnet_elem = ET.Element('subnet')
-                        virtual_network_subnet_elem.text = vgw_public_subnet[i]
-                        virtual_network_interface_elem.text = 'vgw%s' %(i)
+                        virtual_network_interface_elem.text = vgw_intf_list[i]
                         gateway_elem.append(virtual_network_interface_elem)
-                        gateway_elem.append(virtual_network_subnet_elem)
+                        if vgw_public_subnet[i].find("[") !=-1:
+                            for ele in vgw_public_subnet[i][1:-1].split(","):
+                                virtual_network_subnet_elem = ET.Element('subnet')
+                                virtual_network_subnet_elem.text =ele
+                                gateway_elem.append(virtual_network_subnet_elem)
+                        else:
+                            virtual_network_subnet_elem = ET.Element('subnet')
+                            virtual_network_subnet_elem.text =vgw_public_subnet[i]
+                            gateway_elem.append(virtual_network_subnet_elem)
+                        if i < len(vgw_gateway_routes):
+                            if vgw_gateway_routes[i].find("[") !=-1:
+                                for ele in vgw_gateway_routes[i][1:-1].split(","):
+                                    vgw_gateway_routes_elem = ET.Element('route')
+                                    vgw_gateway_routes_elem.text =ele
+                                    gateway_elem.append(vgw_gateway_routes_elem)
+                            else:
+                                vgw_gateway_routes_elem = ET.Element('route')  
+                                vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
+                                gateway_elem.append(vgw_gateway_routes_elem)
                         agent_elem.append(gateway_elem)
 
 
