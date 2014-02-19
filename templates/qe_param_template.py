@@ -7,6 +7,7 @@ template = string.Template("""#
 #
 
 [DEFAULTS]
+analytics-data-ttl=0
 cassandra-server=$__contrail_cassandra_server_list__
 collector-server= # Provided by discovery server
 http-server-port=8091
