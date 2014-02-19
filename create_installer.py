@@ -135,7 +135,9 @@ class CreateInstaller(object):
                           'setup-vnc-database.py',
                           'reset-vnc-database.py',
                           'setup-vnc-openstack.py',
-                          'setup-vnc-storage.py'
+                          'setup-vnc-storage.py',
+                          'setup-vnc-interfaces.py',
+                          'setup-vnc-static-routes.py'
                          ]
 
         with lcd("%s" %(temp_dir_name)):
