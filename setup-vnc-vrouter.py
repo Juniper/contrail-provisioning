@@ -24,6 +24,8 @@ class SetupVncVrouter(object):
         non_mgmt_gw = self._args.non_mgmt_gw
         vgw_public_subnet = self._args.public_subnet
         vgw_public_vn_name = self._args.public_vn_name
+        vgw_intf_list = self._args.vgw_intf
+        vgw_gateway_routes = self._args.gateway_routes
         if not self._args.openstack_mgmt_ip :
             openstack_mgmt_ip = openstack_ip
         else:
@@ -42,6 +44,9 @@ class SetupVncVrouter(object):
         if vgw_public_subnet and  vgw_public_vn_name:
             setup_args_str = setup_args_str + " --vgw_public_subnet %s " %(vgw_public_subnet)
             setup_args_str = setup_args_str + " --vgw_public_vn_name %s " %(vgw_public_vn_name)
+            setup_args_str = setup_args_str + " --vgw_intf_list %s " %(vgw_intf_list)
+            if vgw_gateway_routes:
+                setup_args_str = setup_args_str + " --vgw_gateway_routes %s " %(vgw_gateway_routes)
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
 
@@ -76,6 +81,9 @@ class SetupVncVrouter(object):
             'non_mgmt_gw': None,
             'public_subnet': None,
             'public_vn_name': None,
+            'vgw_intf': None,
+            'gateway_routes': None,
+            '': None,
             'haproxy': False,
         }
 
@@ -107,7 +115,9 @@ class SetupVncVrouter(object):
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
         parser.add_argument("--public_subnet", help = "Subnet of the virtual network used for public access")
+        parser.add_argument("--vgw_intf", help = "Virtual gateway intreface name")
         parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
+        parser.add_argument("--gateway_routes", help = "List of route need to be added in agent configuration for virtual gateway")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)
