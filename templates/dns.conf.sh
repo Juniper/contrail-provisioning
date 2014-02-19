@@ -3,6 +3,9 @@
 CONFIG_FILE="/etc/contrail/dns.conf"
 SIGNATURE="Dns configuration options, generated from dns_param"
 
+# Remove old style command line arguments from .ini file.
+perl -ni -e 's/command=.*/command=\/usr\/bin\/dnsd/g; print $_;' /etc/contrail/supervisord_control_files/contrail-dns.ini
+
 if [ ! -e /etc/contrail/dns_param ]; then
     exit
 fi

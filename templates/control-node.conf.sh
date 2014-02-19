@@ -3,6 +3,9 @@
 CONFIG_FILE="/etc/contrail/control-node.conf"
 SIGNATURE="Control-node configuration options, generated from control_param"
 
+# Remove old style command line arguments from .ini file.
+perl -ni -e 's/command=.*/command=\/usr\/bin\/control-node/g; print $_;' /etc/contrail/supervisord_control_files/contrail-control.ini
+
 if [ ! -e /etc/contrail/control_param ]; then
     exit
 fi

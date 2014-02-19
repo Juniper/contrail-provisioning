@@ -3,6 +3,9 @@
 CONFIG_FILE="/etc/contrail/vrouter.conf"
 SIGNATURE="Vrouter configuration options, generated from agent_param"
 
+# Remove old style command line arguments from .ini file.
+perl -ni -e 's/command=.*/command=\/usr\/bin\/vnswad/g; print $_;' /etc/contrail/supervisord_vrouter_files/contrail-vrouter.ini
+
 if [ ! -e /etc/contrail/agent_param ]; then
     exit
 fi

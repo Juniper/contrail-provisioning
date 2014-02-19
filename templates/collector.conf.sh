@@ -3,6 +3,9 @@
 CONFIG_FILE="/etc/contrail/collector.conf"
 SIGNATURE="Collectror configuration options, generated from vizd_param"
 
+# Remove old style command line arguments from .ini file.
+perl -ni -e 's/command=.*/command=\/usr\/bin\/vizd/g; print $_;' /etc/contrail/supervisord_analytics_files/contrail-collector.ini
+
 if [ ! -e /etc/contrail/vizd_param ]; then
     exit
 fi

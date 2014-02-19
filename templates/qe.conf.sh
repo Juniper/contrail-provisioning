@@ -3,6 +3,9 @@
 CONFIG_FILE="/etc/contrail/qe.conf"
 SIGNATURE="Query Engine configuration options, generated from qe_param"
 
+# Remove old style command line arguments from .ini file.
+perl -ni -e 's/command=.*/command=\/usr\/bin\/qed/g; print $_;' /etc/contrail/supervisord_analytics_files/contrail-qe.ini
+
 if [ ! -e /etc/contrail/qe_param ]; then
     exit
 fi
