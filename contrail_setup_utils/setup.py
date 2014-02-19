@@ -855,7 +855,7 @@ HWADDR=%s
                              '__contrail_http_server_port__' : '8089',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
-                             '__contrail_analytics_syslog_port__' : '--syslog-port ' + str(self._args.analytics_syslog_port)}
+                             '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
                                            template_vals, temp_dir_name + '/vizd_param')
             local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
