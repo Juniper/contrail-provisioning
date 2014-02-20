@@ -1131,7 +1131,8 @@ HWADDR=%s
                     vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
                     vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
                     vgw_intf_list = vgw_intf_list[1:-1].split(';')
-                    vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
+                    if vgw_gateway_routes != None:
+                        vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
                         gateway_elem = ET.Element("gateway") 
                         gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
@@ -1147,17 +1148,18 @@ HWADDR=%s
                             virtual_network_subnet_elem = ET.Element('subnet')
                             virtual_network_subnet_elem.text =vgw_public_subnet[i]
                             gateway_elem.append(virtual_network_subnet_elem)
-                        if i < len(vgw_gateway_routes):
-                            if vgw_gateway_routes[i].find("[") !=-1:
-                                for ele in vgw_gateway_routes[i][1:-1].split(","):
-                                    vgw_gateway_routes_elem = ET.Element('route')
-                                    vgw_gateway_routes_elem.text =ele
+                        if vgw_gateway_routes != None:
+                            if i < len(vgw_gateway_routes):
+                                if vgw_gateway_routes[i].find("[") !=-1:
+                                    for ele in vgw_gateway_routes[i][1:-1].split(","):
+                                        vgw_gateway_routes_elem = ET.Element('route')
+                                        vgw_gateway_routes_elem.text =ele
+                                        gateway_elem.append(vgw_gateway_routes_elem)
+                                else:
+                                    vgw_gateway_routes_elem = ET.Element('route')  
+                                    vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
-                            else:
-                                vgw_gateway_routes_elem = ET.Element('route')  
-                                vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
-                                gateway_elem.append(vgw_gateway_routes_elem)
-                        agent_elem.append(gateway_elem)
+                            agent_elem.append(gateway_elem)
 
 
                 self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
