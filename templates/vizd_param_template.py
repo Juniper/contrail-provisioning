@@ -19,7 +19,7 @@ port=5998
 server=$__contrail_discovery_ip__ # discovery-server IP address
 
 [REDIS]
-ip=$__contrail_redis_server__
+ip=127.0.0.1
 port=6379
 
 [LOG]

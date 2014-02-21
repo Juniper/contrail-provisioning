@@ -14,7 +14,7 @@ http-server-port=8091
 
 [DISCOVERY]
 port=5998
-server=$__contrail_discovery_ip__ # discovery-server IP address
+server= # discovery-server IP address
 
 [LOG]
 category=
@@ -23,6 +23,6 @@ level=SYS_DEBUG
 local=1
 
 [REDIS]
-ip=$__contrail_redis_server__
+ip=127.0.0.1
 port=6381
 """)
