@@ -598,8 +598,10 @@ HWADDR=%s
         nova_conf_file = "/etc/nova/nova.conf"
         if os.path.exists("/etc/neutron/neutron.conf"):
             openstack_network_conf_file = "/etc/neutron/neutron.conf"
-        elif os.path.exists("/etc/quantum/server.conf"):
-            openstack_network_conf_file = "/quantum/server.conf"
+            network_service = "neutron"
+        elif os.path.exists("/etc/quantum/quantum.conf"):
+            openstack_network_conf_file = "/etc/quantum/quantum.conf"
+            network_service = "quantum"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -763,8 +765,8 @@ HWADDR=%s
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
             if os.path.exists(openstack_network_conf_file):
-                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
-                       % (openstack_network_conf_file))
+                local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (network_service, network_service, openstack_network_conf_file))
 
         if 'database' in self._args.role:
             if pdist == 'fedora' or pdist == 'centos':
