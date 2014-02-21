@@ -18,25 +18,43 @@
 CONF_DIR=/etc/contrail
 set -x
 
+if [ -f /etc/redhat-release ]; then
+   is_redhat=1
+   is_ubuntu=0
+   web_svc=httpd
+   mysql_svc=mysqld
+   cinder_pfx=openstack-cinder
+   msg_svc=qpidd
+fi
+
+if [ -f /etc/lsb-release ]; then
+   is_ubuntu=1
+   is_redhat=0
+   web_svc=apache2
+   mysql_svc=mysql
+   cinder_pfx=cinder
+   msg_svc=rabbitmq-server
+fi
+
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
     exit ${3:-1}
 }
 
-chkconfig mysqld 2>/dev/null
+chkconfig $mysql_svc 2>/dev/null
 ret=$?
 if [ $ret -ne 0 ]; then
     echo "MySQL is not enabled, enabling ..."
-    chkconfig mysqld on 2>/dev/null
+    chkconfig $mysql_svc on 2>/dev/null
 fi
 
-service mysqld status 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
+mysql_status=`service $mysql_svc status 2>/dev/null`
+if [[ $mysql_status != *running* ]]; then
     echo "MySQL is not active, starting ..."
-    service mysqld restart 2>/dev/null
+    service $mysql_svc restart 2>/dev/null
 fi
+
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -83,25 +101,26 @@ for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol http
 done
 
 echo "======= Enabling the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     chkconfig $svc on
 done
 
 for svc in api scheduler; do
-    chkconfig openstack-cinder-$svc on
+    chkconfig $cinder_pfx-$svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in qpidd httpd memcached; do
+for svc in $msg_svc $web_svc memcached; do
     service $svc restart
 done
 
 for svc in api scheduler; do
-    service openstack-cinder-$svc restart
+    service $cinder_pfx-$svc restart
 done
 

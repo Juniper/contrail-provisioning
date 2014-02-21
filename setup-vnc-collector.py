@@ -27,7 +27,8 @@ class SetupVncCollector(object):
                                  % (self._args.redis_master_ip)
         if self._args.redis_role:
             setup_args_str = setup_args_str + " --redis_role %s" \
-                                 % (self._args.redis_role)                                                   
+                                 % (self._args.redis_role)
+
         if self._args.cfgm_ip:
             setup_args_str = setup_args_str + " --cfgm_ip %s" \
                                  % (self._args.cfgm_ip)                                                   
@@ -85,7 +86,7 @@ class SetupVncCollector(object):
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--redis_master_ip", help = "IP Address of the master redis node")
-        parser.add_argument("--redis_role", help = "Redis role of collector node")
+        parser.add_argument("--redis_role", help = "Redis role of collector node")       
         parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
         parser.add_argument("--num_nodes", help = "Number of collector nodes", type = int)
