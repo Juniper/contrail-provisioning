@@ -1070,8 +1070,8 @@ HWADDR=%s
                             }
             self._template_substitute_write(bgp_param_template.template,
                                             template_vals,
-                                            temp_dir_name + '/control_node.conf')
-            local("sudo mv %s/control_node.conf /etc/contrail/control_node.conf" %(temp_dir_name))
+                                            temp_dir_name + '/control-node.conf')
+            local("sudo mv %s/control-node.conf /etc/contrail/control-node.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
