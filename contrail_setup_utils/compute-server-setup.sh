@@ -3,7 +3,6 @@
 if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
-   MSG_HOST=qpid_hostname
    OS_NET=quantum
    TENANT_NAME=quantum_admin_tenant_name
    ADMIN_USER=quantum_admin_username
@@ -16,7 +15,6 @@ fi
 if [ -f /etc/lsb-release ]; then
    is_ubuntu=1
    is_redhat=0
-   MSG_HOST=rabbit_host
    OS_NET=neutron
    TENANT_NAME=neutron_admin_tenant_name
    ADMIN_USER=neutron_admin_username
@@ -32,7 +30,7 @@ fi
 source /etc/contrail/ctrl-details
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
-    openstack-config --set /etc/nova/nova.conf DEFAULT $MSG_HOST $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET

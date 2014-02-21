@@ -9,7 +9,6 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=mysqld
    keystone_svc=openstack-keystone
-   msg_svc=qpidd
 fi
 
 if [ -f /etc/lsb-release ]; then
@@ -18,7 +17,6 @@ if [ -f /etc/lsb-release ]; then
    web_svc=apache2
    mysql_svc=mysql
    keystone_svc=keystone
-   msg_svc=rabbitmq-server
 fi
 
 function error_exit
@@ -141,13 +139,13 @@ fi
 
 echo "======= Enabling the keystone services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 

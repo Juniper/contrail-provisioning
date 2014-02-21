@@ -24,7 +24,6 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=mysqld
    nova_pfx=openstack-nova
-   msg_svc=qpidd
    OS_NET=quantum
    TENANT_NAME=quantum_admin_tenant_name
    ADMIN_USER=quantum_admin_username
@@ -41,7 +40,6 @@ if [ -f /etc/lsb-release ]; then
    web_svc=apache2
    mysql_svc=mysql
    nova_pfx=nova
-   msg_svc=rabbitmq-server
    OS_NET=neutron
    TENANT_NAME=neutron_admin_tenant_name
    ADMIN_USER=neutron_admin_username
@@ -135,9 +133,6 @@ openstack-config --set /etc/nova/nova.conf conductor workers 40
 
 openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
-if [ $is_redhat -eq 1 ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_backend nova.openstack.common.rpc.impl_qpid
-fi
 
 # Hack till we have synchronized time (config node as ntp server). Without this
 # utils.py:service_is_up() barfs and instance deletes not fwded to compute node
@@ -160,7 +155,7 @@ fi
 
 echo "======= Enabling the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -170,7 +165,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 

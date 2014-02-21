@@ -37,7 +37,7 @@ fi
 
 echo "======= Enabling the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -47,7 +47,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
