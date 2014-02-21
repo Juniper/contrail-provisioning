@@ -599,6 +599,13 @@ HWADDR=%s
         cfgm_ip = self._args.cfgm_ip
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
+        nova_conf_file = "/etc/nova/nova.conf"
+        if os.path.exists("/etc/neutron/neutron.conf"):
+            openstack_network_conf_file = "/etc/neutron/neutron.conf"
+            network_service = "neutron"
+        elif os.path.exists("/etc/quantum/quantum.conf"):
+            openstack_network_conf_file = "/etc/quantum/quantum.conf"
+            network_service = "quantum"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -609,8 +616,7 @@ HWADDR=%s
             if pdist == 'fedora' or pdist == 'centos':
                 local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
 
-            nova_conf_file = "/etc/nova/nova.conf"
-            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+            if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                        % (nova_conf_file))
             
@@ -619,11 +625,6 @@ HWADDR=%s
             hosts_entry = '%s %s' %(cfgm_ip, hostname)
             with settings( warn_only= True) :
                 local('grep -q \'%s\' /etc/hosts || echo \'%s %s\' >> /etc/hosts' %(cfgm_ip, cfgm_ip, hosts_entry))
-
-            nova_conf_file = "/etc/nova/nova.conf"
-            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
-                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
-                       % (nova_conf_file))
         
         # Disable selinux
         with lcd(temp_dir_name):
@@ -697,20 +698,14 @@ HWADDR=%s
             self.service_token = self._args.service_token
             if not self.service_token:
                 local("sudo ./contrail_setup_utils/setup-service-token.sh")
-            # bump up max-connections=2048
+            # configure the rabbitmq config file.
             with settings(warn_only = True):
-                if pdist == 'centos' or pdist == 'fedora':
-                    qpid_conf = '/etc/qpidd.conf'
-                    ret = local("sudo grep -q '^max-connections' /etc/qpidd.conf")
-                    if ret.return_code == 1:
-                        local('sudo echo "max-connections=2048" >> /etc/qpidd.conf')
-                if pdist == 'Ubuntu':
-                    rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
-                    if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
-                        local('sudo echo "[" >> %s' % rabbit_conf)
-                        local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
-                        local('sudo echo "    }" >> %s' % rabbit_conf)
-                        local('sudo echo "]." >> %s' % rabbit_conf)
+                rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
+                if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                    local('sudo echo "[" >> %s' % rabbit_conf)
+                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                    local('sudo echo "    }" >> %s' % rabbit_conf)
+                    local('sudo echo "]." >> %s' % rabbit_conf)
 
                 #comment out parameters from /etc/nova/api-paste.ini
                 local("sudo sed -i 's/auth_host = /;auth_host = /' /etc/nova/api-paste.ini")
@@ -731,17 +726,13 @@ HWADDR=%s
 
         if 'compute' in self._args.role or 'openstack' in self._args.role:
             with settings(warn_only = True):
-                if pdist == 'Ubuntu':
-                    local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
-                else:
-                    local("echo 'qpid_hostname = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
                 local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
 
-            nova_conf_file = "/etc/nova/nova.conf"
-            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
+            if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                        % (nova_conf_file))
 
@@ -777,10 +768,9 @@ HWADDR=%s
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
-            neutron_conf_file = "/etc/neutron/neutron.conf"
-            if os.path.exists(neutron_conf_file) and pdist == 'Ubuntu':
-                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
-                       % (neutron_conf_file))
+            if os.path.exists(openstack_network_conf_file):
+                local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (network_service, network_service, openstack_network_conf_file))
 
         if 'database' in self._args.role:
             if pdist == 'fedora' or pdist == 'centos':
@@ -1058,21 +1048,14 @@ HWADDR=%s
 
             #local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
 
-            # bump up max-connections=2048
+            # Configure rabbitmq config file
             with settings(warn_only = True):
-                if pdist == 'centos' or pdist == 'fedora':
-                    qpid_conf = '/etc/qpidd.conf'
-                    ret = local("sudo grep -q '^max-connections' %s" %(qpid_conf))
-                    if ret.return_code == 1:
-                        local('sudo echo "max-connections=2048" >> %s' %(qpid_conf))
-
-                if pdist == 'Ubuntu':
-                    rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
-                    if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
-                        local('sudo echo "[" >> %s' % rabbit_conf)
-                        local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
-                        local('sudo echo "    }" >> %s' % rabbit_conf)
-                        local('sudo echo "]." >> %s' % rabbit_conf)
+                rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
+                if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                    local('sudo echo "[" >> %s' % rabbit_conf)
+                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                    local('sudo echo "    }" >> %s' % rabbit_conf)
+                    local('sudo echo "]." >> %s' % rabbit_conf)
 
         if 'control' in self._args.role:
             control_ip = self._args.control_ip
@@ -1108,10 +1091,6 @@ HWADDR=%s
                     local("echo '    server = %s' >> /etc/puppet/puppet.conf" \
                         %(self._args.puppet_server))
 
-            nova_conf_file = "/etc/nova/nova.conf"
-            if os.path.exists(nova_conf_file) and pdist == 'Ubuntu':
-                local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
-                       % (nova_conf_file))
 
         if 'compute' in self._args.role:
             dist = platform.dist()[0]

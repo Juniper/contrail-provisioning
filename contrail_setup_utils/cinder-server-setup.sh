@@ -24,7 +24,6 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=mysqld
    cinder_pfx=openstack-cinder
-   msg_svc=qpidd
 fi
 
 if [ -f /etc/lsb-release ]; then
@@ -33,7 +32,6 @@ if [ -f /etc/lsb-release ]; then
    web_svc=apache2
    mysql_svc=mysql
    cinder_pfx=cinder
-   msg_svc=rabbitmq-server
 fi
 
 function error_exit
@@ -106,7 +104,7 @@ done
 
 echo "======= Enabling the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -116,7 +114,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in $msg_svc $web_svc memcached; do
+for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
