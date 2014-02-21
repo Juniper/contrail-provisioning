@@ -43,7 +43,7 @@ port=5998
 server=$DISCOVERY # discovery-server IP address
 
 [REDIS]
-ip=$REDIS_SERVER
+ip=127.0.0.1
 port=6379
 
 [LOG]

@@ -41,7 +41,7 @@ start-time=0
 
 [DISCOVERY]
 port=5998
-server=127.0.0.1 # discovery-server IP address
+server= # discovery-server IP address
 
 [LOG]
 category=
@@ -50,8 +50,8 @@ level=SYS_DEBUG
 local=1
 
 [REDIS]
-ip=$REDIS_SERVER
-port=$REDIS_SERVER_PORT
+ip=127.0.0.1
+port=6380
 
 EOF
 ) > $CONFIG_FILE
