@@ -1195,8 +1195,7 @@ HWADDR=%s
                     compute_dev = self.get_device_by_ip (compute_ip)
 
             mac = None
-            #if dev and dev != 'vhost0' :
-            if 1:
+            if dev and dev != 'vhost0' :
                 mac = netifaces.ifaddresses (dev)[netifaces.AF_LINK][0][
                             'addr']
                 if mac:
@@ -1215,8 +1214,6 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
-                    vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
-                    vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
                     with lcd(temp_dir_name):
                         # Manipulating the string to use in agent_param
                         vgw_public_subnet_str=[]
@@ -1275,7 +1272,7 @@ HWADDR=%s
                         if vgw_public_subnet[i].find("[") !=-1:
                             for ele in vgw_public_subnet[i][1:-1].split(","):
                                 virtual_network_subnet_elem = ET.Element('subnet')
-                                virtual_network_subnet_elem.text =ele
+                                virtual_network_subnet_elem.text =ele[1:-1]
                                 gateway_elem.append(virtual_network_subnet_elem)
                         else:
                             virtual_network_subnet_elem = ET.Element('subnet')
@@ -1286,13 +1283,13 @@ HWADDR=%s
                                 if vgw_gateway_routes[i].find("[") !=-1:
                                     for ele in vgw_gateway_routes[i][1:-1].split(","):
                                         vgw_gateway_routes_elem = ET.Element('route')
-                                        vgw_gateway_routes_elem.text =ele
+                                        vgw_gateway_routes_elem.text =ele[1:-1]
                                         gateway_elem.append(vgw_gateway_routes_elem)
                                 else:
                                     vgw_gateway_routes_elem = ET.Element('route')  
                                     vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
-                            agent_elem.append(gateway_elem)
+                        agent_elem.append(gateway_elem)
 
 
                 self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
