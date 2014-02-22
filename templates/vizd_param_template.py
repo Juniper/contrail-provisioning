@@ -20,7 +20,7 @@ server=$__contrail_discovery_ip__ # discovery-server IP address
 
 [REDIS]
 ip=127.0.0.1
-port=6379
+port=6381
 
 [LOG]
 category=
