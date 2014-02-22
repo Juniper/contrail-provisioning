@@ -600,12 +600,6 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
-        if os.path.exists("/etc/neutron/neutron.conf"):
-            openstack_network_conf_file = "/etc/neutron/neutron.conf"
-            network_service = "neutron"
-        elif os.path.exists("/etc/quantum/quantum.conf"):
-            openstack_network_conf_file = "/etc/quantum/quantum.conf"
-            network_service = "quantum"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -768,7 +762,14 @@ HWADDR=%s
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
-            if os.path.exists(openstack_network_conf_file):
+            if os.path.exists("/etc/neutron/neutron.conf"):
+                openstack_network_conf_file = "/etc/neutron/neutron.conf"
+                network_service = "neutron"
+                local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (network_service, network_service, openstack_network_conf_file))
+            elif os.path.exists("/etc/quantum/quantum.conf"):
+                openstack_network_conf_file = "/etc/quantum/quantum.conf"
+                network_service = "quantum"
                 local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
                        % (network_service, network_service, openstack_network_conf_file))
 
