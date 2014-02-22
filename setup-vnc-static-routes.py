@@ -50,6 +50,7 @@ class StaticRoute(object):
         '''Restart network service'''
         log.info('Restarting Network Services...')
         os.system('service network restart')
+        time.sleep(5)
                                   
     def pre_config(self):
         '''Setup env before static route configuration'''
@@ -96,6 +97,7 @@ class UbuntuStaticRoute(StaticRoute):
         '''Restart network service for Ubuntu'''
         log.info('Restarting Network Services...')
         os.system('/etc/init.d/networking restart')
+        time.sleep(5)
 
     def remove_lines(self):
         '''Remove existing config related to given route if the same

@@ -116,6 +116,7 @@ class BaseInterface(object):
         '''Restart network service'''
         log.info('Restarting Network Services...')
         os.system('service network restart')
+        time.sleep(5)
 
     def post_conf(self):
         '''Execute commands after after interface configuration'''
@@ -145,6 +146,7 @@ class UbuntuInterface(BaseInterface):
         '''Restart network service for Ubuntu'''
         log.info('Restarting Network Services...')
         os.system('/etc/init.d/networking restart')
+        time.sleep(5)
 
     def remove_lines(self, ifaces, filename):
         '''Remove existing config related to given interface if the same
