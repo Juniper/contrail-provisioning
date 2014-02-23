@@ -561,16 +561,21 @@ HWADDR=%s
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
-        # remove entry from auto <dev> to auto excluding these pattern
-        # then delete specifically auto <dev>
-        #local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
-        #local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
-        # add manual entry for dev
-        #local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
-        #local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-        #local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-        #local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
-        #local("echo '' >> %s" %(temp_intf_file))
+        if not self._args.non_mgmt_ip:
+            # remove entry from auto <dev> to auto excluding these pattern
+            # then delete specifically auto <dev> 
+            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+            # add manual entry for dev
+            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            local("echo '' >> %s" %(temp_intf_file))
+        else:
+            #remove ip address and gateway
+            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
 
         # move it to right place
         local("mv %s /etc/network/interfaces" %(temp_intf_file))
