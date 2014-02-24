@@ -40,14 +40,27 @@ if [ -f /etc/lsb-release ]; then
    web_svc=apache2
    mysql_svc=mysql
    nova_pfx=nova
-   OS_NET=neutron
-   TENANT_NAME=neutron_admin_tenant_name
-   ADMIN_USER=neutron_admin_username
-   ADMIN_PASSWD=neutron_admin_password
-   ADMIN_AUTH_URL=neutron_admin_auth_url
-   OS_URL=neutron_url
-   OS_URL_TIMEOUT=neutron_url_timeout
-   META_DATA_PROXY=service_neutron_metadata_proxy
+   nova_api_version=`dpkg -l | grep 'ii' | grep nova-api | awk '{print $3}'`
+   echo $nova_api_version
+   if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
+   	OS_NET=quantum
+   	TENANT_NAME=quantum_admin_tenant_name
+   	ADMIN_USER=quantum_admin_username
+   	ADMIN_PASSWD=quantum_admin_password
+   	ADMIN_AUTH_URL=quantum_admin_auth_url
+   	OS_URL=quantum_url
+  	OS_URL_TIMEOUT=quantum_url_timeout
+   	META_DATA_PROXY=service_quantum_metadata_proxy
+   else
+   	OS_NET=neutron
+   	TENANT_NAME=neutron_admin_tenant_name
+   	ADMIN_USER=neutron_admin_username
+   	ADMIN_PASSWD=neutron_admin_password
+   	ADMIN_AUTH_URL=neutron_admin_auth_url
+   	OS_URL=neutron_url
+   	OS_URL_TIMEOUT=neutron_url_timeout
+   	META_DATA_PROXY=service_neutron_metadata_proxy
+   fi
 fi
 
 function error_exit
@@ -149,7 +162,11 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
 if [ $is_ubuntu -eq 1 ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+    if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.quantumv2.api.API
+    else
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+    fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 fi
 

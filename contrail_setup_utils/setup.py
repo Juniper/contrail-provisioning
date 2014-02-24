@@ -561,16 +561,21 @@ HWADDR=%s
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
-        # remove entry from auto <dev> to auto excluding these pattern
-        # then delete specifically auto <dev>
-        local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
-        local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
-        # add manual entry for dev
-        local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
-        local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-        local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-        local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
-        local("echo '' >> %s" %(temp_intf_file))
+        if not self._args.non_mgmt_ip:
+            # remove entry from auto <dev> to auto excluding these pattern
+            # then delete specifically auto <dev> 
+            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+            # add manual entry for dev
+            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            local("echo '' >> %s" %(temp_intf_file))
+        else:
+            #remove ip address and gateway
+            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
 
         # move it to right place
         local("mv %s /etc/network/interfaces" %(temp_intf_file))
@@ -600,12 +605,6 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
-        if os.path.exists("/etc/neutron/neutron.conf"):
-            openstack_network_conf_file = "/etc/neutron/neutron.conf"
-            network_service = "neutron"
-        elif os.path.exists("/etc/quantum/quantum.conf"):
-            openstack_network_conf_file = "/etc/quantum/quantum.conf"
-            network_service = "quantum"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -730,7 +729,11 @@ HWADDR=%s
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                if pdist == 'Ubuntu':
+                    cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
+                    nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                    if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
+                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
@@ -768,7 +771,14 @@ HWADDR=%s
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
-            if os.path.exists(openstack_network_conf_file):
+            if os.path.exists("/etc/neutron/neutron.conf"):
+                openstack_network_conf_file = "/etc/neutron/neutron.conf"
+                network_service = "neutron"
+                local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (network_service, network_service, openstack_network_conf_file))
+            elif os.path.exists("/etc/quantum/quantum.conf"):
+                openstack_network_conf_file = "/etc/quantum/quantum.conf"
+                network_service = "quantum"
                 local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
                        % (network_service, network_service, openstack_network_conf_file))
 
@@ -1161,8 +1171,7 @@ HWADDR=%s
                     compute_dev = self.get_device_by_ip (compute_ip)
 
             mac = None
-            #if dev and dev != 'vhost0' :
-            if 1:
+            if dev and dev != 'vhost0' :
                 mac = netifaces.ifaddresses (dev)[netifaces.AF_LINK][0][
                             'addr']
                 if mac:
@@ -1181,8 +1190,6 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
-                    vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
-                    vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
                     with lcd(temp_dir_name):
                         # Manipulating the string to use in agent_param
                         vgw_public_subnet_str=[]
@@ -1230,7 +1237,8 @@ HWADDR=%s
                     vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
                     vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
                     vgw_intf_list = vgw_intf_list[1:-1].split(';')
-                    vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
+                    if vgw_gateway_routes != None:
+                        vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
                         gateway_elem = ET.Element("gateway") 
                         gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
@@ -1240,22 +1248,23 @@ HWADDR=%s
                         if vgw_public_subnet[i].find("[") !=-1:
                             for ele in vgw_public_subnet[i][1:-1].split(","):
                                 virtual_network_subnet_elem = ET.Element('subnet')
-                                virtual_network_subnet_elem.text =ele
+                                virtual_network_subnet_elem.text =ele[1:-1]
                                 gateway_elem.append(virtual_network_subnet_elem)
                         else:
                             virtual_network_subnet_elem = ET.Element('subnet')
                             virtual_network_subnet_elem.text =vgw_public_subnet[i]
                             gateway_elem.append(virtual_network_subnet_elem)
-                        if i < len(vgw_gateway_routes):
-                            if vgw_gateway_routes[i].find("[") !=-1:
-                                for ele in vgw_gateway_routes[i][1:-1].split(","):
-                                    vgw_gateway_routes_elem = ET.Element('route')
-                                    vgw_gateway_routes_elem.text =ele
+                        if vgw_gateway_routes != None:
+                            if i < len(vgw_gateway_routes):
+                                if vgw_gateway_routes[i].find("[") !=-1:
+                                    for ele in vgw_gateway_routes[i][1:-1].split(","):
+                                        vgw_gateway_routes_elem = ET.Element('route')
+                                        vgw_gateway_routes_elem.text =ele[1:-1]
+                                        gateway_elem.append(vgw_gateway_routes_elem)
+                                else:
+                                    vgw_gateway_routes_elem = ET.Element('route')  
+                                    vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
-                            else:
-                                vgw_gateway_routes_elem = ET.Element('route')  
-                                vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
-                                gateway_elem.append(vgw_gateway_routes_elem)
                         agent_elem.append(gateway_elem)
 
 
