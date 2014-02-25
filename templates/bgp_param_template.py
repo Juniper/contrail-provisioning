@@ -10,6 +10,7 @@ template = string.Template("""#
 hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
 hostname=$__contrail_hostname__ # Retrieved as `hostname`
 http-server-port=8083
+test-mode=0
 xmpp-server-port=5269
 
 [BGP]

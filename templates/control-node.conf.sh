@@ -34,6 +34,7 @@ cat << EOF
 hostip=$HOSTIP # Resolved IP of `hostname`
 hostname=$HOSTNAME # Retrieved as `hostname`
 http-server-port=8083
+test-mode=0
 xmpp-server-port=5269
 
 [BGP]
