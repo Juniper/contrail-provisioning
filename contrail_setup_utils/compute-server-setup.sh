@@ -15,13 +15,25 @@ fi
 if [ -f /etc/lsb-release ]; then
    is_ubuntu=1
    is_redhat=0
-   OS_NET=neutron
-   TENANT_NAME=neutron_admin_tenant_name
-   ADMIN_USER=neutron_admin_username
-   ADMIN_PASSWD=neutron_admin_password
-   ADMIN_AUTH_URL=neutron_admin_auth_url
-   OS_URL=neutron_url
-   OS_URL_TIMEOUT=neutron_url_timeout
+   nova_compute_version=`dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'`
+   echo $nova_compute_version
+   if [ "$nova_compute_version" == "2:2013.1.3-0ubuntu1" ]; then
+   	OS_NET=quantum
+   	TENANT_NAME=quantum_admin_tenant_name
+   	ADMIN_USER=quantum_admin_username
+   	ADMIN_PASSWD=quantum_admin_password
+   	ADMIN_AUTH_URL=quantum_admin_auth_url
+   	OS_URL=quantum_url
+   	OS_URL_TIMEOUT=quantum_url_timeout
+   else
+   	OS_NET=neutron
+   	TENANT_NAME=neutron_admin_tenant_name
+   	ADMIN_USER=neutron_admin_username
+   	ADMIN_PASSWD=neutron_admin_password
+   	ADMIN_AUTH_URL=neutron_admin_auth_url
+   	OS_URL=neutron_url
+   	OS_URL_TIMEOUT=neutron_url_timeout
+   fi
 fi
 
 #CONTROLLER=10.1.5.12

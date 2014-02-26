@@ -561,16 +561,21 @@ HWADDR=%s
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
-        # remove entry from auto <dev> to auto excluding these pattern
-        # then delete specifically auto <dev>
-        local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
-        local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
-        # add manual entry for dev
-        local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
-        local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-        local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-        local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
-        local("echo '' >> %s" %(temp_intf_file))
+        if not self._args.non_mgmt_ip:
+            # remove entry from auto <dev> to auto excluding these pattern
+            # then delete specifically auto <dev> 
+            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+            # add manual entry for dev
+            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            local("echo '' >> %s" %(temp_intf_file))
+        else:
+            #remove ip address and gateway
+            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
 
         # move it to right place
         local("mv %s /etc/network/interfaces" %(temp_intf_file))
@@ -600,12 +605,6 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
-        if os.path.exists("/etc/neutron/neutron.conf"):
-            openstack_network_conf_file = "/etc/neutron/neutron.conf"
-            network_service = "neutron"
-        elif os.path.exists("/etc/quantum/quantum.conf"):
-            openstack_network_conf_file = "/etc/quantum/quantum.conf"
-            network_service = "quantum"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -730,7 +729,11 @@ HWADDR=%s
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                if pdist == 'Ubuntu':
+                    cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
+                    nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                    if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
+                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
@@ -768,7 +771,14 @@ HWADDR=%s
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
-            if os.path.exists(openstack_network_conf_file):
+            if os.path.exists("/etc/neutron/neutron.conf"):
+                openstack_network_conf_file = "/etc/neutron/neutron.conf"
+                network_service = "neutron"
+                local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (network_service, network_service, openstack_network_conf_file))
+            elif os.path.exists("/etc/quantum/quantum.conf"):
+                openstack_network_conf_file = "/etc/quantum/quantum.conf"
+                network_service = "quantum"
                 local("sudo sed -i 's/rpc_backend\s*=\s*%s.openstack.common.rpc.impl_qpid/#rpc_backend = %s.openstack.common.rpc.impl_qpid/g' %s" \
                        % (network_service, network_service, openstack_network_conf_file))
 
@@ -837,30 +847,21 @@ HWADDR=%s
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
-                             '__contrail_listen_port__' : '8086',
-                             '__contrail_http_server_port__' : '8089',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
-                                           template_vals, temp_dir_name + '/vizd_param')
-            local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
+                                           template_vals, temp_dir_name + '/collector.conf')
+            local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/qe.log',
-                             '__contrail_log_local__': '--log-local',
-                             '__contrail_redis_server__': '127.0.0.1',
-                             '__contrail_redis_server_port__' : '6380',
-                             '__contrail_http_server_port__' : '8091',
-                             '__contrail_collector__' : '127.0.0.1',
-                             '__contrail_collector_port__' : '8086',
+            template_vals = {
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/qe_param')
-            local("sudo mv %s/qe_param /etc/contrail/qe_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/query-engine.conf')
+            local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',
@@ -1055,7 +1056,11 @@ HWADDR=%s
                 local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
-            #local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+            #put cluster-unique zookeeper's instance id in myid 
+            if pdist == 'fedora' or pdist == 'centos':
+                local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+            if pdist == 'Ubuntu':
+                local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):
@@ -1072,18 +1077,15 @@ HWADDR=%s
             template_vals = {'__contrail_ifmap_usr__': '%s' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s' %(control_ip),
                              '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_bgp_port__': '179',
                              '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/control.log',
                             }
             self._template_substitute_write(bgp_param_template.template,
-                                            template_vals, temp_dir_name + '/control_param')
-            local("sudo mv %s/control_param /etc/contrail/control_param" %(temp_dir_name))
+                                            template_vals,
+                                            temp_dir_name + '/control-node.conf')
+            local("sudo mv %s/control-node.conf /etc/contrail/control-node.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
@@ -1092,12 +1094,11 @@ HWADDR=%s
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_host_ip__': control_ip,
                              '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/dns.log',
                             }
             self._template_substitute_write(dns_param_template.template,
-                                            dns_template_vals, temp_dir_name + '/dns_param')
-            local("sudo mv %s/dns_param /etc/contrail/dns_param" %(temp_dir_name))
+                                            dns_template_vals,
+                                            temp_dir_name + '/dns.conf')
+            local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 if self._args.puppet_server:
@@ -1174,8 +1175,7 @@ HWADDR=%s
                     compute_dev = self.get_device_by_ip (compute_ip)
 
             mac = None
-            #if dev and dev != 'vhost0' :
-            if 1:
+            if dev and dev != 'vhost0' :
                 mac = netifaces.ifaddresses (dev)[netifaces.AF_LINK][0][
                             'addr']
                 if mac:
@@ -1194,8 +1194,6 @@ HWADDR=%s
                 cidr = str (netaddr.IPNetwork('%s/%s' % (vhost_ip, netmask)))
 
                 if vgw_public_subnet:
-                    vgw_public_subnet = vgw_public_subnet[1:-1].split(',')
-                    vgw_subnet_list = str(tuple(vgw_public_subnet)).replace(" ", "")
                     with lcd(temp_dir_name):
                         # Manipulating the string to use in agent_param
                         vgw_public_subnet_str=[]
@@ -1243,7 +1241,8 @@ HWADDR=%s
                     vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
                     vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
                     vgw_intf_list = vgw_intf_list[1:-1].split(';')
-                    vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
+                    if vgw_gateway_routes != None:
+                        vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
                         gateway_elem = ET.Element("gateway") 
                         gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
@@ -1253,22 +1252,23 @@ HWADDR=%s
                         if vgw_public_subnet[i].find("[") !=-1:
                             for ele in vgw_public_subnet[i][1:-1].split(","):
                                 virtual_network_subnet_elem = ET.Element('subnet')
-                                virtual_network_subnet_elem.text =ele
+                                virtual_network_subnet_elem.text =ele[1:-1]
                                 gateway_elem.append(virtual_network_subnet_elem)
                         else:
                             virtual_network_subnet_elem = ET.Element('subnet')
                             virtual_network_subnet_elem.text =vgw_public_subnet[i]
                             gateway_elem.append(virtual_network_subnet_elem)
-                        if i < len(vgw_gateway_routes):
-                            if vgw_gateway_routes[i].find("[") !=-1:
-                                for ele in vgw_gateway_routes[i][1:-1].split(","):
-                                    vgw_gateway_routes_elem = ET.Element('route')
-                                    vgw_gateway_routes_elem.text =ele
+                        if vgw_gateway_routes != None:
+                            if i < len(vgw_gateway_routes):
+                                if vgw_gateway_routes[i].find("[") !=-1:
+                                    for ele in vgw_gateway_routes[i][1:-1].split(","):
+                                        vgw_gateway_routes_elem = ET.Element('route')
+                                        vgw_gateway_routes_elem.text =ele[1:-1]
+                                        gateway_elem.append(vgw_gateway_routes_elem)
+                                else:
+                                    vgw_gateway_routes_elem = ET.Element('route')  
+                                    vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
-                            else:
-                                vgw_gateway_routes_elem = ET.Element('route')  
-                                vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
-                                gateway_elem.append(vgw_gateway_routes_elem)
                         agent_elem.append(gateway_elem)
 
 

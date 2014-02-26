@@ -18,6 +18,7 @@ from fabric.context_managers import settings
 from keystoneclient.v2_0 import client
 from keystoneclient import utils as ksutils
 from keystoneclient import exceptions
+import platform
 
 class QuantumSetup(object):
     def __init__(self, args_str = None):
@@ -259,6 +260,7 @@ class QuantumSetup(object):
     # end quant_set_endpoints
 
     def do_quant_setup(self):
+        pdist = platform.dist()[0]
         # get service tenant ID
         self.quant_tenant_id = self.quant_set_tenant_id()
 
@@ -281,8 +283,12 @@ class QuantumSetup(object):
             #Fix the quantum url safely as openstack node may have been setup independently
             with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
                 run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
-                run('service openstack-keystone restart')
-                run('service openstack-nova-api restart')
+                if pdist == 'Ubuntu': 
+                    run('service keystone restart')
+                    run('service nova-api restart')
+                else:
+                    run('service openstack-keystone restart')
+                    run('service openstack-nova-api restart')
 
     # end do_quant_setup
 
