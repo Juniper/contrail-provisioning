@@ -1065,8 +1065,11 @@ HWADDR=%s
                 local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
-            if pdist != 'Ubuntu':
+            #put cluster-unique zookeeper's instance id in myid 
+            if pdist == 'fedora' or pdist == 'centos':
                 local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+            if pdist == 'Ubuntu':
+                local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):
