@@ -860,8 +860,8 @@ HWADDR=%s
             template_vals = {
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/qe.conf')
-            local("sudo mv %s/qe.conf /etc/contrail/qe.conf" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/query-engine.conf')
+            local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',

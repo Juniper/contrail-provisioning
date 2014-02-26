@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CONFIG_FILE="/etc/contrail/qe.conf"
+CONFIG_FILE="/etc/contrail/query-engine.conf"
 SIGNATURE="Query Engine configuration options, generated from qe_param"
 
 # Remove old style command line arguments from .ini file.
