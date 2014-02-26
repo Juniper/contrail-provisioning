@@ -32,6 +32,7 @@ if [ -f /etc/lsb-release ]; then
    mysql_svc=mysql
 fi
 
+msg_svc=rabbitmq-server
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
@@ -74,9 +75,9 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
 done
 
-openstack-config --set /etc/quantum/quantum.conf QUOTAS quota_network -1
-openstack-config --set /etc/quantum/quantum.conf QUOTAS quota_subnet -1
-openstack-config --set /etc/quantum/quantum.conf QUOTAS quota_port -1
+openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_network -1
+openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_subnet -1
+openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_port -1
 
 if [ -d /etc/neutron ]; then
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.juniper.contrail.contrailplugin.ContrailPlugin
@@ -89,7 +90,7 @@ openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT log_format 
 
 echo "======= Enabling the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $msg_svc $web_svc memcached; do
     chkconfig $svc on
 done
 
@@ -99,7 +100,7 @@ done
 
 echo "======= Starting the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $msg_svc $web_svc memcached; do
     service $svc restart
 done
 
