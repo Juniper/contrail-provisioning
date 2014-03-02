@@ -889,6 +889,15 @@ HWADDR=%s
         if 'config' in self._args.role:
             openstack_ip = self._args.openstack_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
+            if cfgm_ip in self._args.zookeeper_ip_list:
+                # prefer local zk if available
+                zk_servers = '%s' %(cfgm_ip)
+                zk_servers_ports = '%s:2181' %(cfgm_ip)
+            else:
+                zk_servers = ','.join(self._args.zookeeper_ip_list)
+                zk_servers_ports = \
+                ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+
             # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
@@ -911,7 +920,7 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                             }
             self._template_substitute_write(api_server_conf_template.template,
                                             template_vals, temp_dir_name + '/api_server.conf')
@@ -964,7 +973,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'schema-transformer',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/schema_xfer_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/schema_xfer.pem',
@@ -989,7 +998,7 @@ HWADDR=%s
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_openstack_ip__': openstack_ip,
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/svc_monitor.pem',
@@ -1008,7 +1017,7 @@ HWADDR=%s
 
             # discovery.conf
             template_vals = {
-                             '__contrail_zk_server_ip__': ','.join(self._args.zookeeper_ip_list),
+                             '__contrail_zk_server_ip__': zk_servers,
                              '__contrail_zk_server_port__': '2181',
                              '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
