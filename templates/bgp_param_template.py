@@ -18,6 +18,7 @@ template = string.Template("""#
 # log_file_size=10485760 # 10MB
 # log_level=SYS_NOTICE
 # log_local=0
+# test_mode=0
 # xmpp_server_port=5269
 
 [COLLECTOR]
