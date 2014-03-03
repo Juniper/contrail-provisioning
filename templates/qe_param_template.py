@@ -1,12 +1,28 @@
 import string
 
-template = string.Template("""
-CASSANDRA_SERVER_LIST=$__contrail_cassandra_server_list__
-REDIS_SERVER=$__contrail_redis_server__
-REDIS_SERVER_PORT=$__contrail_redis_server_port__
-HTTP_SERVER_PORT=$__contrail_http_server_port__
-LOG_FILE=$__contrail_log_file__
-LOG_LOCAL=$__contrail_log_local__
-COLLECTOR=$__contrail_collector__
-COLLECTOR_PORT=$__contrail_collector_port__
+template = string.Template("""#
+# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
+#
+# Query-engine daemon configuration options
+#
+
+[DEFAULTS]
+analytics-data-ttl=0
+cassandra-server=$__contrail_cassandra_server_list__
+collector-server= # Provided by discovery server
+http-server-port=8091
+
+[DISCOVERY]
+port=5998
+server= # discovery-server IP address
+
+[LOG]
+category=
+file=/var/log/contrail/qe.log
+level=SYS_DEBUG
+local=1
+
+[REDIS]
+ip=127.0.0.1
+port=6380
 """)
