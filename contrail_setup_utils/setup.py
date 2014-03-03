@@ -1094,19 +1094,15 @@ HWADDR=%s
             certdir = '/var/lib/puppet/ssl' if self._args.puppet_server else '/etc/contrail/ssl'
             template_vals = {'__contrail_ifmap_usr__': '%s' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s' %(control_ip),
-                             '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_bgp_port__': '179',
-                             '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/control.log',
+                             '__contrail_cert_ops__': '"%s"' %(certdir) if use_certs else '',
+                             '__contrail_logfile__': '/var/log/contrail/control-node.log',
                             }
             self._template_substitute_write(bgp_param_template.template,
-                                            template_vals, temp_dir_name + '/control_param')
-            local("sudo mv %s/control_param /etc/contrail/control_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/control-node.conf')
+            local("sudo mv %s/control-node.conf /etc/contrail/control-node.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
