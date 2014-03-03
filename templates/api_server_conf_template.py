@@ -26,6 +26,7 @@ ca_certs=$__contrail_cacertfile_location__
 [KEYSTONE]
 auth_host=$__contrail_keystone_ip__
 auth_protocol=http
+auth_port=35357
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
 admin_token=$__contrail_admin_token__
