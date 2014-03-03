@@ -39,6 +39,7 @@ cat << EOF
 # log_category=
 # log_disable=0
   log_file=/var/log/contrail/control-node.log
+# log_files_count=10
 # log_file_size=10485760 # 10MB
 # log_level=SYS_NOTICE
 # log_local=0
