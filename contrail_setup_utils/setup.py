@@ -1097,7 +1097,7 @@ HWADDR=%s
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_cert_ops__': '"%s"' %(certdir) if use_certs else '',
+                             '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(bgp_param_template.template,
                                             template_vals, temp_dir_name + '/control-node.conf')
@@ -1105,17 +1105,14 @@ HWADDR=%s
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
-                             '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
+                             '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/dns.log',
+                             '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(dns_param_template.template,
-                                            dns_template_vals, temp_dir_name + '/dns_param')
-            local("sudo mv %s/dns_param /etc/contrail/dns_param" %(temp_dir_name))
+                                            dns_template_vals, temp_dir_name + '/dns.conf')
+            local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 if self._args.puppet_server:
