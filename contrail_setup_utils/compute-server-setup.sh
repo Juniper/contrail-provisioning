@@ -72,6 +72,9 @@ openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 
 #use contrail specific vif driver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
 
+# Use noopdriver for firewall
+openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+
 for svc in openstack-nova-compute supervisor-vrouter; do
     chkconfig $svc on
 done

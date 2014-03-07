@@ -146,6 +146,8 @@ openstack-config --set /etc/nova/nova.conf conductor workers 40
 
 openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
+# Use noopdriver for firewall
+openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
 
 # Hack till we have synchronized time (config node as ntp server). Without this
 # utils.py:service_is_up() barfs and instance deletes not fwded to compute node
