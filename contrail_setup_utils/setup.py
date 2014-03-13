@@ -889,6 +889,15 @@ HWADDR=%s
         if 'config' in self._args.role:
             openstack_ip = self._args.openstack_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
+            if cfgm_ip in self._args.zookeeper_ip_list:
+                # prefer local zk if available
+                zk_servers = '%s' %(cfgm_ip)
+                zk_servers_ports = '%s:2181' %(cfgm_ip)
+            else:
+                zk_servers = ','.join(self._args.zookeeper_ip_list)
+                zk_servers_ports = \
+                ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+
             # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
@@ -911,7 +920,7 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                             }
             self._template_substitute_write(api_server_conf_template.template,
                                             template_vals, temp_dir_name + '/api_server.conf')
@@ -964,7 +973,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'schema-transformer',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/schema_xfer_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/schema_xfer.pem',
@@ -989,7 +998,7 @@ HWADDR=%s
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_openstack_ip__': openstack_ip,
-                             '__contrail_zookeeper_server_ip__': ','.join('%s:2181' % zk_ip for zk_ip in self._args.zookeeper_ip_list),
+                             '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/svc_monitor.pem',
@@ -1008,7 +1017,7 @@ HWADDR=%s
 
             # discovery.conf
             template_vals = {
-                             '__contrail_zk_server_ip__': ','.join(self._args.zookeeper_ip_list),
+                             '__contrail_zk_server_ip__': zk_servers,
                              '__contrail_zk_server_port__': '2181',
                              '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
@@ -1065,8 +1074,11 @@ HWADDR=%s
                 local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
-            if pdist != 'Ubuntu':
+            #put cluster-unique zookeeper's instance id in myid 
+            if pdist == 'fedora' or pdist == 'centos':
                 local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
+            if pdist == 'Ubuntu':
+                local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):
@@ -1082,33 +1094,25 @@ HWADDR=%s
             certdir = '/var/lib/puppet/ssl' if self._args.puppet_server else '/etc/contrail/ssl'
             template_vals = {'__contrail_ifmap_usr__': '%s' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s' %(control_ip),
-                             '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
                              '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_bgp_port__': '179',
-                             '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/control.log',
+                             '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(bgp_param_template.template,
-                                            template_vals, temp_dir_name + '/control_param')
-            local("sudo mv %s/control_param /etc/contrail/control_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/control-node.conf')
+            local("sudo mv %s/control-node.conf /etc/contrail/control-node.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
-                             '__contrail_collector__': collector_ip,
-                             '__contrail_collector_port__': '8086',
                              '__contrail_discovery_ip__': cfgm_ip,
+                             '__contrail_hostname__': hostname,
                              '__contrail_host_ip__': control_ip,
-                             '__contrail_cert_ops__': '"--use-certs=%s"' %(certdir) if use_certs else '',
-                             '__contrail_log_local__': '',
-                             '__contrail_logfile__': '--log-file=/var/log/contrail/dns.log',
+                             '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(dns_param_template.template,
-                                            dns_template_vals, temp_dir_name + '/dns_param')
-            local("sudo mv %s/dns_param /etc/contrail/dns_param" %(temp_dir_name))
+                                            dns_template_vals, temp_dir_name + '/dns.conf')
+            local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 if self._args.puppet_server:
