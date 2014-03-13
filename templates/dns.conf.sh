@@ -31,6 +31,7 @@ cat << EOF
 #
 
 [DEFAULT]
+# collectors= # Provided by discovery server
 # dns_config_file=dns_config.xml
   hostip=$HOSTIP # Resolved IP of `hostname`
   hostname=$HOSTNAME # Retrieved as `hostname`
@@ -43,10 +44,6 @@ cat << EOF
 # log_level=SYS_NOTICE
 # log_local=0
 # test_mode=0
-
-[COLLECTOR]
-# port=8086
-# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998

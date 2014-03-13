@@ -1,7 +1,7 @@
 import string
 
 template = string.Template("""#
-# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
+# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
 #
 # Control-node configuration options
 #
@@ -9,6 +9,7 @@ template = string.Template("""#
 [DEFAULT]
 # bgp_config_file=bgp_config.xml
 # bgp_port=179
+# collectors= # Provided by discovery server
   hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
   hostname=$__contrail_hostname__ # Retrieved as `hostname`
 # http_server_port=8083
@@ -21,10 +22,6 @@ template = string.Template("""#
 # log_local=0
 # test_mode=0
 # xmpp_server_port=5269
-
-[COLLECTOR]
-# port=8086
-# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998
