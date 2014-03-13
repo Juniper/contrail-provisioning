@@ -95,10 +95,10 @@ export ADMIN_TOKEN
 export SERVICE_TOKEN
 
 for cfg in api registry; do
-    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT flavor keystone
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
 done
 
 echo "======= Enabling the services ======"
