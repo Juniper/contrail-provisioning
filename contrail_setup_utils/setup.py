@@ -539,11 +539,7 @@ HWADDR=%s
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
         local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
-        local("echo '    pre-up vif --create vhost0 --mac %s' >> %s" %(mac, temp_intf_file))
-        local("echo '    pre-up vif --add vhost0 --mac %s --vrf 0 --mode x --type vhost' >> %s" \
-                                                       %(mac, temp_intf_file))
-        local("echo '    pre-down /etc/contrail/vif-helper delete vhost0' >> %s" %(temp_intf_file))
-        local("echo '    post-down ip link del vhost0' >> %s" %(temp_intf_file))
+        local("echo '    pre-up /opt/contrail/bin/if-vhost0' >> %s" %(temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
@@ -1224,9 +1220,8 @@ HWADDR=%s
                         local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
                 else:
                     with lcd(temp_dir_name):
-                        if pdist == 'centos' or pdist == 'fedora':
-                            local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
-                            local("sudo mv agent_param.new /etc/contrail/agent_param")
+                        local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
+                        local("sudo mv agent_param.new /etc/contrail/agent_param")
                 # set agent conf with control node IPs, first remove old ones
                 agent_tree = ET.parse('/etc/contrail/rpm_agent.conf')
                 agent_root = agent_tree.getroot()
