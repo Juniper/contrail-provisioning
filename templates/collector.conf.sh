@@ -49,15 +49,15 @@ cat << EOF
 
 [COLLECTOR]
   port=$LISTEN_PORT
-# server= # Provided by discovery server
+# server=0.0.0.0
 
 [DISCOVERY]
 # port=5998
   server=$DISCOVERY # discovery_server IP address
 
 [REDIS]
-  port=$REDIS_SERVER_PORT
-  server=$REDIS_SERVER
+  port=6381
+  server=127.0.0.1
 
 EOF
 ) > $CONFIG_FILE
