@@ -24,7 +24,7 @@ template = string.Template("""#
 
 [DISCOVERY]
 # port=5998
-  server=$__contrail_discovery_ip__ # discovery_server IP address
+# server= # discovery_server IP address
 
 [REDIS]
   port=$__contrail_redis_server_port__

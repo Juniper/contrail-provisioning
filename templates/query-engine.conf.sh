@@ -49,7 +49,7 @@ cat << EOF
 
 [DISCOVERY]
 # port=5998
-  server=$DISCOVERY # discovery_server IP address
+# server= # discovery_server IP address
 
 [REDIS]
   port=$REDIS_SERVER_PORT
