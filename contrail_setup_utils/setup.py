@@ -1276,7 +1276,7 @@ HWADDR=%s
                                         gateway_elem.append(vgw_gateway_routes_elem)
                                 else:
                                     vgw_gateway_routes_elem = ET.Element('route')  
-                                    vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
+                                    vgw_gateway_routes_elem.text =vgw_gateway_routes[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
                         agent_elem.append(gateway_elem)
 
