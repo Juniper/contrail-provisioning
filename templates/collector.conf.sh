@@ -22,6 +22,14 @@ fi
 
 source /etc/contrail/vizd_param
 
+if [ -z $ANALYTICS_DATA_TTL]; then
+    ANALYTICS_DATA_TTL=48
+fi
+
+if [ -z $ANALYTICS_SYSLOG_PORT]; then
+    ANALYTICS_SYSLOG_PORT=0
+fi
+
 (
 cat << EOF
 #
