@@ -1267,8 +1267,8 @@ HWADDR=%s
                             virtual_network_subnet_elem = ET.Element('subnet')
                             virtual_network_subnet_elem.text =vgw_public_subnet[i]
                             gateway_elem.append(virtual_network_subnet_elem)
-                        if vgw_gateway_routes != None:
-                            if i < len(vgw_gateway_routes):
+                        if vgw_gateway_routes != None and i < len(vgw_gateway_routes):
+                            if  vgw_gateway_routes[i] != '[]':
                                 if vgw_gateway_routes[i].find("[") !=-1:
                                     for ele in vgw_gateway_routes[i][1:-1].split(","):
                                         vgw_gateway_routes_elem = ET.Element('route')
@@ -1276,7 +1276,7 @@ HWADDR=%s
                                         gateway_elem.append(vgw_gateway_routes_elem)
                                 else:
                                     vgw_gateway_routes_elem = ET.Element('route')  
-                                    vgw_gateway_routes_elem.text =vgw_public_vn_name[i]
+                                    vgw_gateway_routes_elem.text =vgw_gateway_routes[i]
                                     gateway_elem.append(vgw_gateway_routes_elem)
                         agent_elem.append(gateway_elem)
 
