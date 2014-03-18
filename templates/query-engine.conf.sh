@@ -23,6 +23,18 @@ fi
 
 source /etc/contrail/qe_param
 
+if [ -z $ANALYTICS_DATA_TTL]; then
+    ANALYTICS_SYSLOG_PORT=48
+fi
+
+if [ -z $HTTP_SERVER_PORT]; then
+    HTTP_SERVER_PORT=8091
+fi
+
+if [ -z $REDIS_SERVER_PORT]; then
+    REDIS_SERVER_PORT=6379
+fi
+
 (
 cat << EOF
 #
