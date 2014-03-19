@@ -72,6 +72,7 @@ from contrail_config_templates import contrail_api_ini_template
 from contrail_config_templates import contrail_api_svc_template
 from contrail_config_templates import contrail_discovery_ini_template
 from contrail_config_templates import contrail_discovery_svc_template
+from contrail_config_templates import database_nodemgr_param_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -172,6 +173,7 @@ class Setup(object):
         database_defaults = {
             'database_dir' : '/usr/share/cassandra',
             'database_listen_ip' : '127.0.0.1',                     
+	    'cfgm_ip': '127.0.0.1',
         }
 
         if args.conf_file:
@@ -839,6 +841,12 @@ HWADDR=%s
                   % (env_file))
             local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
                   % (env_file))
+	    template_vals = {
+                            '__contrail_discovery_ip__': cfgm_ip
+                            }
+            self._template_substitute_write(database_nodemgr_param_template.template,
+                                            template_vals, temp_dir_name + '/database_nodemgr_param')
+            local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
 
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
