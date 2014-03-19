@@ -852,7 +852,6 @@ HWADDR=%s
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -861,11 +860,10 @@ HWADDR=%s
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
-                                           template_vals, temp_dir_name + '/vizd_param')
-            local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
+                                           template_vals, temp_dir_name + '/collector.conf')
+            local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/qe.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
                              '__contrail_redis_server_port__' : '6380',
                              '__contrail_http_server_port__' : '8091',
@@ -873,8 +871,8 @@ HWADDR=%s
                              '__contrail_collector_port__' : '8086',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/qe_param')
-            local("sudo mv %s/qe_param /etc/contrail/qe_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/query-engine.conf')
+            local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
                              '__contrail_log_local__': '--log_local',

@@ -33,6 +33,7 @@ cat << EOF
 [DEFAULT]
 # bgp_config_file=bgp_config.xml
 # bgp_port=179
+# collectors= # Provided by discovery server
   hostip=$HOSTIP # Resolved IP of `hostname`
   hostname=$HOSTNAME # Retrieved as `hostname`
 # http_server_port=8083
@@ -45,10 +46,6 @@ cat << EOF
 # log_local=0
 # test_mode=0
 # xmpp_server_port=5269
-
-[COLLECTOR]
-# port=8086
-# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998
