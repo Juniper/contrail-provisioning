@@ -1025,7 +1025,7 @@ HWADDR=%s
                              '__contrail_listen_port__': '5998',
                              '__contrail_log_local__': 'True',
                              '__contrail_log_file__': '/var/log/contrail/discovery.log',
-                             '__contrail_healthcheck_interval__': -1,
+                             '__contrail_healthcheck_interval__': 5,
                             }
             self._template_substitute_write(discovery_conf_template.template,
                                             template_vals, temp_dir_name + '/discovery.conf')
