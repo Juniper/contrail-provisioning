@@ -8,7 +8,7 @@ template = string.Template("""#
 
 [DEFAULT]
   analytics_data_ttl=$__contrail_analytics_data_ttl__
-  cassandra_server_list=$__contrail_cassandra_server_list__
+  $__contrail_cassandra_server_list__
 # dup=0
   hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
 # hostname= # Retrieved as `hostname`
