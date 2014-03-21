@@ -141,6 +141,7 @@ class Setup(object):
             'n_api_workers': '1',
             'multi_tenancy': False,
             'haproxy': False,
+            'region_name': None,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -220,6 +221,7 @@ class Setup(object):
         parser.add_argument("--ncontrols", help = "Number of Control Nodes in the system (for compute role)")
         parser.add_argument("--compute_ip", help = "IP Address of Compute Node (for compute role)")
         parser.add_argument("--service_token", help = "The service password to access keystone")
+        parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
@@ -891,6 +893,7 @@ HWADDR=%s
                     
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             if cfgm_ip in self._args.zookeeper_ip_list:
                 # prefer local zk if available
@@ -1016,6 +1019,7 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
+                             '__contrail_region_name__': region_name,
                             }
             self._template_substitute_write(svc_monitor_conf_template.template,
                                             template_vals, temp_dir_name + '/svc_monitor.conf')
@@ -1457,12 +1461,15 @@ SUBCHANNELS=1,2,3
 
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
                           %(keystone_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
                             env.password)
+            if region_name:
+                quant_args += " --region_name %s" %(region_name)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:
