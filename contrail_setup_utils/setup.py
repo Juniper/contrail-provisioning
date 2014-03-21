@@ -856,7 +856,7 @@ HWADDR=%s
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
                              '__contrail_http_server_port__' : '8089',
-                             '__contrail_cassandra_server_list__' : ''.join('cassandra_server_list=%s:%s\n  ' % cassandra_server for cassandra_server in cassandra_server_list),
+                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
@@ -869,7 +869,7 @@ HWADDR=%s
                              '__contrail_http_server_port__' : '8091',
                              '__contrail_collector__' : '127.0.0.1',
                              '__contrail_collector_port__' : '8086',
-                             '__contrail_cassandra_server_list__' : ''.join('cassandra_server_list=%s:%s\n  ' % cassandra_server for cassandra_server in cassandra_server_list)}
+                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
                                             template_vals, temp_dir_name + '/query-engine.conf')
             local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
