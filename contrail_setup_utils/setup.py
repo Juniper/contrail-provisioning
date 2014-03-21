@@ -1062,6 +1062,7 @@ HWADDR=%s
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
                 local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
             if pdist == 'Ubuntu':
+                #changes for zookeeper 3.5.5
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
                 local("sudo mv log4j.properties.new /etc/zookeeper/conf_example/log4j.properties")
 
