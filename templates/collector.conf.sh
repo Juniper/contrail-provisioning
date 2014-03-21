@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/collector.conf"
-SIGNATURE="Collector configuration options, generated from vizd_param"
+OLD_CONFIG_FILE=/etc/contrail/vizd_param
+SIGNATURE="Collector configuration options, generated from $OLD_CONFIG_FILE"
 
 # Remove old style command line arguments from .ini file.
 perl -ni -e 's/command=.*/command=\/usr\/bin\/vizd/g; print $_;' /etc/contrail/supervisord_analytics_files/contrail-collector.ini
 
-if [ ! -e /etc/contrail/vizd_param ]; then
+if [ ! -e $OLD_CONFIG_FILE ]; then
     exit
 fi
 
@@ -20,20 +21,25 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source /etc/contrail/vizd_param
+source $OLD_CONFIG_FILE 2>/dev/null || true
 
-if [ -z $ANALYTICS_DATA_TTL]; then
+if [ -z $ANALYTICS_DATA_TTL ]; then
     ANALYTICS_DATA_TTL=48
 fi
 
-if [ -z $ANALYTICS_SYSLOG_PORT]; then
+if [ -z $ANALYTICS_SYSLOG_PORT ]; then
     ANALYTICS_SYSLOG_PORT=0
+fi
+
+if [ -z $CASSANDRA_SERVER_LIST ]; then
+    # Try to retrieve ' ' separated list of tokens,
+    CASSANDRA_SERVER_LIST=`\grep CASSANDRA_SERVER_LIST $OLD_CONFIG_FILE | awk -F '=' '{print $2}'` || true
 fi
 
 (
 cat << EOF
 #
-# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
+# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
 #
 # $SIGNATURE
 #
