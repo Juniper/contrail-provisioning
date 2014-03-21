@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/query-engine.conf"
-SIGNATURE="Query-Engine configuration options, generated from qe_pram"
+OLD_CONFIG_FILE=/etc/contrail/qe_param
+SIGNATURE="Query-Engine configuration options, generated from $OLD_CONFIG_FILE"
 
 # Remove old style command line arguments from .ini file.
-perl -ni -e 's/command=.*/command=\/usr\/bin\/vizd/g; print $_;' /etc/contrail/supervisord_control_files/contrail-collector
 perl -ni -e 's/command=.*/command=\/usr\/bin\/qed/g; print $_;' /etc/contrail/supervisord_analytics_files/qed.ini
 
-if [ ! -e /etc/contrail/qe_param ]; then
+if [ ! -e $OLD_CONFIG_FILE ]; then
     exit
 fi
 
@@ -21,24 +21,29 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source /etc/contrail/qe_param
+source $OLD_CONFIG_FILE 2>/dev/null || true
 
-if [ -z $ANALYTICS_DATA_TTL]; then
+if [ -z $ANALYTICS_DATA_TTL ]; then
     ANALYTICS_SYSLOG_PORT=48
 fi
 
-if [ -z $HTTP_SERVER_PORT]; then
+if [ -z $HTTP_SERVER_PORT ]; then
     HTTP_SERVER_PORT=8091
 fi
 
-if [ -z $REDIS_SERVER_PORT]; then
+if [ -z $REDIS_SERVER_PORT ]; then
     REDIS_SERVER_PORT=6379
+fi
+
+if [ -z $CASSANDRA_SERVER_LIST ]; then
+    # Try to retrieve ' ' separated list of tokens,
+    CASSANDRA_SERVER_LIST=`\grep CASSANDRA_SERVER_LIST $OLD_CONFIG_FILE | awk -F '=' '{print $2}'` || true
 fi
 
 (
 cat << EOF
 #
-# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
+# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
 #
 # $SIGNATURE
 #
@@ -47,7 +52,7 @@ cat << EOF
   analytics_data_ttl=$ANALYTICS_DATA_TTL
   cassandra_server_list=$CASSANDRA_SERVER_LIST
   collectors=$COLLECTOR:$COLLECTOR_PORT
-  hostip= # Resolved IP of `hostname`
+# hostip= # Resolved IP of `hostname`
 # hostname= # Retrieved as `hostname`
   http_server_port=$HTTP_SERVER_PORT
 # log_category=

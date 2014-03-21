@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/dns.conf"
-SIGNATURE="DNS configuration options, generated from dns_param"
+OLD_CONFIG_FILE=/etc/contrail/dns_param
+SIGNATURE="DNS configuration options, generated from $OLD_CONFIG_FILE"
 
 # Remove old style command line arguments from .ini file.
 perl -ni -e 's/command=.*/command=\/usr\/bin\/dnsd/g; print $_;' /etc/contrail/supervisord_control_files/contrail-dns.ini
 
-if [ ! -e /etc/contrail/dns_param ]; then
+if [ ! -e $OLD_CONFIG_FILE ]; then
     exit
 fi
 
@@ -20,7 +21,7 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source /etc/contrail/dns_param
+source $OLD_CONFIG_FILE 2>/dev/null || true
 
 (
 cat << EOF
