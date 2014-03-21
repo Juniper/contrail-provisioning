@@ -1062,18 +1062,24 @@ HWADDR=%s
             local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(temp_dir_name))
 
             # set high session timeout to survive glance led disk activity
-            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
-            local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
             if pdist == 'fedora' or pdist == 'centos':
+                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
                 local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
             if pdist == 'Ubuntu':
+                #changes for zookeeper 3.5.5
+                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
                 local("sudo mv log4j.properties.new /etc/zookeeper/conf_example/log4j.properties")
 
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
-                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
+                if pdist == 'fedora' or pdist == 'centos':
+                    local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
+                if pdist == 'Ubuntu':
+                    local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
             #put cluster-unique zookeeper's instance id in myid 
