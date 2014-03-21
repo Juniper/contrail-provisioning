@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/control-node.conf"
-SIGNATURE="Control-node configuration options, generated from control_param"
+OLD_CONFIG_FILE=/etc/contrail/control_param
+SIGNATURE="Control-node configuration options, generated from $OLD_CONFIG_FILE"
 
 # Remove old style command line arguments from .ini file.
 perl -ni -e 's/command=.*/command=\/usr\/bin\/control-node/g; print $_;' /etc/contrail/supervisord_control_files/contrail-control.ini
 
-if [ ! -e /etc/contrail/control_param ]; then
+if [ ! -e $OLD_CONFIG_FILE ]; then
     exit
 fi
 
@@ -20,12 +21,12 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source /etc/contrail/control_param
+source $OLD_CONFIG_FILE 2>/dev/null || true
 
 (
 cat << EOF
 #
-# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
+# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
 #
 # $SIGNATURE
 #
