@@ -22,6 +22,7 @@ class SetupVncCfgm(object):
         quantum_port = self._args.quantum_port
         nworkers = self._args.nworkers
         service_token = self._args.service_token
+        region_name = self._args.region_name
 
         setup_args_str = "--role config "
         setup_args_str = setup_args_str + " --cfgm_ip %s --keystone_ip %s --collector_ip %s " \
@@ -32,6 +33,8 @@ class SetupVncCfgm(object):
 
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
+        if region_name:
+            setup_args_str = setup_args_str + " --region_name %s " %(region_name)
         if self._args.use_certs:
             setup_args_str = setup_args_str + " --use_certs"
         if self._args.multi_tenancy:
@@ -58,6 +61,7 @@ class SetupVncCfgm(object):
             --cfgm_index 1
             --nworkers 1
             optional: --use_certs, --multi_tenancy --haproxy
+                      --region_name <name>
         '''
 
         # Source any specified config/ini file
@@ -78,6 +82,7 @@ class SetupVncCfgm(object):
             'multi_tenancy': False,
             'nworkers': '1',
             'haproxy': False,
+            'region_name': None,
         }
 
         if args.conf_file:
@@ -121,6 +126,7 @@ class SetupVncCfgm(object):
             help = "Number of worker processes for api and discovery services",
             default = '1')
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--region_name", help = "The Region name for the openstack")
   
         self._args = parser.parse_args(remaining_argv)
 
