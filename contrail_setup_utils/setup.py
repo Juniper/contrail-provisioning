@@ -672,27 +672,32 @@ HWADDR=%s
             # analytics venv instalation
             if os.path.exists('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
                 with lcd("/opt/contrail/analytics-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/analytics-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
             # api venv instalation
             if os.path.exists('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
                 with lcd("/opt/contrail/api-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/api-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
         # vrouter venv instalation
         if os.path.exists('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
             with lcd("/opt/contrail/vrouter-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/vrouter-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # control venv instalation
         if os.path.exists('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
             with lcd("/opt/contrail/control-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/control-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # database venv instalation
         if os.path.exists('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
             with lcd("/opt/contrail/database-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/database-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
 
         if 'openstack' in self._args.role:
             self.service_token = self._args.service_token
