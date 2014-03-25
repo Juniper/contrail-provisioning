@@ -1424,7 +1424,7 @@ SUBCHANNELS=1,2,3
                 prov_args = "--host_name %s --host_ip %s --api_server_ip %s --oper add " \
                             "--admin_user %s --admin_password %s --admin_tenant_name %s" \
                             %(compute_hostname, compute_ip, cfgm_ip, ks_admin_user, ks_admin_password, ks_admin_tenant_name)
-                run("bash -c 'source /opt/contrail/api-venv/bin/activate && python /opt/contrail/utils/provision_vrouter.py %s'" %(prov_args)
+                run("bash -c 'source /opt/contrail/api-venv/bin/activate && python /opt/contrail/utils/provision_vrouter.py %s'" %(prov_args))
 
     def enable_services(self):
         pass
