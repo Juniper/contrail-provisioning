@@ -670,27 +670,27 @@ HWADDR=%s
  
         with settings(warn_only = True):
             # analytics venv instalation
-            if os.path.exists('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
+            if os.listdir('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
                 with lcd("/opt/contrail/analytics-venv/archive"):
                     local("bash -c 'source ../bin/activate && pip install *'")
  
             # api venv instalation
-            if os.path.exists('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
+            if os.listdir('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
                 with lcd("/opt/contrail/api-venv/archive"):
                     local("bash -c 'source ../bin/activate && pip install *'")
  
         # vrouter venv instalation
-        if os.path.exists('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
+        if os.listdir('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
             with lcd("/opt/contrail/vrouter-venv/archive"):
                 local("bash -c 'source ../bin/activate && pip install *'")
  
         # control venv instalation
-        if os.path.exists('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
+        if os.listdir('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
             with lcd("/opt/contrail/control-venv/archive"):
                 local("bash -c 'source ../bin/activate && pip install *'")
  
         # database venv instalation
-        if os.path.exists('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
+        if os.listdir('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
             with lcd("/opt/contrail/database-venv/archive"):
                 local("bash -c 'source ../bin/activate && pip install *'")
 
@@ -1424,8 +1424,7 @@ SUBCHANNELS=1,2,3
                 prov_args = "--host_name %s --host_ip %s --api_server_ip %s --oper add " \
                             "--admin_user %s --admin_password %s --admin_tenant_name %s" \
                             %(compute_hostname, compute_ip, cfgm_ip, ks_admin_user, ks_admin_password, ks_admin_tenant_name)
-                run("source /opt/contrail/api-venv/bin/activate && python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
-    #end add_vnc_config
+                run("bash -c 'source /opt/contrail/api-venv/bin/activate && python /opt/contrail/utils/provision_vrouter.py %s'" %(prov_args)
 
     def enable_services(self):
         pass
