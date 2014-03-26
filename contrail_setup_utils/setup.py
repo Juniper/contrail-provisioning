@@ -1082,6 +1082,7 @@ HWADDR=%s
                 local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
             if pdist == 'Ubuntu':
                 #changes for zookeeper 3.5.5
+                local('sudo echo "clientPort=2181" >> /etc/zookeeper/conf/zoo.cfg')
                 local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
                 local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
