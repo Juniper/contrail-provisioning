@@ -649,6 +649,8 @@ HWADDR=%s
         if pdist == 'centos' or pdist == 'fedora':
             core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
             local("%s >> %s" %(core_unlim, initf))
+            if pdist == 'Ubuntu':
+                local('mkdir -p /var/crash')
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
