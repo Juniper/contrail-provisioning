@@ -135,12 +135,13 @@ class Setup(object):
         }
         cfgm_defaults = {
             'cfgm_ip': '127.0.0.1',
-            'openstack_ip': '127.0.0.1',
+            'keystone_ip': '127.0.0.1',
             'redis_ip': '127.0.0.1',
             'service_token': '',
             'n_api_workers': '1',
             'multi_tenancy': False,
             'haproxy': False,
+            'region_name': None,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -154,7 +155,7 @@ class Setup(object):
         }
         compute_node_defaults = {
             'compute_ip': '127.0.0.1',
-            'openstack_ip': '127.0.0.1',
+            'keystone_ip': '127.0.0.1',
             'service_token': '',
             'haproxy': False,
             'ncontrols' : 2,
@@ -212,6 +213,7 @@ class Setup(object):
                             help = "Role of server (config, openstack, control, compute, collector, webui, database")
         parser.add_argument("--cfgm_ip", help = "IP Address of Configuration Node")
         parser.add_argument("--openstack_ip", help = "IP Address of Openstack Node")
+        parser.add_argument("--keystone_ip", help = "IP Address of Keystone Node")
         parser.add_argument("--openstack_mgmt_ip", help = "Management IP Address of Openstack Node")
         parser.add_argument("--collector_ip", help = "IP Address of Collector Node")
         parser.add_argument("--discovery_ip", help = "IP Address of Discovery Node")
@@ -219,6 +221,7 @@ class Setup(object):
         parser.add_argument("--ncontrols", help = "Number of Control Nodes in the system (for compute role)")
         parser.add_argument("--compute_ip", help = "IP Address of Compute Node (for compute role)")
         parser.add_argument("--service_token", help = "The service password to access keystone")
+        parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
@@ -646,6 +649,8 @@ HWADDR=%s
         if pdist == 'centos' or pdist == 'fedora':
             core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
             local("%s >> %s" %(core_unlim, initf))
+            if pdist == 'Ubuntu':
+                local('mkdir -p /var/crash')
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
@@ -669,27 +674,32 @@ HWADDR=%s
             # analytics venv instalation
             if os.path.exists('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
                 with lcd("/opt/contrail/analytics-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/analytics-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
             # api venv instalation
             if os.path.exists('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
                 with lcd("/opt/contrail/api-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/api-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
         # vrouter venv instalation
         if os.path.exists('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
             with lcd("/opt/contrail/vrouter-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/vrouter-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # control venv instalation
         if os.path.exists('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
             with lcd("/opt/contrail/control-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/control-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # database venv instalation
         if os.path.exists('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
             with lcd("/opt/contrail/database-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/database-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
 
         if 'openstack' in self._args.role:
             self.service_token = self._args.service_token
@@ -742,12 +752,12 @@ HWADDR=%s
             # get service token from openstack(role) node and fix local config
             self.service_token = self._args.service_token
             self.haproxy = self._args.haproxy
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             compute_ip = self._args.compute_ip
             cfgm_ip = self._args.cfgm_ip
             quantum_port = self._args.quantum_port
             if not self.service_token:
-                with settings(host_string = 'root@%s' %(openstack_ip), password = env.password):
+                with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
                     self.service_token = tok_fd.read()
@@ -757,7 +767,7 @@ HWADDR=%s
             local("echo 'SERVICE_TOKEN=%s' >> %s/ctrl-details" 
                                             %(self.service_token, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
-            local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(openstack_ip, temp_dir_name))
+            local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -889,7 +899,8 @@ HWADDR=%s
             local("sudo mv %s/opserver_param /etc/contrail/opserver_param" %(temp_dir_name))             
                     
         if 'config' in self._args.role:
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             if cfgm_ip in self._args.zookeeper_ip_list:
                 # prefer local zk if available
@@ -912,11 +923,12 @@ HWADDR=%s
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/apiserver.pem',
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_redis_ip__': self._args.redis_master_ip,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                              '__contrail_log_file__': '/var/log/contrail/api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
@@ -983,6 +995,7 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_log_file__' : '/var/log/contrail/schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
@@ -999,7 +1012,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'svc-monitor',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
@@ -1008,10 +1021,12 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
+                             '__contrail_region_name__': region_name,
                             }
             self._template_substitute_write(svc_monitor_conf_template.template,
                                             template_vals, temp_dir_name + '/svc_monitor.conf')
@@ -1055,7 +1070,7 @@ HWADDR=%s
 
             # vnc_api_lib.ini
             template_vals = {
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                             }
             self._template_substitute_write(vnc_api_lib_ini_template.template,
                                             template_vals, temp_dir_name + '/vnc_api_lib.ini')
@@ -1069,6 +1084,7 @@ HWADDR=%s
                 local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
             if pdist == 'Ubuntu':
                 #changes for zookeeper 3.5.5
+                local('sudo echo "clientPort=2181" >> /etc/zookeeper/conf/zoo.cfg')
                 local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
                 local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
                 local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
@@ -1162,7 +1178,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
             local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
 
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             compute_ip = self._args.compute_ip
             if self.haproxy:
                 discovery_ip = '127.0.0.1'
@@ -1382,6 +1398,7 @@ SUBCHANNELS=1,2,3
 
         if 'webui' in self._args.role:
             openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
@@ -1390,7 +1407,7 @@ SUBCHANNELS=1,2,3
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.computeManager.ip.*/config.computeManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
+            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(keystone_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")            
@@ -1451,13 +1468,16 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
 
         if 'config' in self._args.role:
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
-                          %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
+                          %(keystone_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
                             env.password)
+            if region_name:
+                quant_args += " --region_name %s" %(region_name)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:

@@ -16,22 +16,25 @@ class SetupVncCfgm(object):
             args_str = ' '.join(sys.argv[1:])
         self._parse_args(args_str)
         self_ip = self._args.self_ip
-        openstack_ip = self._args.openstack_ip
+        keystone_ip = self._args.keystone_ip
         collector_ip = self._args.collector_ip
         redis_ip = self._args.redis_ip
         quantum_port = self._args.quantum_port
         nworkers = self._args.nworkers
         service_token = self._args.service_token
+        region_name = self._args.region_name
 
         setup_args_str = "--role config "
-        setup_args_str = setup_args_str + " --cfgm_ip %s --openstack_ip %s --collector_ip %s " \
-                                                      %(self_ip, openstack_ip, collector_ip)
+        setup_args_str = setup_args_str + " --cfgm_ip %s --keystone_ip %s --collector_ip %s " \
+                                                      %(self_ip, keystone_ip, collector_ip)
         setup_args_str = setup_args_str + " --redis_master_ip %s" %(redis_ip)
         setup_args_str = setup_args_str + " --quantum_port %s" %(quantum_port)
         setup_args_str = setup_args_str + " --n_api_workers %s" %(nworkers)
 
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
+        if region_name:
+            setup_args_str = setup_args_str + " --region_name %s " %(region_name)
         if self._args.use_certs:
             setup_args_str = setup_args_str + " --use_certs"
         if self._args.multi_tenancy:
@@ -51,13 +54,14 @@ class SetupVncCfgm(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-cfgm.py --self_ip 10.1.5.11 --openstack_ip 10.1.5.12 
+        Eg. python setup-vnc-cfgm.py --self_ip 10.1.5.11 --keystone_ip 10.1.5.12 
             --collector_ip 10.1.5.12 --service_token contrail123
             --cassandra_ip_list 10.1.5.11 10.1.5.12 
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --cfgm_index 1
             --nworkers 1
             optional: --use_certs, --multi_tenancy --haproxy
+                      --region_name <name>
         '''
 
         # Source any specified config/ini file
@@ -71,13 +75,14 @@ class SetupVncCfgm(object):
         global_defaults = {
             'self_ip': '127.0.0.1',
             'collector_ip': '127.0.0.1',
-            'openstack_ip': '127.0.0.1',
+            'keystone_ip': '127.0.0.1',
             'redis_ip': '127.0.0.1',
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': False,
             'nworkers': '1',
             'haproxy': False,
+            'region_name': None,
         }
 
         if args.conf_file:
@@ -101,7 +106,7 @@ class SetupVncCfgm(object):
 
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
-        parser.add_argument("--openstack_ip", help = "IP Address of openstack node")
+        parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--redis_ip",
                             help = "IP Address of redis server")
         parser.add_argument("--service_token", help = "The service password to access keystone")
@@ -121,6 +126,7 @@ class SetupVncCfgm(object):
             help = "Number of worker processes for api and discovery services",
             default = '1')
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--region_name", help = "The Region name for the openstack")
   
         self._args = parser.parse_args(remaining_argv)
 
