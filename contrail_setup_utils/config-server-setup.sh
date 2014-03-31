@@ -22,14 +22,12 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   zoo_svc=contrail-zookeeper
 fi
 
 if [ -f /etc/issue ]; then
    is_ubuntu=1
    is_redhat=0
    web_svc=apache2
-   zoo_svc=zookeeper
 fi
 
 # Create link /usr/bin/nodejs to /usr/bin/node
@@ -43,7 +41,7 @@ for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in $zoo_svc supervisor-config quantum-server puppetmaster; do
+for svc in zookeeper supervisor-config quantum-server puppetmaster; do
     chkconfig $svc on
 done
 
