@@ -51,7 +51,7 @@ for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
-for svc in $zoo_svc puppetmaster; do
+for svc in zookeeper puppetmaster; do
     service $svc restart
 done
 
