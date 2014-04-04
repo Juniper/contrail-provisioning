@@ -1070,10 +1070,11 @@ HWADDR=%s
 
             # set high session timeout to survive glance led disk activity
             if pdist == 'fedora' or pdist == 'centos':
-                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
-                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
-                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
+                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+                local("sudo sed 's/^#log4j.rootLogger=DEBUG/log4j.rootLogger=DEBUG/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+                local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
+                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=10/log4j.appender.ROLLINGFILE.MaxBackupIndex=10/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+                local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
             if pdist == 'Ubuntu':
                 local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
                 local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
@@ -1082,17 +1083,11 @@ HWADDR=%s
 
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
-                if pdist == 'fedora' or pdist == 'centos':
-                    local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
-                if pdist == 'Ubuntu':
-                    local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
+                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
             #put cluster-unique zookeeper's instance id in myid 
-            if pdist == 'fedora' or pdist == 'centos':
-                local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
-            if pdist == 'Ubuntu':
-                local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
+            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):
