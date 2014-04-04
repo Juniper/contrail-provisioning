@@ -94,6 +94,10 @@ done
 export ADMIN_TOKEN
 export SERVICE_TOKEN
 
+for cfg in api; do
+    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT notifier_strategy noop
+done
+
 for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
