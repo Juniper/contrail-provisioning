@@ -69,6 +69,7 @@ fi
 
 for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
