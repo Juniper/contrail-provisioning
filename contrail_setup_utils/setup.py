@@ -606,7 +606,10 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
-	dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
+        if (os.path.isdir("/etc/openstack_dashboard")):
+            dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
+        else:
+            dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
