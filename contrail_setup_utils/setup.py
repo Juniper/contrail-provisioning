@@ -1080,18 +1080,14 @@ HWADDR=%s
             local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(temp_dir_name))
 
             # set high session timeout to survive glance led disk activity
+            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
+            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
             if pdist == 'fedora' or pdist == 'centos':
-                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
-                local("sudo sed 's/^#log4j.rootLogger=DEBUG/log4j.rootLogger=DEBUG/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
-                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=10/log4j.appender.ROLLINGFILE.MaxBackupIndex=10/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
             if pdist == 'Ubuntu':
-                #changes for zookeeper 3.5.5
-                local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
-                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
-                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/conf_example/log4j.properties")
+                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
 
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
