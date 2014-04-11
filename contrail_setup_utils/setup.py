@@ -617,15 +617,18 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
+        if (os.path.isdir("/etc/openstack_dashboard")):
+            dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
+        else:
+            dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
 
         # TODO till post of openstack-horizon.spec is fixed...
         if 'openstack' in self._args.role:
-            pylibpath = local ('/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"', capture = True)
             if pdist == 'fedora' or pdist == 'centos':
-                local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
+                local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
@@ -744,7 +747,7 @@ HWADDR=%s
 
         if 'compute' in self._args.role or 'openstack' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
@@ -752,7 +755,7 @@ HWADDR=%s
                     cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
                     nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
-                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
