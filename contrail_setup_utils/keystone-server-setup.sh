@@ -76,7 +76,7 @@ service $keystone_svc restart
 chkconfig $keystone_svc on
 
 if [ ! -d /etc/keystone/ssl ]; then
-    keystone-manage pki_setup
+    keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
     chown -R keystone.keystone /etc/keystone/ssl
 fi
 
