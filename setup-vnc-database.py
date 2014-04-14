@@ -36,6 +36,9 @@ class SetupVncDatabase(object):
                                  % (initial_token)
         if seed_list:
             setup_args_str = setup_args_str + " --database_seed_list %s" % (' '.join(seed_list))                                                                       
+	if self._args.cfgm_ip:
+            setup_args_str = setup_args_str + " --cfgm_ip %s" \
+                                 % (self._args.cfgm_ip)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -78,6 +81,7 @@ class SetupVncDatabase(object):
         all_defaults = {'global': global_defaults}
         parser.set_defaults(**all_defaults)
         parser.add_argument("--self_ip", help = "IP Address of this database node")
+        parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         parser.add_argument("--dir", help = "Directory where database binary exists")
         parser.add_argument("--initial_token", help = "Initial token for database node")
         parser.add_argument("--seed_list", help = "List of seed nodes for database", nargs='+')
