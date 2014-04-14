@@ -606,6 +606,7 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
+        cinder_conf_file = "/etc/cinder/cinder.conf"
         if (os.path.isdir("/etc/openstack_dashboard")):
             dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
         else:
@@ -622,6 +623,9 @@ HWADDR=%s
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                        % (nova_conf_file))
+            if os.path.exists(cinder_conf_file):
+                local("sudo sed -i 's/rpc_backend = cinder.openstack.common.rpc.impl_qpid/#rpc_backend = cinder.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (cinder_conf_file))
             
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
         if 'database' in self._args.role:
