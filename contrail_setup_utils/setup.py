@@ -62,6 +62,7 @@ from contrail_config_templates import schema_transformer_conf_template
 from contrail_config_templates import svc_monitor_conf_template
 from contrail_config_templates import bgp_param_template
 from contrail_config_templates import dns_param_template
+from contrail_config_templates import vnswad_conf_template
 from contrail_config_templates import discovery_conf_template
 from contrail_config_templates import vizd_param_template
 from contrail_config_templates import qe_param_template
@@ -582,21 +583,6 @@ HWADDR=%s
         local("mv %s /etc/network/interfaces" %(temp_intf_file))
 
     #end _rewrite_net_interfaces_file
-
-    def _replace_discovery_server(self, agent_elem, discovery_ip, ncontrols):
-        for srv in agent_elem.findall('discovery-server'):
-            agent_elem.remove(srv)
-
-        pri_dss_elem = ET.Element('discovery-server')
-        pri_dss_ip = ET.SubElement(pri_dss_elem, 'ip-address')
-        pri_dss_ip.text = '%s' %(discovery_ip)
-
-        xs_instances = ET.SubElement(pri_dss_elem, 'control-instances')
-        xs_instances.text = '%s' %(ncontrols)
-        agent_elem.append(pri_dss_elem)
-
-    #end _replace_discovery_server
-
 
     def fixup_config_files(self):
         pdist = platform.dist()[0]
@@ -1247,80 +1233,57 @@ HWADDR=%s
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
-                # set agent conf with control node IPs, first remove old ones
-                agent_tree = ET.parse('/etc/contrail/rpm_agent.conf')
-                agent_root = agent_tree.getroot()
-                agent_elem = agent_root.find('agent')
-                vhost_elem = agent_elem.find('vhost')
-                for vip in vhost_elem.findall('ip-address'):
-                    vhost_elem.remove (vip)
-                vip = ET.Element('ip-address')
-                vip.text = cidr
-                vhost_elem.append(vip)
-                for gw in vhost_elem.findall('gateway'):
-                    vhost_elem.remove (gw)
-                if gateway:
-                    gw = ET.Element('gateway')
-                    gw.text = gateway
-                    vhost_elem.append(gw)
-
-                ethpt_elem = agent_elem.find('eth-port')
-                for pn in ethpt_elem.findall('name'):
-                    ethpt_elem.remove (pn)
-                pn = ET.Element('name')
-                pn.text = dev
-                ethpt_elem.append(pn)
+                vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
+                    '__contrail_vhost_gateway__': gateway,
+                    '__contrail_discovery_ip__': discovery_ip,
+                    '__contrail_discovery_ncontrol__': ncontrols,
+                    '__contrail_physical_intf__': dev,
+                    '__contrail_control_ip__': compute_ip,
+                }
+                self._template_substitute_write(vnswad_conf_template.template,
+                        vnswad_conf_template_vals, temp_dir_name + '/vnswad.conf')
 
                 if vgw_public_vn_name and vgw_public_subnet:
                     vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
                     vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
                     vgw_intf_list = vgw_intf_list[1:-1].split(';')
+                    gateway_str = ""
                     if vgw_gateway_routes != None:
                         vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
-                        gateway_elem = ET.Element("gateway") 
-                        gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
-                        virtual_network_interface_elem = ET.Element('interface')
-                        virtual_network_interface_elem.text = vgw_intf_list[i]
-                        gateway_elem.append(virtual_network_interface_elem)
+                        gateway_str += '\n[%s%d]\n' %("Gateway-", i)
+                        gateway_str += "# Name of the routing_instance for which the gateway is being configured\n"
+                        gateway_str += "routing_instance=" + vgw_public_vn_name[i] + "\n\n"
+                        gateway_str += "# Gateway interface name\n"
+                        gateway_str += "interface=" + vgw_intf_list[i] + "\n\n"
+                        gateway_str += "# Virtual network ip blocks for which gateway service is required. Each IP\n"
+                        gateway_str += "# block is represented as ip/prefix. Multiple IP blocks are represented by\n"
+                        gateway_str += "# separating each with a space\n"
+                        gateway_str += "ip_blocks="
+
                         if vgw_public_subnet[i].find("[") !=-1:
                             for ele in vgw_public_subnet[i][1:-1].split(","):
-                                virtual_network_subnet_elem = ET.Element('subnet')
-                                virtual_network_subnet_elem.text =ele[1:-1]
-                                gateway_elem.append(virtual_network_subnet_elem)
+                                gateway_str += ele[1:-1] + " "
                         else:
-                            virtual_network_subnet_elem = ET.Element('subnet')
-                            virtual_network_subnet_elem.text =vgw_public_subnet[i]
-                            gateway_elem.append(virtual_network_subnet_elem)
+                            gateway_str += vgw_public_subnet[i]
+                        gateway_str += "\n\n"
                         if vgw_gateway_routes != None and i < len(vgw_gateway_routes):
                             if  vgw_gateway_routes[i] != '[]':
+                            	gateway_str += "# Routes to be exported in routing_instance. Each route is represented as\n"
+                            	gateway_str += "# ip/prefix. Multiple routes are represented by separating each with a space\n"
+                            	gateway_str += "routes="
                                 if vgw_gateway_routes[i].find("[") !=-1:
                                     for ele in vgw_gateway_routes[i][1:-1].split(","):
-                                        vgw_gateway_routes_elem = ET.Element('route')
-                                        vgw_gateway_routes_elem.text =ele[1:-1]
-                                        gateway_elem.append(vgw_gateway_routes_elem)
+                                        gateway_str += ele[1:-1] + " "
                                 else:
-                                    vgw_gateway_routes_elem = ET.Element('route')  
-                                    vgw_gateway_routes_elem.text =vgw_gateway_routes[i]
-                                    gateway_elem.append(vgw_gateway_routes_elem)
-                        agent_elem.append(gateway_elem)
+                                    gateway_str += vgw_gateway_routes[i]
+                                gateway_str += "\n"
+                    filename = temp_dir_name + "/vnswad.conf"
+                    with open(filename, "a") as f:
+                        f.write(gateway_str)
 
-
-                self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
-                
-                control_elem = ET.Element('control')
-                control_ip_elem = ET.Element('ip-address')
-                control_ip_elem.text = compute_ip
-                control_elem.append(control_ip_elem)
-                agent_elem.append(control_elem) 
-
-                agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
-                with settings(warn_only = True):
-                    local("cp %s/agent.conf %s/agent.conf.1" %(temp_dir_name,temp_dir_name))
-                    if local("xmllint --format %s/agent.conf.1").succeeded:
-                        local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
-                local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf*" %(temp_dir_name))
+                local("sudo cp %s/vnswad.conf /etc/contrail/vnswad.conf" %(temp_dir_name))
+                local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
 
                 if pdist == 'centos' or pdist == 'fedora':
                     ## make ifcfg-vhost0
@@ -1380,15 +1343,14 @@ SUBCHANNELS=1,2,3
                 # end pdist == ubuntu
 
             else: # of if dev and dev != 'vhost0'
-                local("sudo cp /etc/contrail/agent.conf %s/agent.conf" %(temp_dir_name))
-                agent_tree = ET.parse('%s/agent.conf' %(temp_dir_name))
-                agent_root = agent_tree.getroot()
-                agent_elem = agent_root.find('agent')
-                self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
-
-                agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
-                local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf" %(temp_dir_name))
+                if not os.path.isfile("/etc/contrail/vnswad.conf"):
+                    if os.path.isfile("/opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py"):
+                        local("sudo python /opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py")
+                #local("sudo cp /etc/contrail/vnswad.conf %s/vnswad.conf" %(temp_dir_name))
+                #local("sudo sed -i 's/max_control_nodes=.*/max_control_nodes=%s/' %s/vnswad.conf" %(ncontrols, temp_dir_name))
+                #local("sudo sed -i -n '1N;$!N; s/[DISCOVERY].*\\n.*\\n.*server=.*/[DISCOVERY]\\n# IP address of discovery server\\nserver=%s/;P;D' %s/vnswad.conf" %(discovery_ip, temp_dir_name))
+                #local("sudo cp %s/vnswad.conf /etc/contrail/vnswad.conf" %(temp_dir_name))
+                #local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
             #end if dev and dev != 'vhost0' :
 
         # role == compute && !cfgm
