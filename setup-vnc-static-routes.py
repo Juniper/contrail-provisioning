@@ -9,12 +9,14 @@ __version__ = '1.0'
 import re
 import sys
 import time
-import shutil
 import os.path
 import logging
 import platform
 import argparse
+import socket
+import struct
 from netaddr import IPNetwork
+from tempfile import NamedTemporaryFile
 
 logging.basicConfig(format='%(asctime)-15s:: %(funcName)s:%(levelname)s:: %(message)s',
                     level=logging.INFO)
@@ -26,54 +28,63 @@ class StaticRoute(object):
     '''
     def __init__(self, **kwargs):
         self.device = kwargs['device']
-        self.netw   = kwargs['network']
-        self.gw     = kwargs['gw']
-        self.mask   = kwargs['netmask']
-        self.prefix = 32
-        
+        self.netw   = kwargs.get('network', [])
+        self.gw     = kwargs.get('gw', [])
+        self.mask   = kwargs.get('netmask', [])
+        self.vlan   = kwargs.get('vlan', None)
+        self.cmd    = []
+        self.tempfile = NamedTemporaryFile(delete=False)
+        self.config_route_list = []
+
     def write_network_script(self):
         '''Create an interface config file in network-scripts with given
             config
         '''
         if os.path.isfile(self.nwfile):
-            tmpfile = os.path.join(os.path.dirname(self.nwfile), \
+            tmpfile = os.path.join(os.path.dirname(self.nwfile),
                                   'moved-%s' %os.path.basename(self.nwfile))
             log.info('Backup existing file %s to %s' %(self.nwfile, tmpfile))
-            shutil.move(self.nwfile, tmpfile)
+            os.system('sudo cp %s %s'%(self.nwfile, tmpfile))
         # read existing file
-        with open(self.nwfile, 'w') as fid:
-            fid.write('%s\n' %self.cmd)
-            fid.flush()
-            log.info('New file %s has ben created' %self.nwfile)
+        with open(self.tempfile.name, 'w') as fd:
+            fd.write('\n'.join(self.cmd))
+            fd.write('\n')
+        os.system('sudo cp -f %s %s'%(self.tempfile.name, self.nwfile))
 
     def restart_service(self):
         '''Restart network service'''
         log.info('Restarting Network Services...')
-        os.system('service network restart')
-        time.sleep(5)
-                                  
+        os.system('sudo service network restart')
+        time.sleep(3)
+ 
     def pre_config(self):
         '''Setup env before static route configuration'''
+        if self.vlan:
+            self.device += "."+self.vlan
         self.nwfile = os.path.join(os.path.sep, 'etc', 'sysconfig',
                                   'network-scripts', 'route-%s' %self.device)
-        self.cmd = '%s/%s via %s dev %s' %(
-               self.netw, self.prefix, self.gw, self.device) 
+        i = 0
+        for destination in self.netw:
+            prefix = IPNetwork('%s/%s' %(destination, self.mask[i])).prefixlen
+            self.cmd += ['%s/%s via %s dev %s' %(
+                       destination, prefix, self.gw[i], self.device)]
+            self.config_route_list.append('%s %s %s' %(destination, self.mask[i], self.gw[i]))
+            i+=1
 
     def verify_route(self):
         '''verify configured static routes'''
-        with os.popen('ip route') as cmd:
-            output = cmd.read().split('\n')
-        exp_route = r'%s/%s\s+via\s+%s\s+dev\s+%s' %(self.netw, 
-                    self.prefix, self.gw, self.device)
-        pattern = re.compile(exp_route)
-        routes = filter(pattern.match, output)
-        if len(routes) == 0:
-            print 'INFO: Available Routes :\n%s' %"\n".join(output)
-            print 'ERROR: Searched Route Pattern: \n%s' %exp_route
-            print 'ERROR: Matched Routes (%s)' %routes
+        actual_list = []
+        for route in open('/proc/net/route', 'r').readlines():
+            if route.startswith(self.device):
+                route_fields = route.split()
+                flags = int(route_fields[3], 16)
+                destination = socket.inet_ntoa(struct.pack('I', int(route_fields[1], 16)))
+                if flags & 0x2 and int(route_fields[1], 16):
+                    gateway = socket.inet_ntoa(struct.pack('I', int(route_fields[2], 16)))
+                    mask = socket.inet_ntoa(struct.pack('I', int(route_fields[7], 16)))
+                    actual_list.append('%s %s %s' %(destination, mask, gateway))
+        if cmp(sorted(actual_list), sorted(self.config_route_list)): 
             raise RuntimeError('Seems Routes are not properly configured')
-        else:
-            print 'ROUTE (%s) configured Sucessfully' %routes
 
     def post_config(self):
         '''Execute commands after static route configuration'''
@@ -84,60 +95,58 @@ class StaticRoute(object):
         '''High level method to call individual methods to configure
             static routes
         '''
-        self.prefix = IPNetwork('%s/%s' %(self.netw, self.mask)).prefixlen
         self.pre_config()
         self.write_network_script()
         self.post_config()
-        
-    
+        os.unlink(self.tempfile.name)
+
 class UbuntuStaticRoute(StaticRoute):
     '''Configure Static Route in Ubuntu'''
 
     def restart_service(self):
         '''Restart network service for Ubuntu'''
         log.info('Restarting Network Services...')
-        os.system('/etc/init.d/networking restart')
-        time.sleep(5)
+        os.system('sudo /etc/init.d/networking restart')
+        time.sleep(3)
 
-    def remove_lines(self):
-        '''Remove existing config related to given route if the same
-            needs to be re-configured
-        '''
-        log.info('Remove Existing Static Route in %s' %self.nwfile)
-        newfile = []
-        # backup existing file
-        bckup = os.path.join(os.path.dirname(self.nwfile), 'org.%s.%s' %(
-                    os.path.basename(self.nwfile),time.strftime('%d%m%y%H%M%S')))
-        shutil.copy(self.nwfile, bckup)
-
-        # read existing file
-        with open(self.nwfile, 'r') as fid:
-            cfg_file = fid.read().split('\n')
-        # remove config that match with new config
-        for line in cfg_file:
-            if self.cmd.replace(' ', '') == line.replace(' ', ''):
-                log.info('Removing existing Static Route: \n%s' %line)
-                continue
-            else:
-                newfile.append(line)
-        # write new file
-        with open(self.nwfile, 'w') as fid:
-            fid.write('%s\n' %"\n".join(newfile))
-            fid.flush()
-            log.info('%s file has been updated' %self.nwfile)
-        
     def write_network_script(self):
-        '''Append new configs to interfaces file'''
-        with open(self.nwfile, 'a') as fid:
-            fid.write('%s\n' %self.cmd)
-            fid.flush()
+        '''Add route to ifup-parts dir and set the correct permission'''
+        if os.path.isfile(self.nwfile):
+            tmpfile = os.path.join(os.path.join(os.path.sep, 'tmp'),
+                                  'moved-%s' %os.path.basename(self.nwfile))
+            log.info('Backup existing file %s to %s' %(self.nwfile, tmpfile))
+            os.system('sudo cp %s %s'%(self.nwfile, tmpfile))
+        # read existing file
+        with open(self.tempfile.name, 'w') as fd:
+            fd.write('#!/bin/bash\n[ "$IFACE" != "%s" ] && exit 0\n' %self.device)
+            fd.write('\n'.join(self.cmd))
+            fd.write('\n')
+        os.system('sudo cp -f %s %s'%(self.tempfile.name, self.nwfile))
+        os.system('sudo chmod 755 %s'%(self.nwfile))
+        with open(self.tempfile.name, 'w') as fd:
+            fd.write('#!/bin/bash\n[ "$IFACE" != "%s" ] && exit 0\n' %self.device)
+            fd.write('\n'.join(self.downcmd))
+            fd.write('\n')
+        os.system('sudo cp -f %s %s'%(self.tempfile.name, self.downfile))
+        os.system('sudo chmod 755 %s'%(self.downfile))
 
     def pre_config(self):
         '''Setup env before static route configuration in Ubuntu'''
-        self.nwfile = os.path.join(os.path.sep, 'etc', 'network', 'interfaces')
-        self.cmd = 'up route add -net %s/%s gw %s dev %s' %(
-               self.netw, self.prefix, self.gw, self.device) 
-        self.remove_lines()
+        # Any changes to the file/logic with static routes has to be
+        # reflected in setup.py too
+        if self.vlan:
+            self.device = 'vlan'+self.vlan
+        i = 0
+        for destination in self.netw:
+            prefix = IPNetwork('%s/%s' %(destination, self.mask[i])).prefixlen
+            self.cmd += ['%s/%s via %s dev %s' %(
+                       destination, prefix, self.gw[i], self.device)]
+            self.config_route_list.append('%s %s %s' %(destination, self.mask[i], self.gw[i]))
+            i+=1
+        self.downfile = os.path.join(os.path.sep, 'etc', 'network', 'if-down.d', 'routes')
+        self.downcmd = ['ip route del '+x for x in self.cmd]
+        self.nwfile = os.path.join(os.path.sep, 'etc', 'network', 'if-up.d', 'routes')
+        self.cmd = ['ip route add '+x for x in self.cmd]
 
 def parse_cli(args):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -145,20 +154,30 @@ def parse_cli(args):
                         action='version',
                         version=__version__,
                         help='Display version and exit')
-    parser.add_argument('--device', 
+    parser.add_argument('--device',
                         action='store',
                         help='Interface Name')
-    parser.add_argument('--network', 
+    parser.add_argument('--network',
                         action='store',
+                        default=[],
+                        nargs='+',
+                        metavar='DESTINATION',
                         help='Network address of the Static route')
-    parser.add_argument('--netmask', 
+    parser.add_argument('--netmask',
                         action='store',
+                        default=[],
+                        nargs='+',
+                        metavar='NETMASK',
                         help='Netmask of the Static route')
-    parser.add_argument('--gw', 
+    parser.add_argument('--gw',
                         action='store',
+                        default=[],
+                        nargs='+',
                         metavar='GATEWAY',
                         help='Gateway Address of the Static route')
-
+    parser.add_argument('--vlan',
+                        action='store',
+                        help='vLAN ID')
     pargs = parser.parse_args(args)
     if len(args) == 0:
         parser.print_help()
