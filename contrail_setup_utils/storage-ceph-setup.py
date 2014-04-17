@@ -20,14 +20,6 @@ from pprint import pformat
 import xml.etree.ElementTree as ET
 import platform
 
-#dist = platform.dist()[0]
-#if  dist == 'centos':
-#    _tgt_path = os.path.abspath(os.path.dirname(sys.argv[0]))
-#    subprocess.call("sudo pip-python install %s/contrail_setup_utils/pycrypto-2.6.tar.gz" %(_tgt_path), shell=True)
-#    subprocess.call("sudo pip-python install %s/contrail_setup_utils/paramiko-1.11.0.tar.gz" %(_tgt_path), shell=True)
-#    subprocess.call("sudo pip-python install %s/contrail_setup_utils/Fabric-1.7.0.tar.gz" %(_tgt_path), shell=True)
-#    subprocess.call("sudo pip-python install %s/contrail_setup_utils/zope.interface-3.7.0.tar.gz" %(_tgt_path), shell=True)
-
 import tempfile
 from fabric.api import local, env, run
 from fabric.operations import get, put
@@ -38,6 +30,63 @@ from fabric.context_managers import lcd, settings
 sys.path.insert(0, os.getcwd())
 
 class SetupCeph(object):
+
+    def reset_mon_local_list(self):
+	local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
+	local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
+	local('echo  "for i in \`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/mon_local_list.sh')
+	local('echo "if [ -e \\"/var/lib/ceph/mon/\$i/upstart\\" ]; then" >>  /tmp/mon_local_list.sh')
+	local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/mon_local_list.sh')
+	local('echo "sudo stop ceph-mon id=\$id"  >> /tmp/mon_local_list.sh')
+	local('echo "fi done fi"  >> /tmp/mon_local_list.sh')
+	local('echo "}"  >> /tmp/mon_local_list.sh')
+	local('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
+	local('echo "exit 0" >> /tmp/mon_local_list.sh')
+	local('chmod a+x /tmp/mon_local_list.sh')
+	local('/tmp/mon_local_list.sh')
+
+    def reset_osd_local_list(self):
+	local('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
+	local('echo "if [ -d \\"/var/lib/ceph/osd\\" ]; then" >> /tmp/osd_local_list.sh')
+	local('echo  "for i in \`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/osd_local_list.sh')
+	local('echo "if [ -e \\"/var/lib/ceph/osd/\$i/upstart\\" ]; then" >>  /tmp/osd_local_list.sh')
+	local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/osd_local_list.sh')
+	local('echo "sudo stop ceph-osd id=\$id"  >> /tmp/osd_local_list.sh')
+	local('echo "fi done fi"  >> /tmp/osd_local_list.sh')
+	local('echo "}"  >> /tmp/osd_local_list.sh')
+	local('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
+	local('echo "exit 0" >> /tmp/osd_local_list.sh')
+	local('chmod a+x /tmp/osd_local_list.sh')
+	local('/tmp/osd_local_list.sh')
+
+    def reset_mon_remote_list(self):
+	run('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
+	run('echo "if [ -d \\\\"/var/lib/ceph/mon\\\\" ]; then" >> /tmp/mon_local_list.sh')
+	run('echo  "for i in \\\\`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/mon_local_list.sh')
+	run('echo "if [ -e \\\\"/var/lib/ceph/mon/\\\\$i/upstart\\\\" ]; then" >>  /tmp/mon_local_list.sh')
+	run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/mon_local_list.sh')
+	run('echo "sudo stop ceph-mon id=\\\\$id"  >> /tmp/mon_local_list.sh')
+	run('echo "fi done fi"  >> /tmp/mon_local_list.sh')
+	run('echo "}"  >> /tmp/mon_local_list.sh')
+	run('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
+	run('echo "exit 0" >> /tmp/mon_local_list.sh')
+	run('chmod a+x /tmp/mon_local_list.sh')
+	run('/tmp/mon_local_list.sh')
+
+    def reset_osd_remote_list(self):
+	run('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
+	run('echo "if [ -d \\\\"/var/lib/ceph/osd\\\\" ]; then" >> /tmp/osd_local_list.sh')
+	run('echo  "for i in \\\\`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/osd_local_list.sh')
+	run('echo "if [ -e \\\\"/var/lib/ceph/osd/\\\\$i/upstart\\\\" ]; then" >>  /tmp/osd_local_list.sh')
+	run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/osd_local_list.sh')
+	run('echo "sudo stop ceph-osd id=\\\\$id"  >> /tmp/osd_local_list.sh')
+	run('echo "fi done fi"  >> /tmp/osd_local_list.sh')
+	run('echo "}"  >> /tmp/osd_local_list.sh')
+	run('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
+	run('echo "exit 0" >> /tmp/osd_local_list.sh')
+	run('chmod a+x /tmp/osd_local_list.sh')
+	run('/tmp/osd_local_list.sh')
+
     def __init__(self, args_str = None):
         #print sys.argv[1:]
         self._args = None
@@ -49,11 +98,13 @@ class SetupCeph(object):
                 for hostname, host_ip in zip(self._args.storage_hostnames, self._args.storage_hosts):
                     run('cat /etc/hosts |grep -v %s > /tmp/hosts; echo %s %s >> /tmp/hosts; cp -f /tmp/hosts /etc/hosts' % (hostname, host_ip, hostname))
         ceph_mon_hosts=''
+        pdist = platform.dist()[0]
         for entries in self._args.storage_hostnames:
             ceph_mon_hosts=ceph_mon_hosts+entries+' '
         #print ceph_mon_hosts
         # setup SSH for autologin for Ceph
-        local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa <<< \"y\"')
+        local('sudo rm -rf ~/.ssh/id_rsa')
+        local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
         sshkey=local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
         for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
@@ -67,55 +118,87 @@ class SetupCeph(object):
                          out = run('sudo ssh-keyscan -t rsa %s,%s' %(hostname,entries))
                          local('sudo echo "%s" >> ~/.ssh/known_hosts' % (out))
                          #local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (out))
+        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-disk | cut -d"|" -f 2)', capture=True)
+        if ocs_blk_disk != "":
+            cinderlst = local('(. /etc/contrail/openstackrc ;  cinder list | grep ocs-block-disk | cut -d"|" -f 2)',  capture=True)
+	    if cinderlst != "":
+		cinderalst = cinderlst.split('\n')
+		for x in cinderalst:
+		    inuse = local('(. /etc/contrail/openstackrc ;  cinder list | grep %s | cut -d"|" -f 3)' % (x),  capture=True)
+                    if inuse == "in-use":
+                        detach = local('(. /etc/contrail/openstackrc ;  cinder list | grep %s | cut -d"|" -f 8)' % (x),  capture=True)
+	                local('(. /etc/contrail/openstackrc ;  nova volume-detach %s %s)' % (detach, x))
+		    local('(. /etc/contrail/openstackrc ;  cinder force-delete %s)' % (x))
+            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
         # stop existing ceph monitor/osd
         local('pwd')
-        local('/etc/init.d/ceph stop osd')
-        local('/etc/init.d/ceph stop mon')
+	if pdist == 'centos':
+            local('/etc/init.d/ceph stop osd')
+            local('/etc/init.d/ceph stop mon')
+        if pdist == 'Ubuntu':
+	    self.reset_mon_local_list()
+	    self.reset_osd_local_list()
+        #local('chmod a+x /tmp/ceph.stop.sh')
+        #local('/tmp/ceph.stop.sh')
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    run('echo "/etc/init.d/ceph stop osd" > /tmp/ceph.stop.sh')
-                    run('echo "/etc/init.d/ceph stop mon" >> /tmp/ceph.stop.sh')
-                    run('chmod a+x /tmp/ceph.stop.sh')
-                    run('/tmp/ceph.stop.sh')
-        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts))
+                    if pdist == 'centos':
+                        run('echo "/etc/init.d/ceph stop osd" > /tmp/ceph.stop.sh')
+                        run('echo "/etc/init.d/ceph stop mon" >> /tmp/ceph.stop.sh')
+                        run('chmod a+x /tmp/ceph.stop.sh')
+                        run('/tmp/ceph.stop.sh')
+		    if pdist == 'Ubuntu':
+                        self.reset_mon_remote_list()
+                        self.reset_osd_remote_list()
+	time.sleep(2)
+	local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
         local('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
         local('sudo mkdir -p /var/lib/ceph/osd')
         local('sudo mkdir -p /etc/ceph')
-	if self._args.storage_directory_config[0] != 'none':
-            for entries, entry_token, directory in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_directory_config):
-                dir = directory.split(':')
-                if entries != self._args.storage_master:
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        run('sudo mkdir -p %s' % (dir[1]))
-                        run('sudo rm -rf %s' % (dir[1]))
-                        run('sudo mkdir -p %s' % (dir[1]))
-                else:
-                    local('sudo mkdir -p %s' % (dir[1]))
-                    local('sudo rm -rf %s' % (dir[1]))
-                    local('sudo mkdir -p %s' % (dir[1]))
+        if self._args.storage_directory_config[0] != 'none':
+            for directory in self._args.storage_directory_config:
+                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                    dirsplit = directory.split(':')
+                    if dirsplit[0] == hostname:
+                        if entries != self._args.storage_master:
+                            with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                                run('sudo mkdir -p %s' % (dirsplit[1]))
+                                run('sudo rm -rf %s' % (dirsplit[1]))
+                                run('sudo mkdir -p %s' % (dirsplit[1]))
+                        else:
+                            local('sudo mkdir -p %s' % (dirsplit[1]))
+                            local('sudo rm -rf %s' % (dirsplit[1]))
+                            local('sudo mkdir -p %s' % (dirsplit[1]))
 
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-		    run('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
+                    run('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
                     run('sudo mkdir -p /var/lib/ceph/osd')
-		    run('sudo mkdir -p /etc/ceph')
+                    run('sudo mkdir -p /etc/ceph')
         # Ceph deploy create monitor
-	local('sudo ceph-deploy new %s' % (ceph_mon_hosts))
+        local('sudo ceph-deploy new %s' % (ceph_mon_hosts))
         local('sudo ceph-deploy mon create %s' % (ceph_mon_hosts))
-        for disks in self._args.storage_disk_config:
-            local('sudo ceph-deploy disk zap %s' % (disks))
+        if self._args.storage_disk_config[0] != 'none':
+            for disks in self._args.storage_disk_config:
+                local('sudo ceph-deploy disk zap %s' % (disks))
+	time.sleep(10)
         for entries in self._args.storage_hostnames:
             local('sudo ceph-deploy gatherkeys %s' % (entries))
         # Ceph deploy OSD create
-	if self._args.storage_directory_config[0] != 'none':
+        if self._args.storage_directory_config[0] != 'none':
             for directory in self._args.storage_directory_config:
                 local('sudo ceph-deploy osd prepare %s' % (directory))
             for directory in self._args.storage_directory_config:
                 local('sudo ceph-deploy osd activate %s' % (directory))
-        for disks in self._args.storage_disk_config:
-            local('sudo ceph-deploy osd create %s' % (disks))
+        if self._args.storage_disk_config[0] != 'none':
+            for disks in self._args.storage_disk_config:
+	        if pdist == 'centos':
+		    local('sudo ceph-deploy osd create %s' % (disks))
+	        if pdist == 'Ubuntu':
+                    local('sudo ceph-deploy osd prepare %s' % (disks))
+                    local('sudo ceph-deploy osd activate %s' % (disks))
         # Create pools
         local('unset CEPH_ARGS')
         local('sudo rados mkpool volumes')
@@ -137,10 +220,13 @@ class SetupCeph(object):
                     run('sudo openstack-config --set /etc/ceph/ceph.conf client.images keyring /etc/ceph/client.images.keyring')
         local('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
         local('mv -f /tmp/.bashrc ~/.bashrc')
-        local('echo -e export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
-        local('source ~/.bashrc')
+        local('echo export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
+        local('. ~/.bashrc')
         local('ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
-        local('sudo service libvirtd restart')
+        if pdist == 'centos':
+            local('sudo service libvirtd restart')
+        if pdist == 'Ubuntu':
+            local('sudo service libvirt-bin restart')
         virsh_unsecret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
         if virsh_unsecret != "":
             local('virsh secret-undefine %s' %(virsh_unsecret))
@@ -156,12 +242,16 @@ class SetupCeph(object):
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    run('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
-                    run('mv -f /tmp/.bashrc ~/.bashrc')
-                    run('echo -e export CEPH_ARGS=\\\\"--id volumes\\\\" >> ~/.bashrc')
-                    run('source ~/.bashrc')
-                    run('sudo ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
-                    run('sudo service libvirtd restart')
+                    if pdist == 'centos':
+                        run('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
+                        run('mv -f /tmp/.bashrc ~/.bashrc')
+                        run('echo export CEPH_ARGS=\\\\"--id volumes\\\\" >> ~/.bashrc')
+                        run('. ~/.bashrc')
+                        run('sudo ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
+                        local('sudo service libvirtd restart')
+                    if pdist == 'Ubuntu':
+                        run('sudo ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
+                        local('sudo service libvirt-bin restart')
                     virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
                     if virsh_unsecret != "":
                         run('virsh secret-undefine %s' %(virsh_unsecret))
@@ -184,66 +274,85 @@ class SetupCeph(object):
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' % (self._args.storage_master))
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT qpid_hostname %s' % (self._args.storage_master))
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk')
-                    run('sudo cat /etc/cinder/cinder.conf |grep -v "\\[rbd-disk\\]"| sed s/rbd-disk/"rbd-disk\\n\\n[rbd-disk]"/ > /etc/cinder/cinder.conf.bk')
-                    run('sudo cp /etc/cinder/cinder.conf.bk /etc/cinder/cinder.conf')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_driver cinder.volume.drivers.rbd.RBDDriver')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_pool volumes')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_user volumes')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_secret_uuid %s' % (virsh_secret))
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk glance_api_version 2')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_backend_name RBD')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf keystone_authtoken auth_host %s' % (self._args.storage_master))
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_tenant_name service')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_user cinder')
-                    run('sudo openstack-config --set /etc/cinder/cinder.conf keystone_authtoken admin_password %s' % (admin_pass))
+                    # Change nova conf for cinder client configuration
+                    run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
+                    run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
+                    run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
+
         #Glance configuration
         local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store rbd')
         local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
         local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
 
         #Restart services
-        local('sudo service qpidd restart')
-        local('sudo service quantum-server restart')
-        local('sudo chkconfig openstack-cinder-api on')
-        local('sudo service openstack-cinder-api restart')
-        local('sudo chkconfig openstack-cinder-scheduler on')
-        local('sudo service openstack-cinder-scheduler restart')
-        bash_cephargs = local('grep "bashrc" /etc/init.d/openstack-cinder-volume | wc -l', capture=True)
-        if bash_cephargs == "0":
-            local('cat /etc/init.d/openstack-cinder-volume | sed "s/start)/start)  source ~\/.bashrc/" > /tmp/openstack-cinder-volume.tmp')
-            local('mv -f /tmp/openstack-cinder-volume.tmp /etc/init.d/openstack-cinder-volume; chmod a+x /etc/init.d/openstack-cinder-volume')
-        local('sudo chkconfig openstack-cinder-volume on')
-        local('sudo service openstack-cinder-volume restart')
-        local('sudo service openstack-glance-api restart')
-        local('sudo service openstack-nova-api restart')
-        local('sudo service openstack-nova-conductor restart')
-        local('sudo service openstack-nova-scheduler restart')
-        local('sudo service libvirtd restart')
-        local('sudo service openstack-nova-api restart')
-        local('sudo service openstack-nova-scheduler restart')
-        ocs_blk_disk = local('(source /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('source /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        local('(source /etc/contrail/openstackrc ; cinder type-create ocs-block-disk)')
-        local('(source /etc/contrail/openstackrc ; cinder type-key ocs-block-disk set volume_backend_name=RBD)')
+        if pdist == 'centos':
+            local('sudo service qpidd restart')
+            local('sudo service quantum-server restart')
+            local('sudo chkconfig openstack-cinder-api on')
+            local('sudo service openstack-cinder-api restart')
+            local('sudo chkconfig openstack-cinder-scheduler on')
+            local('sudo service openstack-cinder-scheduler restart')
+            bash_cephargs = local('grep "bashrc" /etc/init.d/openstack-cinder-volume | wc -l', capture=True)
+            if bash_cephargs == "0":
+                local('cat /etc/init.d/openstack-cinder-volume | sed "s/start)/start)  source ~\/.bashrc/" > /tmp/openstack-cinder-volume.tmp')
+                local('mv -f /tmp/openstack-cinder-volume.tmp /etc/init.d/openstack-cinder-volume; chmod a+x /etc/init.d/openstack-cinder-volume')
+            local('sudo chkconfig openstack-cinder-volume on')
+            local('sudo service openstack-cinder-volume restart')
+            local('sudo service openstack-glance-api restart')
+            local('sudo service openstack-nova-api restart')
+            local('sudo service openstack-nova-conductor restart')
+            local('sudo service openstack-nova-scheduler restart')
+            local('sudo service libvirtd restart')
+            local('sudo service openstack-nova-api restart')
+            local('sudo service openstack-nova-scheduler restart')
+        if pdist == 'Ubuntu':
+            local('sudo chkconfig cinder-api on')
+            local('sudo service cinder-api restart')
+            local('sudo chkconfig cinder-scheduler on')
+            local('sudo service cinder-scheduler restart')
+            bash_cephargs = local('grep "CEPH_ARGS" /etc/init.d/cinder-volume | wc -l', capture=True)
+            print bash_cephargs
+            if bash_cephargs == "0":
+                local('cat /etc/init.d/cinder-volume | awk \'{ print; if ($1== "start|stop)") print \"    CEPH_ARGS=\\"--id volumes\\"\" }\' > /tmp/cinder-volume.tmp') 
+                local('mv -f /tmp/cinder-volume.tmp /etc/init.d/cinder-volume; chmod a+x /etc/init.d/cinder-volume')
+            local('sudo chkconfig cinder-volume on')
+            local('sudo service cinder-volume restart')
+            local('sudo service glance-api restart')
+            local('sudo service nova-api restart')
+            local('sudo service nova-conductor restart')
+            local('sudo service nova-scheduler restart')
+            local('sudo service libvirt-bin restart')
+            local('sudo service nova-api restart')
+            local('sudo service nova-scheduler restart')
+        local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-disk)')
+        local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-disk set volume_backend_name=RBD)')
+        local('sudo service cinder-volume restart')
+        avail=local('rados df | grep avail | awk  \'{ print $3 }\'', capture = True)
+        # use only half the space as 1 replica is enabled
+        avail_gb = int(avail)/1024/1024/2
+        local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --gigabytes %s)' % (avail_gb))
+        #local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --gigabytes 1000)')
+        local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --volumes 100)')
+        local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --snapshots 100)')
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    run('sudo service openstack-cinder-api restart')
-                    run('sudo chkconfig openstack-cinder-api on')
-                    run('sudo service openstack-cinder-scheduler restart')
-                    run('sudo chkconfig openstack-cinder-scheduler on')
-                    bash_cephargs = run('grep "bashrc" /etc/init.d/openstack-cinder-volume | wc -l')
-                    if bash_cephargs == "0":
-                        run('cat /etc/init.d/openstack-cinder-volume | sed "s/start)/start)  source ~\/.bashrc/" > /tmp/openstack-cinder-volume.tmp')
-                        run('mv -f /tmp/openstack-cinder-volume.tmp /etc/init.d/openstack-cinder-volume; chmod a+x /etc/init.d/openstack-cinder-volume')
-                    run('sudo chkconfig openstack-cinder-volume on')
-                    run('sudo service openstack-cinder-volume restart')
-                    run('sudo service libvirtd restart')
-                    run('sudo service openstack-nova-compute restart')
+                    if pdist == 'centos':
+                        run('sudo service openstack-cinder-api restart')
+                        run('sudo chkconfig openstack-cinder-api on')
+                        run('sudo service openstack-cinder-scheduler restart')
+                        run('sudo chkconfig openstack-cinder-scheduler on')
+                        bash_cephargs = run('grep "bashrc" /etc/init.d/openstack-cinder-volume | wc -l')
+                        if bash_cephargs == "0":
+                            run('cat /etc/init.d/openstack-cinder-volume | sed "s/start)/start)  source ~\/.bashrc/" > /tmp/openstack-cinder-volume.tmp')
+                            run('mv -f /tmp/openstack-cinder-volume.tmp /etc/init.d/openstack-cinder-volume; chmod a+x /etc/init.d/openstack-cinder-volume')
+                        run('sudo chkconfig openstack-cinder-volume on')
+                        run('sudo service openstack-cinder-volume restart')
+                        run('sudo service libvirtd restart')
+                        run('sudo service openstack-nova-compute restart')
+                    if pdist == 'Ubuntu':
+                        run('sudo service libvirt-bin restart')
+                        run('sudo service nova-compute restart')
 
     #end __init__
 
