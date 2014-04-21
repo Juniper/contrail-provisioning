@@ -539,33 +539,18 @@ HWADDR=%s
         #endif
 
         temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
-        local("mv /etc/network/interfaces %s" %(temp_intf_file))
+        temp_stat_file = tempfile.mktemp()
+        temp_intf_file_new = tempfile.mktemp()
+        local("cp /etc/network/interfaces %s" %(temp_intf_file_new))
 
-        # populte vhost0 as static
-        local("echo '' >> %s" %(temp_intf_file))
-        local("echo 'auto vhost0' >> %s" %(temp_intf_file))
-        local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
-        local("echo '    pre-up /opt/contrail/bin/if-vhost0' >> %s" %(temp_intf_file))
-        local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
-        local("echo '    network_name application' >> %s" %(temp_intf_file))
-        if vhost_ip:
-            local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
-        if gateway_ip:
-            local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
-
-        domain = self.get_domain_search_list()
-        if domain:
-            local("echo '    dns-search %s' >> %s" %(domain, temp_intf_file))
-        dns_list = self.get_dns_servers(dev)
-        if dns_list:
-            local("echo -n '    dns-nameservers' >> %s" %(temp_intf_file))
-            for dns in dns_list:
-                local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
-        local("echo '\n' >> %s" %(temp_intf_file))
+        # Get static routes attached with dev and re-attach to vhost0
+        with settings(warn_only = True):
+            local("grep 'up route.*dev %s' %s > %s" %(dev, temp_intf_file_new, temp_stat_file))
+            local("grep -ve 'up route.*dev %s' %s > %s" %(dev, temp_intf_file_new, temp_intf_file))
 
         if not self._args.non_mgmt_ip:
             # remove entry from auto <dev> to auto excluding these pattern
-            # then delete specifically auto <dev> 
+            # then delete specifically auto <dev>
             local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
             local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
             # add manual entry for dev
@@ -576,8 +561,36 @@ HWADDR=%s
             local("echo '' >> %s" %(temp_intf_file))
         else:
             #remove ip address and gateway
-            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
-            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
+            with settings(warn_only = True):
+                local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+                local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+
+        # populte vhost0 as static
+        local("echo '' >> %s" %(temp_intf_file))
+        local("echo 'auto vhost0' >> %s" %(temp_intf_file))
+        local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
+        local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
+        local("echo '    network_name application' >> %s" %(temp_intf_file))
+        if vhost_ip:
+            local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
+        if not self._args.non_mgmt_ip:
+            if gateway_ip:
+                local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
+
+        domain = self.get_domain_search_list()
+        if domain:
+            local("echo '    dns-search %s' >> %s" %(domain, temp_intf_file))
+        dns_list = self.get_dns_servers(dev)
+        if dns_list:
+            local("echo -n '    dns-nameservers' >> %s" %(temp_intf_file))
+            for dns in dns_list:
+                local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
+        #Add static route from dev to vhost0 temp_stat_file
+        with settings(warn_only = True):
+            local('cat %s | sed -E "s/(up\s+route\s+add\s+\-net.*)%s/\\n    \\1vhost0/g" >> %s' %(
+                  temp_stat_file, dev, temp_intf_file))
+        local("echo '\n' >> %s" %(temp_intf_file))
+
 
         # move it to right place
         local("mv %s /etc/network/interfaces" %(temp_intf_file))

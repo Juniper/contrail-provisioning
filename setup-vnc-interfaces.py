@@ -232,6 +232,7 @@ class UbuntuInterface(BaseInterface):
                'address %s' %self.ipaddr,
                'netmask  %s' %self.netmask,
                'bond-mode %s' %self.mode,
+               'bond-xmit-hash-policy layer3+4',
                'bond-miimon 100',
                'bond-slaves %s' %" ".join(self.members)]
         self.write_network_script(cfg)
