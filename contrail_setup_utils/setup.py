@@ -1359,11 +1359,6 @@ SUBCHANNELS=1,2,3
                 if not os.path.isfile("/etc/contrail/vnswad.conf"):
                     if os.path.isfile("/opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py"):
                         local("sudo python /opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py")
-                #local("sudo cp /etc/contrail/vnswad.conf %s/vnswad.conf" %(temp_dir_name))
-                #local("sudo sed -i 's/max_control_nodes=.*/max_control_nodes=%s/' %s/vnswad.conf" %(ncontrols, temp_dir_name))
-                #local("sudo sed -i -n '1N;$!N; s/[DISCOVERY].*\\n.*\\n.*server=.*/[DISCOVERY]\\n# IP address of discovery server\\nserver=%s/;P;D' %s/vnswad.conf" %(discovery_ip, temp_dir_name))
-                #local("sudo cp %s/vnswad.conf /etc/contrail/vnswad.conf" %(temp_dir_name))
-                #local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
             #end if dev and dev != 'vhost0' :
 
         # role == compute && !cfgm
