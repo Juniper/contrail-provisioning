@@ -908,14 +908,8 @@ HWADDR=%s
             keystone_ip = self._args.keystone_ip
             region_name = self._args.region_name
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            if cfgm_ip in self._args.zookeeper_ip_list:
-                # prefer local zk if available
-                zk_servers = '%s' %(cfgm_ip)
-                zk_servers_ports = '%s:2181' %(cfgm_ip)
-            else:
-                zk_servers = ','.join(self._args.zookeeper_ip_list)
-                zk_servers_ports = \
-                ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+            zk_servers = ','.join(self._args.zookeeper_ip_list)
+            zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
 
             # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
