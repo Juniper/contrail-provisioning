@@ -300,11 +300,6 @@ class UbuntuInterface(BaseInterface):
             ifaces += [self.device + '.' + self.vlan, 'vlan'+self.vlan]
         self.remove_lines(ifaces, filename)
 
-    def install_pkg(self, pkg):
-        cmd= 'DEBIAN_FRONTEND=noninteractive apt-get -q -y install %s'%pkg
-        if subprocess.call(cmd, shell=True):
-            raise Exception("Unable to install package %s. Bailing out"%pkg)
-
     def validate_bond_opts(self):
         self.bond_opts_str = 'bond-slaves none\n'
         for key in list(self.bond_opts):
@@ -359,7 +354,6 @@ class UbuntuInterface(BaseInterface):
 
     def create_vlan_interface(self):
         '''Create interface config for vlan sub interface'''
-        self.install_pkg('vlan')
         interface = 'vlan'+self.vlan
         cfg = ['auto %s' %interface,
                'iface %s inet static' %interface,
@@ -372,7 +366,6 @@ class UbuntuInterface(BaseInterface):
 
     def create_bonding_interface(self):
         '''Create interface config for bond master'''
-        self.install_pkg('ifenslave')
         self.get_mac_from_bond_intf()
         self.create_bond_members()
         log.info('Creating bond master: %s' %self.device)
