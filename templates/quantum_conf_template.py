@@ -4,6 +4,7 @@ template = string.Template("""
 [APISERVER]
 api_server_ip = $__contrail_api_server_ip__
 api_server_port = $__contrail_api_server_port__
+contrail_extensions = $__contrail_extensions__
 multi_tenancy = $__contrail_multi_tenancy__
 
 [KEYSTONE]

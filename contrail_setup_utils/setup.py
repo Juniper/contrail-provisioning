@@ -966,6 +966,7 @@ HWADDR=%s
             # quantum plugin
             template_vals = {'__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
+                             '__contrail_extensions__': 'ipam:neutron.plugins.juniper.contrail.contrail_plugin_ipam.NeutronPluginContrailIpam,policy:neutron.plugins.juniper.contrail.contrail_plugin_policy.NeutronPluginContrailPolicy',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': '127.0.0.1',
                              '__contrail_admin_token__': ks_admin_password,
