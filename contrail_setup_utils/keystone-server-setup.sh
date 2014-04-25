@@ -121,13 +121,14 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
-    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@localhost/keystone
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
     openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
     openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2
     openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd   
+    openstack-config --set /etc/$svc/$svc.conf memcache servers 127.0.0.1:11211
 done
 
 keystone-manage db_sync

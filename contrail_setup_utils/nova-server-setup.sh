@@ -130,7 +130,7 @@ export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@localhost/nova
+openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
 
 for APP in nova; do
   openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
