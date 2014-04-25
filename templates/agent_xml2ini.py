@@ -312,18 +312,20 @@ class Xml2Ini():
         else:
             ini_str += "# vmware_physical_interface=\n\n"
 
-        ini_str += "[LINK-LOCAL]\n"
+        ini_str += "[FLOWS]\n"
         ini_str += "# Everything in this section is optional\n\n"
+        ini_str += "# Maximum flows allowed per VM - given as \% of maximum system flows\n"
+        ini_str += "# max_vm_flows=100\n\n"
         ini_str += "# Maximum number of link-local flows allowed across all VMs\n"
         if obj.max_system_flows:
-            ini_str += "max_system_flows=%s\n\n" %(obj.max_system_flows)
+            ini_str += "max_system_linklocal_flows=%s\n\n" %(obj.max_system_flows)
         else:
-            ini_str += "# max_system_flows=4096\n\n"
+            ini_str += "# max_system_linklocal_flows=4096\n\n"
         ini_str += "# Maximum number of link-local flows allowed per VM\n"
         if obj.max_vm_flows:
-            ini_str += "max_vm_flows=%s\n\n" %(obj.max_vm_flows)
+            ini_str += "max_vm_linklocal_flows=%s\n\n" %(obj.max_vm_flows)
         else:
-            ini_str += "# max_vm_flows=1024\n\n"
+            ini_str += "# max_vm_linklocal_flows=1024\n\n"
 
         ini_str += "[METADATA]\n"
         ini_str += "# Shared secret for metadata proxy service. (Optional)\n"
