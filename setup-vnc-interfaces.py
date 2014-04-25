@@ -393,7 +393,6 @@ def parse_cli(args):
                         help='Display version and exit')
     parser.add_argument('--device', 
                         action='store', 
-                        default='',
                         required=True,
                         help='Interface Name')
     parser.add_argument('--members', 

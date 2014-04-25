@@ -452,8 +452,10 @@ class Setup(object):
 
         vlan = False
         if os.path.isfile ('/proc/net/vlan/%s' % dev):
-            buffer = open('/proc/net/vlan/config').readlines()
-            match = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(buffer), flags=re.M|re.I)
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
             phydev = match.group(1)
             vlan = True
 
@@ -555,8 +557,10 @@ HWADDR=%s
 
         vlan = False
         if os.path.isfile ('/proc/net/vlan/%s' % dev):
-            buffer = open('/proc/net/vlan/config').readlines()
-            match  = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(buffer), flags=re.M|re.I)
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match  = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
             phydev = match.group(1)
             vlan = True
 
@@ -586,7 +590,7 @@ HWADDR=%s
             local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
             if vlan:
                 local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
-            if 'bond' in dev:
+            if 'bond' in dev.lower():
                 iters = re.finditer('^\s*auto\s', cfg_file, re.M)
                 indices = [match.start() for match in iters]
                 matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
