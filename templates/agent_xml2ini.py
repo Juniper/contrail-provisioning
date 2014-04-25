@@ -314,10 +314,8 @@ class Xml2Ini():
 
         ini_str += "[FLOWS]\n"
         ini_str += "# Everything in this section is optional\n\n"
-        ini_str += "# Maximum number of flows allowed in the vrouter, across all VMs\n"
-        ini_str += "# max_system_flows=\n\n"
-        ini_str += "# Maximum number of flows allowed per VM\n"
-        ini_str += "# max_vm_flows=\n\n"
+        ini_str += "# Maximum flows allowed per VM - given as \% of maximum system flows\n"
+        ini_str += "# max_vm_flows=100\n\n"
         ini_str += "# Maximum number of link-local flows allowed across all VMs\n"
         if obj.max_system_flows:
             ini_str += "max_system_linklocal_flows=%s\n\n" %(obj.max_system_flows)
