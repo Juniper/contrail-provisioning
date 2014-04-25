@@ -891,18 +891,21 @@ HWADDR=%s
             local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
-                             '__contrail_log_local__': '--log_local',
+                             '__contrail_log_local__': '0',
+                             '__contrail_log_category__': '',
+                             '__contrail_log_level__': 'SYS_DEBUG',
                              '__contrail_redis_server_port__' : '6381',
                              '__contrail_redis_query_port__' : '6380',
                              '__contrail_http_server_port__' : '8090',
                              '__contrail_rest_api_port__' : '8081',
                              '__contrail_host_ip__' : self_collector_ip, 
                              '__contrail_discovery_ip__' : cfgm_ip,
-                             '__contrail_collector__': '127.0.0.1',
+                             '__contrail_discovery_port__' : 5998,
+                             '__contrail_collector__': self_collector_ip,
                              '__contrail_collector_port__': '8086'}
             self._template_substitute_write(opserver_param_template.template,
                                             template_vals, temp_dir_name + '/opserver_param')
-            local("sudo mv %s/opserver_param /etc/contrail/opserver_param" %(temp_dir_name))             
+            local("sudo mv %s/opserver_param /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
                     
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
