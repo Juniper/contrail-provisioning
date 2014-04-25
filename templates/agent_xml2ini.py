@@ -41,10 +41,12 @@ class Xml2Ini():
     def _parse_args(self, args_str):
         '''
         Eg. python xml2ini.py --source_file filename1 --target_file filename2 
+                              --overwrite_target_file
         '''
         # Source any specified config/ini file
         # Turn off help, so we print all options in response to -h
-        conf_parser = argparse.ArgumentParser(add_help = False)
+        conf_parser = argparse.ArgumentParser(add_help = False,
+                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
 
@@ -58,8 +60,9 @@ class Xml2Ini():
             # Don't mess with format of description
             formatter_class=argparse.RawDescriptionHelpFormatter,
             )
-        parser.add_argument("--source_file", help = "Agent conf file name having config in XML format")
-        parser.add_argument("--target_file", help = "Target Agent conf file name which will have INI config")
+        parser.add_argument("--source_file", default="/etc/contrail/agent.conf", help = "Agent conf file name having config in XML format  (default: %(default)s)")
+        parser.add_argument("--target_file", default="/etc/contrail/vnswad.conf", help = "Target Agent conf file name which will have INI config  (default: %(default)s)")
+        parser.add_argument("--overwrite_target_file", help = "Overwrite target file if it is already present", action='store_true')
         self._args = parser.parse_args(remaining_argv)
 
     #end __parse_args__
@@ -175,16 +178,13 @@ class Xml2Ini():
     #end process_gateway
 
     def convert(self):
-        if not self._args.source_file:
-            self._args.source_file = "/etc/contrail/agent.conf"
-        if not self._args.target_file:
-            self._args.target_file = "/etc/contrail/vnswad.conf"
         if not os.path.isfile(self._args.source_file):
             print 'Source file %s does not exist' %(self._args.source_file)
             return
         if os.path.isfile(self._args.target_file):
-            print 'Target file %s already exists' %(self._args.target_file)
-            return
+            if not self._args.overwrite_target_file:
+                print 'Target file %s already exists' %(self._args.target_file)
+                return
         agent_tree = ET.parse(self._args.source_file)
         agent_root = agent_tree.getroot()
         agent_elem = agent_root.find('agent')
@@ -221,13 +221,13 @@ class Xml2Ini():
         ini_str += "# configured, value provided by discovery service will be used. (Optional)\n"
         ini_str += "# port=8086\n# server=\n\n"
         ini_str += "[CONTROL-NODE]\n" 
-        "# IP address to be used to connect to control-node. Maximum of 2 IP addresses\n"
-        "# (separated by a space) can be provided. If no IP is configured then the\n"
-        "# value provided by discovery service will be used. (Optional)\n"
+        ini_str += "# IP address to be used to connect to control-node. Maximum of 2 IP addresses\n"
+        ini_str += "# (separated by a space) can be provided. If no IP is configured then the\n"
+        ini_str += "# value provided by discovery service will be used. (Optional)\n"
         if obj.xmpp_server1 or obj.xmpp_server2:
             ini_str += "server=%s %s\n\n" %(obj.xmpp_server1, obj.xmpp_server2)
         else:
-            ini_str += "#server=x.x.x.x y.y.y.y\n\n"
+            ini_str += "# server=x.x.x.x y.y.y.y\n\n"
 
         ini_str += "[DEFAULT]\n"
         #Debug logging configuration was not supported in 1.05 and earlier releases
@@ -284,7 +284,7 @@ class Xml2Ini():
         if obj.dns_server1 or obj.dns_server2:
             ini_str += "server=%s %s\n\n" %(obj.dns_server1, obj.dns_server2)
         else:
-            ini_str += "#server=x.x.x.x y.y.y.y\n\n"
+            ini_str += "# server=x.x.x.x y.y.y.y\n\n"
 
         ini_str += "[HYPERVISOR]\n"
         ini_str += "# Everything in this section is optional\n\n"
