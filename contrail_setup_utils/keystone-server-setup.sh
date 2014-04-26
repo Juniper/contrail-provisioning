@@ -133,6 +133,33 @@ done
 
 keystone-manage db_sync
 
+# Increase memcached 'item_size_max' to 2MB, default is 1MB
+# Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
+item_size_max="2m"
+if [ $is_ubuntu -eq 1 ] ; then
+    memcache_conf='/etc/memcached.conf'
+    opts=$(grep "\-I " ${memcache_conf})
+    if [ $? -ne 0 ]; then
+        echo "-I ${item_size_max}" >> ${memcache_conf}
+    fi
+elif [ $is_redhat -eq 1 ]; then
+    memcache_conf='/etc/sysconfig/memcached'
+    opts=$(grep OPTIONS ${memcache_conf} | grep -Po '".*?"')
+    if [ $? -ne 0 ]; then
+        #Write option to memcached config file
+        echo "OPTIONS=\"-I ${item_size_max}\"" >> ${memcache_conf}
+    else
+        #strip the leading and trailing qoutes
+        opts=$(echo "$opts" | sed -e 's/^"//'  -e 's/"$//')
+        grep OPTIONS ${memcache_conf} | grep -Po '".*?"' | grep "\-I"
+        if [ $? -ne 0 ]; then
+            #concatenate with the existing options.
+            opts="$opts -I ${item_size_max}"
+            sed -i "s/OPTIONS.*/OPTIONS=\"${opts}\"/g" ${memcache_conf}
+        fi
+    fi
+fi
+
 # Create link /usr/bin/nodejs to /usr/bin/node
 if [ ! -f /usr/bin/nodejs ]; then 
     ln -s /usr/bin/node /usr/bin/nodejs
