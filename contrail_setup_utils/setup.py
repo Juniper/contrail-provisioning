@@ -451,6 +451,15 @@ class Setup(object):
         mac = ''
         temp_dir_name = self._temp_dir_name
 
+        vlan = False
+        if os.path.isfile ('/proc/net/vlan/%s' % dev):
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
+            phydev = match.group(1)
+            vlan = True
+
         if os.path.isdir ('/sys/class/net/%s/bonding' % dev):
             bond = True
         # end if os.path.isdir...
@@ -470,10 +479,12 @@ HWADDR=%s
 ''' % (dev, dev, mac))
                 for dcfg in prsv_cfg:
                     f.write(dcfg+'\n')
-                f.flush()
+                if vlan:
+                    f.write('VLAN=yes\n')
         fd=open(ifcfg_file)
         f_lines=fd.readlines()
         fd.close()
+        local("sudo rm -f %s" %ifcfg_file)
         new_f_lines=[]
         remove_items=['IPADDR', 'NETMASK', 'PREFIX', 'GATEWAY', 'HWADDR',
                       'DNS1', 'DNS2', 'BOOTPROTO', 'NM_CONTROLLED', '#Contrail']
@@ -507,7 +518,10 @@ HWADDR=%s
         Iface   Destination     Gateway         Flags   RefCnt  Use     Metric  Mask            MTU     Window  IRTT
         p4p1    00000000        FED8CC0A        0003    0       0       0       00000000        0       0       0
         '''
-        with open('/etc/sysconfig/network-scripts/route-vhost0', 'w') as route_cfg_file:
+        temp_dir_name = self._temp_dir_name
+        cfg_file = '/etc/sysconfig/network-scripts/route-vhost0'
+        tmp_file = '%s/route-vhost0'%(temp_dir_name)
+        with open(tmp_file, 'w') as route_cfg_file:
             for route in open('/proc/net/route', 'r').readlines():
                 if route.startswith(device):
                     route_fields = route.split()
@@ -527,6 +541,10 @@ HWADDR=%s
                 #end if route.startswith...
             #end for route...
         #end with open...
+        local("sudo mv -f %s %s" %(tmp_file, cfg_file))
+        #delete the route-dev file
+        if os.path.isfile('/etc/sysconfig/network-scripts/route-%s'%device):
+            os.unlink('/etc/sysconfig/network-scripts/route-%s'%device)
     #end def migrate_routes
 
     def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip):
@@ -538,32 +556,60 @@ HWADDR=%s
             return
         #endif
 
-        temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
-        temp_stat_file = tempfile.mktemp()
-        temp_intf_file_new = tempfile.mktemp()
-        local("cp /etc/network/interfaces %s" %(temp_intf_file_new))
+        vlan = False
+        if os.path.isfile ('/proc/net/vlan/%s' % dev):
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match  = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
+            phydev = match.group(1)
+            vlan = True
 
-        # Get static routes attached with dev and re-attach to vhost0
-        with settings(warn_only = True):
-            local("grep 'up route.*dev %s' %s > %s" %(dev, temp_intf_file_new, temp_stat_file))
-            local("grep -ve 'up route.*dev %s' %s > %s" %(dev, temp_intf_file_new, temp_intf_file))
+        # Replace strings matching dev to vhost0 in ifup and ifdown parts file
+        # Any changes to the file/logic with static routes has to be
+        # reflected in setup-vnc-static-routes.py too
+        ifup_parts_file = os.path.join(os.path.sep, 'etc', 'network', 'if-up.d', 'routes')
+        ifdown_parts_file = os.path.join(os.path.sep, 'etc', 'network', 'if-down.d', 'routes')
+
+        if os.path.isfile(ifup_parts_file) and os.path.isfile(ifdown_parts_file):
+            with settings(warn_only = True):
+                local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifup_parts_file))
+                local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifdown_parts_file))
+
+        temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
+        local("cp /etc/network/interfaces %s" %(temp_intf_file))
+        with open('/etc/network/interfaces', 'r') as fd:
+            cfg_file = fd.read()
 
         if not self._args.non_mgmt_ip:
             # remove entry from auto <dev> to auto excluding these pattern
-            # then delete specifically auto <dev>
+            # then delete specifically auto <dev> 
             local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
             local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
             # add manual entry for dev
             local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
             local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            if vlan:
+                local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
+            if 'bond' in dev.lower():
+                iters = re.finditer('^\s*auto\s', cfg_file, re.M)
+                indices = [match.start() for match in iters]
+                matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
+                for each in matches:
+                    each = each.strip()
+                    if re.match('^auto\s+%s'%dev, each):
+                        string = ''
+                        for lines in each.splitlines():
+                            if 'bond-' in lines:
+                                string += lines+os.linesep
+                        local("echo '%s' >> %s" %(string, temp_intf_file))
+                    else:
+                        continue
             local("echo '' >> %s" %(temp_intf_file))
         else:
             #remove ip address and gateway
-            with settings(warn_only = True):
-                local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
-                local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
 
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
@@ -573,9 +619,8 @@ HWADDR=%s
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
-        if not self._args.non_mgmt_ip:
-            if gateway_ip:
-                local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
+        if (vhost_ip == self._args.compute_ip) and gateway_ip:
+            local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
 
         domain = self.get_domain_search_list()
         if domain:
@@ -591,9 +636,8 @@ HWADDR=%s
                   temp_stat_file, dev, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
-
         # move it to right place
-        local("mv %s /etc/network/interfaces" %(temp_intf_file))
+        local("sudo mv -f %s /etc/network/interfaces" %(temp_intf_file))
 
     #end _rewrite_net_interfaces_file
 
@@ -1342,6 +1386,7 @@ SUBCHANNELS=1,2,3
                             self.migrate_routes(dev)
 
                         with settings(warn_only = True):
+                            local("sudo cp -f %s/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s" % (temp_dir_name, dev, dev))
                             local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
 
                             local("sudo chkconfig network on")
