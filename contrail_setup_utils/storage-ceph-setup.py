@@ -107,6 +107,8 @@ class SetupCeph(object):
         local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
         sshkey=local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
+        local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
+        local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
         for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
