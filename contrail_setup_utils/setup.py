@@ -248,7 +248,9 @@ class Setup(object):
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
         if pdist == 'Ubuntu':
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/etc/cassandra')
-        parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
+        parser.add_argument("--data_dir", help = "Directory where database stores data")
+        parser.add_argument("--analytics_data_dir", help = "Directory where database stores data")
+        parser.add_argument("--ssd_data_dir", help = "Directory where database stores data")
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--num_collector_nodes", help = "Number of Collector Nodes", type = int)
@@ -811,6 +813,8 @@ HWADDR=%s
             initial_token = self._args.database_initial_token
             seed_list = self._args.database_seed_list
             data_dir = self._args.data_dir
+            analytics_data_dir = self._args.analytics_data_dir
+            ssd_data_dir = self._args.ssd_data_dir
             if not cassandra_dir:
                 raise ArgumentError('Undefined cassandra directory')
             conf_dir = CASSANDRA_CONF
@@ -832,6 +836,17 @@ HWADDR=%s
                 self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
                 cass_data_dir = os.path.join(data_dir, 'data')
                 self.replace_in_file(conf_file, '    - /var/lib/cassandra/data', '    - ' + cass_data_dir)
+            if ssd_data_dir:
+                commit_log_dir = os.path.join(ssd_data_dir, 'commitlog')
+                self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
+            if analytics_data_dir:
+                if not data_dir:
+                    data_dir = '/var/lib/cassandra/data'
+                analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
+                analytics_dir = os.path.join(analytics_data_dir, 'ContrailAnalytics')
+                if not os.path.exists(analytics_dir_link):
+                    local("sudo mkdir -p %s" % (analytics_dir))
+                    local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
             if seed_list:
                 self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')    
 
