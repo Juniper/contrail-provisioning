@@ -632,10 +632,6 @@ HWADDR=%s
             local("echo -n '    dns-nameservers' >> %s" %(temp_intf_file))
             for dns in dns_list:
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
-        #Add static route from dev to vhost0 temp_stat_file
-        with settings(warn_only = True):
-            local('cat %s | sed -E "s/(up\s+route\s+add\s+\-net.*)%s/\\n    \\1vhost0/g" >> %s' %(
-                  temp_stat_file, dev, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
         # move it to right place
