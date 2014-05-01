@@ -591,6 +591,8 @@ HWADDR=%s
             # add manual entry for dev
             local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
             local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
             if vlan:
                 local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
             if 'bond' in dev.lower():
