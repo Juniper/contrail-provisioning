@@ -61,7 +61,7 @@ class Xml2Ini():
             formatter_class=argparse.RawDescriptionHelpFormatter,
             )
         parser.add_argument("--source_file", default="/etc/contrail/agent.conf", help = "Agent conf file name having config in XML format  (default: %(default)s)")
-        parser.add_argument("--target_file", default="/etc/contrail/vnswad.conf", help = "Target Agent conf file name which will have INI config  (default: %(default)s)")
+        parser.add_argument("--target_file", default="/etc/contrail/contrail-vrouter-agent.conf", help = "Target Agent conf file name which will have INI config  (default: %(default)s)")
         parser.add_argument("--overwrite_target_file", help = "Overwrite target file if it is already present", action='store_true')
         self._args = parser.parse_args(remaining_argv)
 

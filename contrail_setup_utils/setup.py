@@ -1349,7 +1349,7 @@ HWADDR=%s
                     with open(filename, "a") as f:
                         f.write(gateway_str)
 
-                local("sudo cp %s/vnswad.conf /etc/contrail/vnswad.conf" %(temp_dir_name))
+                local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(temp_dir_name))
                 local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
 
                 if pdist == 'centos' or pdist == 'fedora':
@@ -1411,7 +1411,7 @@ SUBCHANNELS=1,2,3
                 # end pdist == ubuntu
 
             else: # of if dev and dev != 'vhost0'
-                if not os.path.isfile("/etc/contrail/vnswad.conf"):
+                if not os.path.isfile("/etc/contrail/contrail-vrouter-agent.conf"):
                     if os.path.isfile("/opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py"):
                         local("sudo python /opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py")
             #end if dev and dev != 'vhost0' :
