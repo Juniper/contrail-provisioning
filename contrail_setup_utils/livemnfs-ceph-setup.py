@@ -174,9 +174,8 @@ class SetupNFSLivem(object):
            
             cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
             if cindervolavail == '0':
-                #TODO change ocs-block-disk1 to ocs-block-disk
                 #TODO might need to add a loop similar to vm start
-                local('source /etc/contrail/openstackrc && cinder create --display-name livemnfsvol --volume-type ocs-block-disk1 %s' %(avail_gb) , shell='/bin/bash')
+                local('source /etc/contrail/openstackrc && cinder create --display-name livemnfsvol --volume-type ocs-block-disk %s' %(avail_gb) , shell='/bin/bash')
                 time.sleep(5)
          
                 cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep available | wc -l' , capture=True, shell='/bin/bash')
