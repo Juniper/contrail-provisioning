@@ -21,8 +21,6 @@ class SetupVncDatabase(object):
         data_dir = self._args.data_dir
         initial_token = self._args.initial_token
         seed_list = self._args.seed_list
-        analytics_data_dir = self._args.analytics_data_dir
-        ssd_data_dir = self._args.ssd_data_dir
         
         setup_args_str = "--role database"
         setup_args_str = setup_args_str + " --database_listen_ip %s" \
@@ -33,20 +31,11 @@ class SetupVncDatabase(object):
         if data_dir:                     
             setup_args_str = setup_args_str + " --data_dir %s" \
                                  % (data_dir)
-        if analytics_data_dir:                     
-            setup_args_str = setup_args_str + " --analytics_data_dir %s" \
-                                 % (analytics_data_dir)
-        if ssd_data_dir:                     
-            setup_args_str = setup_args_str + " --ssd_data_dir %s" \
-                                 % (ssd_data_dir)
         if initial_token:
             setup_args_str = setup_args_str + " --database_initial_token %s" \
                                  % (initial_token)
         if seed_list:
             setup_args_str = setup_args_str + " --database_seed_list %s" % (' '.join(seed_list))                                                                       
-	if self._args.cfgm_ip:
-            setup_args_str = setup_args_str + " --cfgm_ip %s" \
-                                 % (self._args.cfgm_ip)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -89,13 +78,10 @@ class SetupVncDatabase(object):
         all_defaults = {'global': global_defaults}
         parser.set_defaults(**all_defaults)
         parser.add_argument("--self_ip", help = "IP Address of this database node")
-        parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         parser.add_argument("--dir", help = "Directory where database binary exists")
         parser.add_argument("--initial_token", help = "Initial token for database node")
         parser.add_argument("--seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--data_dir", help = "Directory where database stores data")
-        parser.add_argument("--analytics_data_dir", help = "Directory where database stores analytics data")
-        parser.add_argument("--ssd_data_dir", help = "SSD directory that database stores data")
         self._args = parser.parse_args(remaining_argv)
     #end _parse_args
 

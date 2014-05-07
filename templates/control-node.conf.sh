@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/control-node.conf"
-OLD_CONFIG_FILE=/etc/contrail/control_param
-SIGNATURE="Control-node configuration options, generated from $OLD_CONFIG_FILE"
+SIGNATURE="Control-node configuration options, generated from control_param"
 
 # Remove old style command line arguments from .ini file.
 perl -ni -e 's/command=.*/command=\/usr\/bin\/control-node/g; print $_;' /etc/contrail/supervisord_control_files/contrail-control.ini
 
-if [ ! -e $OLD_CONFIG_FILE ]; then
+if [ ! -e /etc/contrail/control_param ]; then
     exit
 fi
 
@@ -21,12 +20,12 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source $OLD_CONFIG_FILE 2>/dev/null || true
+source /etc/contrail/control_param
 
 (
 cat << EOF
 #
-# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
+# Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
 #
 # $SIGNATURE
 #
@@ -34,7 +33,6 @@ cat << EOF
 [DEFAULT]
 # bgp_config_file=bgp_config.xml
 # bgp_port=179
-# collectors= # Provided by discovery server
   hostip=$HOSTIP # Resolved IP of `hostname`
   hostname=$HOSTNAME # Retrieved as `hostname`
 # http_server_port=8083
@@ -47,6 +45,10 @@ cat << EOF
 # log_local=0
 # test_mode=0
 # xmpp_server_port=5269
+
+[COLLECTOR]
+# port=8086
+# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998

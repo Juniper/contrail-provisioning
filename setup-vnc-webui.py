@@ -17,12 +17,10 @@ class SetupVncWebui(object):
         self._parse_args(args_str)
         cfgm_ip = self._args.cfgm_ip
         openstack_ip = self._args.openstack_ip
-        keystone_ip = self._args.keystone_ip
         collector_ip = self._args.collector_ip
 
         setup_args_str = "--role webui"
         setup_args_str = setup_args_str + " --cfgm_ip %s" % (cfgm_ip)
-        setup_args_str = setup_args_str + " --keystone_ip %s" % (keystone_ip)
         setup_args_str = setup_args_str + " --openstack_ip %s" % (openstack_ip)
         if collector_ip:
             setup_args_str = setup_args_str + " --collector_ip %s" \
@@ -38,9 +36,8 @@ class SetupVncWebui(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-webui.py --cfgm_ip 10.84.12.11 --keystone_ip 10.84.12.12 
-            --openstack_ip 10.84.12.12 --collector_ip 10.84.12.12
-            --cassandra_ip_list 10.1.5.11 10.1.5.12
+        Eg. python setup-vnc-webui.py --cfgm_ip 10.84.12.11 --openstack_ip 10.84.12.12
+            --collector_ip 10.84.12.12 --cassandra_ip_list 10.1.5.11 10.1.5.12
         '''
 
         # Source any specified config/ini file
@@ -53,7 +50,6 @@ class SetupVncWebui(object):
 
         global_defaults = {
             'cfgm_ip': '127.0.0.1',
-            'keystone_ip': '127.0.0.1',
             'openstack_ip': '127.0.0.1',
             'collector_ip' : '127.0.0.1',
         }
@@ -78,7 +74,6 @@ class SetupVncWebui(object):
         parser.set_defaults(**all_defaults)
 
         parser.add_argument("--cfgm_ip", help = "IP Address of the cfgm node")
-        parser.add_argument("--keystone_ip", help = "IP Address of the keystone node")
         parser.add_argument("--openstack_ip", help = "IP Address of the openstack controller")
         parser.add_argument("--collector_ip", help = "IP Address of the Collector node")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",

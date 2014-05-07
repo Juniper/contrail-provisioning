@@ -83,7 +83,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=http://127.0.0.1:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -93,10 +93,6 @@ done
 
 export ADMIN_TOKEN
 export SERVICE_TOKEN
-
-for cfg in api; do
-    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT notifier_strategy noop
-done
 
 for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
