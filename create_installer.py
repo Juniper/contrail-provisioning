@@ -116,7 +116,8 @@ class CreateInstaller(object):
                           'contrail_setup_utils/setup-quantum-in-keystone.py',
                           'contrail_setup_utils/setup-service-token.sh',
                           'contrail_setup_utils/storage-ceph-setup.py',
-                          'contrail_setup_utils/compute-live-migration-setup.sh',
+                          'contrail_setup_utils/compute-live-migration-setup.py',
+                          'contrail_setup_utils/livemnfs-ceph-setup.py',
                           'devstack-cleanup.py',                 
                           'setup-all-in-one.py',                 
                           'reset-all-in-one.py',                 
@@ -137,7 +138,8 @@ class CreateInstaller(object):
                           'setup-vnc-openstack.py',
                           'setup-vnc-storage.py',
                           'setup-vnc-interfaces.py',
-                          'setup-vnc-static-routes.py'
+                          'setup-vnc-static-routes.py',
+                          'setup-vnc-livemigration.py'
                          ]
 
         with lcd("%s" %(temp_dir_name)):
