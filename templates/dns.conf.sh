@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
 CONFIG_FILE="/etc/contrail/dns.conf"
-OLD_CONFIG_FILE=/etc/contrail/dns_param
-SIGNATURE="DNS configuration options, generated from $OLD_CONFIG_FILE"
+SIGNATURE="DNS configuration options, generated from dns_param"
 
 # Remove old style command line arguments from .ini file.
 perl -ni -e 's/command=.*/command=\/usr\/bin\/dnsd/g; print $_;' /etc/contrail/supervisord_control_files/contrail-dns.ini
 
-if [ ! -e $OLD_CONFIG_FILE ]; then
+if [ ! -e /etc/contrail/dns_param ]; then
     exit
 fi
 
@@ -21,7 +20,7 @@ if [ -e $CONFIG_FILE ]; then
     fi
 fi
 
-source $OLD_CONFIG_FILE 2>/dev/null || true
+source /etc/contrail/dns_param
 
 (
 cat << EOF
@@ -32,7 +31,6 @@ cat << EOF
 #
 
 [DEFAULT]
-# collectors= # Provided by discovery server
 # dns_config_file=dns_config.xml
   hostip=$HOSTIP # Resolved IP of `hostname`
   hostname=$HOSTNAME # Retrieved as `hostname`
@@ -45,6 +43,10 @@ cat << EOF
 # log_level=SYS_NOTICE
 # log_local=0
 # test_mode=0
+
+[COLLECTOR]
+# port=8086
+# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998

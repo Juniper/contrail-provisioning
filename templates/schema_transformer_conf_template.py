@@ -24,5 +24,4 @@ ca_certs=$__contrail_cacertfile_location__
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
 admin_tenant_name=$__contrail_admin_tenant_name__
-admin_token=$__contrail_admin_token__
 """)

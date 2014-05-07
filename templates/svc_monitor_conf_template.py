@@ -13,7 +13,6 @@ log_file=$__contrail_log_file__
 cassandra_server_list=$__contrail_cassandra_server_list__
 disc_server_ip=$__contrail_disc_server_ip__
 disc_server_port=$__contrail_disc_server_port__
-region_name=$__contrail_region_name__
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
@@ -22,9 +21,8 @@ certfile=$__contrail_certfile_location__
 ca_certs=$__contrail_cacertfile_location__
 
 [KEYSTONE]
-auth_host=$__contrail_keystone_ip__
+auth_host=$__contrail_openstack_ip__
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
 admin_tenant_name=$__contrail_admin_tenant_name__
-admin_token=$__contrail_admin_token__
 """)

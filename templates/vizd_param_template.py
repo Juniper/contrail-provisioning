@@ -1,38 +1,15 @@
 import string
 
-template = string.Template("""#
-# Copyright (c) 2014 Juniper Networks, Inc. All rights reserved.
-#
-# Control-node configuration options
-#
-
-[DEFAULT]
-  analytics_data_ttl=$__contrail_analytics_data_ttl__
-  cassandra_server_list=$__contrail_cassandra_server_list__
-# dup=0
-  hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
-# hostname= # Retrieved as `hostname`
-  http_server_port=$__contrail_http_server_port__
-# log_category=
-# log_disable=0
-  log_file=$__contrail_log_file__
-# log_files_count=10
-# log_file_size=1048576 # 1MB
-# log_level=SYS_NOTICE
-# log_local=0
-  syslog_port=$__contrail_analytics_syslog_port__
-# test_mode=0
-
-[COLLECTOR]
-  port=$__contrail_listen_port__
-# server= 0.0.0.0
-
-[DISCOVERY]
-# port=5998
-  server=$__contrail_discovery_ip__ # discovery_server IP address
-
-[REDIS]
-  port=6381
-  server=127.0.0.1
-
+template = string.Template("""
+CASSANDRA_SERVER_LIST=$__contrail_cassandra_server_list__
+REDIS_SERVER=$__contrail_redis_server__
+REDIS_SERVER_PORT=$__contrail_redis_server_port__
+DISCOVERY=$__contrail_discovery_ip__
+HOST_IP=$__contrail_host_ip__
+LISTEN_PORT=$__contrail_listen_port__
+HTTP_SERVER_PORT=$__contrail_http_server_port__
+LOG_FILE=$__contrail_log_file__
+LOG_LOCAL=$__contrail_log_local__
+ANALYTICS_DATA_TTL=$__contrail_analytics_data_ttl__
+ANALYTICS_SYSLOG_PORT=$__contrail_analytics_syslog_port__
 """)

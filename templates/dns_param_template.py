@@ -7,7 +7,6 @@ template = string.Template("""#
 #
 
 [DEFAULT]
-# collectors= # Provided by discovery server
 # dns_config_file=dns_config.xml
   hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
   hostname=$__contrail_hostname__ # Retrieved as `hostname`
@@ -20,6 +19,10 @@ template = string.Template("""#
 # log_level=SYS_NOTICE
 # log_local=0
 # test_mode=0
+
+[COLLECTOR]
+# port=8086
+# server= # Provided by discovery server
 
 [DISCOVERY]
 # port=5998

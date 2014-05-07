@@ -32,7 +32,6 @@ class QuantumSetup(object):
         self._args_user = self._args.user
         self._args_passwd = self._args.password
         self._args_svc_passwd = self._args.svc_password
-        self._args_region_name = self._args.region_name
         self._args_tenant_id = self._args.tenant
         self._args_quant_ip = self._args.quant_server_ip
         self._args_root_password = self._args.root_password
@@ -57,14 +56,8 @@ class QuantumSetup(object):
         self._quant_admin_name = "admin"
 
         try:
-            if self._args_svc_passwd:
-                self.kshandle = client.Client(token=self._args_svc_passwd,
-                                              endpoint=self._auth_url)
-            else:
-                self.kshandle = client.Client(username=self._args_user,
-                                              password=self._args_passwd,
-                                              tenant_name=self._args_tenant_id,
-                                              auth_url=self._auth_url)
+            self.kshandle = client.Client(username=self._args_user, password=self._args_passwd,
+                                          tenant_name=self._args_tenant_id, auth_url=self._auth_url)
         except Exception as e:
             print e
             raise e
@@ -94,7 +87,6 @@ class QuantumSetup(object):
             'password': 'contrail123',
             'svc_password': 'contrail123',
             'root_password': 'c0ntrail123',
-            'region_name': 'RegionOne',
         }
 
         if args.conf_file:
@@ -123,7 +115,6 @@ class QuantumSetup(object):
         parser.add_argument("--password", help = "Password to access keystone server")
         parser.add_argument("--svc_password", help = "Quantum service password on keystone server")
         parser.add_argument("--root_password", help = "Root password for keystone server")
-        parser.add_argument("--region_name", help = "Region Name for quantum endpoint")
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -256,7 +247,7 @@ class QuantumSetup(object):
 
         # service endpoint does not exist, create one
         try:
-            self.kshandle.endpoints.create(region=self._args.region_name,
+            self.kshandle.endpoints.create(region="RegionOne",
                                            service_id=self.quant_svc_id,
                                            publicurl=self._args_quant_url,
                                            adminurl=self._args_quant_url,

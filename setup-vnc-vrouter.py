@@ -17,7 +17,7 @@ class SetupVncVrouter(object):
         self._parse_args(args_str)
 
         cfgm_ip = self._args.cfgm_ip
-        keystone_ip = self._args.keystone_ip
+        openstack_ip = self._args.openstack_ip
         service_token = self._args.service_token
         ncontrols = self._args.ncontrols
         non_mgmt_ip = self._args.non_mgmt_ip
@@ -27,13 +27,13 @@ class SetupVncVrouter(object):
         vgw_intf_list = self._args.vgw_intf
         vgw_gateway_routes = self._args.gateway_routes
         if not self._args.openstack_mgmt_ip :
-            openstack_mgmt_ip = keystone_ip
+            openstack_mgmt_ip = openstack_ip
         else:
             openstack_mgmt_ip = self._args.openstack_mgmt_ip
 
         setup_args_str = "--role compute --compute_ip %s " %(self._args.self_ip)
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
-        setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
+        setup_args_str = setup_args_str + " --openstack_ip %s " %(openstack_ip)
         setup_args_str = setup_args_str + " --openstack_mgmt_ip %s " %(openstack_mgmt_ip)
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
@@ -57,7 +57,7 @@ class SetupVncVrouter(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-vrouter.py --cfgm_ip 10.1.5.11 --keystone_ip 10.1.5.12
+        Eg. python setup-vnc-vrouter.py --cfgm_ip 10.1.5.11 --openstack_ip 10.1.5.12
                    --self_ip 10.1.5.12 --service_token 'c0ntrail123' --ncontrols 1
                    --haproxy
         '''
@@ -72,7 +72,7 @@ class SetupVncVrouter(object):
 
         global_defaults = {
             'cfgm_ip': '127.0.0.1',
-            'keystone_ip': '127.0.0.1',
+            'openstack_ip': '127.0.0.1',
             'openstack_mgmt_ip': None,
             'service_token': '',
             'self_ip': '127.0.0.1',
@@ -107,7 +107,7 @@ class SetupVncVrouter(object):
         parser.set_defaults(**all_defaults)
 
         parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
-        parser.add_argument("--keystone_ip", help = "IP Address of the keystone node")
+        parser.add_argument("--openstack_ip", help = "IP Address of the openstack node")
         parser.add_argument("--openstack_mgmt_ip", help = "Mgmt IP Address of the openstack node if it is different from openstack_IP")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
