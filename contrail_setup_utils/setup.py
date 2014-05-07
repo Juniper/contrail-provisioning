@@ -672,9 +672,10 @@ HWADDR=%s
             
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
         if 'database' in self._args.role:
-            hosts_entry = '%s %s' %(cfgm_ip, hostname)
+            database_listen_ip = self._args.database_listen_ip
+            hosts_entry = '%s %s' %(database_listen_ip, hostname)
             with settings( warn_only= True) :
-                local('grep -q \'%s\' /etc/hosts || echo \'%s %s\' >> /etc/hosts' %(cfgm_ip, cfgm_ip, hosts_entry))
+                local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(database_listen_ip, hosts_entry))
         
         # Disable selinux
         with lcd(temp_dir_name):
