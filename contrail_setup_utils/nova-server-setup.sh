@@ -24,14 +24,27 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=mysqld
    nova_pfx=openstack-nova
-   OS_NET=quantum
-   TENANT_NAME=quantum_admin_tenant_name
-   ADMIN_USER=quantum_admin_username
-   ADMIN_PASSWD=quantum_admin_password
-   ADMIN_AUTH_URL=quantum_admin_auth_url
-   OS_URL=quantum_url
-   OS_URL_TIMEOUT=quantum_url_timeout
-   META_DATA_PROXY=service_quantum_metadata_proxy
+   nova_api_ver=`rpm -q --qf  "%{VERSION}\n" openstack-nova-api`
+   echo $nova_api_ver
+   if [ "$nova_api_ver" == "2013.1" ]; then
+   	OS_NET=quantum
+   	TENANT_NAME=quantum_admin_tenant_name
+   	ADMIN_USER=quantum_admin_username
+   	ADMIN_PASSWD=quantum_admin_password
+   	ADMIN_AUTH_URL=quantum_admin_auth_url
+   	OS_URL=quantum_url
+   	OS_URL_TIMEOUT=quantum_url_timeout
+   	META_DATA_PROXY=service_quantum_metadata_proxy
+   else
+   	OS_NET=neutron
+   	TENANT_NAME=neutron_admin_tenant_name
+   	ADMIN_USER=neutron_admin_username
+   	ADMIN_PASSWD=neutron_admin_password
+   	ADMIN_AUTH_URL=neutron_admin_auth_url
+   	OS_URL=neutron_url
+   	OS_URL_TIMEOUT=neutron_url_timeout
+   	META_DATA_PROXY=service_neutron_metadata_proxy
+   fi
 fi
 
 if [ -f /etc/lsb-release ]; then
@@ -112,12 +125,12 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://127.0.0.1:5000/v2.0/
+export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@localhost/nova
+openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
 
 for APP in nova; do
   openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
@@ -137,6 +150,7 @@ done
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:35357/v2.0/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET

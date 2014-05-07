@@ -62,6 +62,7 @@ from contrail_config_templates import schema_transformer_conf_template
 from contrail_config_templates import svc_monitor_conf_template
 from contrail_config_templates import bgp_param_template
 from contrail_config_templates import dns_param_template
+from contrail_config_templates import vnswad_conf_template
 from contrail_config_templates import discovery_conf_template
 from contrail_config_templates import vizd_param_template
 from contrail_config_templates import qe_param_template
@@ -72,6 +73,7 @@ from contrail_config_templates import contrail_api_ini_template
 from contrail_config_templates import contrail_api_svc_template
 from contrail_config_templates import contrail_discovery_ini_template
 from contrail_config_templates import contrail_discovery_svc_template
+from contrail_config_templates import database_nodemgr_param_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -134,12 +136,13 @@ class Setup(object):
         }
         cfgm_defaults = {
             'cfgm_ip': '127.0.0.1',
-            'openstack_ip': '127.0.0.1',
+            'keystone_ip': '127.0.0.1',
             'redis_ip': '127.0.0.1',
             'service_token': '',
             'n_api_workers': '1',
             'multi_tenancy': False,
             'haproxy': False,
+            'region_name': None,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -153,7 +156,7 @@ class Setup(object):
         }
         compute_node_defaults = {
             'compute_ip': '127.0.0.1',
-            'openstack_ip': '127.0.0.1',
+            'keystone_ip': '127.0.0.1',
             'service_token': '',
             'haproxy': False,
             'ncontrols' : 2,
@@ -172,6 +175,7 @@ class Setup(object):
         database_defaults = {
             'database_dir' : '/usr/share/cassandra',
             'database_listen_ip' : '127.0.0.1',                     
+	    'cfgm_ip': '127.0.0.1',
         }
 
         if args.conf_file:
@@ -210,6 +214,7 @@ class Setup(object):
                             help = "Role of server (config, openstack, control, compute, collector, webui, database")
         parser.add_argument("--cfgm_ip", help = "IP Address of Configuration Node")
         parser.add_argument("--openstack_ip", help = "IP Address of Openstack Node")
+        parser.add_argument("--keystone_ip", help = "IP Address of Keystone Node")
         parser.add_argument("--openstack_mgmt_ip", help = "Management IP Address of Openstack Node")
         parser.add_argument("--collector_ip", help = "IP Address of Collector Node")
         parser.add_argument("--discovery_ip", help = "IP Address of Discovery Node")
@@ -217,6 +222,7 @@ class Setup(object):
         parser.add_argument("--ncontrols", help = "Number of Control Nodes in the system (for compute role)")
         parser.add_argument("--compute_ip", help = "IP Address of Compute Node (for compute role)")
         parser.add_argument("--service_token", help = "The service password to access keystone")
+        parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
@@ -243,7 +249,9 @@ class Setup(object):
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
         if pdist == 'Ubuntu':
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/etc/cassandra')
-        parser.add_argument("--data_dir", help = "Directory where database stores data", default = '/home/cassandra')
+        parser.add_argument("--data_dir", help = "Directory where database stores data")
+        parser.add_argument("--analytics_data_dir", help = "Directory where database stores data")
+        parser.add_argument("--ssd_data_dir", help = "Directory where database stores data")
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--num_collector_nodes", help = "Number of Collector Nodes", type = int)
@@ -445,6 +453,15 @@ class Setup(object):
         mac = ''
         temp_dir_name = self._temp_dir_name
 
+        vlan = False
+        if os.path.isfile ('/proc/net/vlan/%s' % dev):
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
+            phydev = match.group(1)
+            vlan = True
+
         if os.path.isdir ('/sys/class/net/%s/bonding' % dev):
             bond = True
         # end if os.path.isdir...
@@ -464,10 +481,12 @@ HWADDR=%s
 ''' % (dev, dev, mac))
                 for dcfg in prsv_cfg:
                     f.write(dcfg+'\n')
-                f.flush()
+                if vlan:
+                    f.write('VLAN=yes\n')
         fd=open(ifcfg_file)
         f_lines=fd.readlines()
         fd.close()
+        local("sudo rm -f %s" %ifcfg_file)
         new_f_lines=[]
         remove_items=['IPADDR', 'NETMASK', 'PREFIX', 'GATEWAY', 'HWADDR',
                       'DNS1', 'DNS2', 'BOOTPROTO', 'NM_CONTROLLED', '#Contrail']
@@ -501,7 +520,10 @@ HWADDR=%s
         Iface   Destination     Gateway         Flags   RefCnt  Use     Metric  Mask            MTU     Window  IRTT
         p4p1    00000000        FED8CC0A        0003    0       0       0       00000000        0       0       0
         '''
-        with open('/etc/sysconfig/network-scripts/route-vhost0', 'w') as route_cfg_file:
+        temp_dir_name = self._temp_dir_name
+        cfg_file = '/etc/sysconfig/network-scripts/route-vhost0'
+        tmp_file = '%s/route-vhost0'%(temp_dir_name)
+        with open(tmp_file, 'w') as route_cfg_file:
             for route in open('/proc/net/route', 'r').readlines():
                 if route.startswith(device):
                     route_fields = route.split()
@@ -521,6 +543,10 @@ HWADDR=%s
                 #end if route.startswith...
             #end for route...
         #end with open...
+        local("sudo mv -f %s %s" %(tmp_file, cfg_file))
+        #delete the route-dev file
+        if os.path.isfile('/etc/sysconfig/network-scripts/route-%s'%device):
+            os.unlink('/etc/sysconfig/network-scripts/route-%s'%device)
     #end def migrate_routes
 
     def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip):
@@ -532,19 +558,72 @@ HWADDR=%s
             return
         #endif
 
+        vlan = False
+        if os.path.isfile ('/proc/net/vlan/%s' % dev):
+            vlan_info = open('/proc/net/vlan/config').readlines()
+            match  = re.search('^%s.*\|\s+(\S+)$'%dev, "\n".join(vlan_info), flags=re.M|re.I)
+            if not match:
+                raise RuntimeError, 'Configured vlan %s is not found in /proc/net/vlan/config'%dev
+            phydev = match.group(1)
+            vlan = True
+
+        # Replace strings matching dev to vhost0 in ifup and ifdown parts file
+        # Any changes to the file/logic with static routes has to be
+        # reflected in setup-vnc-static-routes.py too
+        ifup_parts_file = os.path.join(os.path.sep, 'etc', 'network', 'if-up.d', 'routes')
+        ifdown_parts_file = os.path.join(os.path.sep, 'etc', 'network', 'if-down.d', 'routes')
+
+        if os.path.isfile(ifup_parts_file) and os.path.isfile(ifdown_parts_file):
+            with settings(warn_only = True):
+                local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifup_parts_file))
+                local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifdown_parts_file))
+
         temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
-        local("mv /etc/network/interfaces %s" %(temp_intf_file))
+        local("cp /etc/network/interfaces %s" %(temp_intf_file))
+        with open('/etc/network/interfaces', 'r') as fd:
+            cfg_file = fd.read()
+
+        if not self._args.non_mgmt_ip:
+            # remove entry from auto <dev> to auto excluding these pattern
+            # then delete specifically auto <dev> 
+            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+            # add manual entry for dev
+            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            if vlan:
+                local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
+            if 'bond' in dev.lower():
+                iters = re.finditer('^\s*auto\s', cfg_file, re.M)
+                indices = [match.start() for match in iters]
+                matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
+                for each in matches:
+                    each = each.strip()
+                    if re.match('^auto\s+%s'%dev, each):
+                        string = ''
+                        for lines in each.splitlines():
+                            if 'bond-' in lines:
+                                string += lines+os.linesep
+                        local("echo '%s' >> %s" %(string, temp_intf_file))
+                    else:
+                        continue
+            local("echo '' >> %s" %(temp_intf_file))
+        else:
+            #remove ip address and gateway
+            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
 
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
         local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
-        local("echo '    pre-up /opt/contrail/bin/if-vhost0' >> %s" %(temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
-        if gateway_ip:
+        if (vhost_ip == self._args.compute_ip) and gateway_ip:
             local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
 
         domain = self.get_domain_search_list()
@@ -557,41 +636,10 @@ HWADDR=%s
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
         local("echo '\n' >> %s" %(temp_intf_file))
 
-        if not self._args.non_mgmt_ip:
-            # remove entry from auto <dev> to auto excluding these pattern
-            # then delete specifically auto <dev> 
-            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
-            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
-            # add manual entry for dev
-            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
-            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
-            local("echo '' >> %s" %(temp_intf_file))
-        else:
-            #remove ip address and gateway
-            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
-            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
-
         # move it to right place
-        local("mv %s /etc/network/interfaces" %(temp_intf_file))
+        local("sudo mv -f %s /etc/network/interfaces" %(temp_intf_file))
 
     #end _rewrite_net_interfaces_file
-
-    def _replace_discovery_server(self, agent_elem, discovery_ip, ncontrols):
-        for srv in agent_elem.findall('discovery-server'):
-            agent_elem.remove(srv)
-
-        pri_dss_elem = ET.Element('discovery-server')
-        pri_dss_ip = ET.SubElement(pri_dss_elem, 'ip-address')
-        pri_dss_ip.text = '%s' %(discovery_ip)
-
-        xs_instances = ET.SubElement(pri_dss_elem, 'control-instances')
-        xs_instances.text = '%s' %(ncontrols)
-        agent_elem.append(pri_dss_elem)
-
-    #end _replace_discovery_server
-
 
     def fixup_config_files(self):
         pdist = platform.dist()[0]
@@ -601,19 +649,26 @@ HWADDR=%s
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
         nova_conf_file = "/etc/nova/nova.conf"
+        cinder_conf_file = "/etc/cinder/cinder.conf"
+        if (os.path.isdir("/etc/openstack_dashboard")):
+            dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
+        else:
+            dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
 
         if pdist == 'Ubuntu':
             local("ln -sf /bin/true /sbin/chkconfig")
 
         # TODO till post of openstack-horizon.spec is fixed...
         if 'openstack' in self._args.role:
-            pylibpath = local ('/usr/bin/python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"', capture = True)
             if pdist == 'fedora' or pdist == 'centos':
-                local('runuser -p apache -c "echo yes | django-admin collectstatic --settings=settings --pythonpath=%s/openstack_dashboard"' % pylibpath)
+                local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                        % (nova_conf_file))
+            if os.path.exists(cinder_conf_file):
+                local("sudo sed -i 's/rpc_backend = cinder.openstack.common.rpc.impl_qpid/#rpc_backend = cinder.openstack.common.rpc.impl_qpid/g' %s" \
+                       % (cinder_conf_file))
             
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
         if 'database' in self._args.role:
@@ -644,6 +699,8 @@ HWADDR=%s
         if pdist == 'centos' or pdist == 'fedora':
             core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
             local("%s >> %s" %(core_unlim, initf))
+            if pdist == 'Ubuntu':
+                local('mkdir -p /var/crash')
         
         #Core pattern
         pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
@@ -667,27 +724,32 @@ HWADDR=%s
             # analytics venv instalation
             if os.path.exists('/opt/contrail/analytics-venv/archive') and os.path.exists('/opt/contrail/analytics-venv/bin/activate'):
                 with lcd("/opt/contrail/analytics-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/analytics-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
             # api venv instalation
             if os.path.exists('/opt/contrail/api-venv/archive') and os.path.exists('/opt/contrail/api-venv/bin/activate'):
                 with lcd("/opt/contrail/api-venv/archive"):
-                    local("bash -c 'source ../bin/activate && pip install *'")
+                    if os.listdir('/opt/contrail/api-venv/archive'):
+                        local("bash -c 'source ../bin/activate && pip install *'")
  
         # vrouter venv instalation
         if os.path.exists('/opt/contrail/vrouter-venv/archive') and os.path.exists('/opt/contrail/vrouter-venv/bin/activate'):
             with lcd("/opt/contrail/vrouter-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/vrouter-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # control venv instalation
         if os.path.exists('/opt/contrail/control-venv/archive') and os.path.exists('/opt/contrail/control-venv/bin/activate'):
             with lcd("/opt/contrail/control-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/control-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
  
         # database venv instalation
         if os.path.exists('/opt/contrail/database-venv/archive') and os.path.exists('/opt/contrail/database-venv/bin/activate'):
             with lcd("/opt/contrail/database-venv/archive"):
-                local("bash -c 'source ../bin/activate && pip install *'")
+                if os.listdir('/opt/contrail/database-venv/archive'):
+                    local("bash -c 'source ../bin/activate && pip install *'")
 
         if 'openstack' in self._args.role:
             self.service_token = self._args.service_token
@@ -721,7 +783,7 @@ HWADDR=%s
 
         if 'compute' in self._args.role or 'openstack' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
@@ -729,7 +791,7 @@ HWADDR=%s
                     cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
                     nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
-                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.openstack_ip))
+                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
@@ -740,12 +802,12 @@ HWADDR=%s
             # get service token from openstack(role) node and fix local config
             self.service_token = self._args.service_token
             self.haproxy = self._args.haproxy
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             compute_ip = self._args.compute_ip
             cfgm_ip = self._args.cfgm_ip
             quantum_port = self._args.quantum_port
             if not self.service_token:
-                with settings(host_string = 'root@%s' %(openstack_ip), password = env.password):
+                with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
                     self.service_token = tok_fd.read()
@@ -755,7 +817,7 @@ HWADDR=%s
             local("echo 'SERVICE_TOKEN=%s' >> %s/ctrl-details" 
                                             %(self.service_token, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
-            local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(openstack_ip, temp_dir_name))
+            local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -792,6 +854,8 @@ HWADDR=%s
             initial_token = self._args.database_initial_token
             seed_list = self._args.database_seed_list
             data_dir = self._args.data_dir
+            analytics_data_dir = self._args.analytics_data_dir
+            ssd_data_dir = self._args.ssd_data_dir
             if not cassandra_dir:
                 raise ArgumentError('Undefined cassandra directory')
             conf_dir = CASSANDRA_CONF
@@ -813,6 +877,17 @@ HWADDR=%s
                 self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
                 cass_data_dir = os.path.join(data_dir, 'data')
                 self.replace_in_file(conf_file, '    - /var/lib/cassandra/data', '    - ' + cass_data_dir)
+            if ssd_data_dir:
+                commit_log_dir = os.path.join(ssd_data_dir, 'commitlog')
+                self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
+            if analytics_data_dir:
+                if not data_dir:
+                    data_dir = '/var/lib/cassandra/data'
+                analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
+                analytics_dir = os.path.join(analytics_data_dir, 'ContrailAnalytics')
+                if not os.path.exists(analytics_dir_link):
+                    local("sudo mkdir -p %s" % (analytics_dir))
+                    local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
             if seed_list:
                 self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')    
 
@@ -839,12 +914,17 @@ HWADDR=%s
                   % (env_file))
             local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
                   % (env_file))
+	    template_vals = {
+                            '__contrail_discovery_ip__': cfgm_ip
+                            }
+            self._template_substitute_write(database_nodemgr_param_template.template,
+                                            template_vals, temp_dir_name + '/database_nodemgr_param')
+            local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
 
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -853,11 +933,10 @@ HWADDR=%s
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
-                                           template_vals, temp_dir_name + '/vizd_param')
-            local("sudo mv %s/vizd_param /etc/contrail/vizd_param" %(temp_dir_name))
+                                           template_vals, temp_dir_name + '/collector.conf')
+            local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/qe.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
                              '__contrail_redis_server_port__' : '6380',
                              '__contrail_http_server_port__' : '8091',
@@ -865,34 +944,32 @@ HWADDR=%s
                              '__contrail_collector_port__' : '8086',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/qe_param')
-            local("sudo mv %s/qe_param /etc/contrail/qe_param" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/query-engine.conf')
+            local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
-                             '__contrail_log_local__': '--log_local',
+                             '__contrail_log_local__': '0',
+                             '__contrail_log_category__': '',
+                             '__contrail_log_level__': 'SYS_DEBUG',
                              '__contrail_redis_server_port__' : '6381',
                              '__contrail_redis_query_port__' : '6380',
                              '__contrail_http_server_port__' : '8090',
                              '__contrail_rest_api_port__' : '8081',
                              '__contrail_host_ip__' : self_collector_ip, 
                              '__contrail_discovery_ip__' : cfgm_ip,
-                             '__contrail_collector__': '127.0.0.1',
+                             '__contrail_discovery_port__' : 5998,
+                             '__contrail_collector__': self_collector_ip,
                              '__contrail_collector_port__': '8086'}
             self._template_substitute_write(opserver_param_template.template,
                                             template_vals, temp_dir_name + '/opserver_param')
-            local("sudo mv %s/opserver_param /etc/contrail/opserver_param" %(temp_dir_name))             
+            local("sudo mv %s/opserver_param /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
                     
         if 'config' in self._args.role:
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            if cfgm_ip in self._args.zookeeper_ip_list:
-                # prefer local zk if available
-                zk_servers = '%s' %(cfgm_ip)
-                zk_servers_ports = '%s:2181' %(cfgm_ip)
-            else:
-                zk_servers = ','.join(self._args.zookeeper_ip_list)
-                zk_servers_ports = \
-                ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+            zk_servers = ','.join(self._args.zookeeper_ip_list)
+            zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
 
             # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
@@ -906,11 +983,12 @@ HWADDR=%s
                              '__contrail_certfile_location__': '/etc/contrail/ssl/certs/apiserver.pem',
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_redis_ip__': self._args.redis_master_ip,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                              '__contrail_log_file__': '/var/log/contrail/api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
@@ -977,6 +1055,7 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_log_file__' : '/var/log/contrail/schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
@@ -993,7 +1072,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'svc-monitor',
                              '__contrail_api_server_ip__': cfgm_ip,
                              '__contrail_api_server_port__': '8082',
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
                              '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
@@ -1002,10 +1081,12 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+                             '__contrail_admin_token__': self.service_token,
                              '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
+                             '__contrail_region_name__': region_name,
                             }
             self._template_substitute_write(svc_monitor_conf_template.template,
                                             template_vals, temp_dir_name + '/svc_monitor.conf')
@@ -1019,7 +1100,7 @@ HWADDR=%s
                              '__contrail_listen_port__': '5998',
                              '__contrail_log_local__': 'True',
                              '__contrail_log_file__': '/var/log/contrail/discovery.log',
-                             '__contrail_healthcheck_interval__': -1,
+                             '__contrail_healthcheck_interval__': 5,
                             }
             self._template_substitute_write(discovery_conf_template.template,
                                             template_vals, temp_dir_name + '/discovery.conf')
@@ -1049,32 +1130,29 @@ HWADDR=%s
 
             # vnc_api_lib.ini
             template_vals = {
-                             '__contrail_openstack_ip__': openstack_ip,
+                             '__contrail_keystone_ip__': keystone_ip,
                             }
             self._template_substitute_write(vnc_api_lib_ini_template.template,
                                             template_vals, temp_dir_name + '/vnc_api_lib.ini')
             local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(temp_dir_name))
 
             # set high session timeout to survive glance led disk activity
-            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/zoo.cfg')
-            local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/zookeeper-env.sh')
+            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
+            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
             if pdist == 'fedora' or pdist == 'centos':
-                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/log4j.properties")
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
             if pdist == 'Ubuntu':
-                local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=11/log4j.appender.ROLLINGFILE.MaxBackupIndex=11/g' /etc/zookeeper/conf_example/log4j.properties > log4j.properties.new")
-                local("sudo mv log4j.properties.new /etc/zookeeper/conf_example/log4j.properties")
+                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
 
             zk_index = 1
             for zk_ip in self._args.zookeeper_ip_list:
-                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/zoo.cfg' %(zk_index, zk_ip))
+                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
                 zk_index = zk_index + 1
 
             #put cluster-unique zookeeper's instance id in myid 
-            if pdist == 'fedora' or pdist == 'centos':
-                local('sudo echo "%s" > /var/lib/zookeeper/data/myid' %(self._args.cfgm_index)) 
-            if pdist == 'Ubuntu':
-                local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
+            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):
@@ -1150,7 +1228,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
             local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
 
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             compute_ip = self._args.compute_ip
             if self.haproxy:
                 discovery_ip = '127.0.0.1'
@@ -1222,80 +1300,57 @@ HWADDR=%s
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
-                # set agent conf with control node IPs, first remove old ones
-                agent_tree = ET.parse('/etc/contrail/rpm_agent.conf')
-                agent_root = agent_tree.getroot()
-                agent_elem = agent_root.find('agent')
-                vhost_elem = agent_elem.find('vhost')
-                for vip in vhost_elem.findall('ip-address'):
-                    vhost_elem.remove (vip)
-                vip = ET.Element('ip-address')
-                vip.text = cidr
-                vhost_elem.append(vip)
-                for gw in vhost_elem.findall('gateway'):
-                    vhost_elem.remove (gw)
-                if gateway:
-                    gw = ET.Element('gateway')
-                    gw.text = gateway
-                    vhost_elem.append(gw)
-
-                ethpt_elem = agent_elem.find('eth-port')
-                for pn in ethpt_elem.findall('name'):
-                    ethpt_elem.remove (pn)
-                pn = ET.Element('name')
-                pn.text = dev
-                ethpt_elem.append(pn)
+                vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
+                    '__contrail_vhost_gateway__': gateway,
+                    '__contrail_discovery_ip__': discovery_ip,
+                    '__contrail_discovery_ncontrol__': ncontrols,
+                    '__contrail_physical_intf__': dev,
+                    '__contrail_control_ip__': compute_ip,
+                }
+                self._template_substitute_write(vnswad_conf_template.template,
+                        vnswad_conf_template_vals, temp_dir_name + '/vnswad.conf')
 
                 if vgw_public_vn_name and vgw_public_subnet:
                     vgw_public_vn_name = vgw_public_vn_name[1:-1].split(';')
                     vgw_public_subnet = vgw_public_subnet[1:-1].split(';')
                     vgw_intf_list = vgw_intf_list[1:-1].split(';')
+                    gateway_str = ""
                     if vgw_gateway_routes != None:
                         vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
-                        gateway_elem = ET.Element("gateway") 
-                        gateway_elem.set("virtual-network", vgw_public_vn_name[i]) 
-                        virtual_network_interface_elem = ET.Element('interface')
-                        virtual_network_interface_elem.text = vgw_intf_list[i]
-                        gateway_elem.append(virtual_network_interface_elem)
+                        gateway_str += '\n[%s%d]\n' %("Gateway-", i)
+                        gateway_str += "# Name of the routing_instance for which the gateway is being configured\n"
+                        gateway_str += "routing_instance=" + vgw_public_vn_name[i] + "\n\n"
+                        gateway_str += "# Gateway interface name\n"
+                        gateway_str += "interface=" + vgw_intf_list[i] + "\n\n"
+                        gateway_str += "# Virtual network ip blocks for which gateway service is required. Each IP\n"
+                        gateway_str += "# block is represented as ip/prefix. Multiple IP blocks are represented by\n"
+                        gateway_str += "# separating each with a space\n"
+                        gateway_str += "ip_blocks="
+
                         if vgw_public_subnet[i].find("[") !=-1:
                             for ele in vgw_public_subnet[i][1:-1].split(","):
-                                virtual_network_subnet_elem = ET.Element('subnet')
-                                virtual_network_subnet_elem.text =ele[1:-1]
-                                gateway_elem.append(virtual_network_subnet_elem)
+                                gateway_str += ele[1:-1] + " "
                         else:
-                            virtual_network_subnet_elem = ET.Element('subnet')
-                            virtual_network_subnet_elem.text =vgw_public_subnet[i]
-                            gateway_elem.append(virtual_network_subnet_elem)
+                            gateway_str += vgw_public_subnet[i]
+                        gateway_str += "\n\n"
                         if vgw_gateway_routes != None and i < len(vgw_gateway_routes):
                             if  vgw_gateway_routes[i] != '[]':
+                            	gateway_str += "# Routes to be exported in routing_instance. Each route is represented as\n"
+                            	gateway_str += "# ip/prefix. Multiple routes are represented by separating each with a space\n"
+                            	gateway_str += "routes="
                                 if vgw_gateway_routes[i].find("[") !=-1:
                                     for ele in vgw_gateway_routes[i][1:-1].split(","):
-                                        vgw_gateway_routes_elem = ET.Element('route')
-                                        vgw_gateway_routes_elem.text =ele[1:-1]
-                                        gateway_elem.append(vgw_gateway_routes_elem)
+                                        gateway_str += ele[1:-1] + " "
                                 else:
-                                    vgw_gateway_routes_elem = ET.Element('route')  
-                                    vgw_gateway_routes_elem.text =vgw_gateway_routes[i]
-                                    gateway_elem.append(vgw_gateway_routes_elem)
-                        agent_elem.append(gateway_elem)
+                                    gateway_str += vgw_gateway_routes[i]
+                                gateway_str += "\n"
+                    filename = temp_dir_name + "/vnswad.conf"
+                    with open(filename, "a") as f:
+                        f.write(gateway_str)
 
-
-                self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
-                
-                control_elem = ET.Element('control')
-                control_ip_elem = ET.Element('ip-address')
-                control_ip_elem.text = compute_ip
-                control_elem.append(control_ip_elem)
-                agent_elem.append(control_elem) 
-
-                agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
-                with settings(warn_only = True):
-                    local("cp %s/agent.conf %s/agent.conf.1" %(temp_dir_name,temp_dir_name))
-                    if local("xmllint --format %s/agent.conf.1").succeeded:
-                        local("xmllint --format %s/agent.conf.1 > %s/agent.conf" %(temp_dir_name,temp_dir_name))
-                local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf*" %(temp_dir_name))
+                local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(temp_dir_name))
+                local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
 
                 if pdist == 'centos' or pdist == 'fedora':
                     ## make ifcfg-vhost0
@@ -1344,6 +1399,7 @@ SUBCHANNELS=1,2,3
                             self.migrate_routes(dev)
 
                         with settings(warn_only = True):
+                            local("sudo cp -f %s/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s" % (temp_dir_name, dev, dev))
                             local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
 
                             local("sudo chkconfig network on")
@@ -1355,21 +1411,16 @@ SUBCHANNELS=1,2,3
                 # end pdist == ubuntu
 
             else: # of if dev and dev != 'vhost0'
-                local("sudo cp /etc/contrail/agent.conf %s/agent.conf" %(temp_dir_name))
-                agent_tree = ET.parse('%s/agent.conf' %(temp_dir_name))
-                agent_root = agent_tree.getroot()
-                agent_elem = agent_root.find('agent')
-                self._replace_discovery_server(agent_elem, discovery_ip, ncontrols)
-
-                agent_tree = agent_tree.write('%s/agent.conf' %(temp_dir_name))
-                local("sudo cp %s/agent.conf /etc/contrail/agent.conf" %(temp_dir_name))
-                local("sudo rm %s/agent.conf" %(temp_dir_name))
+                if not os.path.isfile("/etc/contrail/contrail-vrouter-agent.conf"):
+                    if os.path.isfile("/opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py"):
+                        local("sudo python /opt/contrail/contrail_installer/contrail_config_templates/agent_xml2ini.py")
             #end if dev and dev != 'vhost0' :
 
         # role == compute && !cfgm
 
         if 'webui' in self._args.role:
             openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
             local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
@@ -1378,7 +1429,7 @@ SUBCHANNELS=1,2,3
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.computeManager.ip.*/config.computeManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
+            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(keystone_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")            
@@ -1439,13 +1490,16 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
 
         if 'config' in self._args.role:
-            openstack_ip = self._args.openstack_ip
+            keystone_ip = self._args.keystone_ip
+            region_name = self._args.region_name
             quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
-                          %(openstack_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
+                          %(keystone_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
                             env.password)
+            if region_name:
+                quant_args += " --region_name %s" %(region_name)
             local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:

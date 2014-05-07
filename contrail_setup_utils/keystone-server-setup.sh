@@ -76,18 +76,18 @@ service $keystone_svc restart
 chkconfig $keystone_svc on
 
 if [ ! -d /etc/keystone/ssl ]; then
-    keystone-manage pki_setup
+    keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
     chown -R keystone.keystone /etc/keystone/ssl
 fi
 
 # Set up a keystonerc file with admin password
-export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-http://127.0.0.1:${CONFIG_ADMIN_PORT:-35357}/v2.0}
+export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-http://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_PASSWORD
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://127.0.0.1:5000/v2.0/
+export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -121,16 +121,44 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
-    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@localhost/keystone
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
     openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
     openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2
     openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd   
+    openstack-config --set /etc/$svc/$svc.conf memcache servers 127.0.0.1:11211
 done
 
 keystone-manage db_sync
+
+# Increase memcached 'item_size_max' to 2MB, default is 1MB
+# Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
+item_size_max="2m"
+if [ $is_ubuntu -eq 1 ] ; then
+    memcache_conf='/etc/memcached.conf'
+    opts=$(grep "\-I " ${memcache_conf})
+    if [ $? -ne 0 ]; then
+        echo "-I ${item_size_max}" >> ${memcache_conf}
+    fi
+elif [ $is_redhat -eq 1 ]; then
+    memcache_conf='/etc/sysconfig/memcached'
+    opts=$(grep OPTIONS ${memcache_conf} | grep -Po '".*?"')
+    if [ $? -ne 0 ]; then
+        #Write option to memcached config file
+        echo "OPTIONS=\"-I ${item_size_max}\"" >> ${memcache_conf}
+    else
+        #strip the leading and trailing qoutes
+        opts=$(echo "$opts" | sed -e 's/^"//'  -e 's/"$//')
+        grep OPTIONS ${memcache_conf} | grep -Po '".*?"' | grep "\-I"
+        if [ $? -ne 0 ]; then
+            #concatenate with the existing options.
+            opts="$opts -I ${item_size_max}"
+            sed -i "s/OPTIONS.*/OPTIONS=\"${opts}\"/g" ${memcache_conf}
+        fi
+    fi
+fi
 
 # Create link /usr/bin/nodejs to /usr/bin/node
 if [ ! -f /usr/bin/nodejs ]; then 

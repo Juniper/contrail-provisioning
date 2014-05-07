@@ -13,7 +13,8 @@ BASE_URL = /
 ; Authentication settings (optional)
 [auth]
 AUTHN_TYPE = keystone
-AUTHN_SERVER=$__contrail_openstack_ip__
+AUTHN_PROTOCOL = http
+AUTHN_SERVER=$__contrail_keystone_ip__
 AUTHN_PORT = 35357
 AUTHN_URL = /v2.0/tokens
 """)

@@ -69,12 +69,15 @@ fi
 
 for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
 done
 
+openstack-config --set /etc/$net_svc_name/$net_svc_name.conf quotas quota_driver neutron.quota.ConfDriver
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_network -1
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_subnet -1
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_port -1
