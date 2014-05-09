@@ -83,7 +83,9 @@ openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_subnet
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_port -1
 
 if [ -d /etc/neutron ]; then
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.juniper.contrail.contrailplugin.ContrailPlugin
+    PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrailplugin.ContrailPlugin
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions
     openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host $CONTROLLER
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
