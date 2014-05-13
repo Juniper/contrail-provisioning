@@ -1399,7 +1399,6 @@ SUBCHANNELS=1,2,3
                             self.migrate_routes(dev)
 
                         with settings(warn_only = True):
-                            local("sudo cp -f %s/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s" % (temp_dir_name, dev, dev))
                             local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
 
                             local("sudo chkconfig network on")
