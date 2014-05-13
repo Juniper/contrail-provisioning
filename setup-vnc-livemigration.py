@@ -18,7 +18,7 @@ class SetupVncStorage(object):
         self._parse_args(args_str)
         storage_master = self._args.storage_master
 
-        setup_args_str = "--role live-migration"
+        setup_args_str = "--role storage"
         setup_args_str = setup_args_str + " --storage-master %s" % (storage_master) 
         setup_args_str = setup_args_str + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
         setup_args_str = setup_args_str + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    

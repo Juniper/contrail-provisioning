@@ -2,27 +2,11 @@
 import argparse
 import ConfigParser
 
-import platform
 import os
 import sys
-import time
-import re
-import string
-import socket
-import netifaces, netaddr
 import subprocess
-import fnmatch
-import struct
-import shutil
-import json
 from pprint import pformat
-import xml.etree.ElementTree as ET
-import platform
 
-import tempfile
-from fabric.api import local, env, run
-from fabric.operations import get, put
-from fabric.context_managers import lcd, settings
 from fabric.api import local, env, run
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings

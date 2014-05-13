@@ -3,27 +3,14 @@
 import argparse
 import ConfigParser
 
-import platform
 import os
 import sys
 import time
-import re
-import string
-import socket
-import netifaces, netaddr
+import netaddr
 import subprocess
-import fnmatch
-import struct
-import shutil
-import json
 from pprint import pformat
-import xml.etree.ElementTree as ET
-import platform
 
 import tempfile
-from fabric.api import local, env, run
-from fabric.operations import get, put
-from fabric.context_managers import lcd, settings
 from fabric.api import local, env, run
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
@@ -91,8 +78,8 @@ class SetupNFSLivem(object):
 
         #following are vgw configurations
         if vm_running == '1':
-            vmhost = livemnfs=local('source /etc/contrail/openstackrc && nova show livemnfs |grep hypervisor_hostname|awk \'{print $4}\'', capture=True, shell='/bin/bash')
-            vmip = livemnfs=local('source /etc/contrail/openstackrc && nova show livemnfs |grep \"livemnfs network\"|awk \'{print $5}\'', capture=True, shell='/bin/bash')
+            vmhost = local('source /etc/contrail/openstackrc && nova show livemnfs |grep hypervisor_hostname|awk \'{print $4}\'', capture=True, shell='/bin/bash')
+            vmip = local('source /etc/contrail/openstackrc && nova show livemnfs |grep \"livemnfs network\"|awk \'{print $5}\'', capture=True, shell='/bin/bash')
 
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                if hostname == vmhost:
@@ -171,6 +158,8 @@ class SetupNFSLivem(object):
             # TODO need to check if this needs to be configurable
             avail_gb = int(avail)/1024/1024/2/3
             print avail_gb 
+            if avail_gb > 1000:
+                avail_gb = 1000
            
             cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
             if cindervolavail == '0':
