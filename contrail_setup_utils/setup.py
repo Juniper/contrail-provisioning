@@ -623,7 +623,7 @@ HWADDR=%s
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
-        if (vhost_ip == self._args.compute_ip) and gateway_ip:
+        if (not self._args.non_mgmt_ip) and gateway_ip:
             local("echo '    gateway %s' >> %s" %(gateway_ip, temp_intf_file))
 
         domain = self.get_domain_search_list()
@@ -1399,7 +1399,6 @@ SUBCHANNELS=1,2,3
                             self.migrate_routes(dev)
 
                         with settings(warn_only = True):
-                            local("sudo cp -f %s/ifcfg-%s /etc/sysconfig/network-scripts/ifcfg-%s" % (temp_dir_name, dev, dev))
                             local("sudo mv %s/ifcfg-%s /etc/contrail/" % (temp_dir_name, dev))
 
                             local("sudo chkconfig network on")

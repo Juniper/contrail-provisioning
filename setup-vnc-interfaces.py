@@ -114,6 +114,7 @@ class BaseInterface(object):
             fd.write('\n'.join(['%s=%s' %(key, value) \
                           for key, value in cfg.items()]))
             fd.write('\n')
+            fd.flush()
         os.system('sudo cp -f %s %s'%(self.tempfile.name, nwfile))
 
     def get_mac_addr(self, iface):
@@ -183,7 +184,8 @@ class BaseInterface(object):
                'BOOTPROTO'     : 'none',
                'NM_CONTROLLED' : 'no',
                'BONDING_MASTER': 'yes',
-               'BONDING_OPTS'  : "\"%s\""%self.bond_opts_str.strip()
+               'BONDING_OPTS'  : "\"%s\""%self.bond_opts_str.strip(),
+               'SUBCHANNELS'   : '1,2,3'
               }
         if not self.vlan:
             cfg.update({'NETMASK'       : self.netmask,
@@ -244,6 +246,7 @@ class BaseInterface(object):
             self.create_bonding_interface()
         else:
             self.create_interface()
+        time.sleep(3)
         self.post_conf()
 
 class UbuntuInterface(BaseInterface):
@@ -318,6 +321,7 @@ class UbuntuInterface(BaseInterface):
             fd.write('\n%s\n' %cfg[0])
             fd.write('\n    '.join(cfg[1:]))
             fd.write('\n')
+            fd.flush()
         os.system('sudo cp -f %s %s'%(self.tempfile.name, interface_file))
 
     def create_interface(self):
