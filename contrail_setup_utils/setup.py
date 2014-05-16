@@ -165,6 +165,7 @@ class Setup(object):
             'vgw_public_vn_name': None,
             'vgw_intf_list': None,
             'vgw_gateway_routes': None,
+            'no_contrail_openstack' : False
         }
         collector_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -221,6 +222,7 @@ class Setup(object):
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -616,6 +618,7 @@ HWADDR=%s
         cfgm_ip = self._args.cfgm_ip
         collector_ip = self._args.collector_ip
         use_certs = True if self._args.use_certs else False
+        contrail_openstack = not(getattr(self._args, 'no_contrail_openstack', False))
         nova_conf_file = "/etc/nova/nova.conf"
         cinder_conf_file = "/etc/cinder/cinder.conf"
         if (os.path.isdir("/etc/openstack_dashboard")):
@@ -646,48 +649,49 @@ HWADDR=%s
                 local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(database_listen_ip, hosts_entry))
         
         # Disable selinux
-        with lcd(temp_dir_name):
+        if contrail_openstack:
+            with lcd(temp_dir_name):
+                with settings(warn_only = True):
+                    local("sudo sed 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config > config.new")
+                    local("sudo mv config.new /etc/selinux/config")
+                    local("setenforce 0")
+                    # cleanup in case move had error
+                    local("rm config.new")
+
+            # Disable iptables
             with settings(warn_only = True):
-                local("sudo sed 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config > config.new")
-                local("sudo mv config.new /etc/selinux/config")
-                local("setenforce 0")
-                # cleanup in case move had error
-                local("rm config.new")
+                local("sudo chkconfig iptables off")
+                local("sudo iptables --flush")
 
-        # Disable iptables
-        with settings(warn_only = True):
-            local("sudo chkconfig iptables off")
-            local("sudo iptables --flush")
+            # usable core dump
+            initf = '/etc/sysconfig/init'
+            with settings(warn_only = True):
+                local("sudo sed '/DAEMON_COREFILE_LIMIT=.*/d' %s > %s.new" %(initf, initf))
+                local("sudo mv %s.new %s" %(initf, initf))
 
-        # usable core dump 
-        initf = '/etc/sysconfig/init'
-        with settings(warn_only = True):
-            local("sudo sed '/DAEMON_COREFILE_LIMIT=.*/d' %s > %s.new" %(initf, initf))
-            local("sudo mv %s.new %s" %(initf, initf))
-
-        if pdist == 'centos' or pdist == 'fedora':
-            core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
-            local("%s >> %s" %(core_unlim, initf))
-            if pdist == 'Ubuntu':
-                local('mkdir -p /var/crash')
+            if pdist == 'centos' or pdist == 'fedora':
+                core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
+                local("%s >> %s" %(core_unlim, initf))
+                if pdist == 'Ubuntu':
+                    local('mkdir -p /var/crash')
         
-        #Core pattern
-        pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
-        ip_fwd_setting = 'net.ipv4.ip_forward = 1'
-        sysctl_file = '/etc/sysctl.conf'
-        print pattern
-        with settings( warn_only= True) :
-            local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
-            local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
-            local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
-            local("rm /tmp/sysctl.new")
-            local('sysctl -p')
-            local('mkdir -p /var/crashes')
+            #Core pattern
+            pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
+            ip_fwd_setting = 'net.ipv4.ip_forward = 1'
+            sysctl_file = '/etc/sysctl.conf'
+            print pattern
+            with settings( warn_only= True) :
+                local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
+                local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
+                local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
+                local("rm /tmp/sysctl.new")
+                local('sysctl -p')
+                local('mkdir -p /var/crashes')
 
-        try:
-            self.enable_kernel_core ()
-        except Exception as e:
-            print "Ignoring failure kernel core dump"
+            try:
+                self.enable_kernel_core ()
+            except Exception as e:
+                print "Ignoring failure kernel core dump"
  
         with settings(warn_only = True):
             # analytics venv instalation
@@ -750,11 +754,11 @@ HWADDR=%s
                 local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
 
 
-        if 'compute' in self._args.role or 'openstack' in self._args.role:
+        if (contrail_openstack and 'compute' in self._args.role or 'openstack' in self._args.role):
             with settings(warn_only = True):
                 local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
 
-        if 'compute' in self._args.role:
+        if (contrail_openstack and 'compute' in self._args.role):
             with settings(warn_only = True):
                 if pdist == 'Ubuntu':
                     cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
@@ -766,7 +770,9 @@ HWADDR=%s
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                        % (nova_conf_file))
 
-        if 'config' in self._args.role or 'compute' in self._args.role or 'openstack' in self._args.role:
+        if ('config' in self._args.role or
+            (contrail_openstack and 'compute' in self._args.role) or
+            'openstack' in self._args.role):
             # check if service token passed as argument else
             # get service token from openstack(role) node and fix local config
             self.service_token = self._args.service_token
@@ -1157,7 +1163,7 @@ HWADDR=%s
                         %(self._args.puppet_server))
 
 
-        if 'compute' in self._args.role:
+        if (contrail_openstack and 'compute' in self._args.role):
             dist = platform.dist()[0]
             # add /dev/net/tun in cgroup_device_acl needed for type=ethernet interfaces
             with settings(warn_only = True):
@@ -1191,7 +1197,6 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/vrouter_nodemgr_param')
             local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(temp_dir_name))
 
-            keystone_ip = self._args.keystone_ip
             compute_ip = self._args.compute_ip
             if self.haproxy:
                 discovery_ip = '127.0.0.1'
@@ -1471,6 +1476,7 @@ SUBCHANNELS=1,2,3
 
     def run_services(self):
         pdist = platform.dist()[0]
+        contrail_openstack = not(getattr(self._args, 'no_contrail_openstack', False))
         if 'database' in self._args.role:
             local("sudo ./contrail_setup_utils/database-server-setup.sh %s" % (self._args.database_listen_ip))
             
@@ -1502,18 +1508,27 @@ SUBCHANNELS=1,2,3
         if 'control' in self._args.role:
             local("sudo ./contrail_setup_utils/control-server-setup.sh")
 
-        if 'compute' in self._args.role:
+        if (contrail_openstack and 'compute' in self._args.role):
             if self._fixed_qemu_conf:
                 if pdist == 'centos' or pdist == 'fedora':
                     local("sudo service libvirtd restart")
                 if pdist == 'Ubuntu':
                     local("sudo service libvirt-bin restart")
 
-        if self._args.compute_ip :
-            # running compute-server-setup.sh on cfgm sets nova.conf's
-            # sql access from ip instead of localhost, causing privilege
-            # degradation for nova tables
-            local("sudo ./contrail_setup_utils/compute-server-setup.sh")
+        if self._args.compute_ip:
+            if contrail_openstack:
+                # running compute-server-setup.sh on cfgm sets nova.conf's
+                # sql access from ip instead of localhost, causing privilege
+                # degradation for nova tables
+                local("sudo ./contrail_setup_utils/compute-server-setup.sh")
+                return
+            #use contrail specific vif driver
+            local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
+            # Use noopdriver for firewall
+            local('openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver')
+
+            for svc in ['openstack-nova-compute', 'supervisor-vrouter']:
+                local('chkconfig %s on' % svc)
 
         if 'webui' in self._args.role:
             local("sudo ./contrail_setup_utils/webui-server-setup.sh")
