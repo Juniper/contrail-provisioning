@@ -1322,7 +1322,7 @@ HWADDR=%s
                     if vgw_gateway_routes != None:
                         vgw_gateway_routes = vgw_gateway_routes[1:-1].split(';')
                     for i in range(len(vgw_public_vn_name)):
-                        gateway_str += '\n[%s%d]\n' %("Gateway-", i)
+                        gateway_str += '\n[%s%d]\n' %("GATEWAY-", i)
                         gateway_str += "# Name of the routing_instance for which the gateway is being configured\n"
                         gateway_str += "routing_instance=" + vgw_public_vn_name[i] + "\n\n"
                         gateway_str += "# Gateway interface name\n"
