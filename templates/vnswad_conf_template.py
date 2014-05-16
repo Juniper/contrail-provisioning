@@ -117,7 +117,7 @@ physical_interface=$__contrail_physical_intf__
 
 # We can have multiple gateway sections with different indices in the 
 # following format
-[GATEWAY-0]
+# [GATEWAY-0]
 # Name of the routing_instance for which the gateway is being configured
 # routing_instance=default-domain:admin:public:public
 
@@ -129,7 +129,7 @@ physical_interface=$__contrail_physical_intf__
 # separating each with a space
 # ip_blocks=1.1.1.1/24
 
-[GATEWAY-1]
+# [GATEWAY-1]
 # Name of the routing_instance for which the gateway is being configured
 # routing_instance=default-domain:admin:public1:public1
 
