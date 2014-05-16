@@ -49,6 +49,8 @@ class SetupVncVrouter(object):
                 setup_args_str = setup_args_str + " --vgw_gateway_routes %s " %(vgw_gateway_routes)
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
+        if self._args.no_contrail_openstack:
+            setup_args_str = setup_args_str + " --no_contrail_openstack"
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -85,6 +87,7 @@ class SetupVncVrouter(object):
             'gateway_routes': None,
             '': None,
             'haproxy': False,
+            'no_contrail_openstack': False,
         }
 
         if args.conf_file:
@@ -119,6 +122,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
         parser.add_argument("--gateway_routes", help = "List of route need to be added in agent configuration for virtual gateway")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)
 
