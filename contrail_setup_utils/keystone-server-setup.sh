@@ -11,7 +11,7 @@ if [ -f /etc/redhat-release ]; then
    keystone_svc=openstack-keystone
 fi
 
-if [ -f /etc/lsb-release ]; then
+if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
    is_ubuntu=1
    is_redhat=0
    web_svc=apache2
