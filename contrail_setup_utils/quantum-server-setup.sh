@@ -25,7 +25,7 @@ if [ -f /etc/redhat-release ]; then
    mysql_svc=mysqld
 fi
 
-if [ -f /etc/lsb-release ]; then
+if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
    is_ubuntu=1
    is_redhat=0
    web_svc=apache2
