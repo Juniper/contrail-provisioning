@@ -615,8 +615,9 @@ HWADDR=%s
             local("echo '' >> %s" %(temp_intf_file))
         else:
             #remove ip address and gateway
-            local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
-            local("sed -i '/auto %s/ a\iface %s inet manual' %s" % (dev, dev, temp_intf_file))
+            with settings(warn_only = True):
+                local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
+                local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
 
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
