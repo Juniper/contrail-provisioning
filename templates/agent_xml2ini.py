@@ -214,12 +214,6 @@ class Xml2Ini():
                 self.process_gateway(item, obj)
 
         #Generate the agent config file in INI format.
-        #Collector configuration was not supported via conf file in 1.05 and earlier releases
-        #Add only commented section for collector
-        ini_str = "[COLLECTOR]\n"
-        ini_str += "# IP address and port to be used to connect to collector. If IP is not\n"
-        ini_str += "# configured, value provided by discovery service will be used. (Optional)\n"
-        ini_str += "# port=8086\n# server=\n\n"
         ini_str += "[CONTROL-NODE]\n" 
         ini_str += "# IP address to be used to connect to control-node. Maximum of 2 IP addresses\n"
         ini_str += "# (separated by a space) can be provided. If no IP is configured then the\n"
@@ -230,9 +224,15 @@ class Xml2Ini():
             ini_str += "# server=x.x.x.x y.y.y.y\n\n"
 
         ini_str += "[DEFAULT]\n"
+        ini_str += "# Everything in this section is optional\n\n"
+        #Collector configuration was not supported via conf file in 1.05 and earlier releases
+        #Add only commented section for collector
+        ini_str += "# IP address and port to be used to connect to collector. If these are not\n"
+        ini_str += "# configured, value provided by discovery service will be used. Multiple\n"
+        ini_str += "# IP:port strings separated by space can be provided\n"
+        ini_str += "# collectors=127.0.0.1:8086\n\n"
         #Debug logging configuration was not supported in 1.05 and earlier releases
         #Add only commented item for debug logging config
-        ini_str += "# Everything in this section is optional\n\n"
         ini_str += "# Enable/disable debug logging. Possible values are 0 (disable) and 1 (enable)\n"
         ini_str += "# debug=0\n\n"
         ini_str += "# Aging time for flow-records in seconds\n"
