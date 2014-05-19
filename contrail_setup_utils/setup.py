@@ -74,6 +74,7 @@ from contrail_config_templates import contrail_api_svc_template
 from contrail_config_templates import contrail_discovery_ini_template
 from contrail_config_templates import contrail_discovery_svc_template
 from contrail_config_templates import database_nodemgr_param_template
+from contrail_config_templates import contrail_nodemgr_database_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -923,7 +924,10 @@ HWADDR=%s
                             }
             self._template_substitute_write(database_nodemgr_param_template.template,
                                             template_vals, temp_dir_name + '/database_nodemgr_param')
+	    self._template_substitute_write(contrail_nodemgr_database_template.template,
+                                            template_vals, temp_dir_name + '/contrail-nodemgr-database.conf')
             local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
+	    local("sudo mv %s/contrail-nodemgr-database.conf /etc/contrail/contrail-nodemgr-database.conf" %(temp_dir_name))
 
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
