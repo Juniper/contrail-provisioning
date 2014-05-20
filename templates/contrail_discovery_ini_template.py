@@ -2,7 +2,7 @@ import string
 
 template = string.Template("""
 [program:contrail-discovery]
-command=/bin/bash -c "source /opt/contrail/api-venv/bin/activate && exec python /opt/contrail/api-venv/lib/python2.7/site-packages/discovery/disc_server_zk.py --conf_file /etc/contrail/discovery.conf --listen_port $__contrail_disc_port_base__%(process_num)01d --worker_id %(process_num)s"
+command=/usr/bin/discovery-server --conf_file /etc/contrail/discovery.conf --listen_port $__contrail_disc_port_base__%(process_num)01d --worker_id %(process_num)s
 numprocs=$__contrail_disc_nworkers__
 process_name=%(process_num)s
 redirect_stderr=true
