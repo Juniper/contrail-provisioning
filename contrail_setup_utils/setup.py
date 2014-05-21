@@ -70,8 +70,10 @@ from contrail_config_templates import opserver_param_template
 from contrail_config_templates import vnc_api_lib_ini_template
 from contrail_config_templates import agent_param_template
 from contrail_config_templates import contrail_api_ini_template
+from contrail_config_templates import contrail_api_ini_centos_template
 from contrail_config_templates import contrail_api_svc_template
 from contrail_config_templates import contrail_discovery_ini_template
+from contrail_config_templates import contrail_discovery_ini_centos_template
 from contrail_config_templates import contrail_discovery_svc_template
 from contrail_config_templates import database_nodemgr_param_template
 from contrail_config_templates import contrail_nodemgr_database_template
@@ -1014,7 +1016,12 @@ HWADDR=%s
             template_vals = {'__contrail_api_port_base__': '910', # 910x
                              '__contrail_api_nworkers__': n_api_workers,
                             }
-            self._template_substitute_write(contrail_api_ini_template.template,
+            if pdist == 'ubuntu':
+                tmpl = contrail_api_ini_template.template
+            else:
+                tmpl = contrail_api_ini_centos_template.template
+
+            self._template_substitute_write(tmpl,
                                             template_vals, temp_dir_name + '/contrail-api.ini')
             local("sudo mv %s/contrail-api.ini /etc/contrail/supervisord_config_files/" %(temp_dir_name))
 
@@ -1119,7 +1126,12 @@ HWADDR=%s
             template_vals = {'__contrail_disc_port_base__': '911', # 911x
                              '__contrail_disc_nworkers__': '1'
                             }
-            self._template_substitute_write(contrail_discovery_ini_template.template,
+            if pdist == 'ubuntu':
+                tmpl = contrail_discovery_ini_template.template
+            else:
+                tmpl = contrail_discovery_ini_centos_template.template
+
+            self._template_substitute_write(tmpl,
                                             template_vals, temp_dir_name + '/contrail-discovery.ini')
             local("sudo mv %s/contrail-discovery.ini /etc/contrail/supervisord_config_files/" %(temp_dir_name))
 
