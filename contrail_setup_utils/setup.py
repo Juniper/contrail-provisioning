@@ -1016,7 +1016,7 @@ HWADDR=%s
             template_vals = {'__contrail_api_port_base__': '910', # 910x
                              '__contrail_api_nworkers__': n_api_workers,
                             }
-            if pdist == 'ubuntu':
+            if pdist == 'Ubuntu':
                 tmpl = contrail_api_ini_template.template
             else:
                 tmpl = contrail_api_ini_centos_template.template
@@ -1126,7 +1126,7 @@ HWADDR=%s
             template_vals = {'__contrail_disc_port_base__': '911', # 911x
                              '__contrail_disc_nworkers__': '1'
                             }
-            if pdist == 'ubuntu':
+            if pdist == 'Ubuntu':
                 tmpl = contrail_discovery_ini_template.template
             else:
                 tmpl = contrail_discovery_ini_centos_template.template
