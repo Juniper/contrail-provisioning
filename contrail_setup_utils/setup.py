@@ -1052,6 +1052,7 @@ HWADDR=%s
             self._template_substitute_write(quantum_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail_plugin.ini')
             if os.path.exists("/etc/neutron"):
+                local("sudo mkdir -p /etc/neutron/plugins/opencontrail")
                 local("sudo mv %s/contrail_plugin.ini /etc/neutron/plugins/opencontrail/ContrailPlugin.ini" %(temp_dir_name))
             else:
                 local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(temp_dir_name))
