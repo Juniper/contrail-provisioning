@@ -1125,6 +1125,7 @@ HWADDR=%s
                              '__contrail_log_local__': 'True',
                              '__contrail_log_file__': '/var/log/contrail/discovery.log',
                              '__contrail_healthcheck_interval__': 5,
+                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                             }
             self._template_substitute_write(discovery_conf_template.template,
                                             template_vals, temp_dir_name + '/discovery.conf')
