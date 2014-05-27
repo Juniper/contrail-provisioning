@@ -308,6 +308,10 @@ class Setup(object):
         self._replaces_in_file(file, [(regexp, replace)])
     #end replace_in_file    
         
+    def setup_crashkernel_params(self):
+        local(r"sed -i 's/crashkernel=.*\([ | \"]\)/crashkernel=384M-2G:64M,2G-16G:128M,16G-:256M\1/g' /etc/grub.d/10_linux")
+        local("update-grub")
+
     def enable_kernel_core (self):
         '''
             enable_kernel_core:
@@ -724,7 +728,10 @@ HWADDR=%s
             local('mkdir -p /var/crashes')
 
         try:
-            self.enable_kernel_core ()
+            if pdist == 'fedora' or pdist == 'centos':
+                self.enable_kernel_core ()
+            if pdist == 'Ubuntu':
+                self.setup_crashkernel_params()
         except Exception as e:
             print "Ignoring failure kernel core dump"
  
