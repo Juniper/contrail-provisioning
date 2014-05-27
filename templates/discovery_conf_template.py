@@ -8,6 +8,7 @@ listen_ip_addr=$__contrail_listen_ip_addr__
 listen_port=$__contrail_listen_port__
 log_local=$__contrail_log_local__
 log_file=$__contrail_log_file__
+cassandra_server_list=$__contrail_cassandra_server_list__
 
 # minimim time to allow client to cache service information (seconds)
 ttl_min=300
