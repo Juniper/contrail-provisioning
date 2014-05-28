@@ -22,9 +22,9 @@ irond.ifmap.casesensitive.userName=true
 irond.ifmap.casesensitive.aikName=true
 irond.ifmap.session.timeout=180
 irond.ifmap.default.maxpollresultsize=5000000
-irond.auth.basic.users.file=basicauthusers.properties
+irond.auth.basic.users.file=/etc/ifmap-server/basicauthusers.properties
 irond.ifmap.default.searchresultsize=100000
-irond.auth.cert.keystore.file=./keystore/irond.jks
+irond.auth.cert.keystore.file=/etc/ifmap-server/keystore/irond.jks
 irond.ifmap.casesensitive.emailAddress=true
 irond.ifmap.casesensitive.distinguishedName=true
 irond.ifmap.casesensitive.dnsName=true
@@ -34,5 +34,12 @@ irond.ifmap.casesensitive.kerberosPrincipal=true
 irond.ifmap.default.sanitychecks=false
 irond.ifmap.publishers.file=publisher.properties
 irond.ifmap.authorization.file=authorization.properties
-irond.auth.cert.truststore.file=./keystore/irond.jks
+irond.ifmap.publishers.file=/etc/ifmap-server/publisher.properties
+irond.ifmap.authorization.file=/etc/ifmap-server/authorization.properties
+irond.auth.cert.truststore.file=/etc/ifmap-server/keystore/irond.jks
+# Limit the size of a search result
+irond.ifmap.default.maxperpollresultsize=8192
+irond.ifmap.default.splitinitialsearchresult=true
+irond.ifmap.default.droponresultstoobig=false
+
 """)
