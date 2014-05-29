@@ -1538,18 +1538,18 @@ SUBCHANNELS=1,2,3
                 # sql access from ip instead of localhost, causing privilege
                 # degradation for nova tables
                 local("sudo ./contrail_setup_utils/compute-server-setup.sh")
-                return
-            #use contrail specific vif driver
-            local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
-            # Use noopdriver for firewall
-            local('openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver')
-            network_api = 'quantum'
-            with(open('/etc/nova/nova.conf', 'r+')) as nova_conf:
-                if 'neutron_url' in nova_conf.read():
-                    network_api = 'neutron'
-            local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_connection_host %s' % (network_api, self._args.cfgm_ip))
-            local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_url http://%s:9696' % (network_api, self._args.cfgm_ip))
-            local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_admin_password %s' % (network_api, self._args.service_token))
+            else:
+                #use contrail specific vif driver
+                local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
+                # Use noopdriver for firewall
+                local('openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver')
+                network_api = 'quantum'
+                with(open('/etc/nova/nova.conf', 'r+')) as nova_conf:
+                    if 'neutron_url' in nova_conf.read():
+                        network_api = 'neutron'
+                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_connection_host %s' % (network_api, self._args.cfgm_ip))
+                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_url http://%s:9696' % (network_api, self._args.cfgm_ip))
+                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_admin_password %s' % (network_api, self._args.service_token))
 
 
             for svc in ['openstack-nova-compute', 'supervisor-vrouter']:
