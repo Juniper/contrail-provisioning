@@ -994,36 +994,32 @@ HWADDR=%s
             zk_servers = ','.join(self._args.zookeeper_ip_list)
             zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
 
-            # ifmap.properties 
-            template_vals = {'__contrail_ifmap_basicauth_port__': 8443,
-                            }
-            self._template_substitute_write(ifmap_ifmap_template.template,
-                                            template_vals, temp_dir_name + '/ifmap.properties')
-            local("sudo mv %s/ifmap.properties /etc/ifmap-server/" %(temp_dir_name))
-            # log4j.properties 
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_log4j_template.template,
-                                            template_vals, temp_dir_name + '/log4j.properties')
-            local("sudo mv %s/log4j.properties /etc/ifmap-server/" %(temp_dir_name))
-            # authorization.properties 
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_authorization_template.template,
-                                            template_vals, temp_dir_name + '/authorization.properties')
-            local("sudo mv %s/authorization.properties /etc/ifmap-server/" %(temp_dir_name))
-            # basicauthusers.properties
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_basicauthusers_template.template,
-                                            template_vals, temp_dir_name + '/basicauthusers.properties')
-            local("sudo mv %s/basicauthusers.properties /etc/ifmap-server/" %(temp_dir_name))
-            # publisher.properties 
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_publisher_template.template,
-                                            template_vals, temp_dir_name + '/publisher.properties')
-            local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(temp_dir_name))
+            if pdist == 'Ubuntu':
+                # log4j.properties
+                template_vals = {
+                                }
+                self._template_substitute_write(ifmap_log4j_template.template,
+                                                template_vals, temp_dir_name + '/log4j.properties')
+                local("sudo mv %s/log4j.properties /etc/ifmap-server/" %(temp_dir_name))
+                # authorization.properties
+                template_vals = {
+                                }
+                self._template_substitute_write(ifmap_authorization_template.template,
+                                                template_vals, temp_dir_name + '/authorization.properties')
+                local("sudo mv %s/authorization.properties /etc/ifmap-server/" %(temp_dir_name))
+                # basicauthusers.properties
+                template_vals = {
+                                }
+                self._template_substitute_write(ifmap_basicauthusers_template.template,
+                                                template_vals, temp_dir_name + '/basicauthusers.properties')
+                local("sudo mv %s/basicauthusers.properties /etc/ifmap-server/" %(temp_dir_name))
+                # publisher.properties
+                template_vals = {
+                                }
+                self._template_substitute_write(ifmap_publisher_template.template,
+                                                template_vals, temp_dir_name + '/publisher.properties')
+                local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(temp_dir_name))
+
             # api_server.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
