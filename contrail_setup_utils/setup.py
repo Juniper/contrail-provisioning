@@ -240,7 +240,7 @@ class Setup(object):
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
-        parser.add_argument("--cfgm_index", help = "Index of this cfgm node")
+        parser.add_argument("--database_index", help = "Index of this cfgm node")
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
             help="Number of API/discovery worker processes to be launched",
@@ -935,6 +935,24 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/database_nodemgr_param')
             local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
 
+            # set high session timeout to survive glance led disk activity
+            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
+            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
+            if pdist == 'fedora' or pdist == 'centos':
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
+            if pdist == 'Ubuntu':
+                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
+
+            zk_index = 1
+            for zk_ip in self._args.zookeeper_ip_list:
+                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
+                zk_index = zk_index + 1
+
+            #put cluster-unique zookeeper's instance id in myid
+            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
+
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
@@ -1149,24 +1167,6 @@ HWADDR=%s
             self._template_substitute_write(vnc_api_lib_ini_template.template,
                                             template_vals, temp_dir_name + '/vnc_api_lib.ini')
             local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(temp_dir_name))
-
-            # set high session timeout to survive glance led disk activity
-            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
-            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
-            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
-            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
-            if pdist == 'fedora' or pdist == 'centos':
-                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
-            if pdist == 'Ubuntu':
-                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
-
-            zk_index = 1
-            for zk_ip in self._args.zookeeper_ip_list:
-                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
-                zk_index = zk_index + 1
-
-            #put cluster-unique zookeeper's instance id in myid 
-            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
 
             # Configure rabbitmq config file
             with settings(warn_only = True):

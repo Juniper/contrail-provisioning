@@ -47,6 +47,10 @@ class SetupVncDatabase(object):
 	if self._args.cfgm_ip:
             setup_args_str = setup_args_str + " --cfgm_ip %s" \
                                  % (self._args.cfgm_ip)
+        setup_args_str = setup_args_str + " --zookeeper_ip_list %s" \
+                             %(' '.join(self._args.zookeeper_ip_list))
+        setup_args_str = setup_args_str + " --database_index %s" \
+                             %(self._args.database_index)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -55,8 +59,13 @@ class SetupVncDatabase(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-database.py --self_ip 10.84.13.23 --dir /usr/share/cassandra
-            --initial_token 0 --seed_list 10.84.13.23 10.84.13.24 --data_dir /home/cassandra
+        Eg. python setup-vnc-database.py
+            --self_ip 10.84.13.23
+            --dir /usr/share/cassandra
+            --initial_token 0 --seed_list 10.84.13.23 10.84.13.24
+            --data_dir /home/cassandra
+            --zookeeper_ip_list 10.1.5.11 10.1.5.12
+            --database_index 1
         '''
 
         # Source any specified config/ini file
@@ -96,6 +105,9 @@ class SetupVncDatabase(object):
         parser.add_argument("--data_dir", help = "Directory where database stores data")
         parser.add_argument("--analytics_data_dir", help = "Directory where database stores analytics data")
         parser.add_argument("--ssd_data_dir", help = "SSD directory that database stores data")
+        parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
+                            nargs='+', type=str)
+        parser.add_argument("--database_index", help = "The index of this databse node")
         self._args = parser.parse_args(remaining_argv)
     #end _parse_args
 

@@ -41,7 +41,7 @@ for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in zookeeper supervisor-config quantum-server puppetmaster; do
+for svc in supervisor-config quantum-server puppetmaster; do
     chkconfig $svc on
 done
 
@@ -51,7 +51,7 @@ for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
-for svc in zookeeper puppetmaster; do
+for svc in puppetmaster; do
     service $svc restart
 done
 
