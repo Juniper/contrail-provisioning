@@ -7,7 +7,7 @@
 pycassaShell -f drop-cassandra-cfgm-keyspaces
 
 # shutdown all the services
-for svc in zookeeper supervisor-config quantum-server puppet-server; do
+for svc in supervisor-config quantum-server puppet-server; do
     chkconfig $svc off > /dev/null 2>&1
     service $svc stop > /dev/null 2>&1
 done
