@@ -49,6 +49,11 @@ template = string.Template("""
 # Encapsulation type for tunnel. Possible values are MPLSoGRE, MPLSoUDP, VXLAN
 # tunnel_type=
 
+# Enable/Disable headless mode for agent. In headless mode agent retains last
+# known good configuration from control node when all control nodes are lost.
+# Possible values are true(enable) and false(disable)
+# headless_mode=
+
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional
@@ -61,10 +66,10 @@ server=$__contrail_discovery_ip__
 max_control_nodes=$__contrail_discovery_ncontrol__
 
 [DNS]
-# IP address to be used to connect to dns-node. Maximum of 2 IP addresses 
-# (separated by a space) can be provided. If no IP is configured then the
-# value provided by discovery service will be used. (Optional)
-# server=10.0.0.1 10.0.0.2
+# IP address and port to be used to connect to dns-node. Maximum of 2 IP
+# addresses (separated by a space) can be provided. If no IP is configured then
+# the value provided by discovery service will be used.
+# server=10.0.0.1:53 10.0.0.2:53
 
 [HYPERVISOR]
 # Everything in this section is optional
