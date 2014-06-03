@@ -27,22 +27,15 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --live-migration %s" % (live_migration_status) 
         nfs_live_migration_option = self._args.nfs_live_migration
         setup_args_str = setup_args_str + " --nfs-live-migration %s" % (nfs_live_migration_option) 
-        nfs_live_migration_subnet = self._args.nfs_livem_subnet
-        setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (nfs_live_migration_subnet) 
-        nfs_live_migration_image = self._args.nfs_livem_image
-        setup_args_str = setup_args_str + " --nfs-livem-image %s" % (nfs_live_migration_image) 
-        print nfs_live_migration_option
-        if nfs_live_migration_option == 'enabled':
-            setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet)) 
-            setup_args_str = setup_args_str + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image)) 
-        setup_args_str = setup_args_str + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))    
-        setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
+        setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet))
+        setup_args_str = setup_args_str + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image))
+        setup_args_str = setup_args_str + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
+
 
         #Setup storage if storage is defined in testbed.py
-        if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none':
-            setup_obj = Setup(setup_args_str)
-            setup_obj.do_setup()
-            setup_obj.run_services()
+        setup_obj = Setup(setup_args_str)
+        setup_obj.do_setup()
+        setup_obj.run_services()
     #end __init__
 
     def _parse_args(self, args_str):
@@ -91,6 +84,7 @@ class SetupVncStorage(object):
         parser.add_argument("--nfs-live-migration", help = "NFS for Live migration enabled")
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "Image for the NFS Live migration VM", nargs="+", type=str)
+        parser.add_argument("--nfs-livem-host", help = "Image for the NFS Live migration VM", nargs="+", type=str)
 
         self._args = parser.parse_args(remaining_argv)
 

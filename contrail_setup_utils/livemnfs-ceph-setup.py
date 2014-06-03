@@ -27,6 +27,7 @@ class SetupNFSLivem(object):
         vm_running = 0
 
         nfs_livem_image = self._args.nfs_livem_image[0]
+        nfs_livem_host = self._args.nfs_livem_host[0]
         nfs_livem_subnet = self._args.nfs_livem_subnet[0]
         nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
 
@@ -57,7 +58,7 @@ class SetupNFSLivem(object):
         #check for vm if already running, otherwise start it
         vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
         if vm_running == '0':
-            local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 2 --nic net-id=%s livemnfs --meta storage_scope=local' %(net_id), shell='/bin/bash')
+            local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 2 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
             wait_loop = 10
             while True:
                 vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
@@ -97,12 +98,33 @@ class SetupNFSLivem(object):
                             run('echo \"iface livemnfsvgw inet static\" >> /etc/network/interfaces');
                             run('echo \"    pre-up vif --create livemnfsvgw --mac 00:01:5e:00:00\" >> /etc/network/interfaces');
 
-                        #check for agent.conf
-                        agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash') 
-                        if agentconfdone == '0':
-                            run('cat /etc/contrail/agent.conf  | sed \'s/<\/agent>/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    &/g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
-                            run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
-                            run('service contrail-vrouter restart' , shell='/bin/bash')
+                        #check if we have /etc/contrail/agent.conf for < 1.1
+                        agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                        if agentconfavail == '1':
+                            #check for agent.conf
+                            agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash') 
+                            if agentconfdone == '0':
+                                run('cat /etc/contrail/agent.conf  | sed \'s/<\/agent>/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    &/g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
+                                run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
+                                run('service contrail-vrouter restart' , shell='/bin/bash')
+
+                        #check if we have contrail-vrouter-agent.conf for > 1.1
+                        vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                        if vragentconfavail == '1':
+                            vragentconfdone=run('cat /etc/contrail/contrail-vrouter-agent.conf|grep livemnfsvgw|wc -l', shell='/bin/bash') 
+                            if vragentconfdone == '0':
+                                gateway_id = int('0')
+                                while True:
+                                    vrgatewayavail=run('grep "\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf |wc -l' %(gateway_id), shell='/bin/bash') 
+                                    if vrgatewayavail == '0':
+                                        print vrgatewayavail
+                                        run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d routing_instance default-domain:admin:livemnfs:livemnfs' %(gateway_id))
+                                        run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d interface livemnfsvgw' %(gateway_id))
+                                        run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d ip_blocks %s\/%s' %(gateway_id, netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen))
+                                        run('service contrail-vrouter restart' , shell='/bin/bash')
+                                        break
+                                    gateway_id = gateway_id + 1
+
                         #check for dynamic route on the vm host
                         dynroutedone=run('netstat -rn |grep %s|wc -l' %(netaddr.IPNetwork(nfs_livem_subnet).ip), shell='/bin/bash') 
                         if dynroutedone == '0':
@@ -158,8 +180,11 @@ class SetupNFSLivem(object):
             # TODO need to check if this needs to be configurable
             avail_gb = int(avail)/1024/1024/2/3
             print avail_gb 
+            # update quota if available is > 1T
             if avail_gb > 1000:
-                avail_gb = 1000
+                quota_gb = avail_gb + 1000
+                admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
+                local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
            
             cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
             if cindervolavail == '0':
@@ -186,9 +211,12 @@ class SetupNFSLivem(object):
             if volvmattached == '0':
                 return
 
-            vmavail=local('ping -c 1 %s | grep \" 0%% packet loss\" |wc -l' %(netaddr.IPNetwork(nfs_livem_subnet).ip) , capture=True, shell='/bin/bash')
-            if vmavail == '1':
-                print 'VM available'
+            while True:
+                vmavail=local('ping -c 1 %s | grep \" 0%% packet loss\" |wc -l' %(netaddr.IPNetwork(nfs_livem_subnet).ip) , capture=True, shell='/bin/bash')
+                if vmavail == '1':
+                    break
+                print 'Waiting for VM to come up'
+                time.sleep(10)
             with settings(host_string = 'livemnfs@%s' %(netaddr.IPNetwork(nfs_livem_subnet).ip), password = 'livemnfs'):
                 mounted=run('sudo cat /proc/mounts|grep livemnfs|wc -l')
                 if mounted == '0':
@@ -270,13 +298,13 @@ class SetupNFSLivem(object):
                    mounted=run('cat /proc/mounts | grep livemnfsvol|wc -l')
                    if mounted == '0':
                        print mounted
-                       run('ping -c 2 %s' %(netaddr.IPNetwork(nfs_livem_subnet).ip))
+                       run('ping -c 10 %s' %(netaddr.IPNetwork(nfs_livem_subnet).ip))
                        run('rm -rf /var/lib/nova/instances/global')
                        run('mkdir /var/lib/nova/instances/global')
                        run('chown nova:nova /var/lib/nova/instances/global')
                        run('mount %s:/livemnfsvol /var/lib/nova/instances/global' %(netaddr.IPNetwork(nfs_livem_subnet).ip))
                    else:
-                       run('ping -c 2 %s' %(netaddr.IPNetwork(nfs_livem_subnet).ip))
+                       run('ping -c 10 %s' %(netaddr.IPNetwork(nfs_livem_subnet).ip))
                        stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
                        if stalenfs == '1':
                            run('umount /var/lib/nova/instances/global')
@@ -327,6 +355,7 @@ class SetupNFSLivem(object):
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--nfs-livem-subnet", help = "subnet for nfs live migration vm", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "image for nfs live migration vm", nargs="+", type=str)
+        parser.add_argument("--nfs-livem-host", help = "host for nfs live migration vm", nargs="+", type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
