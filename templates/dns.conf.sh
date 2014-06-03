@@ -37,6 +37,7 @@ cat << EOF
   hostip=$HOSTIP # Resolved IP of `hostname`
   hostname=$HOSTNAME # Retrieved as `hostname`
 # http_server_port=8092
+# dns_server_port=53
 # log_category=
 # log_disable=0
   log_file=/var/log/contrail/dns.log

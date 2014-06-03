@@ -12,6 +12,7 @@ template = string.Template("""#
   hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
   hostname=$__contrail_hostname__ # Retrieved as `hostname`
 # http_server_port=8092
+# dns_server_port=53
 # log_category=
 # log_disable=0
   log_file=/var/log/contrail/dns.log
