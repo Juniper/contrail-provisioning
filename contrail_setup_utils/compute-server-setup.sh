@@ -58,8 +58,8 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:35357/v2.0/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$QUANTUM:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$CONTROLLER:35357/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API

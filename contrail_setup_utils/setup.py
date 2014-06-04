@@ -151,11 +151,17 @@ class Setup(object):
             'multi_tenancy': False,
             'haproxy': False,
             'region_name': None,
+            'ks_auth_protocol':'http',
+            'ks_auth_port':'35357',
+            'ks_insecure':'False',
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
             'service_token': '',
             'haproxy': False,
+            'ks_auth_protocol':'http',
+            'amqp_server_ip': '127.0.0.1',
+            'quantum_service_protocol':'http',
         }
         control_node_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -165,6 +171,7 @@ class Setup(object):
         compute_node_defaults = {
             'compute_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
+            'ks_auth_protocol':'http',
             'service_token': '',
             'haproxy': False,
             'ncontrols' : 2,
@@ -175,6 +182,8 @@ class Setup(object):
             'vgw_public_vn_name': None,
             'vgw_intf_list': None,
             'vgw_gateway_routes': None,
+            'amqp_server_ip': '127.0.0.1',
+            'quantum_service_protocol': 'http',
         }
         collector_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -241,6 +250,12 @@ class Setup(object):
         parser.add_argument("--vgw_public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
         parser.add_argument("--vgw_intf_list", help = "List of virtual getway intreface")
         parser.add_argument("--vgw_gateway_routes", help = "Static route to be configured in agent configuration for VGW")
+        parser.add_argument("--ks_auth_protocol", help = "Protocol to use while talking to Keystone")
+        parser.add_argument("--ks_auth_port", help = "Port to use while talking to Keystone",default='35357')
+        parser.add_argument("--ks_admin_token", help = "Admin token to be used while talking to keystone",)
+        parser.add_argument("--ks_insecure", help = "Option to connect to keystone in secure/insecure mode when using https")
+        parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ", default='http')
+        parser.add_argument("--amqp_server_ip", help = "IP of the AMQP Server used to configure openstack components",)
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies keystone token validation)",
             action="store_true")
@@ -803,7 +818,7 @@ HWADDR=%s
 
         if 'compute' in self._args.role or 'openstack' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
+                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.amqp_server_ip))
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
@@ -823,9 +838,11 @@ HWADDR=%s
             self.service_token = self._args.service_token
             self.haproxy = self._args.haproxy
             keystone_ip = self._args.keystone_ip
+            ks_auth_protocol = self._args.ks_auth_protocol
             compute_ip = self._args.compute_ip
             cfgm_ip = self._args.cfgm_ip
             quantum_port = self._args.quantum_port
+            quantum_service_protocol = self._args.quantum_service_protocol
             if not self.service_token:
                 with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
@@ -836,6 +853,10 @@ HWADDR=%s
 
             local("echo 'SERVICE_TOKEN=%s' >> %s/ctrl-details" 
                                             %(self.service_token, temp_dir_name))
+            local("echo 'AUTH_PROTOCOL=%s' >> %s/ctrl-details" 
+                                            %(ks_auth_protocol, temp_dir_name))
+            local("echo 'QUANTUM_PROTOCOL=%s' >> %s/ctrl-details" 
+                                            %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
             if self.haproxy:
@@ -948,6 +969,7 @@ HWADDR=%s
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
+                             '__contrail_log_local__': '--log-local',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -990,6 +1012,10 @@ HWADDR=%s
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
             region_name = self._args.region_name
+            ks_auth_protocol = self._args.ks_auth_protocol
+            ks_auth_port = self._args.ks_auth_port
+            ks_admin_token = self._args.ks_admin_token
+            ks_insecure = self._args.ks_insecure
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             zk_servers = ','.join(self._args.zookeeper_ip_list)
             zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
@@ -1037,7 +1063,10 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
-                             '__contrail_admin_token__': self.service_token,
+                             '__contrail_admin_token__': ks_admin_token,
+                             '__contrail_ks_auth_protocol__': ks_auth_protocol,
+                             '__contrail_ks_auth_port__': ks_auth_port,
+                             '__keystone_insecure_flag__': ks_insecure,
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                              '__contrail_log_file__': '/var/log/contrail/api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
@@ -1082,7 +1111,9 @@ HWADDR=%s
                              '__contrail_api_server_port__': '8082',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': '127.0.0.1',
-                             '__contrail_admin_token__': ks_admin_password,
+                             '__contrail_admin_token__': ks_admin_token,
+                             '__contrail_ks_auth_protocol__': ks_auth_protocol,
+                             '__contrail_ks_auth_port__': ks_auth_port,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
@@ -1110,7 +1141,7 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
-                             '__contrail_admin_token__': self.service_token,
+                             '__contrail_admin_token__': ks_admin_token,
                              '__contrail_log_file__' : '/var/log/contrail/schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
@@ -1136,7 +1167,7 @@ HWADDR=%s
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
-                             '__contrail_admin_token__': self.service_token,
+                             '__contrail_admin_token__': ks_admin_token,
                              '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': cfgm_ip,
