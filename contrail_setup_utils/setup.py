@@ -590,6 +590,11 @@ HWADDR=%s
             cfg_file = fd.read()
 
         if not self._args.non_mgmt_ip:
+            hijaked_bond_params = ['auto %s' % dev,
+                                   'iface %s' % dev,
+                                   'address %s' % vhost_ip,
+                                   'netmask %s' % netmask,
+                                   'gateway %s' % gateway_ip]
             # remove entry from auto <dev> to auto excluding these pattern
             # then delete specifically auto <dev> 
             local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
@@ -610,7 +615,10 @@ HWADDR=%s
                     if re.match('^auto\s+%s'%dev, each):
                         string = ''
                         for lines in each.splitlines():
-                            if 'bond-' in lines:
+                            if any([param in lines for param in hijaked_bond_params]):
+                                #Do not rewirte hijacked bond params to the bond interface.
+                                continue
+                            else:
                                 string += lines+os.linesep
                         local("echo '%s' >> %s" %(string, temp_intf_file))
                     else:
@@ -1543,14 +1551,6 @@ SUBCHANNELS=1,2,3
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
                 # Use noopdriver for firewall
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver')
-                network_api = 'quantum'
-                with(open('/etc/nova/nova.conf', 'r+')) as nova_conf:
-                    if 'neutron_url' in nova_conf.read():
-                        network_api = 'neutron'
-                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_connection_host %s' % (network_api, self._args.cfgm_ip))
-                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_url http://%s:9696' % (network_api, self._args.cfgm_ip))
-                local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_admin_password %s' % (network_api, self._args.service_token))
-
 
             for svc in ['openstack-nova-compute', 'supervisor-vrouter']:
                 local('chkconfig %s on' % svc)
