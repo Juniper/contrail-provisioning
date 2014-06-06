@@ -23,6 +23,10 @@ class SetupVncCfgm(object):
         nworkers = self._args.nworkers
         service_token = self._args.service_token
         region_name = self._args.region_name
+        ks_auth_protocol = self._args.keystone_auth_protocol
+        ks_auth_port = self._args.keystone_auth_port
+        ks_admin_token = self._args.keystone_admin_token
+        ks_insecure = self._args.keystone_insecure
 
         setup_args_str = "--role config "
         setup_args_str = setup_args_str + " --cfgm_ip %s --keystone_ip %s --collector_ip %s " \
@@ -30,6 +34,10 @@ class SetupVncCfgm(object):
         setup_args_str = setup_args_str + " --redis_master_ip %s" %(redis_ip)
         setup_args_str = setup_args_str + " --quantum_port %s" %(quantum_port)
         setup_args_str = setup_args_str + " --n_api_workers %s" %(nworkers)
+        setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
+        setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
+        setup_args_str = setup_args_str + " --ks_admin_token %s" %(ks_admin_token)
+        setup_args_str = setup_args_str + " --ks_insecure %s" %(ks_insecure)
 
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
@@ -83,6 +91,8 @@ class SetupVncCfgm(object):
             'nworkers': '1',
             'haproxy': False,
             'region_name': None,
+            'ks_auth_protocol':'http',
+            'ks_auth_port':'35357',
         }
 
         if args.conf_file:
@@ -122,6 +132,16 @@ class SetupVncCfgm(object):
         parser.add_argument("--quantum_port",
             help = "Quantum Server port",
             default = '9696')
+        parser.add_argument("--keystone_auth_protocol", 
+            help = "Auth protocol used to talk to keystone", default='http')
+        parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",
+            default = '35357')
+        parser.add_argument("--keystone_admin_token", 
+            help = "admin_token value in keystone.conf")
+        parser.add_argument("--keystone_insecure", 
+            help = "Connect to keystone in secure or insecure mode if in https mode",
+            default = 'False')
+
         parser.add_argument("--nworkers",
             help = "Number of worker processes for api and discovery services",
             default = '1')

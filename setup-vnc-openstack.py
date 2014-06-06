@@ -22,10 +22,16 @@ class SetupVncOpenstack(object):
         cfgm_ip = self._args.cfgm_ip
         keystone_ip = self._args.keystone_ip
         service_token = self._args.service_token
+        ks_auth_protocol = self._args.keystone_auth_protocol
+        amqp_server_ip = self._args.amqp_server_ip
+        quantum_service_protocol = self._args.quantum_service_protocol
 
         setup_args_str = "--role openstack "
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
         setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
+        setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
+        setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
+        setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
         if self._args.haproxy:
@@ -56,6 +62,9 @@ class SetupVncOpenstack(object):
             'cfgm_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
             'haproxy': False,
+            'ks_auth_protocol':'http',
+            'amqp_server_ip':'127.0.0.1',
+            'quantum_service_protocol': 'http',
         }
 
         if args.conf_file:
@@ -82,6 +91,12 @@ class SetupVncOpenstack(object):
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--quantum_service_protocol", 
+            help = "Protocol of neutron for nova to use", default="http")
+        parser.add_argument("--amqp_server_ip", 
+            help = "IP of the AMQP server to be used for openstack")
+        parser.add_argument("--keystone_auth_protocol",
+            help = "Auth protocol used to talk to keystone", default='http')
 
         self._args = parser.parse_args(remaining_argv)
 

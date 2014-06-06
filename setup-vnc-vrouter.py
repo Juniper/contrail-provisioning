@@ -26,6 +26,10 @@ class SetupVncVrouter(object):
         vgw_public_vn_name = self._args.public_vn_name
         vgw_intf_list = self._args.vgw_intf
         vgw_gateway_routes = self._args.gateway_routes
+        ks_auth_protocol = self._args.keystone_auth_protocol
+        ks_auth_port = self._args.keystone_auth_port
+        amqp_server_ip = self._args.amqp_server_ip
+        quantum_service_protocol = self._args.quantum_service_protocol
         if not self._args.openstack_mgmt_ip :
             openstack_mgmt_ip = keystone_ip
         else:
@@ -35,6 +39,11 @@ class SetupVncVrouter(object):
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
         setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
         setup_args_str = setup_args_str + " --openstack_mgmt_ip %s " %(openstack_mgmt_ip)
+        setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
+        setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
+        setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
+        setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
+        
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
         setup_args_str = setup_args_str + " --ncontrols %s " %(ncontrols)
@@ -85,6 +94,10 @@ class SetupVncVrouter(object):
             'gateway_routes': None,
             '': None,
             'haproxy': False,
+            'ks_auth_protocol':'http',
+            'ks_auth_port':'35357',
+            'amqp_server_ip':'127.0.0.1',
+            'quantum_service_protocol':'http',
         }
 
         if args.conf_file:
@@ -119,6 +132,14 @@ class SetupVncVrouter(object):
         parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
         parser.add_argument("--gateway_routes", help = "List of route need to be added in agent configuration for virtual gateway")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--keystone_auth_protocol",
+            help = "Auth protocol used to talk to keystone", default='http')
+        parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",default='35357')
+        parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use",
+            default = 'http')
+        parser.add_argument("--amqp_server_ip",
+            help = "IP of the AMQP server to be used for openstack")
+
 
         self._args = parser.parse_args(remaining_argv)
 

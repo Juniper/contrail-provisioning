@@ -56,7 +56,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 

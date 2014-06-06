@@ -83,7 +83,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -99,7 +99,7 @@ for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
 done
 
 echo "======= Enabling the services ======"

@@ -81,13 +81,13 @@ if [ ! -d /etc/keystone/ssl ]; then
 fi
 
 # Set up a keystonerc file with admin password
-export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-http://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
+export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_PASSWORD
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 

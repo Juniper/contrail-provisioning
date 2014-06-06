@@ -125,7 +125,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -150,8 +150,8 @@ done
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
-openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:35357/v2.0/
-openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$QUANTUM:9696/
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_workers 40
