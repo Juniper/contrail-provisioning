@@ -16,15 +16,21 @@ sys.path.insert(0, os.getcwd())
 class SetupLivem(object):
 
     def __init__(self, args_str = None):
-        print sys.argv[1:]
+        #print sys.argv[1:]
         self._args = None
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
         self._parse_args(args_str)
 
+        if self._args.storage_setup_mode == 'unconfigure':
+            return
+
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
            if entries != self._args.storage_master:
                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                   if self._args.add_storage_node:
+                       if self._args.add_storage_node != hostname:
+                           continue
                    run('openstack-config --set /etc/nova/nova.conf DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE')
                    run('openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0')
                    run('cat /etc/libvirt/libvirtd.conf | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/"#auth_tcp = \"sasl\""/"auth_tcp = \"none\""/ > /tmp/libvirtd.conf', shell='/bin/bash')
@@ -82,6 +88,8 @@ class SetupLivem(object):
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
+        parser.add_argument("--add-storage-node", help = "Add a new storage node")
+        parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
 

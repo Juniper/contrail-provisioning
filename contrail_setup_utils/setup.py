@@ -279,6 +279,8 @@ class Setup(object):
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "Image for NFS for Live migration VM", nargs="+", type=str)
+        parser.add_argument("--add-storage-node", help = "Dynamic addition of storage node")
+        parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -1606,6 +1608,7 @@ SUBCHANNELS=1,2,3
 
                 if nfs_live_migration_enabled == 'enabled':
                     storage_setup_args = " --storage-master %s" %(self._args.storage_master)
+                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
                     storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
                     storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
                     storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
@@ -1618,6 +1621,9 @@ SUBCHANNELS=1,2,3
                 # Storage Configurations
                 # Setup Ceph services
                 storage_setup_args = " --storage-master %s" %(self._args.storage_master)
+                storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
+                if self._args.add_storage_node:
+                    storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)    
                 storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
                 storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
                 storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
@@ -1630,9 +1636,12 @@ SUBCHANNELS=1,2,3
                 live_migration_status = self._args.live_migration
                 if live_migration_status == 'enabled':
                     storage_setup_args = " --storage-master %s" %(self._args.storage_master)
+                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
                     storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
                     storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
                     storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
+                    if self._args.add_storage_node:
+                        storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)    
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/compute-live-migration-setup.py %s" %(storage_setup_args))
 

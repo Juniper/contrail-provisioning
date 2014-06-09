@@ -20,6 +20,7 @@ class SetupVncStorage(object):
 
         setup_args_str = "--role storage"
         setup_args_str = setup_args_str + " --storage-master %s" % (storage_master) 
+        setup_args_str = setup_args_str + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
         setup_args_str = setup_args_str + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
         setup_args_str = setup_args_str + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
         setup_args_str = setup_args_str + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
@@ -85,6 +86,7 @@ class SetupVncStorage(object):
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "Image for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "Image for the NFS Live migration VM", nargs="+", type=str)
+        parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
 

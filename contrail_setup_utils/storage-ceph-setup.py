@@ -99,29 +99,116 @@ class SetupCeph(object):
                     run('cat /etc/hosts |grep -v %s > /tmp/hosts; echo %s %s >> /tmp/hosts; cp -f /tmp/hosts /etc/hosts' % (hostname, host_ip, hostname))
         ceph_mon_hosts=''
         pdist = platform.dist()[0]
+
         for entries in self._args.storage_hostnames:
             ceph_mon_hosts=ceph_mon_hosts+entries+' '
+
         #print ceph_mon_hosts
         # setup SSH for autologin for Ceph
-        local('sudo rm -rf ~/.ssh/id_rsa')
-        local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
+        rsa_present=local('sudo ls ~/.ssh/id_rsa | wc -l', capture=True)
+        if rsa_present != '1':
+            local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
         sshkey=local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
-        local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
-        local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
+        already_present=local('grep "%s" ~/.ssh/known_hosts | wc -l' % (sshkey), capture=True)
+	if already_present == '0':
+	    local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
+        already_present=local('grep "%s" ~/.ssh/authorized_keys | wc -l' % (sshkey), capture=True)
+	if already_present == '0':
+            local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
         for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     run('sudo mkdir -p ~/.ssh')
-                    run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
-                    run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
+                    already_present=run('grep "%s" ~/.ssh/known_hosts | wc -l' % (sshkey))
+                    print already_present
+	            if already_present == '0':
+                        run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
+                    already_present=run('grep "%s" ~/.ssh/authorized_keys | wc -l' % (sshkey))
+                    print already_present
+	            if already_present == '0':
+                        run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
                     hostfound = local('sudo grep %s,%s ~/.ssh/known_hosts | wc -l' %(hostname,entries), capture=True)
                     if hostfound == "0":
                          out = run('sudo ssh-keyscan -t rsa %s,%s' %(hostname,entries))
                          local('sudo echo "%s" >> ~/.ssh/known_hosts' % (out))
                          #local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (out))
+        #Add a new node to the existing cluster
+        if self._args.add_storage_node:
+            ip_cidr=local('ip addr show |grep %s |awk \'{print $2}\'' %(self._args.storage_master), capture=True)
+            local('sudo openstack-config --set /root/ceph.conf global public_network %s\/%s' %(netaddr.IPNetwork(ip_cidr).network, netaddr.IPNetwork(ip_cidr).prefixlen))
+            add_storage_node = self._args.add_storage_node
+            for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+                if hostname == add_storage_node:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        ceph_running=run('ps -ef|grep ceph |grep -v grep|wc -l')
+                        if ceph_running != '0':
+                            print 'Ceph already running in node'
+                            return
+                        run('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
+                        run('sudo mkdir -p /var/lib/ceph/osd')
+                        run('sudo mkdir -p /etc/ceph')
+            local('sudo ceph-deploy --overwrite-conf mon create-initial %s' % (add_storage_node))
+            if self._args.storage_directory_config[0] != 'none':
+                for directory in self._args.storage_directory_config:
+                    dirsplit = directory.split(':')
+                    if dirsplit[0] == add_storage_node:
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            run('sudo mkdir -p %s' % (dirsplit[1]))
+                            run('sudo rm -rf %s' % (dirsplit[1]))
+                            run('sudo mkdir -p %s' % (dirsplit[1]))
+                        local('sudo ceph-deploy osd prepare %s' % (directory))
+                        local('sudo ceph-deploy osd activate %s' % (directory))
+            if self._args.storage_disk_config[0] != 'none':
+                for disks in self._args.storage_disk_config:
+                    dirsplit = disks.split(':')
+                    if dirsplit[0] == add_storage_node:
+                        local('sudo ceph-deploy disk zap %s' % (disks))
+	                if pdist == 'centos':
+		            local('sudo ceph-deploy osd create %s' % (disks))
+	                if pdist == 'Ubuntu':
+                            local('sudo ceph-deploy osd prepare %s' % (disks))
+                            local('sudo ceph-deploy osd activate %s' % (disks))
+            virsh_secret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
+            volume_keyring_list=local('cat /etc/ceph/client.volumes.keyring | grep key', capture=True)
+            volume_keyring=volume_keyring_list.split(' ')[2]
+            for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+                if hostname == add_storage_node:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
+                        if virsh_unsecret != "":
+                            run('virsh secret-undefine %s' %(virsh_unsecret))
+                        run('echo "<secret ephemeral=\'no\' private=\'no\'>\n<uuid>%s</uuid><usage type=\'ceph\'>\n<name>client.volumes secret</name>\n</usage>\n</secret>" > secret.xml' % (virsh_secret))
+                        run('virsh secret-define --file secret.xml')
+                        run('virsh secret-set-value %s --base64 %s' % (virsh_secret,volume_keyring))
+                        # Change nova conf for cinder client configuration
+                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
+                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
+                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
+                        if pdist == 'centos':
+                            run('sudo service openstack-cinder-api restart')
+                            run('sudo chkconfig openstack-cinder-api on')
+                            run('sudo service openstack-cinder-scheduler restart')
+                            run('sudo chkconfig openstack-cinder-scheduler on')
+                            bash_cephargs = run('grep "bashrc" /etc/init.d/openstack-cinder-volume | wc -l')
+                            if bash_cephargs == "0":
+                                run('cat /etc/init.d/openstack-cinder-volume | sed "s/start)/start)  source ~\/.bashrc/" > /tmp/openstack-cinder-volume.tmp')
+                                run('mv -f /tmp/openstack-cinder-volume.tmp /etc/init.d/openstack-cinder-volume; chmod a+x /etc/init.d/openstack-cinder-volume')
+                            run('sudo chkconfig openstack-cinder-volume on')
+                            run('sudo service openstack-cinder-volume restart')
+                            run('sudo service libvirtd restart')
+                            run('sudo service openstack-nova-compute restart')
+                        if pdist == 'Ubuntu':
+                            run('sudo service libvirt-bin restart')
+                            run('sudo service nova-compute restart')
+            return
+
+        #Normal storage install. Remove previous configuration and reconfigure
         ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-disk | cut -d"|" -f 2)', capture=True)
         if ocs_blk_disk != "":
+            if self._args.storage_setup_mode == 'setup':
+                print 'Storage already configured'
+                return
             cinderlst = local('(. /etc/contrail/openstackrc ;  cinder list | grep ocs-block-disk | cut -d"|" -f 2)',  capture=True)
 	    if cinderlst != "":
 		cinderalst = cinderlst.split('\n')
@@ -155,6 +242,9 @@ class SetupCeph(object):
                         self.reset_osd_remote_list()
 	time.sleep(2)
 	local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
+        if self._args.storage_setup_mode == 'unconfigure':
+            print 'Storage configuration removed'
+            return
         local('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
         local('sudo mkdir -p /var/lib/ceph/osd')
         local('sudo mkdir -p /etc/ceph')
@@ -399,6 +489,8 @@ class SetupCeph(object):
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-disk-config", help = "Disk list to be used for distrubuted storage", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--add-storage-node", help = "Add a new storage node")
+        parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
 
