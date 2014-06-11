@@ -651,7 +651,7 @@ HWADDR=%s
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
         local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
-        local("echo 'pre-up %s/if-vhost0' >> %s" %(contrail_bin_dir, temp_intf_file))
+        local("echo '    pre-up %s/if-vhost0' >> %s" %(contrail_bin_dir, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
