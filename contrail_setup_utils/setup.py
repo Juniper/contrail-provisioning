@@ -55,6 +55,7 @@ if os.getenv('ADMIN_TENANT') :
 ks_admin_user = env.admin_username
 ks_admin_password = env.admin_token
 ks_admin_tenant_name = env.admin_tenant
+contrail_bin_dir = '/opt/contrail/bin'
 
 from contrail_config_templates import api_server_conf_template
 from contrail_config_templates import quantum_conf_template
@@ -650,6 +651,7 @@ HWADDR=%s
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
         local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
+        local("echo '    pre-up %s/if-vhost0' >> %s" %(contrail_bin_dir, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if vhost_ip:
