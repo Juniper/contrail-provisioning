@@ -12,4 +12,5 @@ priority=430
 autostart=true
 killasgroup=true
 stopsignal=KILL
+exitcodes=0
 """)
