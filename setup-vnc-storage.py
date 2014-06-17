@@ -19,6 +19,9 @@ class SetupVncStorage(object):
         storage_master = self._args.storage_master
 
         setup_args_str = "--role storage"
+        if self._args.add_storage_node:
+            setup_args_str = setup_args_str + " --add-storage-node %s" % (self._args.add_storage_node)   
+        setup_args_str = setup_args_str + " --storage-setup-mode %s" % (self._args.storage_setup_mode)   
         setup_args_str = setup_args_str + " --storage-master %s" % (storage_master) 
         setup_args_str = setup_args_str + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
         setup_args_str = setup_args_str + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
@@ -78,6 +81,8 @@ class SetupVncStorage(object):
         parser.add_argument("--storage-disk-config", help = "Disk list to be used for distrubuted storage", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
+        parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
+        parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
 
