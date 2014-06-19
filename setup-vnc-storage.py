@@ -29,10 +29,15 @@ class SetupVncStorage(object):
         live_migration_status = self._args.live_migration
         setup_args_str = setup_args_str + " --live-migration %s" % (live_migration_status) 
         setup_args_str = setup_args_str + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))    
+        setup_args_str = setup_args_str + " --storage-ssd-disk-config %s" %(' '.join(self._args.storage_ssd_disk_config))    
+        setup_args_str = setup_args_str + " --storage-local-disk-config %s" %(' '.join(self._args.storage_local_disk_config))    
+        setup_args_str = setup_args_str + " --storage-local-ssd-disk-config %s" %(' '.join(self._args.storage_local_ssd_disk_config))    
+        setup_args_str = setup_args_str + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))    
+        setup_args_str = setup_args_str + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))    
         setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
 
         #Setup storage if storage is defined in testbed.py
-        if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none':
+        if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none' or self._args.storage_local_disk_config[0] != 'none' or self._args.storage_nfs_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
             setup_obj = Setup(setup_args_str)
             setup_obj.do_setup()
             setup_obj.run_services()
@@ -78,7 +83,12 @@ class SetupVncStorage(object):
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
-        parser.add_argument("--storage-disk-config", help = "Disk list to be used for distrubuted storage", nargs="+", type=str)
+        parser.add_argument("--storage-disk-config", help = "Disk list to be used for distributed storage", nargs="+", type=str)
+        parser.add_argument("--storage-ssd-disk-config", help = "SSD Disk list to be used for distributed storage", nargs="+", type=str)
+        parser.add_argument("--storage-local-disk-config", help = "Disk list to be used for local storage", nargs="+", type=str)
+        parser.add_argument("--storage-local-ssd-disk-config", help = "SSD Disk list to be used for local storage", nargs="+", type=str)
+        parser.add_argument("--storage-nfs-disk-config", help = "Disk list to be used for nfs storage", nargs="+", type=str)
+        parser.add_argument("--storage-journal-config", help = "Disk list to be used for distributed storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
