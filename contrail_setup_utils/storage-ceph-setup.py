@@ -289,7 +289,6 @@ class SetupCeph(object):
 
             cinder_lvm_type_list=[]
             cinder_lvm_name_list=[]
-            print self._args.storage_local_disk_config
             #Create LVM volumes on each node
             if self._args.storage_local_disk_config[0] != 'none':
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
@@ -319,6 +318,7 @@ class SetupCeph(object):
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf lvm-local-disk-volumes volume_backend_name OCS_LVM_%s' %(hostname))
                                     cinder_lvm_type_list.append('ocs-block-lvm-disk-%s' %(hostname))
                                     cinder_lvm_name_list.append('OCS_LVM_%s' %(hostname))
+
             #Create LVM volumes for SSD disks on each node
             if self._args.storage_local_ssd_disk_config[0] != 'none':
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
@@ -348,9 +348,12 @@ class SetupCeph(object):
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf lvm-local-ssd-disk-volumes volume_backend_name OCS_LVM_SSD_%s' %(hostname))
                                     cinder_lvm_type_list.append('ocs-block-lvm-ssd-disk-%s' %(hostname))
                                     cinder_lvm_name_list.append('OCS_LVM_SSD_%s' %(hostname))
+
+            # Create Cinder type for all the LVM backends
             for lvm_types, lvm_names in zip(cinder_lvm_type_list, cinder_lvm_name_list):
                 local('(. /etc/contrail/openstackrc ; cinder type-create %s)' %(lvm_types))
                 local('(. /etc/contrail/openstackrc ; cinder type-key %s set volume_backend_name=%s)' %(lvm_types, lvm_names))
+
             for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
                 if hostname == add_storage_node:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -434,7 +437,7 @@ class SetupCeph(object):
             local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
             num_ocs_blk_disk -= 1
 
-        # Remove LVM partitions 
+        # Remove LVM related configurations
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             with settings(host_string = 'root@%s' %(entries), password = entry_token):
                 volavail=run('vgdisplay 2>/dev/null |grep ocs-lvm-group|wc -l')
@@ -884,9 +887,13 @@ class SetupCeph(object):
             local('sudo service libvirt-bin restart')
             local('sudo service nova-api restart')
             local('sudo service nova-scheduler restart')
+
+        # Create Cinder type for all Ceph backend
         if configure_with_ceph == 1:
             local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-disk)')
             local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-disk set volume_backend_name=RBD)')
+
+        # Create Cinder type for all the LVM backends
         for lvm_types, lvm_names in zip(cinder_lvm_type_list, cinder_lvm_name_list):
             local('(. /etc/contrail/openstackrc ; cinder type-create %s)' %(lvm_types))
             local('(. /etc/contrail/openstackrc ; cinder type-key %s set volume_backend_name=%s)' %(lvm_types, lvm_names))
