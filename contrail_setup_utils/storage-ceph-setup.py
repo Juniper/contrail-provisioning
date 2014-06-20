@@ -933,6 +933,16 @@ class SetupCeph(object):
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
 
+        # config discovery ip and start the stats-deamon
+        for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+            if entries != self._args.storage_master:
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    if pdist == 'Ubuntu':
+			discovery='echo DISCOVERY=' + self._args.storage_master
+                        run('%s > /etc/contrail/storage_nodemgr_param'  % (discovery))
+                        run('sudo service storage-stats restart')
+
+
     #end __init__
 
     def _parse_args(self, args_str):
