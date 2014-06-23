@@ -5,12 +5,6 @@ template = string.Template("""
 # Vnswad configuration options
 #
 
-[COLLECTOR]
-# IP address and port to be used to connect to collector. If IP is not configured,
-# value provided by discovery service will be used. (Optional)
-# port=8086
-# server=
-
 [CONTROL-NODE]
 # IP address to be used to connect to control-node. Maximum of 2 IP addresses 
 # (separated by a space) can be provided. If no IP is configured then the
@@ -19,6 +13,11 @@ template = string.Template("""
 
 [DEFAULT]
 # Everything in this section is optional
+
+# IP address and port to be used to connect to collector. If these are not
+# configured, value provided by discovery service will be used. Multiple
+# IP:port strings separated by space can be provided
+# collectors=127.0.0.1:8086
 
 # Enable/disable debug logging. Possible values are 0 (disable) and 1 (enable)
 # debug=0
