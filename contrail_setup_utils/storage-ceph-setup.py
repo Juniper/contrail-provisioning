@@ -110,21 +110,21 @@ class SetupCeph(object):
             local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
         sshkey=local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
-        already_present=local('grep "%s" ~/.ssh/known_hosts | wc -l' % (sshkey), capture=True)
+        already_present=local('grep "%s" ~/.ssh/known_hosts 2> /dev/null | wc -l' % (sshkey), capture=True)
 	if already_present == '0':
 	    local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
-        already_present=local('grep "%s" ~/.ssh/authorized_keys | wc -l' % (sshkey), capture=True)
+        already_present=local('grep "%s" ~/.ssh/authorized_keys 2> /dev/null | wc -l' % (sshkey), capture=True)
 	if already_present == '0':
             local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
         for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     run('sudo mkdir -p ~/.ssh')
-                    already_present=run('grep "%s" ~/.ssh/known_hosts | wc -l' % (sshkey))
+                    already_present=run('grep "%s" ~/.ssh/known_hosts 2> /dev/null | wc -l' % (sshkey))
                     print already_present
 	            if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
-                    already_present=run('grep "%s" ~/.ssh/authorized_keys | wc -l' % (sshkey))
+                    already_present=run('grep "%s" ~/.ssh/authorized_keys 2> /dev/null | wc -l' % (sshkey))
                     print already_present
 	            if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
