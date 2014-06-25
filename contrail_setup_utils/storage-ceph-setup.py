@@ -305,6 +305,7 @@ class SetupCeph(object):
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                                    run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
                                         new_backend = existing_backends + ',' + 'lvm-local-disk-volumes'
@@ -335,6 +336,7 @@ class SetupCeph(object):
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                                    run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
                                         new_backend = existing_backends + ',' + 'lvm-local-ssd-disk-volumes'
@@ -657,6 +659,11 @@ class SetupCeph(object):
                         osd_count += 1
             # Create pools
             local('unset CEPH_ARGS')
+            # Remove unwanted pools
+            local('sudo rados rmpool data data --yes-i-really-really-mean-it')
+            local('sudo rados rmpool metadata metadata --yes-i-really-really-mean-it')
+            local('sudo rados rmpool rbd rbd --yes-i-really-really-mean-it')
+            # Add required pools
             local('sudo rados mkpool volumes')
             local('sudo rados mkpool images')
             # Calculate num PGs 
@@ -770,6 +777,7 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_secret_uuid %s' % (virsh_secret))
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk glance_api_version 2')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_backend_name RBD')
+            local('sudo cinder-manage db sync')
 
         cinder_lvm_type_list=[]
         cinder_lvm_name_list=[]
@@ -787,6 +795,7 @@ class SetupCeph(object):
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                            run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
                             new_backend = existing_backends + ',' + 'lvm-local-disk-volumes'
@@ -814,6 +823,7 @@ class SetupCeph(object):
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                            run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
                             new_backend = existing_backends + ',' + 'lvm-local-ssd-disk-volumes'
