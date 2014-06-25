@@ -659,6 +659,9 @@ class SetupCeph(object):
                         osd_count += 1
             # Create pools
             local('unset CEPH_ARGS')
+            local('sudo rados rmpool data data --yes-i-really-really-mean-it')
+            local('sudo rados rmpool metadata metadata --yes-i-really-really-mean-it')
+            local('sudo rados rmpool rbd rbd --yes-i-really-really-mean-it')
             local('sudo rados mkpool volumes')
             local('sudo rados mkpool images')
             # Calculate num PGs 
