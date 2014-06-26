@@ -51,8 +51,6 @@ class SetupVncCfgm(object):
                              %(' '.join(self._args.cassandra_ip_list))    
         setup_args_str = setup_args_str + " --zookeeper_ip_list %s" \
                              %(' '.join(self._args.zookeeper_ip_list))    
-        setup_args_str = setup_args_str + " --cfgm_index %s" \
-                             %(self._args.cfgm_index) 
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
         setup_obj = Setup(setup_args_str)
@@ -66,7 +64,6 @@ class SetupVncCfgm(object):
             --collector_ip 10.1.5.12 --service_token contrail123
             --cassandra_ip_list 10.1.5.11 10.1.5.12 
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
-            --cfgm_index 1
             --nworkers 1
             optional: --use_certs, --multi_tenancy --haproxy
                       --region_name <name>
@@ -128,7 +125,6 @@ class SetupVncCfgm(object):
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
-        parser.add_argument("--cfgm_index", help = "The index of this cfgm node")
         parser.add_argument("--quantum_port",
             help = "Quantum Server port",
             default = '9696')
