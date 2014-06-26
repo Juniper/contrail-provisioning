@@ -146,7 +146,6 @@ class Setup(object):
         cfgm_defaults = {
             'cfgm_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
-            'redis_ip': '127.0.0.1',
             'service_token': '',
             'n_api_workers': '1',
             'multi_tenancy': False,
@@ -279,8 +278,6 @@ class Setup(object):
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--num_collector_nodes", help = "Number of Collector Nodes", type = int)
-        parser.add_argument("--redis_master_ip", help = "IP Address of Redis Master Node")
-        parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 2)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int, default = -1)
@@ -993,7 +990,7 @@ HWADDR=%s
 
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
-                             '__contrail_redis_server_port__' : '6380',
+                             '__contrail_redis_server_port__' : '6379',
                              '__contrail_http_server_port__' : '8091',
                              '__contrail_collector__' : '127.0.0.1',
                              '__contrail_collector_port__' : '8086',
@@ -1006,8 +1003,8 @@ HWADDR=%s
                              '__contrail_log_local__': '0',
                              '__contrail_log_category__': '',
                              '__contrail_log_level__': 'SYS_DEBUG',
-                             '__contrail_redis_server_port__' : '6381',
-                             '__contrail_redis_query_port__' : '6380',
+                             '__contrail_redis_server_port__' : '6379',
+                             '__contrail_redis_query_port__' : '6379',
                              '__contrail_http_server_port__' : '8090',
                              '__contrail_rest_api_port__' : '8081',
                              '__contrail_host_ip__' : self_collector_ip, 
@@ -1069,7 +1066,6 @@ HWADDR=%s
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': keystone_ip,
-                             '__contrail_redis_ip__': self._args.redis_master_ip,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,

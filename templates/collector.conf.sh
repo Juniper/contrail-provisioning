@@ -70,7 +70,7 @@ cat << EOF
   server=$DISCOVERY # discovery_server IP address
 
 [REDIS]
-  port=6381
+  port=6379
   server=127.0.0.1
 
 EOF
