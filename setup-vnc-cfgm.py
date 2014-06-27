@@ -18,7 +18,6 @@ class SetupVncCfgm(object):
         self_ip = self._args.self_ip
         keystone_ip = self._args.keystone_ip
         collector_ip = self._args.collector_ip
-        redis_ip = self._args.redis_ip
         quantum_port = self._args.quantum_port
         nworkers = self._args.nworkers
         service_token = self._args.service_token
@@ -31,7 +30,6 @@ class SetupVncCfgm(object):
         setup_args_str = "--role config "
         setup_args_str = setup_args_str + " --cfgm_ip %s --keystone_ip %s --collector_ip %s " \
                                                       %(self_ip, keystone_ip, collector_ip)
-        setup_args_str = setup_args_str + " --redis_master_ip %s" %(redis_ip)
         setup_args_str = setup_args_str + " --quantum_port %s" %(quantum_port)
         setup_args_str = setup_args_str + " --n_api_workers %s" %(nworkers)
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
@@ -81,7 +79,6 @@ class SetupVncCfgm(object):
             'self_ip': '127.0.0.1',
             'collector_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
-            'redis_ip': '127.0.0.1',
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': False,
@@ -114,8 +111,6 @@ class SetupVncCfgm(object):
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
-        parser.add_argument("--redis_ip",
-                            help = "IP Address of redis server")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--use_certs", help = "Use certificates for authentication (irond)",
             action="store_true")
