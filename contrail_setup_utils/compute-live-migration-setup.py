@@ -33,7 +33,7 @@ class SetupLivem(object):
                            continue
                    run('openstack-config --set /etc/nova/nova.conf DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE')
                    run('openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen 0.0.0.0')
-                   run('cat /etc/libvirt/libvirtd.conf | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/"#auth_tcp = \"sasl\""/"auth_tcp = \"none\""/ > /tmp/libvirtd.conf', shell='/bin/bash')
+                   run('cat /etc/libvirt/libvirtd.conf | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/\'#auth_tcp = "sasl"\'/\'auth_tcp = "none"\'/ > /tmp/libvirtd.conf', shell='/bin/bash')
                    run('cp -f /tmp/libvirtd.conf /etc/libvirt/libvirtd.conf')
                    libvirtd = run('ls /etc/sysconfig/libvirtd 2>/dev/null |wc -l')
                    if libvirtd != '0':
@@ -42,12 +42,14 @@ class SetupLivem(object):
                        run('service openstack-nova-compute restart')
                        run('service libvirtd restart')
 
-                   libvirtd = run('ls /etc/sysconfig/libvirt-bin 2>/dev/null |wc -l')
+                   libvirtd = run('ls /etc/default/libvirt-bin 2>/dev/null |wc -l')
                    if libvirtd != '0':
-                       run('cat /etc/default/libvirt-bin | sed s/"-d"/"-d -l"/ > /tmp/libvirt-bin', shell = '/bin/bash')
-                       run('cp -f /tmp/libvirt-bin /etc/default/libvirt-bin')
-                       run('service nova-compute restart')
-                       run('service libvirt-bin restart')
+                       libvirt_configured = run('cat /etc/default/libvirt-bin |grep "\-d \-l"| wc -l')
+                       if libvirt_configured == '0':
+                           run('cat /etc/default/libvirt-bin | sed s/"-d"/"-d -l"/ > /tmp/libvirt-bin', shell = '/bin/bash')
+                           run('cp -f /tmp/libvirt-bin /etc/default/libvirt-bin')
+                           run('service nova-compute restart')
+                           run('service libvirt-bin restart')
 
     def _parse_args(self, args_str):
         '''
