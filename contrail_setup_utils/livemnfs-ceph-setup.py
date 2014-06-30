@@ -317,12 +317,14 @@ class SetupNFSLivem(object):
                            run('mkdir /var/lib/nova/instances/global')
                            run('chown nova:nova /var/lib/nova/instances/global')
                            run('mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
+                           run('chown nova:nova /var/lib/nova/instances/global')
                        else:
                            run('ping -c 10 %s' %(vmip))
                            stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
                            if stalenfs == '1':
                                run('umount /var/lib/nova/instances/global')
                                run('mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
+                               run('chown nova:nova /var/lib/nova/instances/global')
 
         if self._args.storage_setup_mode == 'unconfigure':
             # Unconfigure started
@@ -335,7 +337,7 @@ class SetupNFSLivem(object):
                     if mounted == '1':
                         mountused=run('lsof /var/lib/nova/instances/global | wc -l');
                         if mountused != '0':
-                            print '/var/lib/nova/instance/global is being, Cannot unconfigure'
+                            print '/var/lib/nova/instance/global is being used, Cannot unconfigure'
                             return
                         else:
                             run('sudo umount /var/lib/nova/instances/global')
@@ -356,7 +358,8 @@ class SetupNFSLivem(object):
                             if mounted == '1':
                                 run('sudo umount -f /livemnfsvol')
                 cinder_id=local('source /etc/contrail/openstackrc &&  cinder list |grep livemnfsvol | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
-                local('source /etc/contrail/openstackrc && nova volume-detach %s %s' %(nova_id, cinder_id) , capture=True, shell='/bin/bash')
+                if volvmattached != '0':
+                    local('source /etc/contrail/openstackrc && nova volume-detach %s %s' %(nova_id, cinder_id) , capture=True, shell='/bin/bash')
                 while True:
                     volvmattached=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep %s | wc -l' %(nova_id) , capture=True, shell='/bin/bash')
                     if volvmattached == '0':
