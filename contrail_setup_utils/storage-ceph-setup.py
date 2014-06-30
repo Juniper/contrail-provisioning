@@ -31,6 +31,13 @@ sys.path.insert(0, os.getcwd())
 
 class SetupCeph(object):
 
+    global CINDER_CONFIG_FILE
+    CINDER_CONFIG_FILE='/etc/cinder/cinder.conf'
+    global NOVA_CONFIG_FILE
+    NOVA_CONFIG_FILE='/etc/nova/nova.conf'
+    global CEPH_CONFIG_FILE
+    CEPH_CONFIG_FILE='/etc/ceph/ceph.conf'
+
     def reset_mon_local_list(self):
 	local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
 	local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
@@ -422,6 +429,38 @@ class SetupCeph(object):
         self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
         self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd')
 
+    def add_nfs_disk_config(self):
+        NFS_SERVER_LIST_FILE='/etc/cinder/nfs_server_list.txt'
+        if self._args.storage_nfs_disk_config[0] != 'none':
+            # Create NFS mount list file
+            file_present=local('sudo ls %s | wc -l' %(NFS_SERVER_LIST_FILE), capture=True)
+            if file_present == '0':
+                local('sudo touch %s' %(NFS_SERVER_LIST_FILE), capture=True)
+                local('sudo chown root:cinder %s' %(NFS_SERVER_LIST_FILE), capture=True)
+                local('sudo chmod 0640 %s' %(NFS_SERVER_LIST_FILE), capture=True)
+            
+            # Add NFS mount list to file
+            for entry in self._args.storage_nfs_disk_config:
+                entry_present=local('cat %s | grep \"%s\" | wc -l' %(NFS_SERVER_LIST_FILE, entry), capture=True)  
+                if entry_present == '0':
+                    local('echo %s >> %s' %(entry, NFS_SERVER_LIST_FILE))
+
+            # Cinder configuration to create backend
+            cinder_configured=local('sudo cat %s | grep enabled_backends | grep nfs | wc -l' %(CINDER_CONFIG_FILE), capture=True)
+            if cinder_configured == '0':
+                existing_backends=local('sudo cat %s |grep enabled_backends |awk \'{print $3}\'' %(CINDER_CONFIG_FILE), shell='/bin/bash', capture=True)
+                if existing_backends != '':
+                    new_backend = existing_backends + ',' + 'nfs'
+                    local('sudo openstack-config --set %s DEFAULT enabled_backends %s' %(CINDER_CONFIG_FILE, new_backend))
+                else:
+                    local('sudo openstack-config --set %s DEFAULT enabled_backends nfs' %(CINDER_CONFIG_FILE))
+
+                local('sudo openstack-config --set %s nfs nfs_shares_config %s' %(CINDER_CONFIG_FILE, NFS_SERVER_LIST_FILE))
+                local('sudo openstack-config --set %s nfs nfs_sparsed_volumes True' %(CINDER_CONFIG_FILE))
+                #local('sudo openstack-config --set %s nfs nfs_mount_options ' %(CINDER_CONFIG_FILE, NFS_SERVER_LIST_FILE))
+                local('sudo openstack-config --set %s nfs volume_driver cinder.volume.drivers.nfs.NfsDriver' %(CINDER_CONFIG_FILE))
+                local('sudo openstack-config --set %s nfs volume_backend_name NFS' %(CINDER_CONFIG_FILE))
+
     def __init__(self, args_str = None):
         #print sys.argv[1:]
         self._args = None
@@ -669,6 +708,7 @@ class SetupCeph(object):
              
             osd_count=int(local('ceph osd stat | awk \'{print $2}\'', shell='/bin/bash', capture=True))
             # Set PG/PGP count based on osd new count
+            self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
 
             if self._args.storage_ssd_disk_config[0] != 'none':
@@ -752,6 +792,15 @@ class SetupCeph(object):
                 print 'Cannot find virsh secret uuid'
                 return
 
+            # Add NFS configurations if present
+            if self._args.storage_nfs_disk_config[0] != 'none':
+                self.add_nfs_disk_config()
+                nfs_type_present=local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-nfs-disk | wc -l)', capture=True)
+                if nfs_type_present == '0':
+                    local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-nfs-disk)')
+                    local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-nfs-disk set volume_backend_name=NFS)')
+           
+
             for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
                 if hostname == add_storage_node:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -823,27 +872,12 @@ class SetupCeph(object):
                     else:
                         print "Waiting for volume to be deleted"
                         time.sleep(5)
-        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-hdd-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-ssd-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-disk | wc -l )', capture=True))
+        # Delete all ocs-block disk types
+        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block | wc -l )', capture=True))
         while True:
             if num_ocs_blk_disk == 0:
                 break
-            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-disk | head -n 1 | cut -d"|" -f 2)', capture=True)
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-            num_ocs_blk_disk -= 1
-        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-ssd-disk | wc -l )', capture=True))
-        while True:
-            if num_ocs_blk_disk == 0:
-                break
-            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-ssd-disk | head -n 1 | cut -d"|" -f 2)', capture=True)
+            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block | head -n 1 | cut -d"|" -f 2)', capture=True)
             local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
             num_ocs_blk_disk -= 1
 
@@ -1121,6 +1155,7 @@ class SetupCeph(object):
             #local('sudo ceph osd pool set volumes size 3')
 
             # Set PG/PGP count based on osd count
+            self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
 
             create_hdd_ssd_pool = 0
@@ -1358,6 +1393,12 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
 
+        # Add NFS configurations if present
+        create_nfs_disk_volume = 0
+        if self._args.storage_nfs_disk_config[0] != 'none':
+            self.add_nfs_disk_config()
+            create_nfs_disk_volume = 1
+
         #Restart services
         if pdist == 'centos':
             local('sudo service qpidd restart')
@@ -1411,6 +1452,10 @@ class SetupCeph(object):
             local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-hdd-disk set volume_backend_name=HDD_RBD)')
             local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-ssd-disk)')
             local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-ssd-disk set volume_backend_name=RBD_ssd)')
+
+        if create_nfs_disk_volume == 1:
+            local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-nfs-disk)')
+            local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-nfs-disk set volume_backend_name=NFS)')
 
         # Create Cinder type for all the LVM backends
         for lvm_types, lvm_names in zip(cinder_lvm_type_list, cinder_lvm_name_list):
