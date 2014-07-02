@@ -18,6 +18,13 @@ sys.path.insert(0, os.getcwd())
 
 class SetupNFSLivem(object):
 
+    global ETC_FSTAB
+    ETC_FSTAB='/etc/fstab'
+    global TMP_FSTAB
+    TMP_FSTAB='/tmp/fstab'
+    global NOVA_INST_GLOBAL
+    NOVA_INST_GLOBAL='/var/lib/nova/instances/global'
+
     def __init__(self, args_str = None):
         print sys.argv[1:]
         self._args = None
@@ -107,8 +114,9 @@ class SetupNFSLivem(object):
                             if vgwifconfig == '0':
                                 run('echo \"\" >> /etc/network/interfaces');
                                 run('echo \"auto livemnfsvgw\" >> /etc/network/interfaces');
-                                run('echo \"iface livemnfsvgw inet static\" >> /etc/network/interfaces');
+                                run('echo \"iface livemnfsvgw inet manual\" >> /etc/network/interfaces');
                                 run('echo \"    pre-up vif --create livemnfsvgw --mac 00:01:5e:00:00\" >> /etc/network/interfaces');
+                                run('echo \"    pre-up ifconfig livemnfsvgw up\" >> /etc/network/interfaces');
     
                             #check if we have /etc/contrail/agent.conf for < 1.1
                             agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
@@ -309,6 +317,12 @@ class SetupNFSLivem(object):
                    # Not sure if mount in master is required
                    # if entries != self._args.storage_master:
                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                       # Add to fstab to auto-mount the nfs file system upon
+                       # reoot. The 'bg' option takes care of retrying mount
+                       # if the vm is not reachable.
+                       fstab_added=run('cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
+                       if fstab_added == '0':
+                           run('sudo echo \"%s:/livemnfsvol %s nfs rw,bg,soft 0 0\" >> %s' %(vmip, NOVA_INST_GLOBAL, ETC_FSTAB))
                        mounted=run('cat /proc/mounts | grep livemnfsvol|wc -l')
                        if mounted == '0':
                            print mounted
@@ -333,6 +347,10 @@ class SetupNFSLivem(object):
                 # Not sure if mount in master is required
                 # if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    fstab_added=run('cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
+                    if fstab_added == '1':
+                        run('sudo cat %s | grep -v livemnfsvol >> %s' %(ETC_FSTAB, TMP_FSTAB))
+                        run('sudo cp -f %s %s' %(TMP_FSTAB, ETC_FSTAB))
                     mounted=run('cat /proc/mounts | grep livemnfsvol|wc -l')
                     if mounted == '1':
                         mountused=run('lsof /var/lib/nova/instances/global | wc -l');
@@ -442,7 +460,7 @@ class SetupNFSLivem(object):
                         #check and delete static route on the vm host
                         staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
                         if staroutedone == '1':
-                            staroutedone=run('cat /etc/network/interfaces |grep -v %s > /tmp/interfaces' %(vmip), shell='/bin/bash') 
+                            staroutedone=run('cat /etc/network/interfaces |grep -v livemnfsvgw > /tmp/interfaces', shell='/bin/bash') 
                             run('cp /tmp/interfaces /etc/network/interfaces');
                 #delete route on other compute nodes
                 elif entries != self._args.storage_master:
