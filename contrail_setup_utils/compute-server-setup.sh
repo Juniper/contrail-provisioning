@@ -69,6 +69,16 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
 fi
+
+if [ $VMWARE_IP ]; then
+    openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
+    openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver vmwareapi.ContrailESXDriver
+    if [ -f /etc/nova/nova-compute.conf ]; then
+        openstack-config --del /etc/nova/nova-compute.conf DEFAULT compute_driver
+        openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver vmwareapi.ContrailESXDriver
+    fi
+fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
@@ -85,6 +95,14 @@ openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contr
 
 # Use noopdriver for firewall
 openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+
+if [ $VMWARE_IP ]; then
+    openstack-config --set /etc/nova/nova.conf vmware host_ip $VMWARE_IP
+    openstack-config --set /etc/nova/nova.conf vmware host_username $VMWARE_USERNAME
+    openstack-config --set /etc/nova/nova.conf vmware host_password $VMWARE_PASSWD
+    openstack-config --set /etc/nova/nova.conf vmware vmpg_vswitch $VMWARE_VMPG_VSWITCH
+fi
+
 
 for svc in openstack-nova-compute supervisor-vrouter; do
     chkconfig $svc on

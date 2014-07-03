@@ -299,6 +299,11 @@ class Setup(object):
         parser.add_argument("--nfs-livem-host", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--add-storage-node", help = "Dynamic addition of storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--vmware", help = "Vmware ESXI IP", type=str)
+        parser.add_argument("--vmware_username", help = "Vmware ESXI Username", type=str)
+        parser.add_argument("--vmware_passwd", help = "Vmware ESXI Password", type=str)
+        parser.add_argument("--vmware_vmpg_vswitch", help = "Vmware VMPG vswitch name", type=str)
+
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -469,6 +474,22 @@ class Setup(object):
                 print "Skipping interface %s" % i
         raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
     #end get_device_by_ip
+    def get_secondary_device(self, primary):
+        for i in netifaces.interfaces ():
+            try:
+                if i == 'pkt1':
+                    continue
+                if i == primary:
+                    continue
+                if i == 'vhost0':
+                    continue
+                if not netifaces.ifaddresses (i).has_key (netifaces.AF_INET):
+                    return i
+            except ValueError,e:
+                print "Skipping interface %s" % i
+        raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
+    #end get_secondary_device
+
     
     def _is_string_in_file(self, string, filename):
         f_lines=[]
@@ -875,6 +896,12 @@ HWADDR=%s
             local("echo 'COMPUTE=%s' >> %s/ctrl-details" %(compute_ip, temp_dir_name))
             if 'compute' in self._args.role:
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
+                if self._args.vmware:
+                    local("echo 'VMWARE_IP=%s' >> %s/ctrl-details" %(self._args.vmware, temp_dir_name))
+                    local("echo 'VMWARE_USERNAME=%s' >> %s/ctrl-details" %(self._args.vmware_username, temp_dir_name))
+                    local("echo 'VMWARE_PASSWD=%s' >> %s/ctrl-details" %(self._args.vmware_passwd, temp_dir_name))
+                    local("echo 'VMWARE_VMPG_VSWITCH=%s' >> %s/ctrl-details" %(self._args.vmware_vmpg_vswitch, temp_dir_name))
+
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
             if os.path.exists("/etc/neutron/neutron.conf"):
@@ -1404,12 +1431,19 @@ HWADDR=%s
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
+                vmware_dev = ""
+                hypervisor_type = "kvm"
+                if self._args.vmware:
+                    vmware_dev = self.get_secondary_device(dev)
+                    hypervisor_type = "vmware"
                 vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                     '__contrail_vhost_gateway__': gateway,
                     '__contrail_discovery_ip__': discovery_ip,
                     '__contrail_discovery_ncontrol__': ncontrols,
                     '__contrail_physical_intf__': dev,
                     '__contrail_control_ip__': compute_ip,
+                    '__hypervisor_type__': hypervisor_type,
+                    '__vmware_physical_interface__': vmware_dev,
                 }
                 self._template_substitute_write(vnswad_conf_template.template,
                         vnswad_conf_template_vals, temp_dir_name + '/vnswad.conf')
