@@ -53,6 +53,9 @@ fi
 source /etc/contrail/ctrl-details
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
@@ -68,7 +71,12 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_host $CONTROLLER
 fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
@@ -79,6 +87,8 @@ openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_interval  0
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
+openstack-config --set /etc/nova/nova-compute.conf DEFAULT libvirt_type qemu
+openstack-config --del /etc/nova/nova-compute.conf libvirt 
 
 #use contrail specific vif driver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver

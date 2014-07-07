@@ -99,11 +99,19 @@ for cfg in api; do
 done
 
 for cfg in api registry; do
+    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
+    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_idle_timeout 3600
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
 done
+
+if [ $is_ubuntu -eq 1 ] ; then
+    glance-manage db_sync
+    chown glance /var/lib/glance/glance.sqlite
+    chgrp glance /var/lib/glance/glance.sqlite
+fi
 
 echo "======= Enabling the services ======"
 
