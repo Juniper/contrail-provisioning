@@ -130,7 +130,8 @@ export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
+openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 
 for APP in nova; do
   openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
@@ -145,6 +146,10 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host 127.0.0.1
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_host $CONTROLLER
 done
 
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
