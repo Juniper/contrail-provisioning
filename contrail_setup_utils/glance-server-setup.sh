@@ -107,11 +107,9 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
 done
 
-if [ $is_ubuntu -eq 1 ] ; then
-    glance-manage db_sync
-    chown glance /var/lib/glance/glance.sqlite
-    chgrp glance /var/lib/glance/glance.sqlite
-fi
+glance-manage db_sync
+chown glance /var/lib/glance/glance.sqlite
+chgrp glance /var/lib/glance/glance.sqlite
 
 echo "======= Enabling the services ======"
 
