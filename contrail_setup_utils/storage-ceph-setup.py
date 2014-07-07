@@ -87,6 +87,46 @@ class SetupCeph(object):
 	run('chmod a+x /tmp/osd_local_list.sh')
 	run('/tmp/osd_local_list.sh')
 
+    def ceph_rest_api_service_add(self):
+        rest_api_conf_available=local('ls /etc/init/ceph-rest-api.conf  2>/dev/null | wc -l', capture=True)
+        if rest_api_conf_available == '0':
+            local('sudo echo description \\"Ceph REST API\\" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "start on started rc RUNLEVEL=[2345]" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "stop on runlevel [!2345]" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "respawn" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "respawn limit 5 30" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "limit nofile 16384 16384" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "pre-start script" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "    set -e" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "    test -x /usr/bin/ceph-rest-api || { stop; exit 0; }" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "end script" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "# this breaks oneiric" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "#usage \\"ceph-rest-api -c <conf-file> -n <client-name>\\"" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "exec ceph-rest-api -c /etc/ceph/ceph.conf -n client.admin" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "post-stop script" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "# nothing to do for now" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "end script" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+            local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+        ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
+        if ceph_rest_api_process_running == '0':
+            local('sudo service ceph-rest-api start', shell='/bin/bash')
+
+    def ceph_rest_api_service_remove(self):
+        ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
+        if ceph_rest_api_process_running != '0':
+            local('sudo service ceph-rest-api stop', shell='/bin/bash')
+        rest_api_conf_available=local('ls /etc/init/ceph-rest-api.conf  2>/dev/null | wc -l', capture=True)
+        if rest_api_conf_available != '0':
+            local('sudo rm -rf /etc/init/ceph-rest-api.conf', shell='/bin/bash')
+
     def __init__(self, args_str = None):
         #print sys.argv[1:]
         self._args = None
@@ -493,11 +533,15 @@ class SetupCeph(object):
 		    if pdist == 'Ubuntu':
                         self.reset_mon_remote_list()
                         self.reset_osd_remote_list()
-	time.sleep(2)
-	local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
+        time.sleep(2)
+        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_remove()
+
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
             return
+
         local('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
         local('sudo mkdir -p /var/lib/ceph/osd')
         local('sudo mkdir -p /etc/ceph')
@@ -942,16 +986,8 @@ class SetupCeph(object):
                         run('sudo service cinder-volume restart')
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
-
-        # config discovery ip and start the stats-deamon
-        for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
-            if entries != self._args.storage_master:
-                with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    if pdist == 'Ubuntu':
-			discovery='echo DISCOVERY=' + self._args.storage_master
-                        run('%s > /etc/contrail/storage_nodemgr_param'  % (discovery))
-                        run('sudo service storage-stats restart')
-
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_add()
 
     #end __init__
 

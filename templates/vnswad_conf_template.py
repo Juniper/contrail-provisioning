@@ -74,7 +74,7 @@ max_control_nodes=$__contrail_discovery_ncontrol__
 # Everything in this section is optional
 
 # Hypervisor type. Possible values are kvm, xen and vmware
-# type=kvm
+type=$__hypervisor_type__
 
 # Link-local IP address and prefix in ip/prefix_len format (for xen)
 # xen_ll_ip=
@@ -83,7 +83,7 @@ max_control_nodes=$__contrail_discovery_ncontrol__
 # xen_ll_interface=
 
 # Physical interface name when hypervisor type is vmware
-# vmware_physical_interface=
+vmware_physical_interface=$__vmware_physical_interface__
 
 [FLOWS]
 # Everything in this section is optional

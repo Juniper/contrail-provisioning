@@ -34,6 +34,12 @@ class SetupVncVrouter(object):
             openstack_mgmt_ip = keystone_ip
         else:
             openstack_mgmt_ip = self._args.openstack_mgmt_ip
+        if self._args.vmware :
+            vmware_ip = self._args.vmware
+            vmware_username = self._args.vmware_username
+            vmware_passwd = self._args.vmware_passwd
+            vmware_vmpg_vswitch = self._args.vmware_vmpg_vswitch
+
 
         setup_args_str = "--role compute --compute_ip %s " %(self._args.self_ip)
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
@@ -58,6 +64,9 @@ class SetupVncVrouter(object):
                 setup_args_str = setup_args_str + " --vgw_gateway_routes %s " %(vgw_gateway_routes)
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
+        if self._args.vmware:
+            setup_args_str = setup_args_str + " --vmware %s --vmware_username %s --vmware_passwd %s --vmware_vmpg_vswitch %s" %(vmware_ip, vmware_username, vmware_passwd, vmware_vmpg_vswitch)
+
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -98,6 +107,10 @@ class SetupVncVrouter(object):
             'ks_auth_port':'35357',
             'amqp_server_ip':'127.0.0.1',
             'quantum_service_protocol':'http',
+            'vmware': None,
+            'vmware_username': 'root',
+            'vmware_passwd': 'c0ntrail123',
+            'vmware_vmpg_vswitch': 'c0ntrail123',
         }
 
         if args.conf_file:
@@ -139,7 +152,10 @@ class SetupVncVrouter(object):
             default = 'http')
         parser.add_argument("--amqp_server_ip",
             help = "IP of the AMQP server to be used for openstack")
-
+        parser.add_argument("--vmware", help = "The Vmware ESXI IP")
+        parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
+        parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
+        parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
 
         self._args = parser.parse_args(remaining_argv)
 

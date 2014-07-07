@@ -146,7 +146,6 @@ class Setup(object):
         cfgm_defaults = {
             'cfgm_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
-            'redis_ip': '127.0.0.1',
             'service_token': '',
             'n_api_workers': '1',
             'multi_tenancy': False,
@@ -262,7 +261,7 @@ class Setup(object):
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
-        parser.add_argument("--cfgm_index", help = "Index of this cfgm node")
+        parser.add_argument("--database_index", help = "Index of this cfgm node")
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
             help="Number of API/discovery worker processes to be launched",
@@ -279,8 +278,6 @@ class Setup(object):
         parser.add_argument("--database_initial_token", help = "Initial token for database node")
         parser.add_argument("--database_seed_list", help = "List of seed nodes for database", nargs='+')
         parser.add_argument("--num_collector_nodes", help = "Number of Collector Nodes", type = int)
-        parser.add_argument("--redis_master_ip", help = "IP Address of Redis Master Node")
-        parser.add_argument("--redis_role", help = "Redis Role of Node")
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 2)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int, default = -1)
@@ -302,6 +299,11 @@ class Setup(object):
         parser.add_argument("--nfs-livem-host", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--add-storage-node", help = "Dynamic addition of storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--vmware", help = "Vmware ESXI IP", type=str)
+        parser.add_argument("--vmware_username", help = "Vmware ESXI Username", type=str)
+        parser.add_argument("--vmware_passwd", help = "Vmware ESXI Password", type=str)
+        parser.add_argument("--vmware_vmpg_vswitch", help = "Vmware VMPG vswitch name", type=str)
+
     
         self._args = parser.parse_args(remaining_argv)
 
@@ -472,6 +474,22 @@ class Setup(object):
                 print "Skipping interface %s" % i
         raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
     #end get_device_by_ip
+    def get_secondary_device(self, primary):
+        for i in netifaces.interfaces ():
+            try:
+                if i == 'pkt1':
+                    continue
+                if i == primary:
+                    continue
+                if i == 'vhost0':
+                    continue
+                if not netifaces.ifaddresses (i).has_key (netifaces.AF_INET):
+                    return i
+            except ValueError,e:
+                print "Skipping interface %s" % i
+        raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
+    #end get_secondary_device
+
     
     def _is_string_in_file(self, string, filename):
         f_lines=[]
@@ -878,6 +896,12 @@ HWADDR=%s
             local("echo 'COMPUTE=%s' >> %s/ctrl-details" %(compute_ip, temp_dir_name))
             if 'compute' in self._args.role:
                 local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_mgmt_ip, temp_dir_name))
+                if self._args.vmware:
+                    local("echo 'VMWARE_IP=%s' >> %s/ctrl-details" %(self._args.vmware, temp_dir_name))
+                    local("echo 'VMWARE_USERNAME=%s' >> %s/ctrl-details" %(self._args.vmware_username, temp_dir_name))
+                    local("echo 'VMWARE_PASSWD=%s' >> %s/ctrl-details" %(self._args.vmware_passwd, temp_dir_name))
+                    local("echo 'VMWARE_VMPG_VSWITCH=%s' >> %s/ctrl-details" %(self._args.vmware_vmpg_vswitch, temp_dir_name))
+
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
             if os.path.exists("/etc/neutron/neutron.conf"):
@@ -975,6 +999,24 @@ HWADDR=%s
             local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
             local("sudo mv %s/contrail-nodemgr-database.conf /etc/contrail/contrail-nodemgr-database.conf" %(temp_dir_name))
 
+            # set high session timeout to survive glance led disk activity
+            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
+            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
+            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
+            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
+            if pdist == 'fedora' or pdist == 'centos':
+                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
+            if pdist == 'Ubuntu':
+                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
+
+            zk_index = 1
+            for zk_ip in self._args.zookeeper_ip_list:
+                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
+                zk_index = zk_index + 1
+
+            #put cluster-unique zookeeper's instance id in myid
+            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
+
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
@@ -993,7 +1035,7 @@ HWADDR=%s
 
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
-                             '__contrail_redis_server_port__' : '6380',
+                             '__contrail_redis_server_port__' : '6379',
                              '__contrail_http_server_port__' : '8091',
                              '__contrail_collector__' : '127.0.0.1',
                              '__contrail_collector_port__' : '8086',
@@ -1006,8 +1048,8 @@ HWADDR=%s
                              '__contrail_log_local__': '0',
                              '__contrail_log_category__': '',
                              '__contrail_log_level__': 'SYS_DEBUG',
-                             '__contrail_redis_server_port__' : '6381',
-                             '__contrail_redis_query_port__' : '6380',
+                             '__contrail_redis_server_port__' : '6379',
+                             '__contrail_redis_query_port__' : '6379',
                              '__contrail_http_server_port__' : '8090',
                              '__contrail_rest_api_port__' : '8081',
                              '__contrail_host_ip__' : self_collector_ip, 
@@ -1069,7 +1111,6 @@ HWADDR=%s
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': keystone_ip,
-                             '__contrail_redis_ip__': self._args.redis_master_ip,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
@@ -1238,24 +1279,6 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/vnc_api_lib.ini')
             local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(temp_dir_name))
 
-            # set high session timeout to survive glance led disk activity
-            local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
-            local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
-            local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
-            local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
-            if pdist == 'fedora' or pdist == 'centos':
-                local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
-            if pdist == 'Ubuntu':
-                local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
-
-            zk_index = 1
-            for zk_ip in self._args.zookeeper_ip_list:
-                local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
-                zk_index = zk_index + 1
-
-            #put cluster-unique zookeeper's instance id in myid 
-            local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.cfgm_index)) 
-
             # Configure rabbitmq config file
             with settings(warn_only = True):
                 rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
@@ -1408,12 +1431,19 @@ HWADDR=%s
                     with lcd(temp_dir_name):
                         local("sudo sed 's/COLLECTOR=.*/COLLECTOR=%s/g;s/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" %(collector_ip, dev))
                         local("sudo mv agent_param.new /etc/contrail/agent_param")
+                vmware_dev = ""
+                hypervisor_type = "kvm"
+                if self._args.vmware:
+                    vmware_dev = self.get_secondary_device(dev)
+                    hypervisor_type = "vmware"
                 vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                     '__contrail_vhost_gateway__': gateway,
                     '__contrail_discovery_ip__': discovery_ip,
                     '__contrail_discovery_ncontrol__': ncontrols,
                     '__contrail_physical_intf__': dev,
                     '__contrail_control_ip__': compute_ip,
+                    '__hypervisor_type__': hypervisor_type,
+                    '__vmware_physical_interface__': vmware_dev,
                 }
                 self._template_substitute_write(vnswad_conf_template.template,
                         vnswad_conf_template_vals, temp_dir_name + '/vnswad.conf')
