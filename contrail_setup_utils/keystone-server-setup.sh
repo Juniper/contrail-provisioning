@@ -117,9 +117,7 @@ export SERVICE_PASSWORD
 
 # Update all config files with service username and password
 for svc in keystone; do
-if [ $is_ubuntu -eq 1 ] ; then
     openstack-config --del /etc/$svc/$svc.conf database connection
-fi
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
