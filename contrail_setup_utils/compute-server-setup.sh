@@ -96,8 +96,10 @@ openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_interval  0
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
-openstack-config --set /etc/nova/nova-compute.conf DEFAULT libvirt_type qemu
-openstack-config --del /etc/nova/nova-compute.conf libvirt 
+if [ -f /etc/nova/nova-compute.conf ]; then
+    openstack-config --set /etc/nova/nova-compute.conf DEFAULT libvirt_type qemu
+    openstack-config --del /etc/nova/nova-compute.conf libvirt 
+fi
 
 #use contrail specific vif driver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
