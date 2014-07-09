@@ -104,6 +104,8 @@ class SetupNFSLivem(object):
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                    if hostname == vmhost:
                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            #Set autostart vm after node reboot
+                            run('openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True')
                             #check for vgw interface
                             vgwifrunning=run('ifconfig|grep livemnfsvgw|wc -l')
                             if vgwifrunning == '0':
