@@ -26,7 +26,7 @@ function error_exit
 }
 
 # Exclude port 35357 from the available ephemeral port range
-sysctl -w net.ipv4.ip_local_reserved_ports=$(cat /proc/sys/net/ipv4/ip_local_reserved_ports),35357
+sysctl -w net.ipv4.ip_local_reserved_ports=35357,$(cat /proc/sys/net/ipv4/ip_local_reserved_ports)
 # Make the exclusion of port 35357 persistent
 grep 'net.ipv4.ip_local_reserved_ports = 35357' /etc/sysctl.d/keystone.conf > /dev/null 2>&1
 if [ $? -ne 0 ]; then
