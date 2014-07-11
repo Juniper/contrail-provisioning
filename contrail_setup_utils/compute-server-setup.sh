@@ -3,6 +3,7 @@
 if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
+   VIRT_TYPE_KVM=1
    nova_compute_ver=`rpm -q --qf  "%{VERSION}\n" openstack-nova-compute`
    if [ "$nova_compute_ver" == "2013.1" ]; then
    	OS_NET=quantum
@@ -36,6 +37,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    	ADMIN_AUTH_URL=quantum_admin_auth_url
    	OS_URL=quantum_url
    	OS_URL_TIMEOUT=quantum_url_timeout
+   	VIRT_TYPE_KVM=1
    else
    	OS_NET=neutron
    	TENANT_NAME=neutron_admin_tenant_name
@@ -44,6 +46,11 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    	ADMIN_AUTH_URL=neutron_admin_auth_url
    	OS_URL=neutron_url
    	OS_URL_TIMEOUT=neutron_url_timeout
+  	if [ "$nova_compute_version" == "2:2013.2.1-0ubuntu1" ]; then
+   		VIRT_TYPE_KVM=1
+  	else
+   		VIRT_TYPE_KVM=0
+	fi
    fi
 fi
 
@@ -97,8 +104,10 @@ openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_inte
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
 if [ -f /etc/nova/nova-compute.conf ]; then
-    openstack-config --set /etc/nova/nova-compute.conf DEFAULT libvirt_type qemu
-    openstack-config --del /etc/nova/nova-compute.conf libvirt 
+    if [ $VIRT_TYPE_KVM -eq 0 ]; then
+    	openstack-config --set /etc/nova/nova-compute.conf DEFAULT libvirt_type qemu
+    	openstack-config --del /etc/nova/nova-compute.conf libvirt 
+    fi
 fi
 
 #use contrail specific vif driver
