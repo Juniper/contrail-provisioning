@@ -23,7 +23,6 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
-   nova_pfx=openstack-nova
    nova_api_ver=`rpm -q --qf  "%{VERSION}\n" openstack-nova-api`
    echo $nova_api_ver
    if [ "$nova_api_ver" == "2013.1" ]; then
@@ -52,7 +51,6 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   nova_pfx=nova
    nova_api_version=`dpkg -l | grep 'ii' | grep nova-api | awk '{print $3}'`
    echo $nova_api_version
    if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
@@ -136,8 +134,18 @@ fi
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # must set SQL connection before running nova-manage
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:33306/nova
+fi
+
 for APP in nova; do
-  openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    fi
 done
 
 export ADMIN_TOKEN
@@ -152,7 +160,7 @@ for svc in nova; do
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host 127.0.0.1
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_host $AMQP_SERVER
 done
 
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
@@ -194,22 +202,49 @@ if [ $is_ubuntu -eq 1 ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 fi
 
+if [ "$INTERNAL_VIP" != "none" ]; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen_port 9774
+    openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 9775
+    openstack-config --set /etc/nova/nova.conf DEFAULT metadata_port 9775
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTROLLER:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:33306/nova
+    openstack-config --set /etc/nova/nova.conf database idle_timeout 180
+    openstack-config --set /etc/nova/nova.conf database min_pool_size 100
+    openstack-config --set /etc/nova/nova.conf database max_pool_size 700
+    openstack-config --set /etc/nova/nova.conf database max_overflow 100
+    openstack-config --set /etc/nova/nova.conf database retry_interval 5
+    openstack-config --set /etc/nova/nova.conf database max_retries -1
+    openstack-config --set /etc/nova/nova.conf database db_max_retries 3
+    openstack-config --set /etc/nova/nova.conf database db_retry_interval 1
+    openstack-config --set /etc/nova/nova.conf database connection_debug 10
+    openstack-config --set /etc/nova/nova.conf database pool_timeout 120
+fi
+
 echo "======= Enabling the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in api objectstore scheduler cert consoleauth novncproxy conductor; do
-    chkconfig $nova_pfx-$svc on
+for svc in supervisor-openstack; do
+    chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     service $svc restart
 done
 
-for svc in api objectstore scheduler cert consoleauth novncproxy conductor; do
-    service $nova_pfx-$svc restart
+for svc in supervisor-openstack; do
+    service $svc restart
 done

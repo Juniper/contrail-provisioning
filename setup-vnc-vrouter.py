@@ -18,6 +18,7 @@ class SetupVncVrouter(object):
 
         cfgm_ip = self._args.cfgm_ip
         keystone_ip = self._args.keystone_ip
+        internal_vip = self._args.internal_vip
         service_token = self._args.service_token
         ncontrols = self._args.ncontrols
         non_mgmt_ip = self._args.non_mgmt_ip
@@ -67,6 +68,8 @@ class SetupVncVrouter(object):
         if self._args.vmware:
             setup_args_str = setup_args_str + " --vmware %s --vmware_username %s --vmware_passwd %s --vmware_vmpg_vswitch %s" %(vmware_ip, vmware_username, vmware_passwd, vmware_vmpg_vswitch)
 
+        if internal_vip:
+            setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -77,7 +80,7 @@ class SetupVncVrouter(object):
         '''
         Eg. python setup-vnc-vrouter.py --cfgm_ip 10.1.5.11 --keystone_ip 10.1.5.12
                    --self_ip 10.1.5.12 --service_token 'c0ntrail123' --ncontrols 1
-                   --haproxy
+                   --haproxy --internal_vip 10.1.5.200
         '''
 
         # Source any specified config/ini file
@@ -156,6 +159,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
+        parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
 
         self._args = parser.parse_args(remaining_argv)
 

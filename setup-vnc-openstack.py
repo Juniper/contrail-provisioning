@@ -21,6 +21,8 @@ class SetupVncOpenstack(object):
         self_ip = self._args.self_ip
         cfgm_ip = self._args.cfgm_ip
         keystone_ip = self._args.keystone_ip
+        internal_vip = self._args.internal_vip
+        openstack_index = self._args.openstack_index
         service_token = self._args.service_token
         ks_auth_protocol = self._args.keystone_auth_protocol
         amqp_server_ip = self._args.amqp_server_ip
@@ -32,10 +34,15 @@ class SetupVncOpenstack(object):
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
         setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
         setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
+        if internal_vip:
+            setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
+        if openstack_index:
+            setup_args_str = setup_args_str + " --openstack_index %s" \
+                                 %(self._args.openstack_index)
         
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -46,6 +53,7 @@ class SetupVncOpenstack(object):
         '''
         Eg. python setup-vnc-openstack.py --self_ip 10.1.5.11 --cfgm_ip 10.1.5.12
                    --keystone_ip 10.1.5.13 --service_token c0ntrail123 --haproxy
+                   --internal_vip 10.1.5.100 --openstack_index 1
         '''
 
         # Source any specified config/ini file
@@ -89,6 +97,7 @@ class SetupVncOpenstack(object):
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
+        parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--quantum_service_protocol", 
@@ -97,6 +106,7 @@ class SetupVncOpenstack(object):
             help = "IP of the AMQP server to be used for openstack")
         parser.add_argument("--keystone_auth_protocol",
             help = "Auth protocol used to talk to keystone", default='http')
+        parser.add_argument("--openstack_index", help = "The index of this openstack node")
 
         self._args = parser.parse_args(remaining_argv)
 

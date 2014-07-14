@@ -8,7 +8,6 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
-   keystone_svc=openstack-keystone
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -16,7 +15,6 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   keystone_svc=keystone
 fi
 
 function error_exit
@@ -26,11 +24,13 @@ function error_exit
 }
 
 # Exclude port 35357 from the available ephemeral port range
-sysctl -w net.ipv4.ip_local_reserved_ports=35357,$(cat /proc/sys/net/ipv4/ip_local_reserved_ports)
+sysctl -w net.ipv4.ip_local_reserved_ports=35357,35358,$(cat /proc/sys/net/ipv4/ip_local_reserved_ports)
 # Make the exclusion of port 35357 persistent
-grep 'net.ipv4.ip_local_reserved_ports = 35357' /etc/sysctl.d/keystone.conf > /dev/null 2>&1
+grep '^net.ipv4.ip_local_reserved_ports' /etc/sysctl.conf > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo "net.ipv4.ip_local_reserved_ports = 35357" >> /etc/sysctl.d/keystone.conf
+    echo "net.ipv4.ip_local_reserved_ports = 35357,35358" >> /etc/sysctl.conf
+else
+    sed -i 's/net.ipv4.ip_local_reserved_ports\s*=\s*/net.ipv4.ip_local_reserved_ports=35357,35358,/' /etc/sysctl.conf
 fi
 
 chkconfig $mysql_svc 2>/dev/null
@@ -76,12 +76,12 @@ SERVICE_PASSWORD=${SERVICE_TOKEN:-$(/opt/contrail/contrail_installer/contrail_se
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_PASSWORD
 
 # Stop keystone if it is already running (to reload the new admin token)
-service $keystone_svc status >/dev/null 2>&1 &&
-service $keystone_svc stop
+service supervisor-openstack status >/dev/null 2>&1 &&
+service supervisor-openstack stop
 
 # Start and enable the Keystone service
-service $keystone_svc restart
-chkconfig $keystone_svc on
+service supervisor-openstack restart
+chkconfig supervisor-openstack on
 
 if [ ! -d /etc/keystone/ssl ]; then
     keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
@@ -105,8 +105,13 @@ export SERVICE_TOKEN=$SERVICE_PASSWORD
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 EOF
 
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
 for APP in keystone; do
-  openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    fi
 done
 
 # wait for the keystone service to start
@@ -121,7 +126,16 @@ done
 export ADMIN_PASSWORD
 export SERVICE_PASSWORD
 
-(source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $CONTROLLER)
+    fi
+else
+    (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+fi
+
+# Check if ADMIN/SERVICE Password has been set
 
 # Update all config files with service username and password
 for svc in keystone; do
@@ -136,11 +150,31 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
     openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
     openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd   
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd
     openstack-config --set /etc/$svc/$svc.conf memcache servers 127.0.0.1:11211
 done
 
-keystone-manage db_sync
+# Required only in first openstack node, as the mysql db is replicated using galera.
+if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+    keystone-manage db_sync
+fi
+
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # Openstack HA specific config
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:33306/keystone
+    openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
+    openstack-config --del /etc/keystone/keystone.conf memcache servers
+    openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
+    openstack-config --set /etc/keystone/keystone.conf database min_pool_size 100
+    openstack-config --set /etc/keystone/keystone.conf database max_pool_size 700
+    openstack-config --set /etc/keystone/keystone.conf database max_overflow 100
+    openstack-config --set /etc/keystone/keystone.conf database retry_interval 5
+    openstack-config --set /etc/keystone/keystone.conf database max_retries -1
+    openstack-config --set /etc/keystone/keystone.conf database db_max_retries -1
+    openstack-config --set /etc/keystone/keystone.conf database db_retry_interval 1
+    openstack-config --set /etc/keystone/keystone.conf database connection_debug 10
+    openstack-config --set /etc/keystone/keystone.conf database pool_timeout 120
+fi
 
 # Increase memcached 'item_size_max' to 2MB, default is 1MB
 # Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
@@ -176,15 +210,15 @@ fi
 
 echo "======= Enabling the keystone services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     service $svc restart
 done
 
-service $keystone_svc restart
+service supervisor-openstack restart
 

@@ -48,14 +48,33 @@ if test "$qpidd" && test "$rabbitmq"; then
   fi
 fi
 
+is_supervisor_managed() {
+  managed="no"
+  echo $1 | grep 'keystone' 2>/dev/null 1> /dev/null && managed='yes'
+  echo $1 | grep 'nova' 2>/dev/null 1> /dev/null && managed='yes'
+  echo $1 | grep 'glance' 2>/dev/null 1> /dev/null && managed='yes'
+  echo $1 | grep 'cinder' 2>/dev/null 1> /dev/null && managed='yes'
+  echo $1 | grep 'rabbitmq' 2>/dev/null 1> /dev/null && managed='yes'
+
+  echo $managed
+}
+
 service_installed() {
-  #PAGER= systemctl show $1.service >/dev/null 2>&1 ||
-  #chkconfig --list| grep $1 2>/dev/null
-  initctl show-config $1 2> /dev/null 1> /dev/null
+  supervisor_managed=$(is_supervisor_managed $1)
+  if [ $supervisor_managed = "yes" ]; then
+      service $1 status 2>&1 | grep -v "$1: unrecognized service" 2> /dev/null 1> /dev/null
+  else
+      PAGER= systemctl show $1.service >/dev/null 2>&1 ||
+      chkconfig --list| grep $1 2>/dev/null
+      initctl show-config $1 2> /dev/null 1> /dev/null
+  fi
 }
 
 service_enabled() {
-  if [ "$systemctl" ]; then
+  supervisor_managed=$(is_supervisor_managed $1)
+  if [ $supervisor_managed = "yes" ]; then
+      service $1 status 2>&1 | grep -v "$1: unrecognized service" 2> /dev/null 1> /dev/null
+  elif [ "$systemctl" ]; then
     systemctl --quiet is-enabled $1.service 2>/dev/null
   else
     #chkconfig --list| grep $1 2>/dev/null
@@ -88,7 +107,7 @@ check_sysv_svc() {
   install_status=$(service_installed $1 && echo installed || echo not-installed)
   if [ "$install_status" = 'installed' ]; then
       bootstatus=$(service_enabled $1 && echo enabled || echo disabled)
-      status=$(service $1 status | grep -s running  >/dev/null 2>/dev/null; lsb_to_string $?)
+      status=$(service $1 status | grep -s -i running  >/dev/null 2>/dev/null; lsb_to_string $?)
   else
       bootstatus='disabled'
       status='inactive'
