@@ -23,7 +23,6 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
-   cinder_pfx=openstack-cinder
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -31,7 +30,6 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   cinder_pfx=cinder
 fi
 
 function error_exit
@@ -87,8 +85,13 @@ export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
 for APP in cinder; do
-  openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    fi
 done
 
 export ADMIN_TOKEN
@@ -100,25 +103,40 @@ for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ "$INTERNAL_VIP" != "none" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 5000
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT osapi_volume_listen_port 9776
+        openstack-config --set /etc/$svc/$svc.conf database idle_timeout 180
+        openstack-config --set /etc/$svc/$svc.conf database min_pool_size 100
+        openstack-config --set /etc/$svc/$svc.conf database max_pool_size 700
+        openstack-config --set /etc/$svc/$svc.conf database max_overflow 100
+        openstack-config --set /etc/$svc/$svc.conf database retry_interval 5
+        openstack-config --set /etc/$svc/$svc.conf database max_retries -1
+        openstack-config --set /etc/$svc/$svc.conf database db_max_retries 3
+        openstack-config --set /etc/$svc/$svc.conf database db_retry_interval 1
+        openstack-config --set /etc/$svc/$svc.conf database connection_debug 10
+        openstack-config --set /etc/$svc/$svc.conf database pool_timeout 120
+    fi
 done
 
 echo "======= Enabling the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in api scheduler; do
-    chkconfig $cinder_pfx-$svc on
+for svc in supervisor-openstack; do
+    chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     service $svc restart
 done
 
-for svc in api scheduler; do
-    service $cinder_pfx-$svc restart
+for svc in supervisor-openstack; do
+    service $svc restart
 done
 

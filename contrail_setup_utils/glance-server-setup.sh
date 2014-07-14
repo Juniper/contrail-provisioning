@@ -23,7 +23,6 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
-   glance_pfx=openstack-glance
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -31,7 +30,6 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   glance_pfx=glance
 fi
 
 function error_exit
@@ -87,8 +85,27 @@ export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+for cfg in api registry; do
+    if [ $is_ubuntu -eq 1 ] ; then
+        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
+    fi
+    if [ "$INTERNAL_VIP" != "none" ]; then
+        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:glance@$CONTROLLER:33306/glance
+    fi
+done
+
 for APP in glance; do
-  openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        if [ $is_ubuntu -eq 1 ] ; then
+            glance-manage db_sync
+            chown glance /var/lib/glance/glance.sqlite
+            chgrp glance /var/lib/glance/glance.sqlite
+        fi
+    fi
 done
 
 export ADMIN_TOKEN
@@ -99,38 +116,50 @@ for cfg in api; do
 done
 
 for cfg in api registry; do
-    if [ $is_ubuntu -eq 1 ] ; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
-    fi	
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_idle_timeout 3600
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
+    if [ "$INTERNAL_VIP" != "none" ]; then
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $CONTROLLER
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 5000
+        openstack-config --set /etc/glance/glance-$cfg.conf database idle_timeout 180
+        openstack-config --set /etc/glance/glance-$cfg.conf database min_pool_size 100
+        openstack-config --set /etc/glance/glance-$cfg.conf database max_pool_size 700
+        openstack-config --set /etc/glance/glance-$cfg.conf database max_overflow 100
+        openstack-config --set /etc/glance/glance-$cfg.conf database retry_interval 5
+        openstack-config --set /etc/glance/glance-$cfg.conf database max_retries -1
+        openstack-config --set /etc/glance/glance-$cfg.conf database db_max_retries 3
+        openstack-config --set /etc/glance/glance-$cfg.conf database db_retry_interval 1
+        openstack-config --set /etc/glance/glance-$cfg.conf database connection_debug 10
+        openstack-config --set /etc/glance/glance-$cfg.conf database pool_timeout 120
+    fi
 done
-
-if [ $is_ubuntu -eq 1 ] ; then
-    glance-manage db_sync
-    chown glance /var/lib/glance/glance.sqlite
-    chgrp glance /var/lib/glance/glance.sqlite
-fi	
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # Openstack HA specific config
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_port 9393
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $CONTROLLER:5000/v2.0/
+fi
 
 echo "======= Enabling the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in api registry; do
-    chkconfig $glance_pfx-$svc on
+for svc in supervisor-openstack; do
+    chkconfig $svc on
 done
 
 echo "======= Starting the services ======"
 
-for svc in rabbitmq-server $web_svc memcached; do
+for svc in $web_svc memcached; do
     service $svc restart
 done
 
-for svc in api registry; do
-    service $glance_pfx-$svc restart
+for svc in supervisor-openstack; do
+    service $svc restart
 done

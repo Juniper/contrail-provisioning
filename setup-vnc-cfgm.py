@@ -17,6 +17,7 @@ class SetupVncCfgm(object):
         self._parse_args(args_str)
         self_ip = self._args.self_ip
         keystone_ip = self._args.keystone_ip
+        internal_vip = self._args.internal_vip
         collector_ip = self._args.collector_ip
         quantum_port = self._args.quantum_port
         nworkers = self._args.nworkers
@@ -26,6 +27,7 @@ class SetupVncCfgm(object):
         ks_auth_port = self._args.keystone_auth_port
         ks_admin_token = self._args.keystone_admin_token
         ks_insecure = self._args.keystone_insecure
+        amqp_server_ip = self._args.amqp_server_ip
 
         setup_args_str = "--role config "
         setup_args_str = setup_args_str + " --cfgm_ip %s --keystone_ip %s --collector_ip %s " \
@@ -36,6 +38,7 @@ class SetupVncCfgm(object):
         setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
         setup_args_str = setup_args_str + " --ks_admin_token %s" %(ks_admin_token)
         setup_args_str = setup_args_str + " --ks_insecure %s" %(ks_insecure)
+        setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
 
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
@@ -51,6 +54,8 @@ class SetupVncCfgm(object):
                              %(' '.join(self._args.zookeeper_ip_list))    
         if self._args.haproxy:
             setup_args_str = setup_args_str + " --haproxy"
+        if internal_vip:
+            setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
         setup_obj.run_services()
@@ -64,7 +69,7 @@ class SetupVncCfgm(object):
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --nworkers 1
             optional: --use_certs, --multi_tenancy --haproxy
-                      --region_name <name>
+                      --region_name <name> --internal_vip 10.1.5.100
         '''
 
         # Source any specified config/ini file
@@ -87,6 +92,7 @@ class SetupVncCfgm(object):
             'region_name': None,
             'ks_auth_protocol':'http',
             'ks_auth_port':'35357',
+            'amqp_server_ip':'127.0.0.1'
         }
 
         if args.conf_file:
@@ -138,6 +144,9 @@ class SetupVncCfgm(object):
             default = '1')
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--region_name", help = "The Region name for the openstack")
+        parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
+        parser.add_argument("--amqp_server_ip",
+            help = "IP of the AMQP server to be used for neutron and api server")
   
         self._args = parser.parse_args(remaining_argv)
 

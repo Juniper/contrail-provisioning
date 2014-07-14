@@ -29,7 +29,7 @@ import platform
 import tempfile
 from fabric.api import local, env, run
 from fabric.operations import get, put
-from fabric.context_managers import lcd, settings
+from fabric.context_managers import lcd, settings, hide
 from fabric.api import local, env, run
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
@@ -83,6 +83,12 @@ from contrail_config_templates import ifmap_basicauthusers_template
 from contrail_config_templates import ifmap_authorization_template
 from contrail_config_templates import ifmap_publisher_template
 from contrail_config_templates import ifmap_log4j_template
+from contrail_config_templates import keepalived_conf_template
+from contrail_config_templates import galera_param_template
+from contrail_config_templates import cmon_param_template
+from contrail_config_templates import cmon_conf_template
+from contrail_config_templates import wsrep_conf_template
+from contrail_config_templates import wsrep_conf_centos_template
 
 CONTRAIL_FEDORA_TEMPL = string.Template("""
 [contrail_fedora_repo]
@@ -154,6 +160,7 @@ class Setup(object):
             'ks_auth_protocol':'http',
             'ks_auth_port':'35357',
             'ks_insecure':'False',
+            'amqp_server_ip': '127.0.0.1',
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -162,6 +169,9 @@ class Setup(object):
             'ks_auth_protocol':'http',
             'amqp_server_ip': '127.0.0.1',
             'quantum_service_protocol':'http',
+            'mgmt_self_ip' : None,
+            'internal_vip' : None,
+            'external_vip' : None,
         }
         control_node_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -230,7 +240,10 @@ class Setup(object):
         parser.add_argument("--role", action = 'append', 
                             help = "Role of server (config, openstack, control, compute, collector, webui, database")
         parser.add_argument("--cfgm_ip", help = "IP Address of Configuration Node")
+        parser.add_argument("--mgmt_self_ip", help = "Managment IP Address of any Node")
         parser.add_argument("--openstack_ip", help = "IP Address of Openstack Node")
+        parser.add_argument("--internal_vip", help = "Internal VIP Address of HA Openstack Nodes")
+        parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--keystone_ip", help = "IP Address of Keystone Node")
         parser.add_argument("--openstack_mgmt_ip", help = "Management IP Address of Openstack Node")
         parser.add_argument("--collector_ip", help = "IP Address of Collector Node")
@@ -262,6 +275,8 @@ class Setup(object):
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
         parser.add_argument("--database_index", help = "Index of this cfgm node")
+        parser.add_argument("--galera_ip_list", help = "IP Addresses of Galera servers", nargs = '+', type = str)
+        parser.add_argument("--openstack_index", help = "Index of this openstack node", type = int)
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
             help="Number of API/discovery worker processes to be launched",
@@ -815,15 +830,23 @@ HWADDR=%s
                     local("bash -c 'source ../bin/activate && pip install *'")
 
         if 'openstack' in self._args.role:
+            pdist = platform.dist()[0]
+            if pdist in ['Ubuntu']:
+                mysql_conf = '/etc/mysql/my.cnf'
+            elif pdist in ['centos']:
+                mysql_conf = '/etc/my.cnf'
+            local('sed -i -e "s/bind-address/#bind-address/" %s' % mysql_conf)
             self.service_token = self._args.service_token
             if not self.service_token:
                 local("sudo ./contrail_setup_utils/setup-service-token.sh")
             # configure the rabbitmq config file.
             with settings(warn_only = True):
                 rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
-                if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                if not local('grep \"tcp_listeners.*%s.*5672\" %s' % (cfgm_ip, rabbit_conf)).succeeded:
                     local('sudo echo "[" >> %s' % rabbit_conf)
-                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"%s\\", 5672}]}," >> %s' % (cfgm_ip, rabbit_conf))
+                    local('sudo echo "   {loopback_users, []}," >> %s' % rabbit_conf)
+                    local('sudo echo "   {log_levels,[{connection, info},{mirroring, info}]} ]" >> %s' % rabbit_conf)
                     local('sudo echo "    }" >> %s' % rabbit_conf)
                     local('sudo echo "]." >> %s' % rabbit_conf)
 
@@ -843,10 +866,9 @@ HWADDR=%s
                 local("sudo sed -i 's/admin_user = /;admin_user = /' /etc/cinder/api-paste.ini")
                 local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
 
-
         if 'compute' in self._args.role or 'openstack' in self._args.role:
             with settings(warn_only = True):
-                local("echo 'rabbit_host = %s' >> /etc/nova/nova.conf" %(self._args.amqp_server_ip))
+                local("openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host %s" % self._args.amqp_server_ip)
 
         if 'compute' in self._args.role:
             with settings(warn_only = True):
@@ -854,7 +876,7 @@ HWADDR=%s
                     cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
                     nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
-                        local("echo 'neutron_admin_auth_url = http://%s:5000/v2.0' >> /etc/nova/nova.conf" %(self._args.keystone_ip))
+                        local("openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://%s:5000/v2.0" % self._args.keystone_ip)
 
             if os.path.exists(nova_conf_file):
                 local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
@@ -887,6 +909,7 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
+            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % self._args.amqp_server_ip)
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -902,6 +925,10 @@ HWADDR=%s
                     local("echo 'VMWARE_PASSWD=%s' >> %s/ctrl-details" %(self._args.vmware_passwd, temp_dir_name))
                     local("echo 'VMWARE_VMPG_VSWITCH=%s' >> %s/ctrl-details" %(self._args.vmware_vmpg_vswitch, temp_dir_name))
 
+            if self._args.internal_vip:
+                local("echo 'INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
+            if self._args.openstack_index:
+                local("echo 'OPENSTACK_INDEX=%s' >> %s/ctrl-details" % (self._args.openstack_index, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
             local("rm %s/ctrl-details" %(temp_dir_name))
             if os.path.exists("/etc/neutron/neutron.conf"):
@@ -1071,6 +1098,11 @@ HWADDR=%s
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
             zk_servers = ','.join(self._args.zookeeper_ip_list)
             zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+            rabbit_host = cfgm_ip
+            rabbit_port = 5672
+            if self._args.internal_vip:
+                rabbit_host = self._args.internal_vip
+                rabbit_port = 5673
 
             if pdist == 'Ubuntu':
                 # log4j.properties
@@ -1111,6 +1143,8 @@ HWADDR=%s
                              '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': keystone_ip,
+                             '__rabbit_server_ip__': self._args.internal_vip or rabbit_host,
+                             '__rabbit_server_port__': rabbit_port,
                              '__contrail_admin_user__': ks_admin_user,
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
@@ -1121,7 +1155,7 @@ HWADDR=%s
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                              '__contrail_log_file__': '/var/log/contrail/api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
-                             '__contrail_disc_server_ip__': cfgm_ip,
+                             '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                             }
@@ -1158,7 +1192,7 @@ HWADDR=%s
             local("sudo chmod a+x /etc/init.d/contrail-api")
 
             # quantum plugin
-            template_vals = {'__contrail_api_server_ip__': cfgm_ip,
+            template_vals = {'__contrail_api_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_multi_tenancy__': self._args.multi_tenancy,
                              '__contrail_keystone_ip__': '127.0.0.1',
@@ -1182,7 +1216,7 @@ HWADDR=%s
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'schema-transformer',
                              '__contrail_ifmap_password__': 'schema-transformer',
-                             '__contrail_api_server_ip__': cfgm_ip,
+                             '__contrail_api_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                              '__contrail_use_certs__': use_certs,
@@ -1195,7 +1229,7 @@ HWADDR=%s
                              '__contrail_admin_token__': ks_admin_token,
                              '__contrail_log_file__' : '/var/log/contrail/schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
-                             '__contrail_disc_server_ip__': cfgm_ip,
+                             '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                             }
             self._template_substitute_write(schema_transformer_conf_template.template,
@@ -1207,7 +1241,7 @@ HWADDR=%s
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'svc-monitor',
                              '__contrail_ifmap_password__': 'svc-monitor',
-                             '__contrail_api_server_ip__': cfgm_ip,
+                             '__contrail_api_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_api_server_port__': '8082',
                              '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
@@ -1221,7 +1255,7 @@ HWADDR=%s
                              '__contrail_admin_token__': ks_admin_token,
                              '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
-                             '__contrail_disc_server_ip__': cfgm_ip,
+                             '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                              '__contrail_region_name__': region_name,
                             }
@@ -1282,9 +1316,11 @@ HWADDR=%s
             # Configure rabbitmq config file
             with settings(warn_only = True):
                 rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
-                if not local('grep \"tcp_listeners.*0.0.0.0.*5672\" %s' % rabbit_conf).succeeded:
+                if not local('grep \"tcp_listeners.*%s.*5672\" %s' % (cfgm_ip, rabbit_conf)).succeeded:
                     local('sudo echo "[" >> %s' % rabbit_conf)
-                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"0.0.0.0\\", 5672}]} ]" >> %s' % rabbit_conf)
+                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"%s\\", 5672}]}," >> %s' % (cfgm_ip, rabbit_conf))
+                    local('sudo echo "   {loopback_users, []}," >> %s' % rabbit_conf)
+                    local('sudo echo "   {log_levels,[{connection, info},{mirroring, info}]} ]" >> %s' % rabbit_conf)
                     local('sudo echo "    }" >> %s' % rabbit_conf)
                     local('sudo echo "]." >> %s' % rabbit_conf)
 
@@ -1629,7 +1665,12 @@ SUBCHANNELS=1,2,3
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
             region_name = self._args.region_name
-            quantum_ip = self._args.cfgm_ip
+            if self._args.internal_vip:
+                # Assumption cfgm and openstack in same node.
+                # TO DO: When we introduce contrail_vip for cfgm nodes, this needs to be revisited.
+                quantum_ip = self._args.internal_vip
+            else:
+                quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
@@ -1722,6 +1763,202 @@ SUBCHANNELS=1,2,3
     #end run_services
 
 #end class Setup
+
+
+class KeepalivedSetup(Setup):
+    def fixup_config_files(self):
+        vip_for_ips = [(self._args.internal_vip, self._args.openstack_ip)]
+        if self._args.external_vip:
+            vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip))
+        for vip, ip in vip_for_ips:
+            # keepalived.conf
+            device = self.get_device_by_ip(ip)
+            netmask = netifaces.ifaddresses(device)[netifaces.AF_INET][0]['netmask']
+            prefix = netaddr.IPNetwork('%s/%s' % (ip, netmask)).prefixlen
+            state = 'BACKUP'
+            priority = '%s00' % str(vip_for_ips.index((vip, ip)) + 1)
+            if self._args.openstack_index == 1:
+                state = 'MASTER'
+                priority = '%s01' % str(vip_for_ips.index((vip, ip)) + 1)
+            vip_str = '_'.join(vip.split('.'))
+            router_id = vip.split('.')[3]
+            template_vals = {'__device__': device,
+                             '__router_id__' : router_id,
+                             '__state__' : state,
+                             '__priority__' : priority,
+                             '__virtual_ip__' : vip,
+                             '__virtual_ip_mask__' : prefix,
+                             '__vip_str__' : vip_str
+                            }
+            data = self._template_substitute(keepalived_conf_template.template,
+                                      template_vals)
+            with open(self._temp_dir_name + '/keepalived.conf', 'a+') as fp:
+                fp.write(data)
+        local("sudo mv %s/keepalived.conf /etc/keepalived/" %(self._temp_dir_name))
+
+    def run_services(self):
+        local("service keepalived restart")
+
+
+class OpenstackGaleraSetup(Setup):
+    def fixup_config_files(self):
+        # fix galera_param
+        template_vals = {'__mysql_wsrep_nodes__' : 
+                         '"' + '" "'.join(self._args.galera_ip_list) + '"'}
+        self._template_substitute_write(galera_param_template.template,
+                                        template_vals,
+                                        self._temp_dir_name + '/galera_param')
+        local("sudo mv %s/galera_param /etc/contrail/ha/" % (self._temp_dir_name))
+
+        # fix cmon_param
+        template_vals = {'__internal_vip__' :self._args.internal_vip}
+        self._template_substitute_write(cmon_param_template.template,
+                                        template_vals,
+                                        self._temp_dir_name + '/cmon_param')
+        local("sudo mv %s/cmon_param /etc/contrail/ha/" % (self._temp_dir_name))
+
+        local("echo %s >> /etc/contrail/galeraid" % self._args.openstack_index)
+        pdist = platform.dist()[0]
+        if pdist in ['Ubuntu']:
+            local("ln -sf /bin/true /sbin/chkconfig")
+            self.mysql_svc = 'mysql'
+            self.mysql_conf = '/etc/mysql/my.cnf'
+            wsrep_conf = '/etc/mysql/conf.d/wsrep.cnf'
+            wsrep_conf_file = 'wsrep.cnf'
+            wsrep_template = wsrep_conf_template.template
+        elif pdist in ['centos']:
+            self.mysql_svc = 'mysqld'
+            self.mysql_conf = '/etc/my.cnf'
+            wsrep_conf = self.mysql_conf
+            wsrep_conf_file = 'my.cnf'
+            wsrep_template = wsrep_conf_centos_template.template
+        self.mysql_token_file = '/etc/contrail/mysql.token'
+
+        self.install_mysql_db()
+        if self._args.openstack_index == 1:
+            self.create_mysql_token_file()
+        else:
+            self.get_mysql_token_file()
+        self.set_mysql_root_password()
+        self.setup_grants()
+        self.setup_cmon_tables()
+        self.setup_cmon_grants()
+        self.setup_cron()
+
+        # fixup mysql/wsrep config
+        local('sed -i -e "s/bind-address/#bind-address/" %s' % self.mysql_conf)
+        local('sed -ibak "s/max_connections.*/max_connections=10000/" %s' % self.mysql_conf)
+        local('sed -i -e "s/key_buffer/#key_buffer/" %s' % self.mysql_conf)
+        local('sed -i -e "s/max_allowed_packet/#max_allowed_packet/" %s' % self.mysql_conf)
+        local('sed -i -e "s/thread_stack/#thread_stack/" %s' % self.mysql_conf)
+        local('sed -i -e "s/thread_cache_size/#thread_cache_size/" %s' % self.mysql_conf)
+        local('sed -i -e "s/myisam-recover/#myisam-recover/" %s' % self.mysql_conf)
+        if self._args.openstack_index == 1:
+            wsrep_cluster_address= ''
+        else:
+            wsrep_cluster_address =  (':4567,'.join(self._args.galera_ip_list) + ':4567')
+        template_vals = {'__wsrep_nodes__' : wsrep_cluster_address,
+                         '__wsrep_node_address__' : self._args.openstack_ip,
+                         '__mysql_token__' : self.mysql_token
+                        }
+        self._template_substitute_write(wsrep_template, template_vals,
+                                self._temp_dir_name + '/%s' % wsrep_conf_file)
+        local("sudo mv %s/%s %s" % (self._temp_dir_name, wsrep_conf_file,
+                                    wsrep_conf))
+
+        # fixup cmon config
+        template_vals = {'__mysql_nodes__' : ','.join(self._args.galera_ip_list),
+                         '__mysql_node_address__' : self._args.openstack_ip,
+                        }
+        self._template_substitute_write(cmon_conf_template.template, template_vals,
+                                        self._temp_dir_name + '/cmon.cnf')
+        local("sudo mv %s/cmon.cnf /etc/cmon.cnf" % (self._temp_dir_name))
+
+    def install_mysql_db(self):
+        local('chkconfig %s on' % self.mysql_svc)
+        local('chown -R mysql:mysql /var/lib/mysql/')
+        with settings(warn_only=True):
+            install_db = local("service %s restart" % self.mysql_svc).failed
+        if install_db:
+            local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            local("service %s restart" % self.mysql_svc)
+
+    def create_mysql_token_file(self):
+        # Use MYSQL_ROOT_PW from the environment or generate a new password
+        if os.path.isfile(self.mysql_token_file):
+            self.mysql_token = local('cat %s' % self.mysql_token_file, capture=True).strip()
+        else:
+            if os.environ.get('MYSQL_ROOT_PW'):
+                self.mysql_token = os.environ.get('MYSQL_ROOT_PW')
+            else:
+                 self.mysql_token = local('openssl rand -hex 10', capture=True).strip()
+            local("echo %s > %s" % (self.mysql_token, self.mysql_token_file))
+            local("chmod 400 %s" % self.mysql_token_file)
+
+    def get_mysql_token_file(self):
+        retries = 5
+        if not os.path.isfile(self.mysql_token_file):
+            while retries:
+                with settings(host_string = 'root@%s' % (self._args.galera_ip_list[0]),
+                              password=env.password, warn_only=True):
+                    if get('%s' % self.mysql_token_file, '/etc/contrail/').failed:
+                        time.sleep(1)
+                        retries -= 1
+                        print " Retry(%s) to get the %s." % ((5 - retries), self.mysql_token_file)
+                    else:
+                        break
+        self.mysql_token = local('cat %s' % self.mysql_token_file, capture=True).strip()
+
+    def set_mysql_root_password(self):
+        # Set root password for mysql
+        with settings(warn_only=True):
+            if local('echo show databases |mysql -u root > /dev/null').succeeded:
+                local('mysqladmin password %s' % self.mysql_token)
+            elif local('echo show databases |mysql -u root -p%s> /dev/null' % self.mysql_token).succeeded:
+                print "Mysql root password is already set to '%s'" % self.mysql_token
+            else:
+                raise RuntimeError("MySQL root password unknown, reset and retry")
+
+    def setup_grants(self):
+        mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
+        host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
+        for host in host_list:
+            local('%s "SET WSREP_ON=0;SET SQL_LOG_BIN=0; GRANT ALL ON *.* TO root@%s IDENTIFIED BY \'%s\'"' %
+                   (mysql_cmd, host, self.mysql_token))
+        local('%s "SET wsrep_on=OFF; DELETE FROM mysql.user WHERE user=\'\'"' % mysql_cmd)
+        local('%s "FLUSH PRIVILEGES"' % mysql_cmd)
+
+    def setup_cmon_tables(self):
+        local('mysql -u root -p%s -e "CREATE SCHEMA IF NOT EXISTS cmon"' % self.mysql_token)
+        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_db.sql' % self.mysql_token)
+        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_data.sql' % self.mysql_token)
+
+    def setup_cmon_grants(self):
+        mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
+        host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
+        for host in host_list:
+            local('%s "GRANT ALL PRIVILEGES on *.* TO cmon@%s IDENTIFIED BY \'cmon\' WITH GRANT OPTION"' %
+                   (mysql_cmd, host))
+
+    def setup_cron(self):
+        with settings(hide('everything'), warn_only=True):
+            local('crontab -l > %s/galera_cron' % self._temp_dir_name)
+        local('echo "0 0 * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
+        local('echo "*/1 * * * * /opt/contrail/bin/contrail-cmon-monitor.sh" >> %s/galera_cron' % self._temp_dir_name)
+        local('crontab %s/galera_cron' % self._temp_dir_name)
+        local('rm %s/galera_cron' % self._temp_dir_name)
+
+    def run_services(self):
+        if self._args.openstack_index == 1:
+            local("service %s restart" % self.mysql_svc)
+            local("service cmon restart")
+        else:
+            # Wait for the first galera node to create new cluster.
+            time.sleep(5)
+            local("service %s restart" % self.mysql_svc)
+        local("sudo update-rc.d -f mysql remove")
+        local("sudo update-rc.d mysql defaults")
+
 
 def main(args_str = None):
     setup_obj = Setup(args_str)

@@ -13,7 +13,7 @@ log4j.appender.A1.layout=org.apache.log4j.PatternLayout
 log4j.appender.A1.layout.ConversionPattern=%d [%t] %-5p %x - %m%n
 
 log4j.appender.A2=org.apache.log4j.FileAppender
-log4j.appender.A2.File=irond.log
+log4j.appender.A2.File=/var/log/contrail/ifmap-server.log
 log4j.appender.A2.layout=org.apache.log4j.PatternLayout
 log4j.appender.A2.layout.ConversionPattern=%d [%t] %-5p %x - %m%n
 
