@@ -31,6 +31,13 @@ sys.path.insert(0, os.getcwd())
 
 class SetupCeph(object):
 
+    global CINDER_CONFIG_FILE
+    CINDER_CONFIG_FILE='/etc/cinder/cinder.conf'
+    global NOVA_CONFIG_FILE
+    NOVA_CONFIG_FILE='/etc/nova/nova.conf'
+    global CEPH_CONFIG_FILE
+    CEPH_CONFIG_FILE='/etc/ceph/ceph.conf'
+
     def reset_mon_local_list(self):
 	local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
 	local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
@@ -127,6 +134,333 @@ class SetupCeph(object):
         if rest_api_conf_available != '0':
             local('sudo rm -rf /etc/init/ceph-rest-api.conf', shell='/bin/bash')
 
+    def set_pg_pgp_count(self, osd_num, pool):
+
+        # Calculate num PGs 
+        raw_pg_count = (osd_num * 100) / 2
+        bit_mask = raw_pg_count
+        power_val = 0
+        while True:
+            bit_mask = bit_mask >> 1
+            if bit_mask == 0:
+                break
+            power_val = power_val + 1
+        #print power_val
+        pg_count = 2**power_val
+        #print pg_count
+        if pg_count < raw_pg_count:
+            pg_count = 2**(power_val+1)
+        print pg_count
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+        while True:
+            ret=local('sudo ceph osd pool get %s pg_num | awk \'{print $2}\'' %(pool), shell='/bin/bash', capture=True)
+            if ret != str(pg_count):
+                print 'Waiting to Set the pg num'
+                time.sleep(5)
+                local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+            else:
+                break
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
+        while True:
+            ret=local('sudo ceph osd pool get %s pgp_num | awk \'{print $2}\'' %(pool), shell='/bin/bash', capture=True)
+            if ret != str(pg_count):
+                print 'Waiting to Set the pg num'
+                time.sleep(5)
+                local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
+            else:
+                break
+
+    # Create HDD/SSD Pool 
+    def create_hdd_ssd_pool(self):
+        local('sudo ceph osd getcrushmap -o /tmp/ma-crush-map')
+        local('sudo crushtool -d /tmp/ma-crush-map -o /tmp/ma-crush-map.txt')
+        print self._args
+        host_hdd_dict = {}
+        host_ssd_dict = {}
+        host_hdd_dict['totalcount'] = 0
+        host_ssd_dict['totalcount'] = 0
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            host_hdd_dict[hostname, 'count'] = 0
+            host_ssd_dict[hostname, 'count'] = 0
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            for disks in self._args.storage_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        osddet=run('sudo mount | grep %s | awk \'{ print $3 }\'' %(disksplit[1]), shell='/bin/bash')
+                        osdnum=osddet.split('-')[1]
+                        #host_hdd_dict[hostname, host_hdd_dict[hostname,'count']] = disksplit[1] + ':' + osdnum
+                        host_hdd_dict[hostname, host_hdd_dict[hostname,'count']] = osdnum
+                        host_hdd_dict[hostname, 'count'] += 1
+                        host_hdd_dict['totalcount'] += 1
+            for disks in self._args.storage_ssd_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        osddet=run('sudo mount | grep %s | awk \'{ print $3 }\'' %(disksplit[1]), shell='/bin/bash')
+                        osdnum=osddet.split('-')[1]
+                        #host_ssd_dict[hostname, host_ssd_dict[hostname,'count']] = disksplit[1] + ':' + osdnum
+                        host_ssd_dict[hostname, host_ssd_dict[hostname,'count']] = osdnum
+                        host_ssd_dict[hostname, 'count'] += 1
+                        host_ssd_dict['totalcount'] += 1
+        #print host_hdd_dict
+        #print host_ssd_dict
+
+        # Configure Crush map
+        # Add host entries
+        local('sudo cat /tmp/ma-crush-map.txt |grep -v "^# end" > /tmp/ma-crush-map-new.txt')
+        cur_id=int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |wc -l', capture=True))
+        cur_id += 1
+        #print cur_id
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            if host_hdd_dict[hostname, 'count'] != 0:
+                local('sudo echo host %s-hdd { >> /tmp/ma-crush-map-new.txt' %(hostname))
+                local('sudo echo "        id -%d" >> /tmp/ma-crush-map-new.txt' %(cur_id))
+                cur_id += 1
+                local('sudo echo "        alg straw" >> /tmp/ma-crush-map-new.txt')
+                local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-new.txt')
+                hsthddcnt=host_hdd_dict[hostname, 'count']
+                while hsthddcnt != 0:
+                    hsthddcnt -= 1
+                    local('sudo echo "        item osd.%s weight 1.000" >> /tmp/ma-crush-map-new.txt' %(host_hdd_dict[hostname, hsthddcnt]))
+                local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+                local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            if host_ssd_dict[hostname, 'count'] != 0:
+                local('sudo echo host %s-ssd { >> /tmp/ma-crush-map-new.txt' %(hostname))
+                local('sudo echo "        id -%d" >> /tmp/ma-crush-map-new.txt' %(cur_id))
+                cur_id += 1
+                local('sudo echo "        alg straw" >> /tmp/ma-crush-map-new.txt')
+                local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-new.txt')
+                hstssdcnt=host_ssd_dict[hostname, 'count']
+                while hstssdcnt != 0:
+                    hstssdcnt -= 1
+                    local('sudo echo "        item osd.%s weight 1.000" >> /tmp/ma-crush-map-new.txt' %(host_ssd_dict[hostname, hstssdcnt]))
+                local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+                local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+
+        # Add root entries for hdd/ssd
+        local('sudo echo "root hdd {" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        id -%d" >> /tmp/ma-crush-map-new.txt' %(cur_id))
+        cur_id += 1
+        local('sudo echo "        alg straw" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-new.txt')
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            if host_hdd_dict[hostname, 'count'] != 0:
+                local('sudo echo "        item %s-hdd weight %s.000" >> /tmp/ma-crush-map-new.txt' %(hostname, host_hdd_dict[hostname, 'count']))
+        local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+
+        local('sudo echo "root ssd {" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        id -%d" >> /tmp/ma-crush-map-new.txt' %(cur_id))
+        cur_id += 1
+        local('sudo echo "        alg straw" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-new.txt')
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            if host_ssd_dict[hostname, 'count'] != 0:
+                local('sudo echo "        item %s-ssd weight %s.000" >> /tmp/ma-crush-map-new.txt' %(hostname, host_ssd_dict[hostname, 'count']))
+        local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+
+        # Add ruleset for hdd/ssd
+        rule_id=int(local('sudo cat /tmp/ma-crush-map.txt |grep "ruleset " |wc -l', capture=True))
+        local('sudo echo "rule hdd {" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        ruleset %d" >> /tmp/ma-crush-map-new.txt' %(rule_id))
+        hdd_rule_set = rule_id
+        rule_id += 1
+        local('sudo echo "        type replicated" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        min_size 0" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        max_size 10" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step take hdd" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step chooseleaf firstn 0 type host" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step emit" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+
+        local('sudo echo "rule ssd {" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        ruleset %d" >> /tmp/ma-crush-map-new.txt' %(rule_id))
+        ssd_rule_set = rule_id
+        rule_id += 1
+        local('sudo echo "        type replicated" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        min_size 0" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        max_size 10" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step take ssd" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step chooseleaf firstn 0 type host" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "        step emit" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "}" >> /tmp/ma-crush-map-new.txt')
+        local('sudo echo "" >> /tmp/ma-crush-map-new.txt')
+     
+        # Apply the  new crush map
+        local('sudo crushtool -c /tmp/ma-crush-map-new.txt -o /tmp/ma-newcrush-map')
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
+        
+        # Create HDD/SSD pools
+        local('sudo rados mkpool volumes_hdd')
+        local('sudo rados mkpool volumes_ssd')
+        local('sudo ceph osd pool set volumes_hdd crush_ruleset %d' %(hdd_rule_set))
+        local('sudo ceph osd pool set volumes_ssd crush_ruleset %d' %(ssd_rule_set))
+
+        # Set replica size based on count
+        if host_hdd_dict['totalcount'] <= 1:
+            local('sudo ceph osd pool set volumes_hdd size 1')
+
+        if host_ssd_dict['totalcount'] <= 1:
+            local('sudo ceph osd pool set volumes_ssd size 1')
+
+        # Set PG/PGPs for HDD/SSD Pool
+        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
+        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd')
+
+    # Add a new node osds to HDD/SSD pool
+    def add_to_hdd_ssd_pool(self):
+        add_storage_node = self._args.add_storage_node
+        local('sudo ceph osd getcrushmap -o /tmp/ma-crush-map')
+        local('sudo crushtool -d /tmp/ma-crush-map -o /tmp/ma-crush-map.txt')
+        #print self._args
+
+        # Add host entries to the existing map
+        host_hdd_dict = {}
+        host_ssd_dict = {}
+        host_hdd_dict['totalcount'] = 0
+        host_ssd_dict['totalcount'] = 0
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            host_hdd_dict[hostname, 'count'] = 0
+            host_ssd_dict[hostname, 'count'] = 0
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            for disks in self._args.storage_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        osddet=run('sudo mount | grep %s | awk \'{ print $3 }\'' %(disksplit[1]), shell='/bin/bash')
+                        osdnum=osddet.split('-')[1]
+                        #host_hdd_dict[hostname, host_hdd_dict[hostname,'count']] = disksplit[1] + ':' + osdnum
+                        host_hdd_dict[hostname, host_hdd_dict[hostname,'count']] = osdnum
+                        host_hdd_dict[hostname, 'count'] += 1
+                        host_hdd_dict['totalcount'] += 1
+            for disks in self._args.storage_ssd_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        osddet=run('sudo mount | grep %s | awk \'{ print $3 }\'' %(disksplit[1]), shell='/bin/bash')
+                        osdnum=osddet.split('-')[1]
+                        #host_ssd_dict[hostname, host_ssd_dict[hostname,'count']] = disksplit[1] + ':' + osdnum
+                        host_ssd_dict[hostname, host_ssd_dict[hostname,'count']] = osdnum
+                        host_ssd_dict[hostname, 'count'] += 1
+                        host_ssd_dict['totalcount'] += 1
+        #print host_hdd_dict
+        #print host_ssd_dict
+        local('sudo cat /tmp/ma-crush-map.txt |grep -v "^# end" > /tmp/ma-crush-map-new.txt')
+        cur_id=int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |wc -l', capture=True))
+        cur_id += 1
+
+        root_line_str=local('cat /tmp/ma-crush-map-new.txt |grep -n \"root hdd\"', capture=True)
+        root_line_num=int(root_line_str.split(":")[0])
+        root_line_num-=1
+        local('cat /tmp/ma-crush-map-new.txt | head -n %d > /tmp/ma-crush-map-tmp.txt' %(root_line_num))
+        root_line_num+=1
+
+        #print cur_id
+        if host_hdd_dict[add_storage_node, 'count'] != 0:
+            local('sudo echo host %s-hdd { >> /tmp/ma-crush-map-tmp.txt' %(add_storage_node))
+            local('sudo echo "        id -%d" >> /tmp/ma-crush-map-tmp.txt' %(cur_id))
+            cur_id += 1
+            local('sudo echo "        alg straw" >> /tmp/ma-crush-map-tmp.txt')
+            local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-tmp.txt')
+            hsthddcnt=host_hdd_dict[add_storage_node, 'count']
+            while hsthddcnt != 0:
+                hsthddcnt -= 1
+                local('sudo echo "        item osd.%s weight 1.000" >> /tmp/ma-crush-map-tmp.txt' %(host_hdd_dict[add_storage_node, hsthddcnt]))
+            local('sudo echo "}" >> /tmp/ma-crush-map-tmp.txt')
+            local('sudo echo "" >> /tmp/ma-crush-map-tmp.txt')
+
+        if host_ssd_dict[add_storage_node, 'count'] != 0:
+            local('sudo echo host %s-ssd { >> /tmp/ma-crush-map-tmp.txt' %(add_storage_node))
+            local('sudo echo "        id -%d" >> /tmp/ma-crush-map-tmp.txt' %(cur_id))
+            cur_id += 1
+            local('sudo echo "        alg straw" >> /tmp/ma-crush-map-tmp.txt')
+            local('sudo echo "        hash 0 #rjenkins1" >> /tmp/ma-crush-map-tmp.txt')
+            hstssdcnt=host_ssd_dict[add_storage_node, 'count']
+            while hstssdcnt != 0:
+                hstssdcnt -= 1
+                local('sudo echo "        item osd.%s weight 1.000" >> /tmp/ma-crush-map-tmp.txt' %(host_ssd_dict[add_storage_node, hstssdcnt]))
+            local('sudo echo "}" >> /tmp/ma-crush-map-tmp.txt')
+            local('sudo echo "" >> /tmp/ma-crush-map-tmp.txt')
+        local('cat /tmp/ma-crush-map-new.txt | tail -n +%d >> /tmp/ma-crush-map-tmp.txt' %(root_line_num))
+        local('cp /tmp/ma-crush-map-tmp.txt /tmp/ma-crush-map-new.txt')
+
+        # Add the new host to the existing root entries
+        add_line_str=local('cat /tmp/ma-crush-map-new.txt |grep -n item |grep \"\-hdd\" |tail -n 1', shell='/bin/bash', capture=True)
+        add_line_num=int(add_line_str.split(":")[0])
+        local('cat /tmp/ma-crush-map-new.txt | head -n %d > /tmp/ma-crush-map-tmp.txt' %(add_line_num))
+        local('sudo echo "        item %s-hdd weight %s.000" >> /tmp/ma-crush-map-tmp.txt' %(add_storage_node, host_hdd_dict[add_storage_node, 'count']))
+        add_line_num+=1
+        local('cat /tmp/ma-crush-map-new.txt | tail -n +%d >> /tmp/ma-crush-map-tmp.txt' %(add_line_num))
+        local('cp /tmp/ma-crush-map-tmp.txt /tmp/ma-crush-map-new.txt')
+
+        add_line_str=local('cat /tmp/ma-crush-map-new.txt |grep -n item |grep \"\-ssd\" |tail -n 1', shell='/bin/bash', capture=True)
+        add_line_num=int(add_line_str.split(":")[0])
+        local('cat /tmp/ma-crush-map-new.txt | head -n %d > /tmp/ma-crush-map-tmp.txt' %(add_line_num))
+        local('sudo echo "        item %s-ssd weight %s.000" >> /tmp/ma-crush-map-tmp.txt' %(add_storage_node, host_ssd_dict[add_storage_node, 'count']))
+        add_line_num+=1
+        local('cat /tmp/ma-crush-map-new.txt | tail -n +%d >> /tmp/ma-crush-map-tmp.txt' %(add_line_num))
+        local('cp /tmp/ma-crush-map-tmp.txt /tmp/ma-crush-map-new.txt')
+        local('sudo crushtool -c /tmp/ma-crush-map-new.txt -o /tmp/ma-newcrush-map')
+
+        # Load the new crush map
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
+
+        # Set replica size based on new count
+        if host_hdd_dict['totalcount'] <= 1:
+            local('sudo ceph osd pool set volumes_hdd size 1')
+        else:
+            rep_size=local('sudo ceph osd pool get volumes_hdd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
+            if rep_size == '1':
+                local('sudo ceph osd pool set volumes_hdd size 2')
+
+        if host_ssd_dict['totalcount'] <= 1:
+            local('sudo ceph osd pool set volumes_ssd size 1')
+        else:
+            rep_size=local('sudo ceph osd pool get volumes_ssd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
+            if rep_size == '1':
+                local('sudo ceph osd pool set volumes_ssd size 2')
+
+        # Set PG/PGPs for HDD/SSD Pool based on the new osd count
+        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
+        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd')
+
+    def add_nfs_disk_config(self):
+        NFS_SERVER_LIST_FILE='/etc/cinder/nfs_server_list.txt'
+        if self._args.storage_nfs_disk_config[0] != 'none':
+            # Create NFS mount list file
+            file_present=local('sudo ls %s | wc -l' %(NFS_SERVER_LIST_FILE), capture=True)
+            if file_present == '0':
+                local('sudo touch %s' %(NFS_SERVER_LIST_FILE), capture=True)
+                local('sudo chown root:cinder %s' %(NFS_SERVER_LIST_FILE), capture=True)
+                local('sudo chmod 0640 %s' %(NFS_SERVER_LIST_FILE), capture=True)
+            
+            # Add NFS mount list to file
+            for entry in self._args.storage_nfs_disk_config:
+                entry_present=local('cat %s | grep \"%s\" | wc -l' %(NFS_SERVER_LIST_FILE, entry), capture=True)  
+                if entry_present == '0':
+                    local('echo %s >> %s' %(entry, NFS_SERVER_LIST_FILE))
+
+            # Cinder configuration to create backend
+            cinder_configured=local('sudo cat %s | grep enabled_backends | grep nfs | wc -l' %(CINDER_CONFIG_FILE), capture=True)
+            if cinder_configured == '0':
+                existing_backends=local('sudo cat %s |grep enabled_backends |awk \'{print $3}\'' %(CINDER_CONFIG_FILE), shell='/bin/bash', capture=True)
+                if existing_backends != '':
+                    new_backend = existing_backends + ',' + 'nfs'
+                    local('sudo openstack-config --set %s DEFAULT enabled_backends %s' %(CINDER_CONFIG_FILE, new_backend))
+                else:
+                    local('sudo openstack-config --set %s DEFAULT enabled_backends nfs' %(CINDER_CONFIG_FILE))
+
+                local('sudo openstack-config --set %s nfs nfs_shares_config %s' %(CINDER_CONFIG_FILE, NFS_SERVER_LIST_FILE))
+                local('sudo openstack-config --set %s nfs nfs_sparsed_volumes True' %(CINDER_CONFIG_FILE))
+                #local('sudo openstack-config --set %s nfs nfs_mount_options ' %(CINDER_CONFIG_FILE, NFS_SERVER_LIST_FILE))
+                local('sudo openstack-config --set %s nfs volume_driver cinder.volume.drivers.nfs.NfsDriver' %(CINDER_CONFIG_FILE))
+                local('sudo openstack-config --set %s nfs volume_backend_name NFS' %(CINDER_CONFIG_FILE))
+
     def __init__(self, args_str = None):
         #print sys.argv[1:]
         self._args = None
@@ -161,11 +495,11 @@ class SetupCeph(object):
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     run('sudo mkdir -p ~/.ssh')
                     already_present=run('grep "%s" ~/.ssh/known_hosts 2> /dev/null | wc -l' % (sshkey))
-                    print already_present
+                    #print already_present
 	            if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
                     already_present=run('grep "%s" ~/.ssh/authorized_keys 2> /dev/null | wc -l' % (sshkey))
-                    print already_present
+                    #print already_present
 	            if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
                     hostfound = local('sudo grep %s,%s ~/.ssh/known_hosts | wc -l' %(hostname,entries), capture=True)
@@ -173,6 +507,7 @@ class SetupCeph(object):
                          out = run('sudo ssh-keyscan -t rsa %s,%s' %(hostname,entries))
                          local('sudo echo "%s" >> ~/.ssh/known_hosts' % (out))
                          #local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (out))
+
         #Add a new node to the existing cluster
         if self._args.add_storage_node:
             configure_with_ceph = 0
@@ -232,6 +567,10 @@ class SetupCeph(object):
                             disksplit = disks.split(':')
                             if disksplit[0] == hostname:
                                 host_disks += 1
+                        for disks in self._args.storage_ssd_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                host_disks += 1
                         journal_disks_list = ''
                         for journal in self._args.storage_journal_config:
                             journalsplit = journal.split(':')
@@ -266,8 +605,21 @@ class SetupCeph(object):
                                 else:
                                     storage_disk_node = disks
                                 storage_disk_list.append(storage_disk_node)
+                        for disks in self._args.storage_ssd_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                #print journal_disks_list
+                                if journal_disks_list != '':
+                                    storage_disk_node = hostname + ':' + disksplit[1] + ':' + journal_disks_split[index]
+                                    index += 1
+                                else:
+                                    storage_disk_node = disks
+                                storage_disk_list.append(storage_disk_node)
                 else:
-                    storage_disk_list = self._args.storage_disk_config
+                    if self._args.storage_ssd_disk_config[0] != 'none':
+                        storage_disk_list = self._args.storage_disk_config + self._args.storage_ssd_disk_config
+                    else:
+                        storage_disk_list = self._args.storage_disk_config
                 #print self._args.storage_disk_config
         
                 # based on the coverted format or if the user directly provides in
@@ -323,9 +675,49 @@ class SetupCeph(object):
 	                    if pdist == 'Ubuntu':
                                 local('sudo ceph-deploy osd prepare %s' % (disks))
                                 local('sudo ceph-deploy osd activate %s' % (disks))
-                virsh_secret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
+
                 volume_keyring_list=local('cat /etc/ceph/client.volumes.keyring | grep key', capture=True)
                 volume_keyring=volume_keyring_list.split(' ')[2]
+                current_count = 1
+                while True:
+                    virsh_secret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n %d | tail -n 1' %(current_count), capture=True)
+                    if virsh_secret == '':
+                        break
+                    virsh_secret_key=local('virsh secret-get-value %s' %(virsh_secret), capture=True)
+                    if virsh_secret_key == volume_keyring:
+                        break
+                    current_count += 1
+
+            # Find the host count
+            host_count = 0
+            if new_storage_disk_list != []:
+                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                    for disks in storage_disk_list:
+                        disksplit = disks.split(':')
+                        if hostname == disksplit[0]:
+                            host_count += 1
+                            break
+
+            # Set replica size based on new count
+            if host_count <= 1:
+                local('sudo ceph osd pool set volumes size 1')
+            else:
+                rep_size=local('sudo ceph osd pool get volumes size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
+                if rep_size == '1':
+                    local('sudo ceph osd pool set volumes size 2')
+             
+            osd_count=int(local('ceph osd stat | awk \'{print $2}\'', shell='/bin/bash', capture=True))
+            # Set PG/PGP count based on osd new count
+            self.set_pg_pgp_count(osd_count, 'images')
+            self.set_pg_pgp_count(osd_count, 'volumes')
+
+            if self._args.storage_ssd_disk_config[0] != 'none':
+                volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
+                if volumes_pool_avail != '0':
+                    self.add_to_hdd_ssd_pool()
+                else:
+                    self.create_hdd_ssd_pool()
+                    #TODO: Add configurations to cinder
 
             cinder_lvm_type_list=[]
             cinder_lvm_name_list=[]
@@ -396,19 +788,40 @@ class SetupCeph(object):
                 local('(. /etc/contrail/openstackrc ; cinder type-create %s)' %(lvm_types))
                 local('(. /etc/contrail/openstackrc ; cinder type-key %s set volume_backend_name=%s)' %(lvm_types, lvm_names))
 
+            if virsh_secret == '':
+                print 'Cannot find virsh secret uuid'
+                return
+
+            # Add NFS configurations if present
+            if self._args.storage_nfs_disk_config[0] != 'none':
+                self.add_nfs_disk_config()
+                nfs_type_present=local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-nfs-disk | wc -l)', capture=True)
+                if nfs_type_present == '0':
+                    local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-nfs-disk)')
+                    local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-nfs-disk set volume_backend_name=NFS)')
+           
+
             for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
                 if hostname == add_storage_node:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
                         if configure_with_ceph == 1:
-                            virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
-                            if virsh_unsecret != "":
-                                run('virsh secret-undefine %s' %(virsh_unsecret))
+                            while True:
+                                virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
+                                if virsh_unsecret != "":
+                                    run('virsh secret-undefine %s' %(virsh_unsecret))
+                                else:
+                                    break
                             run('echo "<secret ephemeral=\'no\' private=\'no\'>\n<uuid>%s</uuid><usage type=\'ceph\'>\n<name>client.volumes secret</name>\n</usage>\n</secret>" > secret.xml' % (virsh_secret))
                             run('virsh secret-define --file secret.xml')
                             run('virsh secret-set-value %s --base64 %s' % (virsh_secret,volume_keyring))
-                            # Change nova conf for cinder client configuration
-                            run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
-                            run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
+                            # Remove rbd_user configurations from nova if present
+                            run('sudo openstack-config --del /etc/nova/nova.conf DEFAULT rbd_user')
+                            run('sudo openstack-config --del /etc/nova/nova.conf DEFAULT rbd_secret_uuid')
+
+                            # This should not be set for multi-backend. The virsh secret setting itself is enough for correct authentication.
+                            #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
+                            #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
+
                         run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
                         if pdist == 'centos':
                             run('sudo chkconfig tgt on')
@@ -435,6 +848,7 @@ class SetupCeph(object):
                             run('sudo service cinder-volume restart')
             return
 
+        
         #Cleanup existing configuration
         #Normal storage install. Remove previous configuration and reconfigure
         ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block | cut -d"|" -f 2)', capture=True)
@@ -458,24 +872,12 @@ class SetupCeph(object):
                     else:
                         print "Waiting for volume to be deleted"
                         time.sleep(5)
-        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-ssd-disk | cut -d"|" -f 2)', capture=True)
-        if ocs_blk_disk != "":
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-disk | wc -l )', capture=True))
+        # Delete all ocs-block disk types
+        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block | wc -l )', capture=True))
         while True:
             if num_ocs_blk_disk == 0:
                 break
-            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-disk | head -n 1 | cut -d"|" -f 2)', capture=True)
-            local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
-            num_ocs_blk_disk -= 1
-        num_ocs_blk_disk = int(local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-ssd-disk | wc -l )', capture=True))
-        while True:
-            if num_ocs_blk_disk == 0:
-                break
-            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block-lvm-ssd-disk | head -n 1 | cut -d"|" -f 2)', capture=True)
+            ocs_blk_disk = local('(. /etc/contrail/openstackrc ; cinder type-list | grep ocs-block | head -n 1 | cut -d"|" -f 2)', capture=True)
             local('. /etc/contrail/openstackrc ; cinder type-delete %s' % (ocs_blk_disk))
             num_ocs_blk_disk -= 1
 
@@ -504,7 +906,7 @@ class SetupCeph(object):
                                 run('pvremove -ff %s' %(disksplit[1]))
                 existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                 backends = existing_backends.split(',')
-                print backends
+                #print backends
                 for backend in backends:
                     if backend != '':
                         run('sudo openstack-config --del /etc/cinder/cinder.conf %s' %(backend))
@@ -579,6 +981,9 @@ class SetupCeph(object):
             if self._args.storage_disk_config[0] != 'none':
                 for disks in self._args.storage_disk_config:
                     local('sudo ceph-deploy disk zap %s' % (disks))
+            if self._args.storage_ssd_disk_config[0] != 'none':
+                for disks in self._args.storage_ssd_disk_config:
+                    local('sudo ceph-deploy disk zap %s' % (disks))
             if self._args.storage_journal_config[0] != 'none':
                 for disks in self._args.storage_journal_config:
                     local('sudo ceph-deploy disk zap %s' % (disks))
@@ -606,10 +1011,16 @@ class SetupCeph(object):
                     journal_disks = 0
                     #print hostname
                     #print self._args.storage_disk_config
-                    for disks in self._args.storage_disk_config:
-                        disksplit = disks.split(':')
-                        if disksplit[0] == hostname:
-                            host_disks += 1
+                    if self._args.storage_disk_config[0] != 'none':
+                        for disks in self._args.storage_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                host_disks += 1
+                    if self._args.storage_ssd_disk_config[0] != 'none':
+                        for disks in self._args.storage_ssd_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                host_disks += 1
                     journal_disks_list = ''
                     for journal in self._args.storage_journal_config:
                         journalsplit = journal.split(':')
@@ -634,19 +1045,34 @@ class SetupCeph(object):
                         #print journal_disks_list
                         journal_disks_split = journal_disks_list.split(':')
                     index = 0
-                    for disks in self._args.storage_disk_config:
-                        disksplit = disks.split(':')
-                        if disksplit[0] == hostname:
-                            #print journal_disks_list
-                            if journal_disks_list != '':
-                                storage_disk_node = hostname + ':' + disksplit[1] + ':' + journal_disks_split[index]
-                                index += 1
-                            else:
-                                storage_disk_node = disks
-                            storage_disk_list.append(storage_disk_node)
+                    if self._args.storage_disk_config[0] != 'none':
+                        for disks in self._args.storage_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                #print journal_disks_list
+                                if journal_disks_list != '':
+                                    storage_disk_node = hostname + ':' + disksplit[1] + ':' + journal_disks_split[index]
+                                    index += 1
+                                else:
+                                    storage_disk_node = disks
+                                storage_disk_list.append(storage_disk_node)
+                    if self._args.storage_ssd_disk_config[0] != 'none':
+                        for disks in self._args.storage_ssd_disk_config:
+                            disksplit = disks.split(':')
+                            if disksplit[0] == hostname:
+                                #print journal_disks_list
+                                if journal_disks_list != '':
+                                    storage_disk_node = hostname + ':' + disksplit[1] + ':' + journal_disks_split[index]
+                                    index += 1
+                                else:
+                                    storage_disk_node = disks
+                                storage_disk_list.append(storage_disk_node)
             else:
-                storage_disk_list = self._args.storage_disk_config
-            #print self._args.storage_disk_config
+                if self._args.storage_ssd_disk_config[0] != 'none':
+                    storage_disk_list = self._args.storage_disk_config + self._args.storage_ssd_disk_config
+                else:
+                    storage_disk_list = self._args.storage_disk_config
+            #print storage_disk_list
     
             # based on the coverted format or if the user directly provides in the
             # storage_disk_list as ceph1:/dev/sdb:/dev/sdd, ceph1:/dev/sdc:/dev/sdd
@@ -701,6 +1127,17 @@ class SetupCeph(object):
                         local('sudo ceph-deploy osd prepare %s' % (disks))
                         local('sudo ceph-deploy osd activate %s' % (disks))
                         osd_count += 1
+            
+            # Find the host count
+            host_count = 0
+            if new_storage_disk_list != []:
+                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                    for disks in storage_disk_list:
+                        disksplit = disks.split(':')
+                        if hostname == disksplit[0]:
+                            host_count += 1
+                            break
+                       
             # Create pools
             local('unset CEPH_ARGS')
             # Remove unwanted pools
@@ -710,41 +1147,23 @@ class SetupCeph(object):
             # Add required pools
             local('sudo rados mkpool volumes')
             local('sudo rados mkpool images')
-            # Calculate num PGs 
-            raw_pg_count = (osd_count * 100) / 2
-            bit_mask = raw_pg_count
-            power_val = 0
-            while True:
-                bit_mask = bit_mask >> 1
-                if bit_mask == 0:
-                    break
-                power_val = power_val + 1
-            #print power_val
-            pg_count = 2**power_val
-            #print pg_count
-            if pg_count < raw_pg_count:
-                pg_count = 2**(power_val+1)
-            print pg_count
-            local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set volumes pg_num %d' %(pg_count))
-            while True:
-                ret=local('sudo ceph osd pool get volumes pg_num | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-                if ret != str(pg_count):
-                    print 'Waiting to Set the pg num'
-                    time.sleep(5)
-                    local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set volumes pg_num %d' %(pg_count))
-                else:
-                    break
-            local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set volumes pgp_num %d' %(pg_count))
-            while True:
-                ret=local('sudo ceph osd pool get volumes pgp_num | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-                if ret != str(pg_count):
-                    print 'Waiting to Set the pg num'
-                    time.sleep(5)
-                    local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set volumes pgp_num %d' %(pg_count))
-                else:
-                    break
+            if host_count == 1:
+                local('sudo ceph osd pool set images size 1')
+                local('sudo ceph osd pool set volumes size 1')
+
             #local('sudo ceph osd pool set images size 3')
             #local('sudo ceph osd pool set volumes size 3')
+
+            # Set PG/PGP count based on osd count
+            self.set_pg_pgp_count(osd_count, 'images')
+            self.set_pg_pgp_count(osd_count, 'volumes')
+
+            create_hdd_ssd_pool = 0
+            # Create HDD/SSD pool
+            if self._args.storage_ssd_disk_config[0] != 'none':
+                self.create_hdd_ssd_pool()
+                create_hdd_ssd_pool = 1
+
             # Authentication Configuration
             local('sudo ceph auth get-or-create client.volumes mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=volumes, allow rx pool=images\' -o /etc/ceph/client.volumes.keyring')
             local('sudo ceph auth get-or-create client.images mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=images\' -o /etc/ceph/client.images.keyring')
@@ -763,20 +1182,54 @@ class SetupCeph(object):
             local('echo export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
             local('. ~/.bashrc')
             local('ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
+
+            if create_hdd_ssd_pool == 1:
+                local('sudo ceph auth get-or-create client.volumes_hdd mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=volumes_hdd, allow rx pool=images\' -o /etc/ceph/client.volumes_hdd.keyring')
+                local('sudo ceph auth get-or-create client.volumes_ssd mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=volumes_ssd, allow rx pool=images\' -o /etc/ceph/client.volumes_ssd.keyring')
+                local('sudo openstack-config --set /etc/ceph/ceph.conf client.volumes_hdd keyring /etc/ceph/client.volumes_hdd.keyring')
+                local('sudo openstack-config --set /etc/ceph/ceph.conf client.volumes_ssd keyring /etc/ceph/client.volumes_ssd.keyring')
+                for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                    if entries != self._args.storage_master:
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            run('unset CEPH_ARGS')
+                            run('sudo ceph -k /etc/ceph/ceph.client.admin.keyring  auth get-or-create client.volumes_hdd mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=volumes_hdd, allow rx pool=images\' -o /etc/ceph/client.volumes_hdd.keyring')
+                            run('sudo ceph -k /etc/ceph/ceph.client.admin.keyring  auth get-or-create client.volumes_ssd mon \'allow r\' osd \'allow class-read object_prefix rbd_children, allow rwx pool=volumes_ssd, allow rx pool=images\' -o /etc/ceph/client.volumes_ssd.keyring')
+                            run('sudo openstack-config --set /etc/ceph/ceph.conf client.volumes_hdd keyring /etc/ceph/client.volumes_hdd.keyring')
+                            run('sudo openstack-config --set /etc/ceph/ceph.conf client.volumes_ssd keyring /etc/ceph/client.volumes_ssd.keyring')
+                local('ceph-authtool -p -n client.volumes_hdd /etc/ceph/client.volumes_hdd.keyring > /etc/ceph/client.volumes_hdd')
+                local('ceph-authtool -p -n client.volumes_ssd /etc/ceph/client.volumes_ssd.keyring > /etc/ceph/client.volumes_ssd')
+
             if pdist == 'centos':
                 local('sudo service libvirtd restart')
             if pdist == 'Ubuntu':
                 local('sudo service libvirt-bin restart')
-            virsh_unsecret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
-            if virsh_unsecret != "":
-                local('virsh secret-undefine %s' %(virsh_unsecret))
+
+            while True:
+                virsh_unsecret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
+                if virsh_unsecret != "":
+                    local('virsh secret-undefine %s' %(virsh_unsecret))
+                else:
+                    break
+
             local('echo "<secret ephemeral=\'no\' private=\'no\'>\n<usage type=\'ceph\'>\n<name>client.volumes secret</name>\n</usage>\n</secret>" > secret.xml')
             virsh_secret=local('virsh secret-define --file secret.xml  2>&1 |cut -d " " -f 2', capture=True)
             volume_keyring_list=local('cat /etc/ceph/client.volumes.keyring | grep key', capture=True)
             volume_keyring=volume_keyring_list.split(' ')[2]
             local('virsh secret-set-value %s --base64 %s' % (virsh_secret,volume_keyring))
-            # remove this line
-            # local('virsh secret-undefine %s' % (virsh_secret))
+
+            if create_hdd_ssd_pool == 1:
+                local('echo "<secret ephemeral=\'no\' private=\'no\'>\n<usage type=\'ceph\'>\n<name>client.volumes_hdd secret</name>\n</usage>\n</secret>" > secret_hdd.xml')
+                virsh_secret_hdd=local('virsh secret-define --file secret_hdd.xml  2>&1 |cut -d " " -f 2', capture=True)
+                volume_keyring_list=local('cat /etc/ceph/client.volumes_hdd.keyring | grep key', capture=True)
+                volume_hdd_keyring=volume_keyring_list.split(' ')[2]
+                local('virsh secret-set-value %s --base64 %s' % (virsh_secret_hdd,volume_hdd_keyring))
+
+                local('echo "<secret ephemeral=\'no\' private=\'no\'>\n<usage type=\'ceph\'>\n<name>client.volumes_ssd secret</name>\n</usage>\n</secret>" > secret_ssd.xml')
+                virsh_secret_ssd=local('virsh secret-define --file secret_ssd.xml  2>&1 |cut -d " " -f 2', capture=True)
+                volume_keyring_list=local('cat /etc/ceph/client.volumes_ssd.keyring | grep key', capture=True)
+                volume_ssd_keyring=volume_keyring_list.split(' ')[2]
+                local('virsh secret-set-value %s --base64 %s' % (virsh_secret_ssd,volume_ssd_keyring))
+
             #print volume_keyring
             #print virsh_secret
             for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
@@ -788,18 +1241,38 @@ class SetupCeph(object):
                             run('echo export CEPH_ARGS=\\\\"--id volumes\\\\" >> ~/.bashrc')
                             run('. ~/.bashrc')
                             run('sudo ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
+                            if create_hdd_ssd_pool == 1:
+                                run('sudo ceph-authtool -p -n client.volumes_hdd /etc/ceph/client.volumes_hdd.keyring > /etc/ceph/client.volumes_hdd')
+                                run('sudo ceph-authtool -p -n client.volumes_ssd /etc/ceph/client.volumes_ssd.keyring > /etc/ceph/client.volumes_ssd')
                             local('sudo service libvirtd restart')
+
                         if pdist == 'Ubuntu':
                             run('sudo ceph-authtool -p -n client.volumes /etc/ceph/client.volumes.keyring > /etc/ceph/client.volumes')
+                            if create_hdd_ssd_pool == 1:
+                                run('sudo ceph-authtool -p -n client.volumes_hdd /etc/ceph/client.volumes_hdd.keyring > /etc/ceph/client.volumes_hdd')
+                                run('sudo ceph-authtool -p -n client.volumes_ssd /etc/ceph/client.volumes_ssd.keyring > /etc/ceph/client.volumes_ssd')
                             local('sudo service libvirt-bin restart')
-                        virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
-                        if virsh_unsecret != "":
-                            run('virsh secret-undefine %s' %(virsh_unsecret))
+
+                        while True:
+                            virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
+                            if virsh_unsecret != "":
+                                run('virsh secret-undefine %s' %(virsh_unsecret))
+                            else:
+                                break
+
                         run('echo "<secret ephemeral=\'no\' private=\'no\'>\n<uuid>%s</uuid><usage type=\'ceph\'>\n<name>client.volumes secret</name>\n</usage>\n</secret>" > secret.xml' % (virsh_secret))
                         run('virsh secret-define --file secret.xml')
                         run('virsh secret-set-value %s --base64 %s' % (virsh_secret,volume_keyring))
-                        # remove this line
-                        # run('virsh secret-undefine %s' % (virsh_secret))
+
+                        if create_hdd_ssd_pool == 1:
+                            run('echo "<secret ephemeral=\'no\' private=\'no\'>\n<uuid>%s</uuid><usage type=\'ceph\'>\n<name>client.volumes_hdd secret</name>\n</usage>\n</secret>" > secret_hdd.xml' % (virsh_secret_hdd))
+                            run('virsh secret-define --file secret_hdd.xml')
+                            run('virsh secret-set-value %s --base64 %s' % (virsh_secret_hdd,volume_hdd_keyring))
+
+                            run('echo "<secret ephemeral=\'no\' private=\'no\'>\n<uuid>%s</uuid><usage type=\'ceph\'>\n<name>client.volumes_ssd secret</name>\n</usage>\n</secret>" > secret_ssd.xml' % (virsh_secret_ssd))
+                            run('virsh secret-define --file secret_ssd.xml')
+                            run('virsh secret-set-value %s --base64 %s' % (virsh_secret_ssd,volume_ssd_keyring))
+
     
         # Set mysql listen ip to 0.0.0.0, so cinder volume manager from all
         # nodes can access.
@@ -810,17 +1283,34 @@ class SetupCeph(object):
 
         if configure_with_ceph == 1:
             # Cinder Configuration
-            local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk')
-            rbd_configured=local('sudo cat /etc/cinder/cinder.conf |grep -v "\\[rbd-disk\\]"| wc -l', capture=True)
-            if rbd_configured == '0':
-                local('sudo cat /etc/cinder/cinder.conf |grep -v "\\[rbd-disk\\]"| sed s/rbd-disk/"rbd-disk\\n\\n[rbd-disk]"/ > /etc/cinder/cinder.conf.bk')
-                local('sudo cp /etc/cinder/cinder.conf.bk /etc/cinder/cinder.conf')
+            if create_hdd_ssd_pool == 1:
+                local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk,rbd-hdd-disk,rbd-ssd-disk')
+            else:
+                local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk')
+
+            # Note: This may be required for older version of Ceph on Centos
+            #rbd_configured=local('sudo cat /etc/cinder/cinder.conf |grep -v "\\[rbd-disk\\]"| wc -l', capture=True)
+            #if rbd_configured == '0':
+            #    local('sudo cat /etc/cinder/cinder.conf |grep -v "\\[rbd-disk\\]"| sed s/rbd-disk/"rbd-disk\\n\\n[rbd-disk]"/ > /etc/cinder/cinder.conf.bk')
+            #    local('sudo cp /etc/cinder/cinder.conf.bk /etc/cinder/cinder.conf')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_driver cinder.volume.drivers.rbd.RBDDriver')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_pool volumes')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_user volumes')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_secret_uuid %s' % (virsh_secret))
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk glance_api_version 2')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_backend_name RBD')
+            if create_hdd_ssd_pool == 1:
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-hdd-disk volume_driver cinder.volume.drivers.rbd.RBDDriver')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-hdd-disk rbd_pool volumes_hdd')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-hdd-disk rbd_user volumes_hdd')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-hdd-disk rbd_secret_uuid %s' % (virsh_secret_hdd))
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-hdd-disk volume_backend_name HDD_RBD')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-ssd-disk volume_driver cinder.volume.drivers.rbd.RBDDriver')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-ssd-disk rbd_pool volumes_ssd')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-ssd-disk rbd_user volumes_ssd')
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-ssd-disk rbd_secret_uuid %s' % (virsh_secret_ssd))
+                local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-ssd-disk volume_backend_name RBD_ssd')
+
             local('sudo cinder-manage db sync')
 
         cinder_lvm_type_list=[]
@@ -853,6 +1343,7 @@ class SetupCeph(object):
                         run('sudo openstack-config --set /etc/cinder/cinder.conf lvm-local-disk-volumes volume_backend_name OCS_LVM_%s' %(hostname))
                         cinder_lvm_type_list.append('ocs-block-lvm-disk-%s' %(hostname))
                         cinder_lvm_name_list.append('OCS_LVM_%s' %(hostname))
+
         #Create LVM volumes for SSD disks on each node
         if self._args.storage_local_ssd_disk_config[0] != 'none':
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
@@ -888,9 +1379,12 @@ class SetupCeph(object):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     if configure_with_ceph == 1:
-                        # Change nova conf for cinder client configuration
-                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
-                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
+                        # Remove rbd_user configurations from nova if present
+                        run('sudo openstack-config --del /etc/nova/nova.conf DEFAULT rbd_user')
+                        run('sudo openstack-config --del /etc/nova/nova.conf DEFAULT rbd_secret_uuid')
+                        # This should not be set for multi-backend. The virsh secret setting itself is enough for correct authentication.
+                        #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
+                        #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
                     run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
 
         if configure_with_ceph == 1:
@@ -898,6 +1392,12 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store rbd')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
+
+        # Add NFS configurations if present
+        create_nfs_disk_volume = 0
+        if self._args.storage_nfs_disk_config[0] != 'none':
+            self.add_nfs_disk_config()
+            create_nfs_disk_volume = 1
 
         #Restart services
         if pdist == 'centos':
@@ -928,7 +1428,7 @@ class SetupCeph(object):
             local('sudo service cinder-scheduler restart')
             if configure_with_ceph == 1:
                 bash_cephargs = local('grep "CEPH_ARGS" /etc/init.d/cinder-volume | wc -l', capture=True)
-                print bash_cephargs
+                #print bash_cephargs
                 if bash_cephargs == "0":
                     local('cat /etc/init.d/cinder-volume | awk \'{ print; if ($1== "start|stop)") print \"    CEPH_ARGS=\\"--id volumes\\"\" }\' > /tmp/cinder-volume.tmp') 
                     local('mv -f /tmp/cinder-volume.tmp /etc/init.d/cinder-volume; chmod a+x /etc/init.d/cinder-volume')
@@ -946,6 +1446,16 @@ class SetupCeph(object):
         if configure_with_ceph == 1:
             local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-disk)')
             local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-disk set volume_backend_name=RBD)')
+
+        if create_hdd_ssd_pool == 1:
+            local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-hdd-disk)')
+            local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-hdd-disk set volume_backend_name=HDD_RBD)')
+            local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-ssd-disk)')
+            local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-ssd-disk set volume_backend_name=RBD_ssd)')
+
+        if create_nfs_disk_volume == 1:
+            local('(. /etc/contrail/openstackrc ; cinder type-create ocs-block-nfs-disk)')
+            local('(. /etc/contrail/openstackrc ; cinder type-key ocs-block-nfs-disk set volume_backend_name=NFS)')
 
         # Create Cinder type for all the LVM backends
         for lvm_types, lvm_names in zip(cinder_lvm_type_list, cinder_lvm_name_list):
