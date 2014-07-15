@@ -3,6 +3,7 @@ import string
 template = string.Template("""
 [DEFAULTS]
 host_ip = $__contrail_host_ip__
+cassandra_server_list=$__contrail_cassandra_server_list__
 collectors = $__contrail_collector__:$__contrail_collector_port__
 http_server_port = $__contrail_http_server_port__
 rest_api_port = $__contrail_rest_api_port__
