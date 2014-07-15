@@ -1540,8 +1540,9 @@ class SetupCeph(object):
                         run('sudo service cinder-volume restart')
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
-        if pdist == 'Ubuntu':
-            self.ceph_rest_api_service_add()
+        #Currently disabled until the default port is changed
+        #if pdist == 'Ubuntu':
+        #    self.ceph_rest_api_service_add()
 
     #end __init__
 
