@@ -210,6 +210,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval $(( $OPENSTACK_INDEX * 5 ))
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER

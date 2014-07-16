@@ -909,7 +909,7 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
-            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % self._args.amqp_server_ip)
+            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -1767,20 +1767,20 @@ SUBCHANNELS=1,2,3
 
 class KeepalivedSetup(Setup):
     def fixup_config_files(self):
-        vip_for_ips = [(self._args.internal_vip, self._args.openstack_ip)]
+        vip_for_ips = [(self._args.internal_vip, self._args.openstack_ip, 'INTERNAL')]
         if self._args.external_vip:
-            vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip))
-        for vip, ip in vip_for_ips:
+            vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
+        for vip, ip, vip_name in vip_for_ips:
             # keepalived.conf
             device = self.get_device_by_ip(ip)
             netmask = netifaces.ifaddresses(device)[netifaces.AF_INET][0]['netmask']
             prefix = netaddr.IPNetwork('%s/%s' % (ip, netmask)).prefixlen
             state = 'BACKUP'
-            priority = '%s00' % str(vip_for_ips.index((vip, ip)) + 1)
+            priority = str((50 + (vip_for_ips.index((vip, ip, vip_name)))) -
+                           (int(self._args.openstack_index) - 1) * 10)
             if self._args.openstack_index == 1:
                 state = 'MASTER'
-                priority = '%s01' % str(vip_for_ips.index((vip, ip)) + 1)
-            vip_str = '_'.join(vip.split('.'))
+            vip_str = '_'.join([vip_name] + vip.split('.'))
             router_id = vip.split('.')[3]
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
@@ -1853,6 +1853,10 @@ class OpenstackGaleraSetup(Setup):
         local('sed -i -e "s/thread_stack/#thread_stack/" %s' % self.mysql_conf)
         local('sed -i -e "s/thread_cache_size/#thread_cache_size/" %s' % self.mysql_conf)
         local('sed -i -e "s/myisam-recover/#myisam-recover/" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld_safe\]/a\interactive_timeout = 180" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld_safe\]/a\wait_timeout=180" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld_safe\]/a\innodb_lock_wait_timeout=10" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld_safe\]/a\innodb_rollback_on_timeout=ON" %s' % self.mysql_conf)
         if self._args.openstack_index == 1:
             wsrep_cluster_address= ''
         else:

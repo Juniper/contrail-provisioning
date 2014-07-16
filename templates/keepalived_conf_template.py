@@ -8,7 +8,7 @@ vrrp_script chk_haproxy {
         weight  2
 }
 
-vrrp_instance OPENSTACK_HA_VIP_$__vip_str__ {
+vrrp_instance $__vip_str__ {
         interface $__device__
         state $__state__
         virtual_router_id $__router_id__
