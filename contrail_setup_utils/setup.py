@@ -839,17 +839,8 @@ HWADDR=%s
             self.service_token = self._args.service_token
             if not self.service_token:
                 local("sudo ./contrail_setup_utils/setup-service-token.sh")
-            # configure the rabbitmq config file.
-            with settings(warn_only = True):
-                rabbit_conf = '/etc/rabbitmq/rabbitmq.config'
-                if not local('grep \"tcp_listeners.*%s.*5672\" %s' % (cfgm_ip, rabbit_conf)).succeeded:
-                    local('sudo echo "[" >> %s' % rabbit_conf)
-                    local('sudo echo "   {rabbit, [ {tcp_listeners, [{\\"%s\\", 5672}]}," >> %s' % (cfgm_ip, rabbit_conf))
-                    local('sudo echo "   {loopback_users, []}," >> %s' % rabbit_conf)
-                    local('sudo echo "   {log_levels,[{connection, info},{mirroring, info}]} ]" >> %s' % rabbit_conf)
-                    local('sudo echo "    }" >> %s' % rabbit_conf)
-                    local('sudo echo "]." >> %s' % rabbit_conf)
 
+            with settings(warn_only = True):
                 #comment out parameters from /etc/nova/api-paste.ini
                 local("sudo sed -i 's/auth_host = /;auth_host = /' /etc/nova/api-paste.ini")
                 local("sudo sed -i 's/auth_port = /;auth_port = /' /etc/nova/api-paste.ini")
