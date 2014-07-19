@@ -139,43 +139,39 @@ class SetupCeph(object):
 
     def set_pg_pgp_count(self, osd_num, pool):
 
-        # Calculate num PGs 
-        raw_pg_count = (osd_num * 100) / 2
-        bit_mask = raw_pg_count
-        power_val = 0
-        while True:
-            bit_mask = bit_mask >> 1
-            if bit_mask == 0:
-                break
-            power_val = power_val + 1
-        #print power_val
-        pg_count = 2**power_val
-        #print pg_count
-        if pg_count < raw_pg_count:
-            pg_count = 2**(power_val+1)
-        #print pg_count
+        # Calculate/Set PG count
         # The pg/pgp set will not take into effect if ceph is already in the 
-        # process of creating pgs. So its required to do a 'set' and a 'get'
-        # to confirm if the values are set. If not, try in a loop until the 
-        # values are set.
-        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+        # process of creating pgs. So its required to do ceph -s and check
+        # if the pgs are currently creating and if not set the values
+
+        # Set the num of pgs to 32 times the OSD count. This is based on
+        # Firefly release recomendation.
+        pg_count = osd_num * 32
+
+
         while True:
-            ret=local('sudo ceph osd pool get %s pg_num | awk \'{print $2}\'' %(pool), shell='/bin/bash', capture=True)
-            if ret != str(pg_count):
-                print 'Waiting to Set the pg num'
-                time.sleep(5)
-                local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
-            else:
-                break
+	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            if creating_pgs == '0':
+                break;
+            print 'Waiting for create pgs to complete'
+            time.sleep(5);
+
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+
+        while True:
+	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            if creating_pgs == '0':
+                break;
+            print 'Waiting for create pgs to complete'
+            time.sleep(5);
+
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
         while True:
-            ret=local('sudo ceph osd pool get %s pgp_num | awk \'{print $2}\'' %(pool), shell='/bin/bash', capture=True)
-            if ret != str(pg_count):
-                print 'Waiting to Set the pg num'
-                time.sleep(5)
-                local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
-            else:
-                break
+	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            if creating_pgs == '0':
+                break;
+            print 'Waiting for create pgs to complete'
+            time.sleep(5);
 
     # Create HDD/SSD Pool 
     # For HDD/SSD pool, the crush map has to be changed to accomodate the
@@ -714,11 +710,8 @@ class SetupCeph(object):
                         dirsplit = disks.split(':')
                         if dirsplit[0] == add_storage_node:
                             local('sudo ceph-deploy disk zap %s' % (disks))
-	                    if pdist == 'centos':
-		                local('sudo ceph-deploy osd create %s' % (disks))
-	                    if pdist == 'Ubuntu':
-                                local('sudo ceph-deploy osd prepare %s' % (disks))
-                                local('sudo ceph-deploy osd activate %s' % (disks))
+                            # For prefirefly use prepare/activate on ubuntu release
+                            local('sudo ceph-deploy osd create %s' % (disks))
 
                 volume_keyring_list=local('cat /etc/ceph/client.volumes.keyring | grep key', capture=True)
                 volume_keyring=volume_keyring_list.split(' ')[2]
@@ -1164,13 +1157,9 @@ class SetupCeph(object):
             # Ceph deploy OSD create
             if new_storage_disk_list != []:
                 for disks in new_storage_disk_list:
-	            if pdist == 'centos':
-		        local('sudo ceph-deploy osd create %s' % (disks))
-                        osd_count += 1
-	            if pdist == 'Ubuntu':
-                        local('sudo ceph-deploy osd prepare %s' % (disks))
-                        local('sudo ceph-deploy osd activate %s' % (disks))
-                        osd_count += 1
+                    # For prefirefly use prepare/activate on ubuntu release
+		    local('sudo ceph-deploy osd create %s' % (disks))
+                    osd_count += 1
             
             # Find the host count
             host_count = 0
@@ -1324,6 +1313,8 @@ class SetupCeph(object):
             local('sudo sed -i "s/^bind-address/#bind-address/" /etc/mysql/my.cnf')
             local('sudo service mysql restart')
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
+        #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
+        local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
 
         if configure_with_ceph == 1:
             # Cinder Configuration
