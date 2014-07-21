@@ -1074,7 +1074,8 @@ HWADDR=%s
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_discovery_port__' : 5998,
                              '__contrail_collector__': self_collector_ip,
-                             '__contrail_collector_port__': '8086'}
+                             '__contrail_collector_port__': '8086',
+                             '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(opserver_param_template.template,
                                             template_vals, temp_dir_name + '/opserver_param')
             local("sudo mv %s/opserver_param /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
