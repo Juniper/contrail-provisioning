@@ -88,6 +88,10 @@ if [ ! -d /etc/keystone/ssl ]; then
     chown -R keystone.keystone /etc/keystone/ssl
 fi
 
+if [ -d /var/log/keystone ]; then
+    chown -R keystone:keystone /var/log/keystone
+fi
+
 # Set up a keystonerc file with admin password
 export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 
