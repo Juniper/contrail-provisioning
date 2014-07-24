@@ -212,7 +212,7 @@ class QuantumSetup(object):
 
         # admin role does not exist, create one
         try:
-            quant_role = self.kshandle.role.create(name=self._quant_admin_name)
+            quant_role = self.kshandle.roles.create(name=self._quant_admin_name)
         except Exception as e:
             print e
             raise e

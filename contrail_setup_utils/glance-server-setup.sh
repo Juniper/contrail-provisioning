@@ -23,6 +23,7 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
+   glance_ver=`rpm -q --qf  "%{VERSION}\n" openstack-glance`
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -100,8 +101,8 @@ for APP in glance; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
         openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        glance-manage db_sync
         if [ $is_ubuntu -eq 1 ] ; then
-            glance-manage db_sync
             chown glance /var/lib/glance/glance.sqlite
             chgrp glance /var/lib/glance/glance.sqlite
         fi
@@ -113,6 +114,12 @@ export SERVICE_TOKEN
 
 for cfg in api; do
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT notifier_strategy noop
+   if [ $is_ubuntu -eq 0 ] ; then
+        if [ "$glance_ver" == "2014.1.1" ]; then
+            #launchpad workaround:https://bugzilla.redhat.com/show_bug.cgi?id=1090648
+            openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT db_enforce_mysql_charset False
+        fi
+    fi
 done
 
 for cfg in api registry; do
@@ -142,6 +149,10 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_port 5673
     openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $CONTROLLER:5000/v2.0/
+fi
+
+if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+    glance-manage db_sync
 fi
 
 echo "======= Enabling the services ======"
