@@ -182,7 +182,7 @@ fi
 
 # Increase memcached 'item_size_max' to 2MB, default is 1MB
 # Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
-item_size_max="2m"
+item_size_max="10m"
 if [ $is_ubuntu -eq 1 ] ; then
     memcache_conf='/etc/memcached.conf'
     opts=$(grep "\-I " ${memcache_conf})
