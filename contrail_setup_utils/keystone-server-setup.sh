@@ -180,7 +180,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/keystone/keystone.conf database pool_timeout 120
 fi
 
-# Increase memcached 'item_size_max' to 2MB, default is 1MB
+# Increase memcached 'item_size_max' to 10MB, default is 1MB
 # Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
 item_size_max="10m"
 if [ $is_ubuntu -eq 1 ] ; then
