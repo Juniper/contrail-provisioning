@@ -133,6 +133,7 @@ if [ $is_ubuntu -eq 0 ] ; then
 fi
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
+openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
@@ -192,14 +193,25 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_instances 100000
 openstack-config --set /etc/nova/nova.conf DEFAULT quota_cores 100000
 openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
+openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 if [ $is_ubuntu -eq 1 ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
     if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.quantumv2.api.API
     else
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
+else
+    if [ "$nova_api_ver" == "2014.1.1" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+        openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
+        openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
+        openstack-config --set /etc/nova/nova.conf DEFAULT instances_path /var/lib/nova/instances
+        openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
+        chown -R nova:nova /var/lib/nova
+    fi
 fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
