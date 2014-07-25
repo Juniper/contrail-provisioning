@@ -1183,9 +1183,9 @@ class SetupCeph(object):
             if host_count == 1:
                 local('sudo ceph osd pool set images size 1')
                 local('sudo ceph osd pool set volumes size 1')
-
-            #local('sudo ceph osd pool set images size 3')
-            #local('sudo ceph osd pool set volumes size 3')
+            else:
+                local('sudo ceph osd pool set images size 2')
+                local('sudo ceph osd pool set volumes size 2')
 
             # Set PG/PGP count based on osd count
             self.set_pg_pgp_count(osd_count, 'images')
