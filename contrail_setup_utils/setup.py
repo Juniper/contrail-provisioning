@@ -1062,7 +1062,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/query-engine.conf')
             local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
                              '__contrail_log_local__': '0',
                              '__contrail_log_category__': '',
                              '__contrail_log_level__': 'SYS_DEBUG',
