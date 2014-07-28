@@ -321,6 +321,9 @@ class SetupCeph(object):
         local('sudo rados mkpool volumes_ssd')
         local('sudo ceph osd pool set volumes_hdd crush_ruleset %d' %(hdd_rule_set))
         local('sudo ceph osd pool set volumes_ssd crush_ruleset %d' %(ssd_rule_set))
+	# Change the crush ruleset of images and volumes to point to HDD
+        local('sudo ceph osd pool set images crush_ruleset %d' %(hdd_rule_set))
+        local('sudo ceph osd pool set volumes crush_ruleset %d' %(hdd_rule_set))
 
         # Set replica size based on count
         if host_hdd_dict['totalcount'] <= 1:
