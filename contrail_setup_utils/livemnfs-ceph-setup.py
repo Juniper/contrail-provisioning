@@ -41,8 +41,9 @@ class SetupNFSLivem(object):
         nfs_livem_host = self._args.nfs_livem_host[0]
         nfs_livem_subnet = self._args.nfs_livem_subnet[0]
         nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
-        if self._args.storage_setup_mode == 'setup':
-    
+        if self._args.storage_setup_mode == 'setup' or \
+		self._args.storage_setup_mode == 'setup_global':
+
             #check for vm image if already present, otherwise add it
             livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if livemnfs == '1':
@@ -54,8 +55,8 @@ class SetupNFSLivem(object):
                 if livemnfs == '1':
                     print 'image add success'
                 else:
-                    return 
-            
+                    return
+
             #check for neutron network if already present, otherwise add it
             neutronnet=local('source /etc/contrail/openstackrc && neutron net-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if neutronnet == '0':
@@ -344,6 +345,13 @@ class SetupNFSLivem(object):
                                run('sudo umount /var/lib/nova/instances/global')
                                run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+		if self._args.storage_setup_mode == 'setup_global':
+                    for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                        if entries != self._args.storage_master:
+                            with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                                #Set autostart vm after node reboot
+                                run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+				run('sudo service nova-compute restart')
 
         if self._args.storage_setup_mode == 'unconfigure':
             # Unconfigure started
