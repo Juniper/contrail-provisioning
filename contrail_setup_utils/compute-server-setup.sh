@@ -66,6 +66,14 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
+    else
+        if [ "$nova_compute_ver" == "2014.1.1" ]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
+            openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
+            openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
+            openstack-config --set /etc/nova/nova.conf DEFAULT instaces_path /var/lib/nova/instances
+        fi
     fi
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
