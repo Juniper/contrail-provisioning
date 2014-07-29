@@ -150,7 +150,8 @@ class SetupCeph(object):
 
 
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -159,7 +160,8 @@ class SetupCeph(object):
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
 
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -167,7 +169,8 @@ class SetupCeph(object):
 
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -746,7 +749,7 @@ class SetupCeph(object):
                 if rep_size == '1':
                     local('sudo ceph osd pool set volumes size 2')
              
-            osd_count=int(local('ceph osd stat | awk \'{print $2}\'', shell='/bin/bash', capture=True))
+            osd_count=int(local('ceph osd stat | awk \'{print $3}\'', shell='/bin/bash', capture=True))
             # Set PG/PGP count based on osd new count
             self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
