@@ -738,6 +738,10 @@ class SetupCeph(object):
                             host_count += 1
                             break
 
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
+
             # Set replica size based on new count
             if host_count <= 1:
                 local('sudo ceph osd pool set volumes size 1')
@@ -1176,6 +1180,11 @@ class SetupCeph(object):
                        
             # Create pools
             local('unset CEPH_ARGS')
+
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
+
             # Remove unwanted pools
             local('sudo rados rmpool data data --yes-i-really-really-mean-it')
             local('sudo rados rmpool metadata metadata --yes-i-really-really-mean-it')
