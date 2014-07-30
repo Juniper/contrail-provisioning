@@ -193,6 +193,7 @@ class Setup(object):
             'vgw_intf_list': None,
             'vgw_gateway_routes': None,
             'amqp_server_ip': '127.0.0.1',
+            'amqp_server_ip_list': '127.0.0.1',
             'quantum_service_protocol': 'http',
         }
         collector_defaults = {
@@ -269,6 +270,8 @@ class Setup(object):
         parser.add_argument("--ks_insecure", help = "Option to connect to keystone in secure/insecure mode when using https")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ", default='http')
         parser.add_argument("--amqp_server_ip", help = "IP of the AMQP Server used to configure openstack components",)
+        parser.add_argument("--amqp_server_ip_list", help = "IP list of the AMQP Server used to configure openstack components", 
+                            nargs = '+', type = str)
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies keystone token validation)",
             action="store_true")
@@ -744,6 +747,11 @@ HWADDR=%s
                 local("sudo sed -i 's/rpc_backend = cinder.openstack.common.rpc.impl_qpid/#rpc_backend = cinder.openstack.common.rpc.impl_qpid/g' %s" \
                        % (cinder_conf_file))
             
+        """
+        glance_ver = local('rpm -q --qf  "%{VERSION}\n" openstack-glance')
+        local('sed -ibak "s/max_connections.*/max_connections=10000/" %s' % self.mysql_conf)
+        """
+
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
         if 'database' in self._args.role:
             database_listen_ip = self._args.database_listen_ip
@@ -857,10 +865,6 @@ HWADDR=%s
                 local("sudo sed -i 's/admin_user = /;admin_user = /' /etc/cinder/api-paste.ini")
                 local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
 
-        if 'compute' in self._args.role or 'openstack' in self._args.role:
-            with settings(warn_only = True):
-                local("openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host %s" % self._args.amqp_server_ip)
-
         if 'compute' in self._args.role:
             with settings(warn_only = True):
                 if pdist == 'Ubuntu':
@@ -900,7 +904,10 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
-            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            if 'compute' in self._args.role:
+                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
+            else:
+                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -1803,7 +1810,9 @@ class OpenstackGaleraSetup(Setup):
         local("sudo mv %s/galera_param /etc/contrail/ha/" % (self._temp_dir_name))
 
         # fix cmon_param
-        template_vals = {'__internal_vip__' :self._args.internal_vip}
+        template_vals = {'__internal_vip__' : self._args.internal_vip,
+                         '__haproxy_dips__' :
+                         '"' + '" "'.join(self._args.galera_ip_list) + '"'}
         self._template_substitute_write(cmon_param_template.template,
                                         template_vals,
                                         self._temp_dir_name + '/cmon_param')
@@ -1861,10 +1870,12 @@ class OpenstackGaleraSetup(Setup):
                                 self._temp_dir_name + '/%s' % wsrep_conf_file)
         local("sudo mv %s/%s %s" % (self._temp_dir_name, wsrep_conf_file,
                                     wsrep_conf))
+        if self._args.openstack_index == 1:
+            local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://#g" %s' % (wsrep_conf))
 
         # fixup cmon config
         template_vals = {'__mysql_nodes__' : ','.join(self._args.galera_ip_list),
-                         '__mysql_node_address__' : self._args.openstack_ip,
+                         '__mysql_node_address__' : self._args.internal_vip,
                         }
         self._template_substitute_write(cmon_conf_template.template, template_vals,
                                         self._temp_dir_name + '/cmon.cnf')
@@ -1940,7 +1951,6 @@ class OpenstackGaleraSetup(Setup):
         with settings(hide('everything'), warn_only=True):
             local('crontab -l > %s/galera_cron' % self._temp_dir_name)
         local('echo "0 0 * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
-        local('echo "*/1 * * * * /opt/contrail/bin/contrail-cmon-monitor.sh" >> %s/galera_cron' % self._temp_dir_name)
         local('crontab %s/galera_cron' % self._temp_dir_name)
         local('rm %s/galera_cron' % self._temp_dir_name)
 
@@ -1948,10 +1958,12 @@ class OpenstackGaleraSetup(Setup):
         if self._args.openstack_index == 1:
             local("service %s restart" % self.mysql_svc)
             local("service cmon restart")
+            local("service contrail-hamon restart")
         else:
-            # Wait for the first galera node to create new cluster.
+            #Wait for the first galera node to create new cluster.
             time.sleep(5)
             local("service %s restart" % self.mysql_svc)
+            local("service contrail-hamon restart")
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
 

@@ -29,7 +29,7 @@ class SetupVncVrouter(object):
         vgw_gateway_routes = self._args.gateway_routes
         ks_auth_protocol = self._args.keystone_auth_protocol
         ks_auth_port = self._args.keystone_auth_port
-        amqp_server_ip = self._args.amqp_server_ip
+        amqp_server_ip_list = self._args.amqp_server_ip_list
         quantum_service_protocol = self._args.quantum_service_protocol
         if not self._args.openstack_mgmt_ip :
             openstack_mgmt_ip = keystone_ip
@@ -48,7 +48,7 @@ class SetupVncVrouter(object):
         setup_args_str = setup_args_str + " --openstack_mgmt_ip %s " %(openstack_mgmt_ip)
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
         setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
-        setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
+        setup_args_str = setup_args_str + " --amqp_server_ip_list %s" %(' '. join(amqp_server_ip_list))
         setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
         
         if service_token:
@@ -108,7 +108,7 @@ class SetupVncVrouter(object):
             'haproxy': False,
             'ks_auth_protocol':'http',
             'ks_auth_port':'35357',
-            'amqp_server_ip':'127.0.0.1',
+            'amqp_server_ip_list':'127.0.0.1',
             'quantum_service_protocol':'http',
             'vmware': None,
             'vmware_username': 'root',
@@ -153,8 +153,8 @@ class SetupVncVrouter(object):
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",default='35357')
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use",
             default = 'http')
-        parser.add_argument("--amqp_server_ip",
-            help = "IP of the AMQP server to be used for openstack")
+        parser.add_argument("--amqp_server_ip_list", help = "IP of the AMQP server to be used for openstack",
+                            nargs='+', type=str)
         parser.add_argument("--vmware", help = "The Vmware ESXI IP")
         parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
