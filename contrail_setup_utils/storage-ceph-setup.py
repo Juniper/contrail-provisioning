@@ -98,6 +98,10 @@ class SetupCeph(object):
 	run('/tmp/osd_local_list.sh')
 
     def ceph_rest_api_service_add(self):
+        # check for ceph-rest-api.conf
+        # write /etc/init conf for service upstrart
+        # if service not running then replace app.ceph_port to 5005
+        # start the ceph-rest-api service
         rest_api_conf_available=local('ls /etc/init/ceph-rest-api.conf  2>/dev/null | wc -l', capture=True)
         if rest_api_conf_available == '0':
             local('sudo echo description \\"Ceph REST API\\" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
@@ -127,9 +131,15 @@ class SetupCeph(object):
             local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
         ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
         if ceph_rest_api_process_running == '0':
+            entry_present=local('grep \"app.run(host=app.ceph_addr, port=app.ceph_port)\" /usr/bin/ceph-rest-api | wc -l', capture=True)
+            if entry_present == '1':
+                local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
             local('sudo service ceph-rest-api start', shell='/bin/bash')
 
     def ceph_rest_api_service_remove(self):
+        # check the ceph-rest-api service
+        # if it is running then trigger ceph-rest-api stop
+        # finally removing ceph-rest-api.conf
         ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
         if ceph_rest_api_process_running != '0':
             local('sudo service ceph-rest-api stop', shell='/bin/bash')
@@ -1546,9 +1556,7 @@ class SetupCeph(object):
                         run('sudo service cinder-volume restart')
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
-        #Currently disabled until the default port is changed
-        #if pdist == 'Ubuntu':
-        #    self.ceph_rest_api_service_add()
+
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -1556,6 +1564,8 @@ class SetupCeph(object):
                         run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.storage_master))
                         run('sudo service contrail-storage-stats restart')
 
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_add()
 
     #end __init__
 
