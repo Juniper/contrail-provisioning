@@ -12,8 +12,10 @@ CMON_SVC_CHECK="service cmon status"
 RUN_CMON="service cmon start"
 STOP_CMON="service cmon stop"
 MYSQL_SVC_CHECK="service mysql status"
+HAP_RESTART="service haproxy restart"
 CMON_RUN=0
 VIPONME=0
+HAPRESTART=0
 
 timestamp() {
     date +"%T"
@@ -83,6 +85,22 @@ else
       $STOP_CMON
       log_info_msg "Stopped CMON on not finding VIP"
    fi
+
+   #Check if the VIP was on this node and clear all session by restarting haproxy
+   hapid=$(pidof haproxy)
+   for (( i=0; i<${dips_size}; i++ ));
+    do
+      dipsonnonvip=$(lsof -p $hapid | grep ${dips[i]} | awk '{print $9}')
+      if [[ -n "$dipsonnonvip" ]]; then
+         haprestart=1
+         break
+      fi
+    done
+
+    if [ $HAPRESTART -eq 1 ]; then
+       $HAP_RESTART
+       log_info_msg "Restarted HAP becuase of stale dips"
+    fi
 fi
       
 exit 0
