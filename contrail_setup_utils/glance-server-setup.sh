@@ -77,23 +77,28 @@ source /etc/contrail/ctrl-details
 # Check if ADMIN/SERVICE Password has been set
 ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+
+controller_ip=$CONTROLLER
+if [ "$INTERNAL_VIP" != "none" ]; then
+    controller_ip=$INTERNAL_VIP
+fi
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=http://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
-OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
-INTERNAL_VIP=${INTERNAL_VIP:-none}
 for cfg in api registry; do
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
     fi
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:glance@$CONTROLLER:33306/glance
+        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:glance@$CONTROLLER:3306/glance
     fi
 done
 
@@ -129,7 +134,7 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $CONTROLLER
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 5000
         openstack-config --set /etc/glance/glance-$cfg.conf database idle_timeout 180
         openstack-config --set /etc/glance/glance-$cfg.conf database min_pool_size 100
@@ -148,7 +153,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_port 9393
     openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_port 5673
-    openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $CONTROLLER:5000/v2.0/
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $INTERNAL_VIP:5000/v2.0/
 fi
 
 if [ "$OPENSTACK_INDEX" -eq 1 ]; then

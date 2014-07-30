@@ -76,17 +76,22 @@ source /etc/contrail/ctrl-details
 # Check if ADMIN/SERVICE Password has been set
 ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+
+controller_ip=$CONTROLLER
+if [ "$INTERNAL_VIP" != "none" ]; then
+    controller_ip=$INTERNAL_VIP
+fi
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
-OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
-INTERNAL_VIP=${INTERNAL_VIP:-none}
 for APP in cinder; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
@@ -104,7 +109,7 @@ for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 5000
         openstack-config --set /etc/$svc/$svc.conf DEFAULT osapi_volume_listen_port 9776
         openstack-config --set /etc/$svc/$svc.conf database idle_timeout 180

@@ -94,12 +94,19 @@ fi
 
 # Set up a keystonerc file with admin password
 export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+
+controller_ip=$CONTROLLER
+if [ "$INTERNAL_VIP" != "none" ]; then
+    controller_ip=$INTERNAL_VIP
+fi
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_PASSWORD
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=$AUTH_PROTOCOL://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -109,8 +116,6 @@ export SERVICE_TOKEN=$SERVICE_PASSWORD
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 EOF
 
-OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
-INTERNAL_VIP=${INTERNAL_VIP:-none}
 for APP in keystone; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
@@ -133,7 +138,7 @@ export SERVICE_PASSWORD
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $CONTROLLER)
+        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
     fi
 else
     (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
@@ -165,7 +170,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:33306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$INTERNAL_VIP:33306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180

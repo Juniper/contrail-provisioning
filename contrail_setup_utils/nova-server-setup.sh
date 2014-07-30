@@ -118,12 +118,19 @@ source /etc/contrail/ctrl-details
 # Check if ADMIN/SERVICE Password has been set
 ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
+OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+
+controller_ip=$CONTROLLER
+if [ "$INTERNAL_VIP" != "none" ]; then
+    controller_ip=$INTERNAL_VIP
+fi
 
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$CONTROLLER:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -135,11 +142,9 @@ openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 
-OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
-INTERNAL_VIP=${INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:3306/nova
 fi
 
 for APP in nova; do
@@ -164,6 +169,7 @@ for svc in nova; do
     openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_host $AMQP_SERVER
 done
 
+openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
@@ -222,14 +228,16 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval $(( $OPENSTACK_INDEX * 5 ))
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/v2.0/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTROLLER:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:3306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
+    openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
     openstack-config --set /etc/nova/nova.conf database min_pool_size 100
     openstack-config --set /etc/nova/nova.conf database max_pool_size 700
