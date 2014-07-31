@@ -331,9 +331,13 @@ class SetupCeph(object):
         # Set replica size based on count
         if host_hdd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_hdd size 1')
+        else:
+            local('sudo ceph osd pool set volumes_hdd size 2')
 
         if host_ssd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
+        else:
+            local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool
         self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
@@ -461,14 +465,14 @@ class SetupCeph(object):
             local('sudo ceph osd pool set volumes_hdd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_hdd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-            if rep_size == '1':
+            if rep_size != '2':
                 local('sudo ceph osd pool set volumes_hdd size 2')
 
         if host_ssd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_ssd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-            if rep_size == '1':
+            if rep_size != '2':
                 local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool based on the new osd count
