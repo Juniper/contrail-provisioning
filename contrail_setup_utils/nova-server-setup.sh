@@ -135,9 +135,7 @@ export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-if [ $is_ubuntu -eq 0 ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
-fi
+openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
