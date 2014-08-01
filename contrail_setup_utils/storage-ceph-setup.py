@@ -98,6 +98,10 @@ class SetupCeph(object):
 	run('/tmp/osd_local_list.sh')
 
     def ceph_rest_api_service_add(self):
+        # check for ceph-rest-api.conf
+        # write /etc/init conf for service upstrart
+        # if service not running then replace app.ceph_port to 5005
+        # start the ceph-rest-api service
         rest_api_conf_available=local('ls /etc/init/ceph-rest-api.conf  2>/dev/null | wc -l', capture=True)
         if rest_api_conf_available == '0':
             local('sudo echo description \\"Ceph REST API\\" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
@@ -127,9 +131,15 @@ class SetupCeph(object):
             local('sudo echo "" >> /etc/init/ceph-rest-api.conf', shell='/bin/bash')
         ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
         if ceph_rest_api_process_running == '0':
+            entry_present=local('grep \"app.run(host=app.ceph_addr, port=app.ceph_port)\" /usr/bin/ceph-rest-api | wc -l', capture=True)
+            if entry_present == '1':
+                local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
             local('sudo service ceph-rest-api start', shell='/bin/bash')
 
     def ceph_rest_api_service_remove(self):
+        # check the ceph-rest-api service
+        # if it is running then trigger ceph-rest-api stop
+        # finally removing ceph-rest-api.conf
         ceph_rest_api_process_running=local('ps -ef|grep -v grep|grep ceph-rest-api|wc -l', capture=True)
         if ceph_rest_api_process_running != '0':
             local('sudo service ceph-rest-api stop', shell='/bin/bash')
@@ -150,7 +160,8 @@ class SetupCeph(object):
 
 
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -159,7 +170,8 @@ class SetupCeph(object):
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
 
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -167,7 +179,8 @@ class SetupCeph(object):
 
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
         while True:
-	    creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            time.sleep(5);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
@@ -328,9 +341,13 @@ class SetupCeph(object):
         # Set replica size based on count
         if host_hdd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_hdd size 1')
+        else:
+            local('sudo ceph osd pool set volumes_hdd size 2')
 
         if host_ssd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
+        else:
+            local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool
         self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
@@ -458,14 +475,14 @@ class SetupCeph(object):
             local('sudo ceph osd pool set volumes_hdd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_hdd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-            if rep_size == '1':
+            if rep_size != '2':
                 local('sudo ceph osd pool set volumes_hdd size 2')
 
         if host_ssd_dict['totalcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_ssd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
-            if rep_size == '1':
+            if rep_size != '2':
                 local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool based on the new osd count
@@ -738,6 +755,7 @@ class SetupCeph(object):
                             host_count += 1
                             break
 
+
             # Set replica size based on new count
             if host_count <= 1:
                 local('sudo ceph osd pool set volumes size 1')
@@ -746,10 +764,14 @@ class SetupCeph(object):
                 if rep_size == '1':
                     local('sudo ceph osd pool set volumes size 2')
              
-            osd_count=int(local('ceph osd stat | awk \'{print $2}\'', shell='/bin/bash', capture=True))
+            osd_count=int(local('ceph osd stat | awk \'{print $3}\'', shell='/bin/bash', capture=True))
             # Set PG/PGP count based on osd new count
             self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
+
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             if self._args.storage_ssd_disk_config[0] != 'none':
                 volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
@@ -1176,6 +1198,8 @@ class SetupCeph(object):
                        
             # Create pools
             local('unset CEPH_ARGS')
+
+
             # Remove unwanted pools
             local('sudo rados rmpool data data --yes-i-really-really-mean-it')
             local('sudo rados rmpool metadata metadata --yes-i-really-really-mean-it')
@@ -1193,6 +1217,10 @@ class SetupCeph(object):
             # Set PG/PGP count based on osd count
             self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
+
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             create_hdd_ssd_pool = 0
             # Create HDD/SSD pool
@@ -1534,9 +1562,9 @@ class SetupCeph(object):
                         run('sudo service cinder-volume restart')
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
-        #Currently disabled until the default port is changed
-        #if pdist == 'Ubuntu':
-        #    self.ceph_rest_api_service_add()
+
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_add()
 
     #end __init__
 
