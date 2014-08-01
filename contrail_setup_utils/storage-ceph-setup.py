@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 import platform
 
 import tempfile
-from fabric.api import local, env, run
+from fabric.api import local, env, run, settings
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
 from fabric.api import local, env, run
@@ -1002,6 +1002,15 @@ class SetupCeph(object):
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_remove()
 
+        if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
+            #disable Contrail Web Storage feature
+            with settings(warn_only=True):
+                storage_enable_variable = local('cat /usr/src/contrail/contrail-web-core/config/config.global.js | grep config.featurePkg.webStorage', capture=True);
+            if storage_enable_variable:
+                local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
+                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+                local('sudo service supervisor-webui restart')
+
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
             return
@@ -1343,6 +1352,19 @@ class SetupCeph(object):
         if self._args.storage_local_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none':
             local('sudo sed -i "s/^bind-address/#bind-address/" /etc/mysql/my.cnf')
             local('sudo service mysql restart')
+
+        if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
+            # enable Contrail Web Storage feature
+            with settings(warn_only=True):
+                storage_enable_variable = local('cat /usr/src/contrail/contrail-web-core/config/config.global.js | grep config.featurePkg.webStorage', capture=True);
+            if storage_enable_variable:
+                local('sudo sed "s/config.featurePkg.webStorage.enable = *;/config.featurePkg.webStorage.enable = true;/g" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
+                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+            else:
+                local('sudo cp  /usr/src/contrail/contrail-web-core/config/config.global.js /usr/src/contrail/contrail-web-storage/config.global.js.org')
+                local('sudo sed "/config.featurePkg.webController.enable/ a config.featurePkg.webStorage = {};\\nconfig.featurePkg.webStorage.path=\'\/usr\/src\/contrail\/contrail-web-storage\';\\nconfig.featurePkg.webStorage.enable = true;" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
+                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
         #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
@@ -1507,6 +1529,7 @@ class SetupCeph(object):
             local('sudo service libvirt-bin restart')
             local('sudo service nova-api restart')
             local('sudo service nova-scheduler restart')
+            local('sudo service supervisor-webui restart')
 
         # Create Cinder type for all Ceph backend
         if configure_with_ceph == 1:
