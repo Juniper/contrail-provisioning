@@ -755,9 +755,6 @@ class SetupCeph(object):
                             host_count += 1
                             break
 
-            # rbd cache enabled and rbd cache size set to 512MB
-            local('ceph tell osd.* injectargs -- --rbd_cache=true')
-            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             # Set replica size based on new count
             if host_count <= 1:
@@ -771,6 +768,10 @@ class SetupCeph(object):
             # Set PG/PGP count based on osd new count
             self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
+
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             if self._args.storage_ssd_disk_config[0] != 'none':
                 volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
@@ -1198,9 +1199,6 @@ class SetupCeph(object):
             # Create pools
             local('unset CEPH_ARGS')
 
-            # rbd cache enabled and rbd cache size set to 512MB
-            local('ceph tell osd.* injectargs -- --rbd_cache=true')
-            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             # Remove unwanted pools
             local('sudo rados rmpool data data --yes-i-really-really-mean-it')
@@ -1219,6 +1217,10 @@ class SetupCeph(object):
             # Set PG/PGP count based on osd count
             self.set_pg_pgp_count(osd_count, 'images')
             self.set_pg_pgp_count(osd_count, 'volumes')
+
+            # rbd cache enabled and rbd cache size set to 512MB
+            local('ceph tell osd.* injectargs -- --rbd_cache=true')
+            local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
             create_hdd_ssd_pool = 0
             # Create HDD/SSD pool
