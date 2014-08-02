@@ -266,6 +266,16 @@ for svc in $web_svc memcached; do
     service $svc restart
 done
 
-for svc in supervisor-openstack; do
+# Listen at supervisor-openstack port
+status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
+if [ $status == 'stopped' ]; then
+    service supervisor-openstack start
+    sleep 5
+    supervisorctl -s http://localhost:9010 stop all
+fi
+
+# Start nova services
+for svc in nova-api nova-objectstore nova-scheduler nova-cert nova-console\
+           nova-consoleauth nova-novncproxy nova-conductor; do
     service $svc restart
 done

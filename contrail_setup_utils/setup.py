@@ -1660,6 +1660,8 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/glance-server-setup.sh")
             local("sudo ./contrail_setup_utils/cinder-server-setup.sh")
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
+            local("service mysql restart")
+            local("service supervisor-openstack restart")
 
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
@@ -1801,6 +1803,11 @@ class KeepalivedSetup(Setup):
 
 class OpenstackGaleraSetup(Setup):
     def fixup_config_files(self):
+        with settings(warn_only=True):
+            local("service contrail-hamon stop")
+            local("service cmon stop")
+            local("service mysql stop")
+            local("rm -rf /var/lib/mysql/grastate.dat")
         # fix galera_param
         template_vals = {'__mysql_wsrep_nodes__' : 
                          '"' + '" "'.join(self._args.galera_ip_list) + '"'}
@@ -1903,7 +1910,7 @@ class OpenstackGaleraSetup(Setup):
             local("chmod 400 %s" % self.mysql_token_file)
 
     def get_mysql_token_file(self):
-        retries = 5
+        retries = 10
         if not os.path.isfile(self.mysql_token_file):
             while retries:
                 with settings(host_string = 'root@%s' % (self._args.galera_ip_list[0]),
@@ -1957,13 +1964,10 @@ class OpenstackGaleraSetup(Setup):
     def run_services(self):
         if self._args.openstack_index == 1:
             local("service %s restart" % self.mysql_svc)
-            local("service cmon restart")
-            local("service contrail-hamon restart")
         else:
-            #Wait for the first galera node to create new cluster.
-            time.sleep(5)
-            local("service %s restart" % self.mysql_svc)
-            local("service contrail-hamon restart")
+            print "Wait for the first galera node to create new cluster."
+            time.sleep(10)
+            local("service mysql restart")
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
 
