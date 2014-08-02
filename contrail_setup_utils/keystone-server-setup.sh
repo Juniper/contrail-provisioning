@@ -79,8 +79,16 @@ openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_
 service supervisor-openstack status >/dev/null 2>&1 &&
 service supervisor-openstack stop
 
+# Listen at supervisor-openstack port
+status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
+if [ $status == 'stopped' ]; then
+    service supervisor-openstack start
+    sleep 5
+    supervisorctl -s http://localhost:9010 stop all
+fi
+
 # Start and enable the Keystone service
-service supervisor-openstack restart
+service keystone restart
 chkconfig supervisor-openstack on
 
 if [ ! -d /etc/keystone/ssl ]; then
@@ -170,7 +178,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$INTERNAL_VIP:33306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
@@ -229,5 +237,6 @@ for svc in $web_svc memcached; do
     service $svc restart
 done
 
-service supervisor-openstack restart
+# Start keysotne service
+service keystone restart
 
