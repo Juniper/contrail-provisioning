@@ -1660,7 +1660,11 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/glance-server-setup.sh")
             local("sudo ./contrail_setup_utils/cinder-server-setup.sh")
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
-            local("service mysql restart")
+            if pdist in ['Ubuntu']:
+                self.mysql_svc = 'mysql'
+            elif pdist in ['centos']:
+               self.mysql_svc = 'mysqld'
+            local("service %s restart" % self.mysql_svc)
             local("service supervisor-openstack restart")
 
         if 'config' in self._args.role:
@@ -1967,7 +1971,7 @@ class OpenstackGaleraSetup(Setup):
         else:
             print "Wait for the first galera node to create new cluster."
             time.sleep(10)
-            local("service mysql restart")
+            local("service %s restart" % self.mysql_svc)
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
 
