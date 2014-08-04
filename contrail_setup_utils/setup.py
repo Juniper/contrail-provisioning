@@ -1210,6 +1210,11 @@ HWADDR=%s
             else:
                 local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(temp_dir_name))
 
+            if pdist == 'Ubuntu':
+                neutron_def_file = "/etc/default/neutron-server"
+                if os.path.exists(neutron_def_file):
+                    local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
+
             # schema_transformer.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
