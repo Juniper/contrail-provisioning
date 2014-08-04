@@ -1588,6 +1588,12 @@ class SetupCeph(object):
 
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_add()
+        for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+            if entries != self._args.storage_master:
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    if pdist == 'Ubuntu':
+                        run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.storage_master))
+                        run('sudo service contrail-storage-stats restart')
 
     #end __init__
 
