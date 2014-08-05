@@ -178,7 +178,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@127.0.0.1:3306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
