@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-CONFIG_FILE="/etc/contrail/control-node.conf"
+CONFIG_FILE="/etc/contrail/contrail-control.conf"
 OLD_CONFIG_FILE=/etc/contrail/control_param
 SIGNATURE="Control-node configuration options, generated from $OLD_CONFIG_FILE"
 
 # Remove old style command line arguments from .ini file.
-perl -ni -e 's/command=.*/command=\/usr\/bin\/control-node/g; print $_;' /etc/contrail/supervisord_control_files/contrail-control.ini
+perl -ni -e 's/command=.*/command=\/usr\/bin\/contrail-control/g; print $_;' /etc/contrail/supervisord_control_files/contrail-control.ini
 
 if [ ! -e $OLD_CONFIG_FILE ]; then
     exit
@@ -40,7 +40,7 @@ cat << EOF
 # http_server_port=8083
 # log_category=
 # log_disable=0
-  log_file=/var/log/contrail/control-node.log
+  log_file=/var/log/contrail/contrail-control.log
 # log_files_count=10
 # log_file_size=10485760 # 10MB
 # log_level=SYS_NOTICE

@@ -1069,7 +1069,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/query-engine.conf')
             local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
            
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/opserver.log',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
                              '__contrail_log_local__': '0',
                              '__contrail_log_category__': '',
                              '__contrail_log_level__': 'SYS_DEBUG',
@@ -1129,7 +1129,7 @@ HWADDR=%s
                                                 template_vals, temp_dir_name + '/publisher.properties')
                 local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(temp_dir_name))
 
-            # api_server.conf
+            # contrail-api.conf
             template_vals = {'__contrail_ifmap_server_ip__': cfgm_ip,
                              '__contrail_ifmap_server_port__': '8444' if use_certs else '8443',
                              '__contrail_ifmap_username__': 'api-server',
@@ -1159,8 +1159,8 @@ HWADDR=%s
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                             }
             self._template_substitute_write(api_server_conf_template.template,
-                                            template_vals, temp_dir_name + '/api_server.conf')
-            local("sudo mv %s/api_server.conf /etc/contrail/" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/contrail-api.conf')
+            local("sudo mv %s/contrail-api.conf /etc/contrail/" %(temp_dir_name))
 
             # supervisor contrail-api.ini
             n_api_workers = self._args.n_api_workers
@@ -1279,8 +1279,8 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                             }
             self._template_substitute_write(discovery_conf_template.template,
-                                            template_vals, temp_dir_name + '/discovery.conf')
-            local("sudo mv %s/discovery.conf /etc/contrail/" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/contrail-discovery.conf')
+            local("sudo mv %s/contrail-discovery.conf /etc/contrail/" %(temp_dir_name))
 
             # supervisor contrail-discovery.ini
             template_vals = {'__contrail_disc_port_base__': '911', # 911x
@@ -1339,8 +1339,8 @@ HWADDR=%s
                              '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(bgp_param_template.template,
-                                            template_vals, temp_dir_name + '/control-node.conf')
-            local("sudo mv %s/control-node.conf /etc/contrail/control-node.conf" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/contrail-control.conf')
+            local("sudo mv %s/contrail-control.conf /etc/contrail/contrail-control.conf" %(temp_dir_name))
 
             dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(control_ip),
                              '__contrail_ifmap_paswd__': '%s.dns' %(control_ip),
