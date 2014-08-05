@@ -1874,6 +1874,14 @@ class OpenstackGaleraSetup(Setup):
         local('sed -i "/\[mysqld_safe\]/a\wait_timeout=180" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld_safe\]/a\innodb_lock_wait_timeout=10" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld_safe\]/a\innodb_rollback_on_timeout=ON" %s' % self.mysql_conf)
+        # FIX for UTF8
+        if pdist in ['Ubuntu']:
+            sku = local("dpkg -p contrail-install-packages | grep Version: | cut -d'~' -f2", capture=True)
+            if sku == 'icehouse':
+                local('sed -i "/\[mysqld\]/a\character-set-server = utf8" %s' % self.mysql_conf)
+                local('sed -i "/\[mysqld\]/a\init-connect=\'SET NAMES utf8\'" %s' % self.mysql_conf)
+                local('sed -i "/\[mysqld\]/a\collation-server = utf8_general_ci" %s' % self.mysql_conf)
+
         if self._args.openstack_index == 1:
             wsrep_cluster_address= ''
         else:
