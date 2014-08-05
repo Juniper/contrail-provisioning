@@ -66,6 +66,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
+        openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
     else
         if [ "$nova_compute_ver" == "2014.1.1" ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
