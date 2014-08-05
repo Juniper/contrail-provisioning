@@ -1007,9 +1007,9 @@ class SetupCeph(object):
             with settings(warn_only=True):
                 storage_enable_variable = local('cat /usr/src/contrail/contrail-web-core/config/config.global.js | grep config.featurePkg.webStorage', capture=True);
             if storage_enable_variable:
-            local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
-            local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
-            local('sudo service supervisor-webui restart')
+                local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
+                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+                local('sudo service supervisor-webui restart')
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -1586,14 +1586,15 @@ class SetupCeph(object):
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
 
-        if pdist == 'Ubuntu':
-            self.ceph_rest_api_service_add()
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     if pdist == 'Ubuntu':
                         run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.storage_master))
                         run('sudo service contrail-storage-stats restart')
+
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_add()
 
     #end __init__
 
