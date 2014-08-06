@@ -70,6 +70,8 @@ class SetupVncVrouter(object):
 
         if internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
+        if self._args.no_contrail_openstack:
+            setup_args_str = setup_args_str + " --no_contrail_openstack"
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -114,6 +116,7 @@ class SetupVncVrouter(object):
             'vmware_username': 'root',
             'vmware_passwd': 'c0ntrail123',
             'vmware_vmpg_vswitch': 'c0ntrail123',
+            'no_contrail_openstack': False,
         }
 
         if args.conf_file:
@@ -160,6 +163,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
+        parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)
 
