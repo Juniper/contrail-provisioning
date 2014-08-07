@@ -1066,8 +1066,8 @@ HWADDR=%s
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
             self._template_substitute_write(vizd_param_template.template,
-                                           template_vals, temp_dir_name + '/collector.conf')
-            local("sudo mv %s/collector.conf /etc/contrail/collector.conf" %(temp_dir_name))
+                                           template_vals, temp_dir_name + '/contrail-collector.conf')
+            local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(temp_dir_name))
 
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
@@ -1077,8 +1077,8 @@ HWADDR=%s
                              '__contrail_collector_port__' : '8086',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
             self._template_substitute_write(qe_param_template.template,
-                                            template_vals, temp_dir_name + '/query-engine.conf')
-            local("sudo mv %s/query-engine.conf /etc/contrail/query-engine.conf" %(temp_dir_name))
+                                            template_vals, temp_dir_name + '/contrail-query-engine.conf')
+            local("sudo mv %s/contrail-query-engine.conf /etc/contrail/contrail-query-engine.conf" %(temp_dir_name))
            
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
                              '__contrail_log_local__': '0',

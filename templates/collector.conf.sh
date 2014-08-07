@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CONFIG_FILE="/etc/contrail/collector.conf"
+CONFIG_FILE="/etc/contrail/contrail-collector.conf"
 OLD_CONFIG_FILE=/etc/contrail/vizd_param
 SIGNATURE="Collector configuration options, generated from $OLD_CONFIG_FILE"
 

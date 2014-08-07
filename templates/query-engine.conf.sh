@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CONFIG_FILE="/etc/contrail/query-engine.conf"
+CONFIG_FILE="/etc/contrail/contrail-query-engine.conf"
 OLD_CONFIG_FILE=/etc/contrail/qe_param
 SIGNATURE="Query-Engine configuration options, generated from $OLD_CONFIG_FILE"
 
