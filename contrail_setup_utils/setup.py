@@ -1738,7 +1738,7 @@ SUBCHANNELS=1,2,3
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_admin_password %s' % (network_api, self._args.service_token))
 
 
-            for svc in ['supervisor-openstack', 'supervisor-vrouter']:
+            for svc in ['openstack-nova-compute', 'supervisor-vrouter']:
                 local('chkconfig %s on' % svc)
 
         if 'webui' in self._args.role:
