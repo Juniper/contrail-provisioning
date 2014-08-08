@@ -141,7 +141,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
 fi
 
-for svc in supervisor-openstack supervisor-vrouter; do
+for svc in openstack-nova-compute supervisor-vrouter; do
     chkconfig $svc on
 done
 
