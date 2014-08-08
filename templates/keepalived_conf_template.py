@@ -4,8 +4,11 @@ import string
 template = string.Template("""
 vrrp_script chk_haproxy {
         script "killall -0 haproxy" # verify if pid exists
-        interval 2
-        weight  2
+        interval 1
+        weight 2
+        timeout 3
+        rise 2
+        fall 2
 }
 
 vrrp_instance $__vip_str__ {
