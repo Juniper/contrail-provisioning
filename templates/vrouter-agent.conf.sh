@@ -145,7 +145,7 @@ control_network_ip=$CONTROL_NETWORK_IP
 name=$DEVICE
 
 # IP address and prefix in ip/prefix_len format
-ip=$IPADRESS
+ip=$IPADDRESS
 
 # Gateway IP address for virtual host
 gateway=$GATEWAY
