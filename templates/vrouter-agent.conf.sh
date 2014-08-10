@@ -133,7 +133,7 @@ type=kvm
 # metadata_proxy_secret=contrail
 
 
-RKS]
+[NETWORKS]
 # control-channel IP address used by WEB-UI to connect to vnswad to fetch
 # required information (Optional)
 control_network_ip=$CONTROL_NETWORK_IP
