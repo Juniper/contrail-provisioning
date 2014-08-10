@@ -106,8 +106,8 @@ class SetupNFSLivem(object):
                 vmip = local('source /etc/contrail/openstackrc && nova show livemnfs |grep \"livemnfs network\"|awk \'{print $5}\'', capture=True, shell='/bin/bash')
     
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                   if hostname == vmhost:
-                       with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    if hostname == vmhost:
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
                             #Set autostart vm after node reboot
                             run('openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True')
                             #check for vgw interface
@@ -170,35 +170,57 @@ class SetupNFSLivem(object):
                             libgroupentry=run('cat /etc/group |grep ^kvm')
                             kvmgroupentry=run('cat /etc/group |grep ^libvirtd')
     
-                   #add route on other compute nodes
-                   elif entries != self._args.storage_master:
-                       with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                           #check for dynamic route on the vm host
-                           dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                           if dynroutedone == '0':
-                               dynroutedone=run('route add %s dev vhost0' %(vmip), shell='/bin/bash') 
-                           #check and static route on other compute
-                           staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                           if staroutedone == '0':
-                                 run('echo \"\" >> /etc/network/interfaces');
-                                 run('echo \"up route add %s dev vhost0\" >> /etc/network/interfaces' %(vmip));
-     
-                   #add route on master node
-                   elif entries == self._args.storage_master:
-                       gwentry = ''
-                       for gwhostname, gwentries, sentry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                          if gwhostname == vmhost:
-                              gwentry = gwentries 
-                       with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                           #check for dynamic route on the vm host
-                           dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                           if dynroutedone == '0':
-                               dynroutedone=run('route add %s gw %s' %(vmip, gwentry), shell='/bin/bash') 
-                           #check and add static route on master
-                           staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                           if staroutedone == '0':
-                                 run('echo \"\" >> /etc/network/interfaces');
-                                 run('echo \"up route add %s gw %s\" >> /etc/network/interfaces' %(vmip, gwentry));
+                    #add route on other nodes
+                    else:
+                        with settings(host_string='root@%s' %(entries),
+                                        password = entry_token):
+                            vhost_present=run('netstat -rn|grep vhost|wc -l',
+                                                shell='/bin/bash')
+                            # Nodes with vhost (computes)
+                            if vhost_present != '0':
+
+                                #check for dynamic route on the vm host
+                                dynroutedone=run('netstat -rn |grep %s|wc -l'
+                                                    %(vmip), shell='/bin/bash') 
+                                if dynroutedone == '0':
+                                    dynroutedone=run('route add %s dev vhost0'
+                                                    %(vmip), shell='/bin/bash') 
+                                #check and static route on other compute
+                                staroutedone=run('cat /etc/network/interfaces '
+                                                    '|grep %s|wc -l'
+                                                    %(vmip), shell='/bin/bash') 
+                                if staroutedone == '0':
+                                        run('echo \"\" >> '
+                                                '/etc/network/interfaces');
+                                        run('echo \"up route add %s dev '
+                                                'vhost0\" >> '
+                                                '/etc/network/interfaces'
+                                                %(vmip));
+                            # Nodes without vhost 
+                            else:
+                                gwentry = ''
+                                for gwhostname, gwentries, sentry_token in \
+                                        zip(self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+                                    if gwhostname == vmhost:
+                                        gwentry = gwentries 
+                                #check for dynamic route on the vm host
+                                dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                                if dynroutedone == '0':
+                                    dynroutedone=run('route add %s gw %s'
+                                                        %(vmip, gwentry),
+                                                        shell='/bin/bash') 
+                                #check and add static route on master
+                                staroutedone=run('cat /etc/network/interfaces '
+                                                    '|grep %s|wc -l'
+                                                    %(vmip), shell='/bin/bash') 
+                                if staroutedone == '0':
+                                        run('echo \"\" >> '
+                                                '/etc/network/interfaces');
+                                        run('echo \"up route add %s gw %s\" >> '
+                                                '/etc/network/interfaces'
+                                                %(vmip, gwentry));
                  
                 #cinder volume creation and attaching to VM
                 avail=local('rados df | grep avail | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
@@ -475,35 +497,56 @@ class SetupNFSLivem(object):
                         if staroutedone == '1':
                             staroutedone=run('cat /etc/network/interfaces |grep -v livemnfsvgw > /tmp/interfaces', shell='/bin/bash') 
                             run('cp /tmp/interfaces /etc/network/interfaces');
-                #delete route on other compute nodes
-                elif entries != self._args.storage_master:
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #check for dynamic route on the vm host
-                        dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                        if dynroutedone == '1':
-                            dynroutedone=run('route del %s dev vhost0' %(vmip), shell='/bin/bash') 
-                        #check and static route on other compute
-                        staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                        if staroutedone == '1':
-                            staroutedone=run('cat /etc/network/interfaces |grep -v %s > /tmp/interfaces' %(vmip), shell='/bin/bash') 
-                            run('cp /tmp/interfaces /etc/network/interfaces');
+
+                #delete route on other nodes
+		else:
+                    with settings(host_string = 'root@%s' %(entries),
+                                    password = entry_token):
+			vhost_present=run('netstat -rn|grep vhost |wc -l',
+					    shell='/bin/bash')
+			if vhost_present != '0':
+			    #check for dynamic route on the vm host
+			    dynroutedone=run('netstat -rn |grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash') 
+			    if dynroutedone == '1':
+				dynroutedone=run('route del %s dev vhost0'
+                                                    %(vmip), shell='/bin/bash') 
+			    #check and static route on other compute
+			    staroutedone=run('cat /etc/network/interfaces '
+                                                '|grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash') 
+			    if staroutedone == '1':
+				staroutedone=run('cat /etc/network/interfaces '
+                                                    '|grep -v %s > '
+                                                    '/tmp/interfaces'
+                                                    %(vmip), shell='/bin/bash') 
+				run('cp /tmp/interfaces /etc/network/interfaces');
+                        else:
      
-                #delete route on master node
-                elif entries == self._args.storage_master:
-                    gwentry = ''
-                    for gwhostname, gwentries, sentry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                        if gwhostname == vmhost:
-                            gwentry = gwentries 
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #check for dynamic route on the vm host
-                        dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                        if dynroutedone == '1':
-                            dynroutedone=run('route del %s gw %s' %(vmip, gwentry), shell='/bin/bash') 
-                        #check and delete static route on master
-                        staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
-                        if staroutedone == '1':
-                            staroutedone=run('cat /etc/network/interfaces |grep -v %s > /tmp/interfaces' %(vmip), shell='/bin/bash') 
-                            run('cp /tmp/interfaces /etc/network/interfaces');
+                            gwentry = ''
+                            for gwhostname, gwentries, sentry_token in \
+                                zip(self._args.storage_hostnames,
+                                    self._args.storage_hosts,
+                                    self._args.storage_host_tokens):
+                                if gwhostname == vmhost:
+                                    gwentry = gwentries 
+                            #check for dynamic route on the vm host
+                            dynroutedone=run('netstat -rn |grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash') 
+                            if dynroutedone == '1':
+                                dynroutedone=run('route del %s gw %s'
+                                                    %(vmip, gwentry),
+                                                    shell='/bin/bash') 
+                            #check and delete static route on master
+                            staroutedone=run('cat /etc/network/interfaces '
+                                                '|grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash') 
+                            if staroutedone == '1':
+                                staroutedone=run('cat /etc/network/interfaces '
+                                                    '|grep -v %s > '
+                                                    '/tmp/interfaces'
+                                                    %(vmip), shell='/bin/bash') 
+                                run('cp /tmp/interfaces /etc/network/interfaces');
 
             # Delete the VM
             vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
