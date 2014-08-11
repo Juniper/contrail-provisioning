@@ -1815,12 +1815,11 @@ class KeepalivedSetup(Setup):
             netmask = netifaces.ifaddresses(device)[netifaces.AF_INET][0]['netmask']
             prefix = netaddr.IPNetwork('%s/%s' % (ip, netmask)).prefixlen
             state = 'BACKUP'
-            priority = str((200 + (vip_for_ips.index((vip, ip, vip_name)))) -
-                           (int(self._args.openstack_index) - 1))
+            priority = str(200 - (int(self._args.openstack_index)- 1))
             if self._args.openstack_index == 1:
                 state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
-            router_id = (int(vip.split('.')[3]) + (10 * (int(self._args.openstack_index) - 1)))
+            router_id = (int(vip.split('.')[3]) + (10 * int(vip_for_ips.index((vip, ip, vip_name)))))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
                              '__state__' : state,
