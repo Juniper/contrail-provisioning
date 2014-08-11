@@ -147,7 +147,7 @@ class SetupNFSLivem(object):
                                             run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d routing_instance default-domain:admin:livemnfs:livemnfs' %(gateway_id))
                                             run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d interface livemnfsvgw' %(gateway_id))
                                             run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d ip_blocks %s\/%s' %(gateway_id, netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen))
-                                            run('service contrail-vrouter restart' , shell='/bin/bash')
+                                            run('service supervisor-vrouter restart' , shell='/bin/bash')
                                             break
                                         gateway_id = gateway_id + 1
     
@@ -483,7 +483,7 @@ class SetupNFSLivem(object):
                                         rtinst_line_num = int(rtinst_line_string.split(':')[0])
                                         if rtinst_line_num == (gateway_line_num + 1):
                                             run('openstack-config --del /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d' %(gateway_id))
-                                            run('service contrail-vrouter restart' , shell='/bin/bash')
+                                            run('service supervisor-vrouter restart' , shell='/bin/bash')
                                             break
                                     gateway_id = gateway_id + 1
 
