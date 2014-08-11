@@ -63,5 +63,4 @@ wwwroot=/var/www/
 ssh_identity=''
 ssh_opts=-q
 ssh_port=22
-ssh_user=root
 """)
