@@ -147,7 +147,7 @@ class SetupCeph(object):
         if rest_api_conf_available != '0':
             local('sudo rm -rf /etc/init/ceph-rest-api.conf', shell='/bin/bash')
 
-    def set_pg_pgp_count(self, osd_num, pool):
+    def set_pg_pgp_count(self, osd_num, pool, host_cnt):
 
         # Calculate/Set PG count
         # The pg/pgp set will not take into effect if ceph is already in the 
@@ -156,7 +156,10 @@ class SetupCeph(object):
 
         # Set the num of pgs to 32 times the OSD count. This is based on
         # Firefly release recomendation.
-        pg_count = osd_num * 32
+        if host_cnt == 1:
+            pg_count = 12 * osd_num
+        else:
+            pg_count = ((osd_num * ( host_cnt - 1)) / host_cnt) * osd_num
 
 
         while True:
@@ -212,10 +215,23 @@ class SetupCeph(object):
         host_ssd_dict = {}
         host_hdd_dict['totalcount'] = 0
         host_ssd_dict['totalcount'] = 0
+        host_hdd_dict['hostcount'] = 0
+        host_ssd_dict['hostcount'] = 0
         # Build the host/tier specific dictionary
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             host_hdd_dict[hostname, 'count'] = 0
             host_ssd_dict[hostname, 'count'] = 0
+            for disks in self._args.storage_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    host_hdd_dict['hostcount'] += 1
+                    break
+            for disks in self._args.storage_ssd_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    host_ssd_dict['hostcount'] += 1
+                    break
+
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             for disks in self._args.storage_disk_config:
                 disksplit = disks.split(':')
@@ -350,8 +366,8 @@ class SetupCeph(object):
             local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool
-        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
-        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd')
+        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd', host_hdd_dict['hostcount'])
+        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd', host_ssd_dict['hostcount'])
 
     # Add a new node osds to HDD/SSD pool
     # For HDD/SSD pool, the crush map has to be changed to accomodate the
@@ -382,10 +398,22 @@ class SetupCeph(object):
         host_ssd_dict = {}
         host_hdd_dict['totalcount'] = 0
         host_ssd_dict['totalcount'] = 0
+        host_hdd_dict['hostcount'] = 0
+        host_ssd_dict['hostcount'] = 0
         # Build the host/tier specific dictionary
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             host_hdd_dict[hostname, 'count'] = 0
             host_ssd_dict[hostname, 'count'] = 0
+            for disks in self._args.storage_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    host_hdd_dict['hostcount'] += 1
+                    break
+            for disks in self._args.storage_ssd_disk_config:
+                disksplit = disks.split(':')
+                if disksplit[0] == hostname:
+                    host_ssd_dict['hostcount'] += 1
+                    break
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             for disks in self._args.storage_disk_config:
                 disksplit = disks.split(':')
@@ -486,8 +514,8 @@ class SetupCeph(object):
                 local('sudo ceph osd pool set volumes_ssd size 2')
 
         # Set PG/PGPs for HDD/SSD Pool based on the new osd count
-        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd')
-        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd')
+        self.set_pg_pgp_count(host_hdd_dict['totalcount'], 'volumes_hdd', host_hdd_dict['hostcount'])
+        self.set_pg_pgp_count(host_ssd_dict['totalcount'], 'volumes_ssd', host_ssd_dict['hostcount'])
 
     def add_nfs_disk_config(self):
         NFS_SERVER_LIST_FILE='/etc/cinder/nfs_server_list.txt'
@@ -766,8 +794,8 @@ class SetupCeph(object):
              
             osd_count=int(local('ceph osd stat | awk \'{print $3}\'', shell='/bin/bash', capture=True))
             # Set PG/PGP count based on osd new count
-            self.set_pg_pgp_count(osd_count, 'images')
-            self.set_pg_pgp_count(osd_count, 'volumes')
+            self.set_pg_pgp_count(osd_count, 'images', host_count)
+            self.set_pg_pgp_count(osd_count, 'volumes', host_count)
 
             # rbd cache enabled and rbd cache size set to 512MB
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
@@ -1224,8 +1252,8 @@ class SetupCeph(object):
                 local('sudo ceph osd pool set volumes size 2')
 
             # Set PG/PGP count based on osd count
-            self.set_pg_pgp_count(osd_count, 'images')
-            self.set_pg_pgp_count(osd_count, 'volumes')
+            self.set_pg_pgp_count(osd_count, 'images', host_count)
+            self.set_pg_pgp_count(osd_count, 'volumes', host_count)
 
             # rbd cache enabled and rbd cache size set to 512MB
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
