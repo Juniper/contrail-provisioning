@@ -57,7 +57,6 @@ is_supervisor_managed() {
   echo $1 | grep 'nova-cert' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'nova-consoleauth' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'nova-novncproxy' 2>/dev/null 1> /dev/null && managed='yes'
-  echo $1 | grep 'nova-compute' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'glance-api' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'glance-registry' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'cinder-api' 2>/dev/null 1> /dev/null && managed='yes'

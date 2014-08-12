@@ -1841,7 +1841,8 @@ class OpenstackGaleraSetup(Setup):
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
         # fix galera_param
-        template_vals = {'__mysql_wsrep_nodes__' : 
+        template_vals = {'__mysql_host__' : self._args.openstack_ip,
+                         '__mysql_wsrep_nodes__' :
                          '"' + '" "'.join(self._args.galera_ip_list) + '"'}
         self._template_substitute_write(galera_param_template.template,
                                         template_vals,
