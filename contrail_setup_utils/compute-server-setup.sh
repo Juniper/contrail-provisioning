@@ -139,6 +139,10 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$INTERNAL_VIP:6080/vnc_auto.html
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do

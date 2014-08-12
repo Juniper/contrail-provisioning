@@ -227,6 +227,11 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled = true
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url=http://$CONTROLLER:6999/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6999
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers $MEMCACHED_SERVERS
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
