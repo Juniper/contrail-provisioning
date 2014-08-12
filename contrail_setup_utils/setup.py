@@ -281,6 +281,7 @@ class Setup(object):
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
         parser.add_argument("--database_index", help = "Index of this cfgm node")
         parser.add_argument("--galera_ip_list", help = "IP Addresses of Galera servers", nargs = '+', type = str)
+        parser.add_argument("--openstack_ip_list", help = "IP Addresses of openstack Servers", nargs = '+', type = str)
         parser.add_argument("--openstack_index", help = "Index of this openstack node", type = int)
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
@@ -910,6 +911,8 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
+            if self._args.openstack_ip_list:
+                local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
             if 'compute' in self._args.role:
                 local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
             else:

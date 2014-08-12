@@ -23,6 +23,7 @@ class SetupVncOpenstack(object):
         keystone_ip = self._args.keystone_ip
         internal_vip = self._args.internal_vip
         openstack_index = self._args.openstack_index
+        openstack_ip_list = self._args.openstack_ip_list
         service_token = self._args.service_token
         ks_auth_protocol = self._args.keystone_auth_protocol
         amqp_server_ip = self._args.amqp_server_ip
@@ -43,6 +44,8 @@ class SetupVncOpenstack(object):
         if openstack_index:
             setup_args_str = setup_args_str + " --openstack_index %s" \
                                  %(self._args.openstack_index)
+        if openstack_ip_list:
+            setup_args_str = setup_args_str + " --openstack_ip_list %s"  % (' '.join(openstack_ip_list))
         
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -107,6 +110,8 @@ class SetupVncOpenstack(object):
         parser.add_argument("--keystone_auth_protocol",
             help = "Auth protocol used to talk to keystone", default='http')
         parser.add_argument("--openstack_index", help = "The index of this openstack node")
+        parser.add_argument("--openstack_ip_list", help = "List of IP Addresses of openstack servers",
+                            nargs='+', type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
