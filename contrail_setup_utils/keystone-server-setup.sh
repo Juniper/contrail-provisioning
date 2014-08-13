@@ -101,9 +101,13 @@ if [ -d /var/log/keystone ]; then
 fi
 
 # Set up a keystonerc file with admin password
-export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+if [ "$INTERNAL_VIP" != "none" ]; then
+    export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35358}/v2.0}
+else
+    export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$CONTROLLER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
+fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -124,24 +128,21 @@ export SERVICE_TOKEN=$SERVICE_PASSWORD
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 EOF
 
+export ADMIN_PASSWORD
+export SERVICE_PASSWORD
+
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # Openstack HA specific config
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+else
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+fi
 for APP in keystone; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
         openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
     fi
 done
-
-# wait for the keystone service to start
-tries=0
-while [ $tries -lt 10 ]; do
-    $(source $CONF_DIR/keystonerc; keystone user-list >/dev/null 2>&1)
-    if [ $? -eq 0 ]; then break; fi;
-    tries=$(($tries + 1))
-    sleep 1
-done
-
-export ADMIN_PASSWORD
-export SERVICE_PASSWORD
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
@@ -151,6 +152,15 @@ if [ "$INTERNAL_VIP" != "none" ]; then
 else
     (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
 fi
+
+# wait for the keystone service to start
+tries=0
+while [ $tries -lt 10 ]; do
+    $(source $CONF_DIR/keystonerc; keystone user-list >/dev/null 2>&1)
+    if [ $? -eq 0 ]; then break; fi;
+    tries=$(($tries + 1))
+    sleep 1
+done
 
 # Check if ADMIN/SERVICE Password has been set
 
@@ -178,7 +188,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@127.0.0.1:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
