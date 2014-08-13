@@ -896,11 +896,12 @@ HWADDR=%s
             quantum_port = self._args.quantum_port
             quantum_service_protocol = self._args.quantum_service_protocol
             if not self.service_token:
-                with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
+                with settings(host_string = 'root@%s' %(self._args.internal_vip or keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
                     self.service_token = tok_fd.read()
                     tok_fd.close()
+                    local("cp -f  %s/service.token /etc/contrail/service.token" % temp_dir_name)
                     local("rm %s/service.token" %(temp_dir_name))
 
             local("echo 'SERVICE_TOKEN=%s' >> %s/ctrl-details" 
@@ -911,6 +912,8 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
+            if self._args.openstack_ip:
+                local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_ip, temp_dir_name))
             if self._args.openstack_ip_list:
                 local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
             if 'compute' in self._args.role:
@@ -1607,20 +1610,21 @@ SUBCHANNELS=1,2,3
         if 'webui' in self._args.role:
             openstack_ip = self._args.openstack_ip
             keystone_ip = self._args.keystone_ip
-            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
+            internal_vip = self._args.internal_vip
+            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(cfgm_ip))
+            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.imageManager.ip.*/config.imageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
+            local("sudo sed \"s/config.imageManager.ip.*/config.imageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.computeManager.ip.*/config.computeManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
+            local("sudo sed \"s/config.computeManager.ip.*/config.computeManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(keystone_ip))
+            local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or keystone_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(openstack_ip))
+            local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")            
             if collector_ip:
-                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(collector_ip))
+                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or collector_ip))
                 local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             if self._args.cassandra_ip_list:
                 local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
@@ -1817,7 +1821,7 @@ class KeepalivedSetup(Setup):
             if self._args.openstack_index == 1:
                 state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
-            router_id = (int(vip.split('.')[3]) + (10 * int(vip_for_ips.index((vip, ip, vip_name)))))
+            router_id = (200 + (10 * int(vip_for_ips.index((vip, ip, vip_name)))))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
                              '__state__' : state,
@@ -1897,10 +1901,11 @@ class OpenstackGaleraSetup(Setup):
         local('sed -i -e "s/thread_stack/#thread_stack/" %s' % self.mysql_conf)
         local('sed -i -e "s/thread_cache_size/#thread_cache_size/" %s' % self.mysql_conf)
         local('sed -i -e "s/myisam-recover/#myisam-recover/" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld_safe\]/a\interactive_timeout = 180" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld_safe\]/a\wait_timeout=180" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld_safe\]/a\innodb_lock_wait_timeout=10" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld_safe\]/a\innodb_rollback_on_timeout=ON" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld\]/a\lock_wait_timeout=600" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld\]/a\innodb_rollback_on_timeout=ON" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld\]/a\innodb_lock_wait_timeout=10" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld\]/a\interactive_timeout = 60" %s' % self.mysql_conf)
+        local('sed -i "/\[mysqld\]/a\wait_timeout = 60" %s' % self.mysql_conf)
         # FIX for UTF8
         if pdist in ['Ubuntu']:
             sku = local("dpkg -p contrail-install-packages | grep Version: | cut -d'~' -f2", capture=True)
@@ -2009,8 +2014,17 @@ class OpenstackGaleraSetup(Setup):
         if self._args.openstack_index == 1:
             local("service %s restart" % self.mysql_svc)
         else:
-            print "Wait for the first galera node to create new cluster."
-            time.sleep(10)
+            cmd = "mysql -h%s -uroot -p%s " % (self._args.galera_ip_list[0], self.mysql_token)
+            cmd += "-e \"show global status where variable_name='wsrep_local_state'\" | awk '{print $2}' | sed '1d'"
+            for i in range(10):
+                wsrep_local_state = local(cmd, capture=True).strip()
+                if wsrep_local_state == '4':
+                    break
+                else:
+                    time.sleep(2)
+                    print "Wating for first galera node to create new cluster."
+            if wsrep_local_state != '4':
+                raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
             local("service %s restart" % self.mysql_svc)
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")

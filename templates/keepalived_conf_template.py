@@ -6,8 +6,8 @@ vrrp_script chk_haproxy {
         script "killall -0 haproxy" # verify if pid exists
         interval 1
         weight 2
-        timeout 3
-        rise 2
+        timeout 2
+        rise 1
         fall 2
 }
 
