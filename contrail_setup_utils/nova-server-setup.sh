@@ -142,7 +142,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1:3306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
 fi
 
 for APP in nova; do
@@ -228,9 +228,9 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled = true
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url=http://$CONTROLLER:6999/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url=http://$CONTROLLER_MGMT:6999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6999
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host $CONTROLLER_MGMT
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers $MEMCACHED_SERVERS
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
@@ -238,7 +238,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1:3306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180

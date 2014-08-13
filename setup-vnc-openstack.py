@@ -30,6 +30,7 @@ class SetupVncOpenstack(object):
         quantum_service_protocol = self._args.quantum_service_protocol
 
         setup_args_str = "--role openstack "
+        setup_args_str = setup_args_str + " --openstack_ip %s " % (self_ip)
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
         setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
