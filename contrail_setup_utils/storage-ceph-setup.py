@@ -182,26 +182,18 @@ class SetupCeph(object):
                 break;
             print 'Waiting for create pgs to complete'
 
-        tmp_pg_count = 8 * osd_num
-        self.set_pg_count_increment(pool, tmp_pg_count)
-        self.set_pg_count_increment(pool, tmp_pg_count * 2)
-        self.set_pg_count_increment(pool, tmp_pg_count * 3)
-        tmp_pg_count = 30 * osd_num
-        self.set_pg_count_increment(pool, tmp_pg_count)
-
-        while True:
-            time.sleep(5);
-            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
-            if creating_pgs == '0':
+        cur_pg = local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool get %s pg_num' %(pool), capture=True)
+        cur_pg_cnt = int(cur_pg.split(':')[1])
+        max_pg_cnt = 30 * osd_num
+	while True:
+            cur_pg_cnt = 30 * cur_pg_cnt
+            if cur_pg_cnt > max_pg_cnt:
+                self.set_pg_count_increment(pool, max_pg_cnt)
+                self.set_pgp_count_increment(pool, max_pg_cnt)
                 break;
-            print 'Waiting for create pgs to complete'
-
-        tmp_pgp_count = 8 * osd_num
-        self.set_pgp_count_increment(pool, tmp_pgp_count)
-        self.set_pgp_count_increment(pool, tmp_pgp_count * 2)
-        self.set_pgp_count_increment(pool, tmp_pgp_count * 3)
-        tmp_pgp_count = 30 * osd_num
-        self.set_pgp_count_increment(pool, tmp_pgp_count)
+            else:
+                self.set_pg_count_increment(pool, cur_pg_cnt)
+                self.set_pgp_count_increment(pool, cur_pg_cnt)
 
 
     # Create HDD/SSD Pool 
@@ -370,12 +362,12 @@ class SetupCeph(object):
         local('sudo ceph osd pool set volumes crush_ruleset %d' %(hdd_rule_set))
 
         # Set replica size based on count
-        if host_hdd_dict['totalcount'] <= 1:
+        if host_hdd_dict['hostcount'] <= 1:
             local('sudo ceph osd pool set volumes_hdd size 1')
         else:
             local('sudo ceph osd pool set volumes_hdd size 2')
 
-        if host_ssd_dict['totalcount'] <= 1:
+        if host_ssd_dict['hostcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
         else:
             local('sudo ceph osd pool set volumes_ssd size 2')
@@ -514,14 +506,14 @@ class SetupCeph(object):
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
 
         # Set replica size based on new count
-        if host_hdd_dict['totalcount'] <= 1:
+        if host_hdd_dict['hostcount'] <= 1:
             local('sudo ceph osd pool set volumes_hdd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_hdd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
             if rep_size != '2':
                 local('sudo ceph osd pool set volumes_hdd size 2')
 
-        if host_ssd_dict['totalcount'] <= 1:
+        if host_ssd_dict['hostcount'] <= 1:
             local('sudo ceph osd pool set volumes_ssd size 1')
         else:
             rep_size=local('sudo ceph osd pool get volumes_ssd size | awk \'{print $2}\'', shell='/bin/bash', capture=True)
