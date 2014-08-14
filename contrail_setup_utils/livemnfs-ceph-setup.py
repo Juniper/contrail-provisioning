@@ -96,7 +96,9 @@ class SetupNFSLivem(object):
     
             #following are vgw configurations
             if vm_running == '1':
-                vmrunninghost=local('source /etc/contrail/openstackrc && nova show livemnfs |grep hypervisor_hostname|awk \'{print $4}\'', capture=True, shell='/bin/bash')
+                vmrunninghostdomain=local('source /etc/contrail/openstackrc && nova show livemnfs |grep hypervisor_hostname|awk \'{print $4}\'', capture=True, shell='/bin/bash')
+                #Take the hostname alone
+                vmrunninghost = vmrunninghostdomain.split('.')[0]
                 vmhost = nfs_livem_host
                 #VM host should always be the nfs_livem_host
                 if vmhost != vmrunninghost:
