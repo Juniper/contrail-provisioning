@@ -147,6 +147,24 @@ class SetupCeph(object):
         if rest_api_conf_available != '0':
             local('sudo rm -rf /etc/init/ceph-rest-api.conf', shell='/bin/bash')
 
+    def set_pg_count_increment(self, pool, pg_count):
+        while True:
+            time.sleep(2);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            if creating_pgs == '0':
+                break;
+            print 'Waiting for create pgs to complete'
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+
+    def set_pgp_count_increment(self, pool, pg_count):
+        while True:
+            time.sleep(2);
+            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
+            if creating_pgs == '0':
+                break;
+            print 'Waiting for create pgs to complete'
+        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
+
     def set_pg_pgp_count(self, osd_num, pool, host_cnt):
 
         # Calculate/Set PG count
@@ -156,11 +174,6 @@ class SetupCeph(object):
 
         # Set the num of pgs to 32 times the OSD count. This is based on
         # Firefly release recomendation.
-        if host_cnt == 1:
-            pg_count = 12 * osd_num
-        else:
-            pg_count = ((osd_num * ( host_cnt - 1)) / host_cnt) * osd_num
-
 
         while True:
             time.sleep(5);
@@ -168,9 +181,13 @@ class SetupCeph(object):
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
-            time.sleep(5);
 
-        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pg_num %d' %(pool, pg_count))
+        tmp_pg_count = 8 * osd_num
+        self.set_pg_count_increment(pool, tmp_pg_count)
+        self.set_pg_count_increment(pool, tmp_pg_count * 2)
+        self.set_pg_count_increment(pool, tmp_pg_count * 3)
+        tmp_pg_count = 30 * osd_num
+        self.set_pg_count_increment(pool, tmp_pg_count)
 
         while True:
             time.sleep(5);
@@ -178,16 +195,14 @@ class SetupCeph(object):
             if creating_pgs == '0':
                 break;
             print 'Waiting for create pgs to complete'
-            time.sleep(5);
 
-        local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool set %s pgp_num %d' %(pool, pg_count))
-        while True:
-            time.sleep(5);
-            creating_pgs=local('sudo ceph -s | grep creating | wc -l', capture=True)
-            if creating_pgs == '0':
-                break;
-            print 'Waiting for create pgs to complete'
-            time.sleep(5);
+        tmp_pgp_count = 8 * osd_num
+        self.set_pgp_count_increment(pool, tmp_pgp_count)
+        self.set_pgp_count_increment(pool, tmp_pgp_count * 2)
+        self.set_pgp_count_increment(pool, tmp_pgp_count * 3)
+        tmp_pgp_count = 30 * osd_num
+        self.set_pgp_count_increment(pool, tmp_pgp_count)
+
 
     # Create HDD/SSD Pool 
     # For HDD/SSD pool, the crush map has to be changed to accomodate the
