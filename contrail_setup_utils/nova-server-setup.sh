@@ -227,7 +227,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url=http://$SELF_MGMT_IP:6999/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$SELF_MGMT_IP:6999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6999
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_host $SELF_MGMT_IP
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers $MEMCACHED_SERVERS
