@@ -19,6 +19,7 @@ class SetupVncVrouter(object):
         cfgm_ip = self._args.cfgm_ip
         keystone_ip = self._args.keystone_ip
         internal_vip = self._args.internal_vip
+        external_vip = self._args.external_vip
         service_token = self._args.service_token
         ncontrols = self._args.ncontrols
         non_mgmt_ip = self._args.non_mgmt_ip
@@ -43,6 +44,8 @@ class SetupVncVrouter(object):
 
 
         setup_args_str = "--role compute --compute_ip %s " %(self._args.self_ip)
+        if self._args.mgmt_self_ip:
+            setup_args_str = setup_args_str + " --mgmt_self_ip %s " % (self._args.mgmt_self_ip)
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
         setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
         setup_args_str = setup_args_str + " --openstack_mgmt_ip %s " %(openstack_mgmt_ip)
@@ -70,6 +73,8 @@ class SetupVncVrouter(object):
 
         if internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
+        if external_vip:
+            setup_args_str = setup_args_str + " --external_vip %s " %(external_vip)
         if self._args.no_contrail_openstack:
             setup_args_str = setup_args_str + " --no_contrail_openstack"
 
@@ -143,6 +148,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--openstack_mgmt_ip", help = "Mgmt IP Address of the openstack node if it is different from openstack_IP")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
+        parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--ncontrols", help = "Number of control-nodes in the system")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -162,7 +168,8 @@ class SetupVncVrouter(object):
         parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
-        parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
+        parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
+        parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)

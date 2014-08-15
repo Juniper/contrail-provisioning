@@ -21,11 +21,13 @@ class SetupVncKeepalived(object):
         self_ip = self._args.self_ip
         internal_vip = self._args.internal_vip
         openstack_index = self._args.openstack_index
+        num_nodes = self._args.num_nodes
 
         setup_args_str = "--role openstack "
         setup_args_str = setup_args_str + " --openstack_ip %s " % (self_ip)
         setup_args_str = setup_args_str + " --openstack_index %s"  % (openstack_index)
         setup_args_str = setup_args_str + " --internal_vip %s " % (internal_vip)
+        setup_args_str = setup_args_str + " --num_nodes %s " % (num_nodes)
         if self._args.external_vip:
             setup_args_str = setup_args_str + " --external_vip %s " % (self._args.external_vip)
         if self._args.mgmt_self_ip:
@@ -78,6 +80,7 @@ class SetupVncKeepalived(object):
         parser.add_argument("--internal_vip", help = "Internal(private) Virtual IP Addresses of HA contrail nodes"),
         parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA contrail nodes"),
         parser.add_argument("--openstack_index", help = "The index of this openstack node")
+        parser.add_argument("--num_nodes", help = "Number of available openstack node")
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args
