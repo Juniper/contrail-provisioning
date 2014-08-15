@@ -89,7 +89,7 @@ if [ $VIPONME -eq 1 ]; then
       compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
       if [[ -z "$compconsumer" ]]; then
         echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (ssh "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        (ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
       fi
     done
 else
