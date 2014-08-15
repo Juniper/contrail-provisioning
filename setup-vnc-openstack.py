@@ -31,6 +31,8 @@ class SetupVncOpenstack(object):
 
         setup_args_str = "--role openstack "
         setup_args_str = setup_args_str + " --openstack_ip %s " % (self_ip)
+        if self._args.mgmt_self_ip:
+            setup_args_str = setup_args_str + " --mgmt_self_ip %s " % (self._args.mgmt_self_ip)
         setup_args_str = setup_args_str + " --cfgm_ip %s " %(cfgm_ip)
         setup_args_str = setup_args_str + " --keystone_ip %s " %(keystone_ip)
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
@@ -99,6 +101,7 @@ class SetupVncOpenstack(object):
         parser.set_defaults(**all_defaults)
 
         parser.add_argument("--self_ip", help = "IP Address of this system")
+        parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")

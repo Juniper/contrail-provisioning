@@ -142,7 +142,9 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$INTERNAL_VIP:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do
