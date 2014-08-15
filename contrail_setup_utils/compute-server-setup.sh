@@ -123,6 +123,7 @@ fi
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
+    openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVER
