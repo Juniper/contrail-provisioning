@@ -1832,13 +1832,15 @@ class KeepalivedSetup(Setup):
             netmask = netifaces.ifaddresses(device)[netifaces.AF_INET][0]['netmask']
             prefix = netaddr.IPNetwork('%s/%s' % (ip, netmask)).prefixlen
             state = 'BACKUP'
-            delay = 2
+            delay = 1
+            preempt_delay = 1
             timeout = 1 
             rise = 1
             fall = 1
             if self._args.openstack_index == 1:
                 state = 'MASTER'
                 delay = 5
+                preempt_delay = 3
                 timeout = 3
                 rise = 2 
                 fall = 2
