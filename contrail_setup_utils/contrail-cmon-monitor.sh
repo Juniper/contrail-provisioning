@@ -16,7 +16,9 @@ HAP_RESTART="service haproxy restart"
 ARP_CACHE_FLUSH="ip neigh flush all"
 CMON_RUN=0
 VIPONME=0
-HAPRESTART=1
+HAPRESTART=0
+RMQ_CONSUMERS="rabbitmqctl list_consumers"
+NOVA_COMPUTE_RESTART="service nova-compute restart"
 
 timestamp() {
     date +"%T"
@@ -81,6 +83,16 @@ if [ $VIPONME -eq 1 ]; then
       $RUN_CMON  
       log_info_msg "Started CMON on detecting VIP"
    fi
+
+   for (( i=0; i<${COMPUTES_SIZE}; i++ ))
+    do
+      compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
+      if [[ -z "$compconsumer" ]]; then
+        ssh-copy-id -i $COMPUTES_USER@${COMPUTES[i]}
+        echo "'$COMPUTES_USER@${COMPUTES[i]}'"
+        (ssh "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+      fi
+    done
 else
    if [ $CMON_RUN == "y" ]; then
       $STOP_CMON
@@ -89,11 +101,11 @@ else
 
    #Check if the VIP was on this node and clear all session by restarting haproxy
    hapid=$(pidof haproxy)
-   for (( i=0; i<${DIPS_SIZE}; i++ ));
+   for (( i=0; i<${DIPS_SIZE}; i++ ))
     do
       dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
       if [[ -n "$dipsonnonvip" ]]; then
-         haprestart=1
+         HAPRESTART=1
          break
       fi
     done
