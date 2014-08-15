@@ -283,6 +283,7 @@ class Setup(object):
         parser.add_argument("--galera_ip_list", help = "IP Addresses of Galera servers", nargs = '+', type = str)
         parser.add_argument("--openstack_ip_list", help = "IP Addresses of openstack Servers", nargs = '+', type = str)
         parser.add_argument("--openstack_index", help = "Index of this openstack node", type = int)
+        parser.add_argument("--num_nodes", help = "Number of available nodes", type = int)
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
             help="Number of API/discovery worker processes to be launched",
@@ -912,8 +913,8 @@ HWADDR=%s
                                             %(quantum_service_protocol, temp_dir_name))
             local("echo 'ADMIN_TOKEN=%s' >> %s/ctrl-details" %(ks_admin_password, temp_dir_name))
             local("echo 'CONTROLLER=%s' >> %s/ctrl-details" %(keystone_ip, temp_dir_name))
-            if self._args.openstack_ip:
-                local("echo 'CONTROLLER_MGMT=%s' >> %s/ctrl-details" %(self._args.openstack_ip, temp_dir_name))
+            if self._args.mgmt_self_ip:
+                local("echo 'SELF_MGMT_IP=%s' >> %s/ctrl-details" %(self._args.mgmt_self_ip, temp_dir_name))
             if self._args.openstack_ip_list:
                 local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
             if 'compute' in self._args.role:
@@ -937,6 +938,10 @@ HWADDR=%s
 
             if self._args.internal_vip:
                 local("echo 'INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
+            if self._args.external_vip:
+                local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.external_vip, temp_dir_name))
+            else:
+                local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.openstack_index:
                 local("echo 'OPENSTACK_INDEX=%s' >> %s/ctrl-details" % (self._args.openstack_index, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
@@ -1088,6 +1093,9 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/contrail-query-engine.conf')
             local("sudo mv %s/contrail-query-engine.conf /etc/contrail/contrail-query-engine.conf" %(temp_dir_name))
            
+            rest_api_port = '8081'
+            if self._args.internal_vip:
+                rest_api_port = '9081'
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
                              '__contrail_log_local__': '0',
                              '__contrail_log_category__': '',
@@ -1095,7 +1103,7 @@ HWADDR=%s
                              '__contrail_redis_server_port__' : '6379',
                              '__contrail_redis_query_port__' : '6379',
                              '__contrail_http_server_port__' : '8090',
-                             '__contrail_rest_api_port__' : '8081',
+                             '__contrail_rest_api_port__' : rest_api_port,
                              '__contrail_host_ip__' : self_collector_ip, 
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_discovery_port__' : 5998,
@@ -1824,18 +1832,37 @@ class KeepalivedSetup(Setup):
             netmask = netifaces.ifaddresses(device)[netifaces.AF_INET][0]['netmask']
             prefix = netaddr.IPNetwork('%s/%s' % (ip, netmask)).prefixlen
             state = 'BACKUP'
-            priority = str(200 - (int(self._args.openstack_index)- 1))
+            delay = 2
+            timeout = 1 
+            rise = 1
+            fall = 1
             if self._args.openstack_index == 1:
                 state = 'MASTER'
+                delay = 5
+                timeout = 3
+                rise = 2 
+                fall = 2
+            if vip_name == 'INTERNAL':
+                router_id = 100
+            else:
+                router_id = 200
+            priority = router_id
+            if self._args.num_nodes > 2 and self._args.openstack_index > 2:
+                priority = (router_id - (self._args.openstack_index - 2))
+            if self._args.num_nodes == 2 and self._args.openstack_index == 2:
+                priority = (router_id - 1)
             vip_str = '_'.join([vip_name] + vip.split('.'))
-            router_id = (200 + (10 * int(vip_for_ips.index((vip, ip, vip_name)))))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
                              '__state__' : state,
+                             '__delay__' : delay,
                              '__priority__' : priority,
                              '__virtual_ip__' : vip,
                              '__virtual_ip_mask__' : prefix,
-                             '__vip_str__' : vip_str
+                             '__vip_str__' : vip_str,
+                             '__timeout__' : timeout,
+                             '__rise__' : rise,
+                             '__fall__' : fall,
                             }
             data = self._template_substitute(keepalived_conf_template.template,
                                       template_vals)
