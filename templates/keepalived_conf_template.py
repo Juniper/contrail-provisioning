@@ -20,7 +20,7 @@ vrrp_instance $__vip_str__ {
         priority  $__priority__
         authentication {
              auth_type AH
-             auth_pass k@l!ve1$__vip_str__
+             auth_pass k@l!ve1
         }
         virtual_ipaddress {
                 $__virtual_ip__/$__virtual_ip_mask__ dev $__device__
