@@ -298,7 +298,7 @@ class SetupNFSLivem(object):
                             run('sudo cp /etc/fstab /tmp/fstab')
                             run('sudo chmod  666 /tmp/fstab')
                             run('echo \"# /livemnfsvol on /dev/vdb\" >> /tmp/fstab')
-                            run('echo \"UUID=%s /livemnfsvol xfs rw,noatime,attr2,delaylog,nobarrier,logbsize=256k,sunit=256,swidth=256,noquota 0 0\" >> /tmp/fstab' %(vdbuuid))
+                            run('echo \"UUID=%s /livemnfsvol xfs rw,noatime,attr2,delaylog,nobarrier,logbsize=256k,noquota 0 0\" >> /tmp/fstab' %(vdbuuid))
                             run('sudo chmod  644 /tmp/fstab')
                             run('sudo mv /tmp/fstab /etc/fstab')
     
