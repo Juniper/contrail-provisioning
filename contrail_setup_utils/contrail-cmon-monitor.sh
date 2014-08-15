@@ -16,7 +16,7 @@ HAP_RESTART="service haproxy restart"
 ARP_CACHE_FLUSH="ip neigh flush all"
 CMON_RUN=0
 VIPONME=0
-HAPRESTART=0
+HAPRESTART=1
 
 timestamp() {
     date +"%T"

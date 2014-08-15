@@ -35,6 +35,8 @@ class SetupVncCollector(object):
         if self._args.analytics_syslog_port is not None:
             setup_args_str = setup_args_str + " --analytics_syslog_port %d" \
                                  % (self._args.analytics_syslog_port)                                                   
+        if self._args.internal_vip:
+            setup_args_str = setup_args_str + " --internal_vip %s " % self._args.internal_vip
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -84,6 +86,7 @@ class SetupVncCollector(object):
         parser.add_argument("--num_nodes", help = "Number of collector nodes", type = int)
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
+        parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args
