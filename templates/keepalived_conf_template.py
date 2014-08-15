@@ -18,10 +18,6 @@ vrrp_instance $__vip_str__ {
         advert_int 1
         virtual_router_id $__router_id__
         priority  $__priority__
-        authentication {
-             auth_type AH
-             auth_pass k@l!ve1
-        }
         virtual_ipaddress {
                 $__virtual_ip__/$__virtual_ip_mask__ dev $__device__
         }

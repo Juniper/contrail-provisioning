@@ -900,7 +900,7 @@ HWADDR=%s
                 with settings(host_string = 'root@%s' %(self._args.internal_vip or keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
-                    self.service_token = tok_fd.read()
+                    self.service_token = tok_fd.read().strip()
                     tok_fd.close()
                     local("cp -f  %s/service.token /etc/contrail/service.token" % temp_dir_name)
                     local("rm %s/service.token" %(temp_dir_name))
