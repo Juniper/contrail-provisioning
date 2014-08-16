@@ -13,10 +13,10 @@ RUN_CMON="service cmon start"
 STOP_CMON="service cmon stop"
 MYSQL_SVC_CHECK="service mysql status"
 HAP_RESTART="service haproxy restart"
-ARP_CACHE_FLUSH="ip neigh flush all"
-CMON_RUN=0
-VIPONME=0
-HAPRESTART=0
+ARP_CACHE_FLUSH="arp -d $VIP"
+cmon_run=0
+viponme=0
+haprestart=0
 RMQ_CONSUMERS="rabbitmqctl list_consumers"
 NOVA_COMPUTE_RESTART="service nova-compute restart"
 
@@ -42,7 +42,7 @@ log_info_msg() {
 for y in $MYIPS
  do
   if [ $y == $VIP ]; then
-     VIPONME=1
+     viponme=1
      log_info_msg "VIP - $VIP is on this node"
      break
   fi
@@ -76,24 +76,37 @@ verify_cmon() {
    fi
 }
 
-CMON_RUN=$(verify_cmon)
+cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
-if [ $VIPONME -eq 1 ]; then
-   if [ $CMON_RUN == "n" ]; then
+if [ $viponme -eq 1 ]; then
+   if [ $cmon_run == "n" ]; then
       $RUN_CMON  
       log_info_msg "Started CMON on detecting VIP"
-   fi
+
+      for (( i=0; i<${COMPUTES_SIZE}; i++ ))
+       do
+        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$ARP_CACHE_FLUSH")&
+        log_info_msg "ARP clean up for VIP on ${COMPUTES[i]}"
+       done
+
+       for (( i=0; i<${DIPS_SIZE}; i++ ))
+        do
+         (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
+         log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
+        done
+    fi
 
    for (( i=0; i<${COMPUTES_SIZE}; i++ ))
     do
       compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
       if [[ -z "$compconsumer" ]]; then
         echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (ssh "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
       fi
     done
 else
-   if [ $CMON_RUN == "y" ]; then
+   if [ $cmon_run == "y" ]; then
       $STOP_CMON
       log_info_msg "Stopped CMON on not finding VIP"
    fi
@@ -104,18 +117,15 @@ else
     do
       dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
       if [[ -n "$dipsonnonvip" ]]; then
-         HAPRESTART=1
+         haprestart=1
          break
       fi
     done
 
-    if [ $HAPRESTART -eq 1 ]; then
+    if [ $haprestart -eq 1 ]; then
        $HAP_RESTART
        log_info_msg "Restarted HAP becuase of stale dips"
     fi
-
-    #Clean up arp table to remove the stale VIP MAC
-    $ARP_CACHE_FLUSH
 fi
       
 exit 0
