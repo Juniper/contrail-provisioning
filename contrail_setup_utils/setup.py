@@ -1835,10 +1835,12 @@ class KeepalivedSetup(Setup):
             timeout = 1 
             rise = 1
             fall = 1
+            garp_master_repeat = 3
+            garp_master_refresh = 1
             if self._args.openstack_index == 1:
                 state = 'MASTER'
                 delay = 5
-                preempt_delay = 3
+                preempt_delay = 7
                 timeout = 3
                 rise = 2 
                 fall = 2
@@ -1856,6 +1858,8 @@ class KeepalivedSetup(Setup):
                              '__router_id__' : router_id,
                              '__state__' : state,
                              '__delay__' : delay,
+                             '__garp_master_repeat__' : garp_master_repeat,
+                             '__garp_master_refresh__' : garp_master_refresh,
                              '__preempt_delay__' : preempt_delay,
                              '__priority__' : priority,
                              '__virtual_ip__' : vip,
