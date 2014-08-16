@@ -83,7 +83,6 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_hosts $AMQP_SERVER
 fi
 
 if [ $VMWARE_IP ]; then
@@ -127,7 +126,6 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken rabbit_hosts $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
