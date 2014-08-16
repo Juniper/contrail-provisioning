@@ -29,26 +29,30 @@ innodb_locks_unsafe_for_binlog=1
 #INNODB
 default-storage-engine=innodb
 engine-condition-pushdown=1
-innodb-stats-on-metadata=0
-innodb-autoinc-lock-mode=2
-innodb-locks-unsafe-for-binlog=1
-innodb-flush-method = O_DIRECT
-innodb-thread-concurrency=0
-innodb-doublewrite=1
-innodb-write-io-threads=4
-innodb-read-io-threads=4
-innodb-file-per-table=1
-innodb-flush-log-at-trx-commit=2
-innodb-additional-mem-pool-size=1000M
-innodb-buffer-pool-size=500M
+innodb_stats_on_metadata=0
+innodb_autoinc_lock_mode=2
+innodb_locks_unsafe_for_binlog=1
+innodb_flush_method=O_DIRECT
+innodb_thread_concurrency=0
+innodb_doublewrite=1
+innodb_io_capacity=2000
+innodb_write_io_threads=64
+innodb_read_io_threads=64
+innodb_file_per_table=1
+innodb_flush_log_at_trx_commit=2
+innodb_additional_mem_pool_size=1000M
+innodb_buffer_pool_size=1G
+innodb_rollback_on_timeout=ON
+innodb_lock_wait_timeout=10
+
 #BUFFERS
-lower-case-table-names=0
-table-open_cache=1024
-thread-cache-size=512
+lower_case_table_names=0
+table_open_cache=1024
+thread_cache_size=512
 sysdate-is-now=1
 memlock=0
 skip-name-resolve
-max-allowed-packet = 512M
+max_allowed_packet = 512M
 max_heap_table_size = 64M
 tmp_table_size = 64M
 key_buffer_size = 24M
