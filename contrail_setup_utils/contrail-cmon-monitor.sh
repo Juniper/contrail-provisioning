@@ -13,7 +13,7 @@ RUN_CMON="service cmon start"
 STOP_CMON="service cmon stop"
 MYSQL_SVC_CHECK="service mysql status"
 HAP_RESTART="service haproxy restart"
-ARP_CACHE_FLUSH="ip neigh flush all"
+ARP_CACHE_FLUSH="arp -d $VIP"
 CMON_RUN=0
 VIPONME=0
 HAPRESTART=0
@@ -82,14 +82,27 @@ if [ $VIPONME -eq 1 ]; then
    if [ $CMON_RUN == "n" ]; then
       $RUN_CMON  
       log_info_msg "Started CMON on detecting VIP"
-   fi
+
+      for (( i=0; i<${COMPUTES_SIZE}; i++ ))
+       do
+        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$ARP_CACHE_FLUSH")&
+        log_info_msg "ARP clean up for VIP on ${COMPUTES[i]}"
+       done
+
+       for (( i=0; i<${DIPS_SIZE}; i++ ))
+        do
+         (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
+         log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
+        done
+    fi
 
    for (( i=0; i<${COMPUTES_SIZE}; i++ ))
     do
       compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
       if [[ -z "$compconsumer" ]]; then
         echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (ssh "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
       fi
     done
 else
@@ -109,13 +122,10 @@ else
       fi
     done
 
-    if [ $HAPRESTART -eq 1 ]; then
+    if [ $haprestart -eq 1 ]; then
        $HAP_RESTART
        log_info_msg "Restarted HAP becuase of stale dips"
     fi
-
-    #Clean up arp table to remove the stale VIP MAC
-    $ARP_CACHE_FLUSH
 fi
       
 exit 0
