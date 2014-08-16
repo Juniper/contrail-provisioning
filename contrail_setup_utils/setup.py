@@ -1856,6 +1856,7 @@ class KeepalivedSetup(Setup):
                              '__router_id__' : router_id,
                              '__state__' : state,
                              '__delay__' : delay,
+                             '__preempt_delay__' : preempt_delay,
                              '__priority__' : priority,
                              '__virtual_ip__' : vip,
                              '__virtual_ip_mask__' : prefix,
@@ -1936,8 +1937,6 @@ class OpenstackGaleraSetup(Setup):
         local('sed -i -e "s/thread_cache_size/#thread_cache_size/" %s' % self.mysql_conf)
         local('sed -i -e "s/myisam-recover/#myisam-recover/" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld\]/a\lock_wait_timeout=600" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld\]/a\innodb_rollback_on_timeout=ON" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld\]/a\innodb_lock_wait_timeout=10" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld\]/a\interactive_timeout = 60" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld\]/a\wait_timeout = 60" %s' % self.mysql_conf)
         # FIX for UTF8
