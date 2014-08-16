@@ -89,7 +89,8 @@ if [ $VIPONME -eq 1 ]; then
       compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
       if [[ -z "$compconsumer" ]]; then
         echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+        ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART"
+        log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
       fi
     done
 else
