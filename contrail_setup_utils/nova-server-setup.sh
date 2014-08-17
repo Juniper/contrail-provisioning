@@ -166,7 +166,7 @@ for svc in nova; do
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 done
 
-openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
@@ -208,11 +208,11 @@ else
     if [ "$nova_api_ver" == "2014.1.1" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-        openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+        openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
         openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
         openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
         openstack-config --set /etc/nova/nova.conf DEFAULT instances_path /var/lib/nova/instances
-        openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
+        openstack-config --set /etc/nova/nova.conf conductor rabbit_hosts $AMQP_SERVERS
         chown -R nova:nova /var/lib/nova
     fi
 fi
@@ -233,8 +233,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers $MEMCACHED_SERVERS
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova

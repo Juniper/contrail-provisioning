@@ -94,17 +94,16 @@ if [ $viponme -eq 1 ]; then
          (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
          log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
         done
-    fi
 
-   for (( i=0; i<${COMPUTES_SIZE}; i++ ))
-    do
-      compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
-      if [[ -z "$compconsumer" ]]; then
-        echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
-        log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
-      fi
-    done
+       for (( i=0; i<${COMPUTES_SIZE}; i++ ))
+        do
+         compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
+         if [[ -z "$compconsumer" ]]; then
+           (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+            log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
+         fi
+        done
+    fi
 else
    if [ $cmon_run == "y" ]; then
       $STOP_CMON

@@ -917,10 +917,12 @@ HWADDR=%s
                 local("echo 'SELF_MGMT_IP=%s' >> %s/ctrl-details" %(self._args.mgmt_self_ip, temp_dir_name))
             if self._args.openstack_ip_list:
                 local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
-            if 'compute' in self._args.role:
-                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
-            else:
+            if self._args.amqp_server_ip_list:
+                local("echo 'AMQP_SERVERS=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
+            if self._args.amqp_server_ip:
                 local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            if 'openstack' in self._args.role and not self._args.amqp_server_ip_list:
+                local("echo 'AMQP_SERVERS=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip) + ':5672', temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
