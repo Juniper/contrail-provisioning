@@ -148,9 +148,15 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
         (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
+        if [ $? != 0 ]; then
+            exit 1
+        fi
     fi
 else
     (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+    if [ $? != 0 ]; then
+        exit 1
+    fi
 fi
 
 # wait for the keystone service to start
