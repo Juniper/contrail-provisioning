@@ -42,60 +42,60 @@ class SetupCeph(object):
     CEPH_CONFIG_FILE='/etc/ceph/ceph.conf'
 
     def reset_mon_local_list(self):
-	local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
-	local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
-	local('echo  "for i in \`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/mon_local_list.sh')
-	local('echo "if [ -e \\"/var/lib/ceph/mon/\$i/upstart\\" ]; then" >>  /tmp/mon_local_list.sh')
-	local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/mon_local_list.sh')
-	local('echo "sudo stop ceph-mon id=\$id"  >> /tmp/mon_local_list.sh')
-	local('echo "fi done fi"  >> /tmp/mon_local_list.sh')
-	local('echo "}"  >> /tmp/mon_local_list.sh')
-	local('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
-	local('echo "exit 0" >> /tmp/mon_local_list.sh')
-	local('chmod a+x /tmp/mon_local_list.sh')
-	local('/tmp/mon_local_list.sh')
+        local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
+        local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
+        local('echo  "for i in \`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/mon_local_list.sh')
+        local('echo "if [ -e \\"/var/lib/ceph/mon/\$i/upstart\\" ]; then" >>  /tmp/mon_local_list.sh')
+        local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/mon_local_list.sh')
+        local('echo "sudo stop ceph-mon id=\$id"  >> /tmp/mon_local_list.sh')
+        local('echo "fi done fi"  >> /tmp/mon_local_list.sh')
+        local('echo "}"  >> /tmp/mon_local_list.sh')
+        local('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
+        local('echo "exit 0" >> /tmp/mon_local_list.sh')
+        local('chmod a+x /tmp/mon_local_list.sh')
+        local('/tmp/mon_local_list.sh')
 
     def reset_osd_local_list(self):
-	local('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
-	local('echo "if [ -d \\"/var/lib/ceph/osd\\" ]; then" >> /tmp/osd_local_list.sh')
-	local('echo  "for i in \`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/osd_local_list.sh')
-	local('echo "if [ -e \\"/var/lib/ceph/osd/\$i/upstart\\" ]; then" >>  /tmp/osd_local_list.sh')
-	local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/osd_local_list.sh')
-	local('echo "sudo stop ceph-osd id=\$id"  >> /tmp/osd_local_list.sh')
-	local('echo "fi done fi"  >> /tmp/osd_local_list.sh')
-	local('echo "}"  >> /tmp/osd_local_list.sh')
-	local('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
-	local('echo "exit 0" >> /tmp/osd_local_list.sh')
-	local('chmod a+x /tmp/osd_local_list.sh')
-	local('/tmp/osd_local_list.sh')
+        local('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
+        local('echo "if [ -d \\"/var/lib/ceph/osd\\" ]; then" >> /tmp/osd_local_list.sh')
+        local('echo  "for i in \`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\`; do" >> /tmp/osd_local_list.sh')
+        local('echo "if [ -e \\"/var/lib/ceph/osd/\$i/upstart\\" ]; then" >>  /tmp/osd_local_list.sh')
+        local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >>  /tmp/osd_local_list.sh')
+        local('echo "sudo stop ceph-osd id=\$id"  >> /tmp/osd_local_list.sh')
+        local('echo "fi done fi"  >> /tmp/osd_local_list.sh')
+        local('echo "}"  >> /tmp/osd_local_list.sh')
+        local('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
+        local('echo "exit 0" >> /tmp/osd_local_list.sh')
+        local('chmod a+x /tmp/osd_local_list.sh')
+        local('/tmp/osd_local_list.sh')
 
     def reset_mon_remote_list(self):
-	run('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
-	run('echo "if [ -d \\\\"/var/lib/ceph/mon\\\\" ]; then" >> /tmp/mon_local_list.sh')
-	run('echo  "for i in \\\\`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/mon_local_list.sh')
-	run('echo "if [ -e \\\\"/var/lib/ceph/mon/\\\\$i/upstart\\\\" ]; then" >>  /tmp/mon_local_list.sh')
-	run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/mon_local_list.sh')
-	run('echo "sudo stop ceph-mon id=\\\\$id"  >> /tmp/mon_local_list.sh')
-	run('echo "fi done fi"  >> /tmp/mon_local_list.sh')
-	run('echo "}"  >> /tmp/mon_local_list.sh')
-	run('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
-	run('echo "exit 0" >> /tmp/mon_local_list.sh')
-	run('chmod a+x /tmp/mon_local_list.sh')
-	run('/tmp/mon_local_list.sh')
+        run('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
+        run('echo "if [ -d \\\\"/var/lib/ceph/mon\\\\" ]; then" >> /tmp/mon_local_list.sh')
+        run('echo  "for i in \\\\`find -L /var/lib/ceph/mon -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/mon_local_list.sh')
+        run('echo "if [ -e \\\\"/var/lib/ceph/mon/\\\\$i/upstart\\\\" ]; then" >>  /tmp/mon_local_list.sh')
+        run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/mon_local_list.sh')
+        run('echo "sudo stop ceph-mon id=\\\\$id"  >> /tmp/mon_local_list.sh')
+        run('echo "fi done fi"  >> /tmp/mon_local_list.sh')
+        run('echo "}"  >> /tmp/mon_local_list.sh')
+        run('echo "get_local_daemon_ulist"  >> /tmp/mon_local_list.sh')
+        run('echo "exit 0" >> /tmp/mon_local_list.sh')
+        run('chmod a+x /tmp/mon_local_list.sh')
+        run('/tmp/mon_local_list.sh')
 
     def reset_osd_remote_list(self):
-	run('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
-	run('echo "if [ -d \\\\"/var/lib/ceph/osd\\\\" ]; then" >> /tmp/osd_local_list.sh')
-	run('echo  "for i in \\\\`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/osd_local_list.sh')
-	run('echo "if [ -e \\\\"/var/lib/ceph/osd/\\\\$i/upstart\\\\" ]; then" >>  /tmp/osd_local_list.sh')
-	run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/osd_local_list.sh')
-	run('echo "sudo stop ceph-osd id=\\\\$id"  >> /tmp/osd_local_list.sh')
-	run('echo "fi done fi"  >> /tmp/osd_local_list.sh')
-	run('echo "}"  >> /tmp/osd_local_list.sh')
-	run('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
-	run('echo "exit 0" >> /tmp/osd_local_list.sh')
-	run('chmod a+x /tmp/osd_local_list.sh')
-	run('/tmp/osd_local_list.sh')
+        run('echo "get_local_daemon_ulist() {" > /tmp/osd_local_list.sh')
+        run('echo "if [ -d \\\\"/var/lib/ceph/osd\\\\" ]; then" >> /tmp/osd_local_list.sh')
+        run('echo  "for i in \\\\`find -L /var/lib/ceph/osd -mindepth 1 -maxdepth 1 -type d -printf \'%f\\\\\\n\'\\\\`; do" >> /tmp/osd_local_list.sh')
+        run('echo "if [ -e \\\\"/var/lib/ceph/osd/\\\\$i/upstart\\\\" ]; then" >>  /tmp/osd_local_list.sh')
+        run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >>  /tmp/osd_local_list.sh')
+        run('echo "sudo stop ceph-osd id=\\\\$id"  >> /tmp/osd_local_list.sh')
+        run('echo "fi done fi"  >> /tmp/osd_local_list.sh')
+        run('echo "}"  >> /tmp/osd_local_list.sh')
+        run('echo "get_local_daemon_ulist"  >> /tmp/osd_local_list.sh')
+        run('echo "exit 0" >> /tmp/osd_local_list.sh')
+        run('chmod a+x /tmp/osd_local_list.sh')
+        run('/tmp/osd_local_list.sh')
 
     def ceph_rest_api_service_add(self):
         # check for ceph-rest-api.conf
@@ -357,7 +357,7 @@ class SetupCeph(object):
         local('sudo rados mkpool volumes_ssd')
         local('sudo ceph osd pool set volumes_hdd crush_ruleset %d' %(hdd_rule_set))
         local('sudo ceph osd pool set volumes_ssd crush_ruleset %d' %(ssd_rule_set))
-	# Change the crush ruleset of images and volumes to point to HDD
+        # Change the crush ruleset of images and volumes to point to HDD
         local('sudo ceph osd pool set images crush_ruleset %d' %(hdd_rule_set))
         local('sudo ceph osd pool set volumes crush_ruleset %d' %(hdd_rule_set))
 
@@ -580,10 +580,10 @@ class SetupCeph(object):
         sshkey=local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
         already_present=local('grep "%s" ~/.ssh/known_hosts 2> /dev/null | wc -l' % (sshkey), capture=True)
-	if already_present == '0':
-	    local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
+        if already_present == '0':
+            local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
         already_present=local('grep "%s" ~/.ssh/authorized_keys 2> /dev/null | wc -l' % (sshkey), capture=True)
-	if already_present == '0':
+        if already_present == '0':
             local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
         for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
             if entries != self._args.storage_master:
@@ -591,11 +591,11 @@ class SetupCeph(object):
                     run('sudo mkdir -p ~/.ssh')
                     already_present=run('grep "%s" ~/.ssh/known_hosts 2> /dev/null | wc -l' % (sshkey))
                     #print already_present
-	            if already_present == '0':
+                    if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
                     already_present=run('grep "%s" ~/.ssh/authorized_keys 2> /dev/null | wc -l' % (sshkey))
                     #print already_present
-	            if already_present == '0':
+                    if already_present == '0':
                         run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
                     hostfound = local('sudo grep %s,%s ~/.ssh/known_hosts | wc -l' %(hostname,entries), capture=True)
                     if hostfound == "0":
@@ -953,8 +953,24 @@ class SetupCeph(object):
             if self._args.storage_setup_mode == 'setup':
                 print 'Storage already configured'
                 return
+
+        while True:
+            glance_image = local('(. /etc/contrail/openstackrc ; glance image-list |grep active |awk \'{print $2}\' | head -n 1)', capture=True, shell='/bin/bash')
+            if glance_image != '':
+                local('(. /etc/contrail/openstackrc ; glance image-delete %s)' %(glance_image))
+            else:
+                break
+
+        local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store file')
+        local('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT show_image_direct_url')
+        local('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT rbd_store_user')
+        if pdist == 'centos':
+            local('sudo service openstack-glance-api restart')
+        if pdist == 'Ubuntu':
+            local('sudo service glance-api restart')
+        
         cinderlst = local('(. /etc/contrail/openstackrc ;  cinder list --all-tenants| grep ocs-block | cut -d"|" -f 2)',  capture=True)
-	if cinderlst != "":
+        if cinderlst != "":
             cinderalst = cinderlst.split('\n')
             for x in cinderalst:
                 inuse = local('(. /etc/contrail/openstackrc ;  cinder list --all-tenants| grep %s | cut -d"|" -f 3)' % (x),  capture=True)
@@ -1013,12 +1029,12 @@ class SetupCeph(object):
 
         # stop existing ceph monitor/osd
         local('pwd')
-	if pdist == 'centos':
+        if pdist == 'centos':
             local('/etc/init.d/ceph stop osd')
             local('/etc/init.d/ceph stop mon')
         if pdist == 'Ubuntu':
-	    self.reset_mon_local_list()
-	    self.reset_osd_local_list()
+            self.reset_mon_local_list()
+            self.reset_osd_local_list()
         #local('chmod a+x /tmp/ceph.stop.sh')
         #local('/tmp/ceph.stop.sh')
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
@@ -1029,7 +1045,7 @@ class SetupCeph(object):
                         run('echo "/etc/init.d/ceph stop mon" >> /tmp/ceph.stop.sh')
                         run('chmod a+x /tmp/ceph.stop.sh')
                         run('/tmp/ceph.stop.sh')
-		    if pdist == 'Ubuntu':
+                    if pdist == 'Ubuntu':
                         self.reset_mon_remote_list()
                         self.reset_osd_remote_list()
         time.sleep(2)
@@ -1093,7 +1109,7 @@ class SetupCeph(object):
             if self._args.storage_journal_config[0] != 'none':
                 for disks in self._args.storage_journal_config:
                     local('sudo ceph-deploy disk zap %s' % (disks))
-	    time.sleep(10)
+            time.sleep(10)
             for entries in self._args.storage_hostnames:
                 local('sudo ceph-deploy gatherkeys %s' % (entries))
             osd_count = 0
@@ -1227,7 +1243,7 @@ class SetupCeph(object):
             if new_storage_disk_list != []:
                 for disks in new_storage_disk_list:
                     # For prefirefly use prepare/activate on ubuntu release
-		    local('sudo ceph-deploy osd create %s' % (disks))
+                    local('sudo ceph-deploy osd create %s' % (disks))
                     osd_count += 1
             
             # Find the host count
