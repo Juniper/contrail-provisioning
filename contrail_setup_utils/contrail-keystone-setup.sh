@@ -60,7 +60,7 @@ function is_keystone_up() {
        if [ $? == 0 ]; then
            return 0
        fi
-       echo "Keystone is not up, retrying in 5 secs"
+       echo "Keystone is not up, retrying in 6 secs"
        sleep 6
     done
     return 1
