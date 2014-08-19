@@ -61,13 +61,13 @@ class SetupNFSLivem(object):
             neutronnet=local('source /etc/contrail/openstackrc && neutron net-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if neutronnet == '0':
                 local('source /etc/contrail/openstackrc && neutron net-create livemnfs', shell='/bin/bash')
-    
+
             #check for neutron subnet if already present, otherwise add it
             neutronsubnet=local('source /etc/contrail/openstackrc && neutron subnet-list | grep %s |wc -l' %(nfs_livem_cidr), capture=True, shell='/bin/bash')
             if neutronsubnet == '0':
                 local('source /etc/contrail/openstackrc && neutron subnet-create --name livemnfs livemnfs %s' %(nfs_livem_cidr), shell='/bin/bash')
             net_id = livemnfs=local('source /etc/contrail/openstackrc && neutron net-list |grep livemnfs| awk \'{print $2}\'', capture=True, shell='/bin/bash')
-    
+
             #check for vm if already running, otherwise start it
             vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
             if vm_running == '0':
@@ -85,7 +85,7 @@ class SetupNFSLivem(object):
                     if wait_loop <= 0:
                        break
 	            time.sleep(10)
-    
+
             #copy nova,libvirt,kvm entries
             novapassentry = ''
             libqpassentry = ''
@@ -93,7 +93,7 @@ class SetupNFSLivem(object):
             libgroupentry = ''
             novgroupentry = ''
             kvmgroupentry = ''
-    
+
             #following are vgw configurations
             if vm_running == '1':
                 vmrunninghostdomain=local('source /etc/contrail/openstackrc && nova show livemnfs |grep hypervisor_hostname|awk \'{print $4}\'', capture=True, shell='/bin/bash')
@@ -106,7 +106,7 @@ class SetupNFSLivem(object):
                     return
                 # The vmip is the actual ip assigned to the VM. Use this for the rest of the configurations
                 vmip = local('source /etc/contrail/openstackrc && nova show livemnfs |grep \"livemnfs network\"|awk \'{print $5}\'', capture=True, shell='/bin/bash')
-    
+
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                     if hostname == vmhost:
                         with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -125,25 +125,25 @@ class SetupNFSLivem(object):
                                 run('echo \"iface livemnfsvgw inet manual\" >> /etc/network/interfaces');
                                 run('echo \"    pre-up vif --create livemnfsvgw --mac 00:01:5e:00:00\" >> /etc/network/interfaces');
                                 run('echo \"    pre-up ifconfig livemnfsvgw up\" >> /etc/network/interfaces');
-    
+
                             #check if we have /etc/contrail/agent.conf for < 1.1
-                            agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                            agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
                             if agentconfavail == '1':
                                 #check for agent.conf
-                                agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash') 
+                                agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash')
                                 if agentconfdone == '0':
                                     run('cat /etc/contrail/agent.conf  | sed \'s/<\/agent>/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    &/g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
                                     run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
                                     run('service contrail-vrouter restart' , shell='/bin/bash')
-    
+
                             #check if we have contrail-vrouter-agent.conf for > 1.1
-                            vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                            vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
                             if vragentconfavail == '1':
-                                vragentconfdone=run('cat /etc/contrail/contrail-vrouter-agent.conf|grep livemnfsvgw|wc -l', shell='/bin/bash') 
+                                vragentconfdone=run('cat /etc/contrail/contrail-vrouter-agent.conf|grep livemnfsvgw|wc -l', shell='/bin/bash')
                                 if vragentconfdone == '0':
                                     gateway_id = int('0')
                                     while True:
-                                        vrgatewayavail=run('grep "\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf |wc -l' %(gateway_id), shell='/bin/bash') 
+                                        vrgatewayavail=run('grep "\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf |wc -l' %(gateway_id), shell='/bin/bash')
                                         if vrgatewayavail == '0':
                                             print vrgatewayavail
                                             run('openstack-config --set /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d routing_instance default-domain:admin:livemnfs:livemnfs' %(gateway_id))
@@ -152,18 +152,18 @@ class SetupNFSLivem(object):
                                             run('service supervisor-vrouter restart' , shell='/bin/bash')
                                             break
                                         gateway_id = gateway_id + 1
-    
+
                             #check for dynamic route on the vm host
-                            dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                            dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                             if dynroutedone == '0':
-                                 dynroutedone=run('route add -host %s/32 dev livemnfsvgw' %(vmip), shell='/bin/bash') 
-    
+                                 dynroutedone=run('route add -host %s/32 dev livemnfsvgw' %(vmip), shell='/bin/bash')
+
                             #check and add static route on the vm host
-                            staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                            staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash')
                             if staroutedone == '0':
                                  run('echo \"\" >> /etc/network/interfaces');
                                  run('echo \"up route add -host %s/32 dev livemnfsvgw\" >> /etc/network/interfaces' %(vmip));
-    
+
                             # Copy nova,libvirt,kvm entries
                             novapassentry=run('cat /etc/passwd |grep ^nova')
                             libqpassentry=run('cat /etc/passwd |grep ^libvirt-qemu')
@@ -171,7 +171,7 @@ class SetupNFSLivem(object):
                             novgroupentry=run('cat /etc/group |grep ^nova')
                             libgroupentry=run('cat /etc/group |grep ^kvm')
                             kvmgroupentry=run('cat /etc/group |grep ^libvirtd')
-    
+
                     #add route on other nodes
                     else:
                         with settings(host_string='root@%s' %(entries),
@@ -183,14 +183,14 @@ class SetupNFSLivem(object):
 
                                 #check for dynamic route on the vm host
                                 dynroutedone=run('netstat -rn |grep %s|wc -l'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
                                 if dynroutedone == '0':
                                     dynroutedone=run('route add %s dev vhost0'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
                                 #check and static route on other compute
                                 staroutedone=run('cat /etc/network/interfaces '
                                                     '|grep %s|wc -l'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
                                 if staroutedone == '0':
                                         run('echo \"\" >> '
                                                 '/etc/network/interfaces');
@@ -206,44 +206,44 @@ class SetupNFSLivem(object):
                                             self._args.storage_hosts,
                                             self._args.storage_host_tokens):
                                     if gwhostname == vmhost:
-                                        gwentry = gwentries 
+                                        gwentry = gwentries
                                 #check for dynamic route on the vm host
-                                dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                                dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                                 if dynroutedone == '0':
                                     dynroutedone=run('route add %s gw %s'
                                                         %(vmip, gwentry),
-                                                        shell='/bin/bash') 
+                                                        shell='/bin/bash')
                                 #check and add static route on master
                                 staroutedone=run('cat /etc/network/interfaces '
                                                     '|grep %s|wc -l'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
                                 if staroutedone == '0':
                                         run('echo \"\" >> '
                                                 '/etc/network/interfaces');
                                         run('echo \"up route add %s gw %s\" >> '
                                                 '/etc/network/interfaces'
                                                 %(vmip, gwentry));
-                 
+
                 #cinder volume creation and attaching to VM
                 avail=local('rados df | grep avail | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
                 # use 30% of the available space for the instances for now.
                 # TODO need to check if this needs to be configurable
                 avail_gb = int(avail)/1024/1024/2/3
-                print avail_gb 
+                print avail_gb
                 # update quota if available is > 1T
                 if avail_gb > 1000:
                     quota_gb = avail_gb + 1000
                     admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                     local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
-               
+
                 cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
                 if cindervolavail == '0':
                     #TODO might need to add a loop similar to vm start
                     local('source /etc/contrail/openstackrc && cinder create --display-name livemnfsvol --volume-type ocs-block-disk %s' %(avail_gb) , shell='/bin/bash')
                     time.sleep(5)
-             
+
                     cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep available | wc -l' , capture=True, shell='/bin/bash')
-    
+
                 nova_id=local('source /etc/contrail/openstackrc &&  nova list |grep livemnfs | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 cinder_id=local('source /etc/contrail/openstackrc &&  cinder list |grep livemnfsvol | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 # Check if volume is attached to the right VM
@@ -260,7 +260,7 @@ class SetupNFSLivem(object):
                             break
                 if volvmattached == '0':
                     return
-    
+
                 while True:
                     vmavail=local('ping -c 1 %s | grep \" 0%% packet loss\" |wc -l' %(vmip) , capture=True, shell='/bin/bash')
                     if vmavail == '1':
@@ -292,7 +292,13 @@ class SetupNFSLivem(object):
                         run('sudo mkdir /livemnfsvol')
                         run('sudo mount /dev/vdb /livemnfsvol')
                         #Add to /etc/fstab for automount
-                        vdbuuid=run('ls -l /dev/disk/by-uuid/ |grep vdb|awk \'{print $9}\'', shell='/bin/bash')
+
+                        while True:
+                            vdbuuid=run('ls -l /dev/disk/by-uuid/ |grep vdb|awk \'{print $9}\'', shell='/bin/bash')
+                            if vdbuuid != '':
+                                break
+                            time.sleep(1)
+
                         vdbfstab=run('cat /etc/fstab | grep %s| wc -l' %(vdbuuid))
                         if vdbfstab == '0':
                             run('sudo cp /etc/fstab /tmp/fstab')
@@ -301,7 +307,7 @@ class SetupNFSLivem(object):
                             run('echo \"UUID=%s /livemnfsvol xfs rw,noatime,attr2,delaylog,nobarrier,logbsize=256k,noquota 0 0\" >> /tmp/fstab' %(vdbuuid))
                             run('sudo chmod  644 /tmp/fstab')
                             run('sudo mv /tmp/fstab /etc/fstab')
-    
+
                     novaentry=run('sudo cat /etc/passwd|grep ^nova|wc -l')
                     if novaentry == '0':
                         run('sudo cp /etc/passwd /tmp/passwd')
@@ -342,7 +348,7 @@ class SetupNFSLivem(object):
                             if vmavail == '1':
                                 time.sleep(10)
                                 break
-    
+
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                    # Not sure if mount in master is required
                    # if entries != self._args.storage_master:
@@ -461,27 +467,27 @@ class SetupNFSLivem(object):
                 if hostname == vmhost:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
                         #check if we have /etc/contrail/agent.conf for < 1.1
-                        agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                        agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
                         if agentconfavail == '1':
                             #check for agent.conf
-                            agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash') 
+                            agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash')
                             if agentconfdone == '1':
                                 run('cat /etc/contrail/agent.conf  | sed \'s/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    //g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
                                 run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
                                 run('service contrail-vrouter restart' , shell='/bin/bash')
-           
+
                         #check if we have contrail-vrouter-agent.conf for > 1.1
-                        vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash') 
+                        vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
                         if vragentconfavail == '1':
-                            vragentconfdone=run('cat /etc/contrail/contrail-vrouter-agent.conf|grep livemnfsvgw|wc -l', shell='/bin/bash') 
+                            vragentconfdone=run('cat /etc/contrail/contrail-vrouter-agent.conf|grep livemnfsvgw|wc -l', shell='/bin/bash')
                             if vragentconfdone == '1':
                                 gateway_id = int('0')
                                 while True:
-                                    gateway_avail = run('grep -n "^\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf | wc -l' %(gateway_id), shell='/bin/bash') 
+                                    gateway_avail = run('grep -n "^\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf | wc -l' %(gateway_id), shell='/bin/bash')
                                     if gateway_avail != '0':
-                                        gateway_line_string = run('grep -n "^\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf' %(gateway_id), shell='/bin/bash') 
+                                        gateway_line_string = run('grep -n "^\[GATEWAY-%d\]" /etc/contrail/contrail-vrouter-agent.conf' %(gateway_id), shell='/bin/bash')
                                         gateway_line_num = int(gateway_line_string.split(':')[0])
-                                        rtinst_line_string = run('grep -n "^routing_instance = default-domain:admin:livemnfs:livemnfs" /etc/contrail/contrail-vrouter-agent.conf', shell='/bin/bash') 
+                                        rtinst_line_string = run('grep -n "^routing_instance = default-domain:admin:livemnfs:livemnfs" /etc/contrail/contrail-vrouter-agent.conf', shell='/bin/bash')
                                         rtinst_line_num = int(rtinst_line_string.split(':')[0])
                                         if rtinst_line_num == (gateway_line_num + 1):
                                             run('openstack-config --del /etc/contrail/contrail-vrouter-agent.conf GATEWAY-%d' %(gateway_id))
@@ -490,14 +496,14 @@ class SetupNFSLivem(object):
                                     gateway_id = gateway_id + 1
 
                         #check for dynamic route on the vm host
-                        dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                        dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                         if dynroutedone == '1':
-                             dynroutedone=run('route del -host %s/32 dev livemnfsvgw' %(vmip), shell='/bin/bash') 
-    
+                             dynroutedone=run('route del -host %s/32 dev livemnfsvgw' %(vmip), shell='/bin/bash')
+
                         #check and delete static route on the vm host
-                        staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash') 
+                        staroutedone=run('cat /etc/network/interfaces |grep %s|wc -l' %(vmip), shell='/bin/bash')
                         if staroutedone == '1':
-                            staroutedone=run('cat /etc/network/interfaces |grep -v livemnfsvgw > /tmp/interfaces', shell='/bin/bash') 
+                            staroutedone=run('cat /etc/network/interfaces |grep -v livemnfsvgw > /tmp/interfaces', shell='/bin/bash')
                             run('cp /tmp/interfaces /etc/network/interfaces');
 
                 #delete route on other nodes
@@ -509,45 +515,45 @@ class SetupNFSLivem(object):
 			if vhost_present != '0':
 			    #check for dynamic route on the vm host
 			    dynroutedone=run('netstat -rn |grep %s|wc -l'
-                                                %(vmip), shell='/bin/bash') 
+                                                %(vmip), shell='/bin/bash')
 			    if dynroutedone == '1':
 				dynroutedone=run('route del %s dev vhost0'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
 			    #check and static route on other compute
 			    staroutedone=run('cat /etc/network/interfaces '
                                                 '|grep %s|wc -l'
-                                                %(vmip), shell='/bin/bash') 
+                                                %(vmip), shell='/bin/bash')
 			    if staroutedone == '1':
 				staroutedone=run('cat /etc/network/interfaces '
                                                     '|grep -v %s > '
                                                     '/tmp/interfaces'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
 				run('cp /tmp/interfaces /etc/network/interfaces');
                         else:
-     
+
                             gwentry = ''
                             for gwhostname, gwentries, sentry_token in \
                                 zip(self._args.storage_hostnames,
                                     self._args.storage_hosts,
                                     self._args.storage_host_tokens):
                                 if gwhostname == vmhost:
-                                    gwentry = gwentries 
+                                    gwentry = gwentries
                             #check for dynamic route on the vm host
                             dynroutedone=run('netstat -rn |grep %s|wc -l'
-                                                %(vmip), shell='/bin/bash') 
+                                                %(vmip), shell='/bin/bash')
                             if dynroutedone == '1':
                                 dynroutedone=run('route del %s gw %s'
                                                     %(vmip, gwentry),
-                                                    shell='/bin/bash') 
+                                                    shell='/bin/bash')
                             #check and delete static route on master
                             staroutedone=run('cat /etc/network/interfaces '
                                                 '|grep %s|wc -l'
-                                                %(vmip), shell='/bin/bash') 
+                                                %(vmip), shell='/bin/bash')
                             if staroutedone == '1':
                                 staroutedone=run('cat /etc/network/interfaces '
                                                     '|grep -v %s > '
                                                     '/tmp/interfaces'
-                                                    %(vmip), shell='/bin/bash') 
+                                                    %(vmip), shell='/bin/bash')
                                 run('cp /tmp/interfaces /etc/network/interfaces');
 
             # Delete the VM
@@ -576,7 +582,7 @@ class SetupNFSLivem(object):
             livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if livemnfs == '1':
                 local('source /etc/contrail/openstackrc && /usr/bin/glance image-delete livemnfs', capture=True, shell='/bin/bash')
-             
+
     #end __init__
 
     def _parse_args(self, args_str):
@@ -636,4 +642,4 @@ def main(args_str = None):
 #end main
 
 if __name__ == "__main__":
-    main() 
+    main()
