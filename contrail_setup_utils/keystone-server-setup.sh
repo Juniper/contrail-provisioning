@@ -135,7 +135,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
 else
-    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
 fi
 for APP in keystone; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
