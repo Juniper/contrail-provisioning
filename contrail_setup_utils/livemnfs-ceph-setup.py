@@ -126,15 +126,6 @@ class SetupNFSLivem(object):
                                 run('echo \"    pre-up vif --create livemnfsvgw --mac 00:01:5e:00:00\" >> /etc/network/interfaces');
                                 run('echo \"    pre-up ifconfig livemnfsvgw up\" >> /etc/network/interfaces');
 
-                            #check if we have /etc/contrail/agent.conf for < 1.1
-                            agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
-                            if agentconfavail == '1':
-                                #check for agent.conf
-                                agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash')
-                                if agentconfdone == '0':
-                                    run('cat /etc/contrail/agent.conf  | sed \'s/<\/agent>/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    &/g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
-                                    run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
-                                    run('service contrail-vrouter restart' , shell='/bin/bash')
 
                             #check if we have contrail-vrouter-agent.conf for > 1.1
                             vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
@@ -466,15 +457,6 @@ class SetupNFSLivem(object):
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 if hostname == vmhost:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #check if we have /etc/contrail/agent.conf for < 1.1
-                        agentconfavail=run('ls /etc/contrail/agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
-                        if agentconfavail == '1':
-                            #check for agent.conf
-                            agentconfdone=run('cat /etc/contrail/agent.conf|grep %s|wc -l' %(nfs_livem_cidr), shell='/bin/bash')
-                            if agentconfdone == '1':
-                                run('cat /etc/contrail/agent.conf  | sed \'s/\\n    <gateway virtual-network="default-domain:admin:livemnfs:livemnfs"><interface>livemnfsvgw<\/interface><subnet>%s\/%s<\/subnet><\/gateway>\\n    //g\' > /tmp/agent.conf' %(netaddr.IPNetwork(nfs_livem_cidr).ip, netaddr.IPNetwork(nfs_livem_cidr).prefixlen) , shell='/bin/bash')
-                                run('cp /tmp/agent.conf /etc/contrail/agent.conf' , shell='/bin/bash')
-                                run('service contrail-vrouter restart' , shell='/bin/bash')
 
                         #check if we have contrail-vrouter-agent.conf for > 1.1
                         vragentconfavail=run('ls /etc/contrail/contrail-vrouter-agent.conf 2>/dev/null|wc -l', shell='/bin/bash')
