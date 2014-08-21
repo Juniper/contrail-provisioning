@@ -161,6 +161,7 @@ class Setup(object):
             'ks_auth_port':'35357',
             'ks_insecure':'False',
             'amqp_server_ip': '127.0.0.1',
+            'manage_neutron' : True,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -257,6 +258,7 @@ class Setup(object):
         parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node", action="store_true")
+        parser.add_argument("--manage_neutron", help = "Provision neutron in Keystone", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -1717,7 +1719,8 @@ SUBCHANNELS=1,2,3
                             env.password)
             if region_name:
                 quant_args += " --region_name %s" %(region_name)
-            local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
+            if self._args.manage_neutron:
+                local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:
             if self._args.num_collector_nodes:
@@ -1837,10 +1840,12 @@ class KeepalivedSetup(Setup):
             timeout = 1 
             rise = 1
             fall = 1
+            garp_master_repeat = 3
+            garp_master_refresh = 1
             if self._args.openstack_index == 1:
                 state = 'MASTER'
                 delay = 5
-                preempt_delay = 3
+                preempt_delay = 7
                 timeout = 3
                 rise = 2 
                 fall = 2
@@ -1848,16 +1853,16 @@ class KeepalivedSetup(Setup):
                 router_id = 100
             else:
                 router_id = 200
-            priority = router_id
-            if self._args.num_nodes > 2 and self._args.openstack_index > 2:
-                priority = (router_id - (self._args.openstack_index - 2))
-            if self._args.num_nodes == 2 and self._args.openstack_index == 2:
-                priority = (router_id - 1)
+            priority = router_id - (self._args.openstack_index - 1)
+            if self._args.num_nodes > 2 and self._args.openstack_index == 2:
+                state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
                              '__state__' : state,
                              '__delay__' : delay,
+                             '__garp_master_repeat__' : garp_master_repeat,
+                             '__garp_master_refresh__' : garp_master_refresh,
                              '__preempt_delay__' : preempt_delay,
                              '__priority__' : priority,
                              '__virtual_ip__' : vip,

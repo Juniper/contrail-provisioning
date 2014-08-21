@@ -16,6 +16,8 @@ vrrp_instance $__vip_str__ {
         state $__state__
         preempt_delay $__preempt_delay__
         garp_master_delay $__delay__
+        garp_master_repeat $__garp_master_repeat__
+        garp_master_refresh $__garp_master_refresh__
         advert_int 1
         virtual_router_id $__router_id__
         priority  $__priority__
