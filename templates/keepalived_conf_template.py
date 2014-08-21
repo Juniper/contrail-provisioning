@@ -5,7 +5,6 @@ template = string.Template("""
 vrrp_script chk_haproxy_$__vip_str__ {
         script "killall -0 haproxy" # verify if pid exists
         interval 1
-        weight 2
         timeout $__timeout__
         rise $__rise__
         fall $__fall__
