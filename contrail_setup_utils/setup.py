@@ -133,7 +133,7 @@ class Setup(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup.py --role config --role control --cfgm_ip 127.0.0.1 
+        Eg. python setup.py --role config --role control --cfgm_ip 127.0.0.1
             [--use_certs [--puppet_server <fqdn>]] [--multi_tenancy]
         '''
 
@@ -292,7 +292,7 @@ class Setup(object):
             default='1')
         parser.add_argument("--database_listen_ip", help = "Listen IP Address of database node", default = '127.0.0.1')
         pdist = platform.dist()[0]
-        if pdist == 'fedora' or pdist == 'centos':  
+        if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
         if pdist == 'Ubuntu':
             parser.add_argument("--database_dir", help = "Directory where database binary exists", default = '/etc/cassandra')
@@ -744,7 +744,7 @@ HWADDR=%s
 
         # TODO till post of openstack-horizon.spec is fixed...
         if 'openstack' in self._args.role:
-            if pdist == 'fedora' or pdist == 'centos':
+            if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
                 local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
             if os.path.exists(nova_conf_file):
@@ -787,7 +787,7 @@ HWADDR=%s
                 local("sudo sed '/DAEMON_COREFILE_LIMIT=.*/d' %s > %s.new" %(initf, initf))
                 local("sudo mv %s.new %s" %(initf, initf))
 
-            if pdist == 'centos' or pdist == 'fedora':
+            if pdist == 'centos' or pdist == 'fedora' or pdist == 'redhat':
                 core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
                 local("%s >> %s" %(core_unlim, initf))
                 if pdist == 'Ubuntu':
@@ -807,7 +807,7 @@ HWADDR=%s
                 local('mkdir -p /var/crashes')
 
             try:
-                if pdist == 'fedora' or pdist == 'centos':
+                if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
                     self.enable_kernel_core ()
                 if pdist == 'Ubuntu':
                     self.setup_crashkernel_params()
@@ -849,7 +849,7 @@ HWADDR=%s
             pdist = platform.dist()[0]
             if pdist in ['Ubuntu']:
                 mysql_conf = '/etc/mysql/my.cnf'
-            elif pdist in ['centos']:
+            elif pdist in ['centos', 'redhat']:
                 mysql_conf = '/etc/my.cnf'
             local('sed -i -e "s/bind-address/#bind-address/" %s' % mysql_conf)
             self.service_token = self._args.service_token
@@ -960,7 +960,7 @@ HWADDR=%s
                        % (network_service, network_service, openstack_network_conf_file))
 
         if 'database' in self._args.role:
-            if pdist == 'fedora' or pdist == 'centos':
+            if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
                 CASSANDRA_CONF = '/etc/cassandra/conf'
                 CASSANDRA_CONF_FILE = 'cassandra.yaml'
                 CASSANDRA_ENV_FILE = 'cassandra-env.sh'
@@ -1053,7 +1053,7 @@ HWADDR=%s
             local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
             local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
             local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
-            if pdist == 'fedora' or pdist == 'centos':
+            if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
                 local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
             if pdist == 'Ubuntu':
                 local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
@@ -1557,7 +1557,7 @@ HWADDR=%s
                 local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(temp_dir_name))
                 local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
 
-                if pdist == 'centos' or pdist == 'fedora':
+                if pdist == 'centos' or pdist == 'fedora' or pdist == 'redhat':
                     ## make ifcfg-vhost0
                     with open ('%s/ifcfg-vhost0' % temp_dir_name, 'w') as f:
                         f.write ('''#Contrail vhost0
@@ -1696,7 +1696,7 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
             if pdist in ['Ubuntu']:
                 self.mysql_svc = 'mysql'
-            elif pdist in ['centos']:
+            elif pdist in ['centos', 'redhat']:
                self.mysql_svc = 'mysqld'
             local("service %s restart" % self.mysql_svc)
             local("service supervisor-openstack restart")
@@ -1731,7 +1731,7 @@ SUBCHANNELS=1,2,3
 
         if (contrail_openstack and 'compute' in self._args.role):
             if self._fixed_qemu_conf:
-                if pdist == 'centos' or pdist == 'fedora':
+                if pdist == 'centos' or pdist == 'fedora' or pdist == 'redhat':
                     local("sudo service libvirtd restart")
                 if pdist == 'Ubuntu':
                     local("sudo service libvirt-bin restart")
@@ -1914,7 +1914,7 @@ class OpenstackGaleraSetup(Setup):
             wsrep_conf = '/etc/mysql/conf.d/wsrep.cnf'
             wsrep_conf_file = 'wsrep.cnf'
             wsrep_template = wsrep_conf_template.template
-        elif pdist in ['centos']:
+        elif pdist in ['centos', 'redhat']:
             self.mysql_svc = 'mysqld'
             self.mysql_conf = '/etc/my.cnf'
             wsrep_conf = self.mysql_conf
