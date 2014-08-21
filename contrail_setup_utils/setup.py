@@ -161,6 +161,7 @@ class Setup(object):
             'ks_auth_port':'35357',
             'ks_insecure':'False',
             'amqp_server_ip': '127.0.0.1',
+            'manage_neutron' : True,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -257,6 +258,7 @@ class Setup(object):
         parser.add_argument("--region_name", help = "The Region Name in Openstack")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node", action="store_true")
+        parser.add_argument("--manage_neutron", help = "Provision neutron in Keystone", action="store_true")
         parser.add_argument("--physical_interface", help = "Name of the physical interface to use")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -1715,7 +1717,8 @@ SUBCHANNELS=1,2,3
                             env.password)
             if region_name:
                 quant_args += " --region_name %s" %(region_name)
-            local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
+            if self._args.manage_neutron:
+                local("python /opt/contrail/contrail_installer/contrail_setup_utils/setup-quantum-in-keystone.py %s" %(quant_args))
 
         if 'collector' in self._args.role:
             if self._args.num_collector_nodes:

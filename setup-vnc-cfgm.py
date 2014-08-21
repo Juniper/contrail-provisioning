@@ -56,6 +56,8 @@ class SetupVncCfgm(object):
             setup_args_str = setup_args_str + " --haproxy"
         if internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
+        if self._args.manage_neutron == 'yes':
+            setup_args_str = setup_args_str + " --manage_neutron"
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
         setup_obj.run_services()
@@ -147,6 +149,7 @@ class SetupVncCfgm(object):
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--amqp_server_ip",
             help = "IP of the AMQP server to be used for neutron and api server")
+        parser.add_argument("--manage_neutron", help = "Provision neutron user/role in Keystone.", default="yes")
   
         self._args = parser.parse_args(remaining_argv)
 
