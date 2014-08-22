@@ -148,4 +148,15 @@ physical_interface=$__contrail_physical_intf__
 # Routes to be exported in routing_instance. Each route is represented as
 # ip/prefix. Multiple routes are represented by separating each with a space
 # routes=10.10.10.1/24 11.11.11.1/24
+
+[SERVICE-INSTANCE]
+# Path to the script which handles the netns commands
+netns_command=/usr/bin/opencontrail-vrouter-netns
+
+# Number of workers that will be used to start netns commands
+#netns_workers=1
+
+# Timeout for each netns command, when the timeout is reached, the netns
+# command is killed.
+#netns_timeout=30
 """)
