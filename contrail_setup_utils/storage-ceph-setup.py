@@ -19,6 +19,7 @@ import json
 from pprint import pformat
 import xml.etree.ElementTree as ET
 import platform
+import pdb
 
 import tempfile
 from fabric.api import local, env, run, settings
@@ -40,6 +41,9 @@ class SetupCeph(object):
     NOVA_CONFIG_FILE='/etc/nova/nova.conf'
     global CEPH_CONFIG_FILE
     CEPH_CONFIG_FILE='/etc/ceph/ceph.conf'
+
+    global SYSLOG_LOGPORT
+    SYSLOG_LOGPORT='4514'
 
     def reset_mon_local_list(self):
         local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
@@ -808,6 +812,36 @@ class SetupCeph(object):
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
             local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
 
+
+            # log ceph.log to syslog
+            local('ceph tell mon.* injectargs -- --mon_cluster_log_to_syslog=true')
+
+            # set ceph.log to syslog config in ceph.conf
+            local('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
+            for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
+
+            # enable server:port syslog remote logging
+            syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(self._args.storage_master, SYSLOG_LOGPORT), capture=True)
+            if syslog_present == '0':
+                local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(self._args.storage_master, SYSLOG_LOGPORT))
+            # find and replace syslog port in collector
+            syslog_port=local('grep "# syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
+            if syslog_port == '1':
+                local('cat /etc/contrail/contrail-collector.conf | sed "s/# syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+
+            syslog_port=local('grep "syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
+            if syslog_port == '1':
+                local('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+
+            # restart collector after syslog port change
+            local('service contrail-collector restart')
+
+            # restart rsyslog service after remote logging enabled
+            local('service rsyslog restart')
+
             if self._args.storage_ssd_disk_config[0] != 'none':
                 volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
                 if volumes_pool_avail != '0':
@@ -1281,6 +1315,33 @@ class SetupCeph(object):
             # rbd cache enabled and rbd cache size set to 512MB
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
             local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
+
+            # log ceph.log to syslog
+            local('ceph tell mon.* injectargs -- --mon_cluster_log_to_syslog=true')
+
+            # set ceph.log to syslog config in ceph.conf
+            local('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
+            for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
+
+            # enable server:port syslog remote logging
+            syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(self._args.storage_master, SYSLOG_LOGPORT), capture=True)
+            if syslog_present == '0':
+                local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(self._args.storage_master, SYSLOG_LOGPORT))
+
+            syslog_port=local('grep "# syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
+            if syslog_port == '1':
+                local('cat /etc/contrail/contrail-collector.conf | sed "s/# syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+
+            syslog_port=local('grep "syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
+            if syslog_port == '1':
+                local('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+
+            local('service contrail-collector restart')
+            local('service rsyslog restart')
+
 
             create_hdd_ssd_pool = 0
             # Create HDD/SSD pool
