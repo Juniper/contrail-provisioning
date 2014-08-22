@@ -807,6 +807,25 @@ class SetupCeph(object):
             # rbd cache enabled and rbd cache size set to 512MB
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
             local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache" true')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache size" 536870912')
+
+            # change default osd op threads 2 to 4
+            local('ceph tell osd.* injectargs -- --osd_op_threads=4')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd op threads" 4')
+
+            # change default disk threads 1 to 2
+            local('ceph tell osd.* injectargs -- --osd_disk_threads=2')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd disk threads" 2')
+
+            # compute ceph.conf configuration done here
+            for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache" true')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache size" 536870912')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd op threads" 4')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd disk threads" 2')
 
             if self._args.storage_ssd_disk_config[0] != 'none':
                 volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
@@ -1281,6 +1300,26 @@ class SetupCeph(object):
             # rbd cache enabled and rbd cache size set to 512MB
             local('ceph tell osd.* injectargs -- --rbd_cache=true')
             local('ceph tell osd.* injectargs -- --rbd_cache_size=536870912')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache" true')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache size" 536870912')
+
+            # change default osd op threads 2 to 4
+            local('ceph tell osd.* injectargs -- --osd_op_threads=4')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd op threads" 4')
+
+            # change default disk threads 1 to 2
+            local('ceph tell osd.* injectargs -- --osd_disk_threads=2')
+            local('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd disk threads" 2')
+
+            # compute ceph.conf configuration done here
+            for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache" true')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf global "rbd cache size" 536870912')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd op threads" 4')
+                        run('sudo openstack-config --set /etc/ceph/ceph.conf osd "osd disk threads" 2')
+
 
             create_hdd_ssd_pool = 0
             # Create HDD/SSD pool
