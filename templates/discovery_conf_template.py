@@ -26,6 +26,12 @@ hc_max_miss=3
 # use short TTL for agressive rescheduling if all services are not up
 ttl_short=1
 
+# for DNS service, we use fixed policy
+# even when the cluster has more than two control nodes, only two of these
+# should provide the DNS service
+[DNS-SERVER]
+policy = fixed
+
 ######################################################################
 # Other service specific knobs ...
  
