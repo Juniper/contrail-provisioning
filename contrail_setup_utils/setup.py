@@ -1905,7 +1905,7 @@ class OpenstackGaleraSetup(Setup):
                                         self._temp_dir_name + '/cmon_param')
         local("sudo mv %s/cmon_param /etc/contrail/ha/" % (self._temp_dir_name))
 
-        local("echo %s >> /etc/contrail/galeraid" % self._args.openstack_index)
+        local("echo %s > /etc/contrail/galeraid" % self._args.openstack_index)
         pdist = platform.dist()[0]
         if pdist in ['Ubuntu']:
             local("ln -sf /bin/true /sbin/chkconfig")
