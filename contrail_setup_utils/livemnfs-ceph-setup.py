@@ -73,7 +73,7 @@ class SetupNFSLivem(object):
             if vm_running == '0':
                 vm_present=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
                 if vm_present == '0':
-                    local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 2 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
+                    local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 3 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
                 else:
                     local('source /etc/contrail/openstackrc && nova start livemnfs', shell='/bin/bash')
                 wait_loop = 10
@@ -276,9 +276,9 @@ class SetupNFSLivem(object):
                                         break
                             else:
                                 break
-                        vdbavail=run('sudo parted /dev/vdb print |grep xfs|wc -l')
+                        vdbavail=run('sudo parted /dev/vdb print |grep ext4|wc -l')
                         if vdbavail == '0':
-                            run('sudo mkfs.xfs -f /dev/vdb')
+                            run('sudo mkfs.ext4  /dev/vdb')
                         run('sudo rm -rf /livemnfsvol')
                         run('sudo mkdir /livemnfsvol')
                         run('sudo mount /dev/vdb /livemnfsvol')
@@ -295,7 +295,7 @@ class SetupNFSLivem(object):
                             run('sudo cp /etc/fstab /tmp/fstab')
                             run('sudo chmod  666 /tmp/fstab')
                             run('echo \"# /livemnfsvol on /dev/vdb\" >> /tmp/fstab')
-                            run('echo \"UUID=%s /livemnfsvol xfs rw,noatime,attr2,delaylog,nobarrier,logbsize=256k,noquota 0 0\" >> /tmp/fstab' %(vdbuuid))
+                            run('echo \"UUID=%s /livemnfsvol ext4 rw,noatime,data=writeback,barrier=0,nobh,errors=remount-ro 0 0\" >> /tmp/fstab' %(vdbuuid))
                             run('sudo chmod  644 /tmp/fstab')
                             run('sudo mv /tmp/fstab /etc/fstab')
 
