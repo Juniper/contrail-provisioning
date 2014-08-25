@@ -17,8 +17,7 @@ ARP_CACHE_FLUSH="arp -d $VIP"
 cmon_run=0
 viponme=0
 haprestart=0
-RMQ_CONSUMERS="rabbitmqctl list_consumers"
-NOVA_COMPUTE_RESTART="service nova-compute restart"
+RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
 
 timestamp() {
     date +"%T"
@@ -80,7 +79,7 @@ cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
-      $RUN_CMON  
+      (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
 
       for (( i=0; i<${COMPUTES_SIZE}; i++ ))
@@ -94,15 +93,8 @@ if [ $viponme -eq 1 ]; then
          (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
          log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
         done
-
-       for (( i=0; i<${COMPUTES_SIZE}; i++ ))
-        do
-         compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
-         if [[ -z "$compconsumer" ]]; then
-           (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
-            log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
-         fi
-        done
+       
+       (exec $RMQ_MONITOR)& 
     fi
 else
    if [ $cmon_run == "y" ]; then
@@ -122,7 +114,7 @@ else
     done
 
     if [ $haprestart -eq 1 ]; then
-       $HAP_RESTART
+       (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
     fi
 fi
