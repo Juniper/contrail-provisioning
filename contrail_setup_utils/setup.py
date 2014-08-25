@@ -1132,7 +1132,7 @@ HWADDR=%s
                 rabbit_host = self._args.internal_vip
                 rabbit_port = 5673
 
-            if pdist == 'Ubuntu' or pdist == 'centos':
+            if pdist == 'Ubuntu' or pdist == 'centos' or pdist == 'redhat':
                 # log4j.properties
                 template_vals = {
                                 }
