@@ -1113,7 +1113,9 @@ class SetupCeph(object):
             if storage_enable_variable:
                 local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
                 local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
-                local('sudo service supervisor-webui restart')
+                local('sudo service supervisor-webui stop')
+                time.sleep(5)
+                local('sudo service supervisor-webui start')
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -1680,7 +1682,9 @@ class SetupCeph(object):
             local('sudo service libvirt-bin restart')
             local('sudo service nova-api restart')
             local('sudo service nova-scheduler restart')
-            local('sudo service supervisor-webui restart')
+            local('sudo service supervisor-webui stop')
+            time.sleep(5)
+            local('sudo service supervisor-webui start')
 
         # Create Cinder type for all Ceph backend
         if configure_with_ceph == 1:
