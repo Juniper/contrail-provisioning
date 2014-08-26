@@ -42,7 +42,7 @@ class SetupNFSLivem(object):
         nfs_livem_subnet = self._args.nfs_livem_subnet[0]
         nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
         if self._args.storage_setup_mode == 'setup' or \
-		self._args.storage_setup_mode == 'setup_global':
+            self._args.storage_setup_mode == 'setup_global':
 
             #check for vm image if already present, otherwise add it
             livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
@@ -84,7 +84,7 @@ class SetupNFSLivem(object):
                     wait_loop -= 1
                     if wait_loop <= 0:
                        break
-	            time.sleep(10)
+                time.sleep(10)
 
             #copy nova,libvirt,kvm entries
             novapassentry = ''
@@ -346,38 +346,40 @@ class SetupNFSLivem(object):
                                 break
 
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                   # Not sure if mount in master is required
-                   # if entries != self._args.storage_master:
-                   with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                       # Add to fstab to auto-mount the nfs file system upon
-                       # reboot. The 'bg' option takes care of retrying mount
-                       # if the vm is not reachable.
-                       fstab_added=run('sudo cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
-                       if fstab_added == '0':
-                           run('sudo echo \"%s:/livemnfsvol %s nfs rw,bg,soft 0 0\" >> %s' %(vmip, NOVA_INST_GLOBAL, ETC_FSTAB))
-                       mounted=run('sudo cat /proc/mounts | grep livemnfsvol|wc -l')
-                       if mounted == '0':
-                           print mounted
-                           run('ping -c 10 %s' %(vmip))
-                           run('sudo rm -rf /var/lib/nova/instances/global')
-                           run('sudo mkdir /var/lib/nova/instances/global')
-                           run('sudo chown nova:nova /var/lib/nova/instances/global')
-                           run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
-                           run('sudo chown nova:nova /var/lib/nova/instances/global')
-                       else:
-                           run('ping -c 10 %s' %(vmip))
-                           stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
-                           if stalenfs == '1':
-                               run('sudo umount /var/lib/nova/instances/global')
-                               run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
-                               run('sudo chown nova:nova /var/lib/nova/instances/global')
-		if self._args.storage_setup_mode == 'setup_global':
-                    for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                        if entries != self._args.storage_master:
-                            with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                                #Set autostart vm after node reboot
-                                run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
-				run('sudo service nova-compute restart')
+                    # Not sure if mount in master is required
+                    # if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        # Add to fstab to auto-mount the nfs file system upon
+                        # reboot. The 'bg' option takes care of retrying mount
+                        # if the vm is not reachable.
+                        fstab_added=run('sudo cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
+                        if fstab_added == '0':
+                            run('sudo echo \"%s:/livemnfsvol %s nfs rw,bg,soft 0 0\" >> %s' %(vmip, NOVA_INST_GLOBAL, ETC_FSTAB))
+                        mounted=run('sudo cat /proc/mounts | grep livemnfsvol|wc -l')
+                        if mounted == '0':
+                            print mounted
+                            run('ping -c 10 %s' %(vmip))
+                            run('sudo rm -rf /var/lib/nova/instances/global')
+                            run('sudo mkdir /var/lib/nova/instances/global')
+                            run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
+                            if entries != self._args.storage_master:
+                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+                        else:
+                            run('ping -c 10 %s' %(vmip))
+                            stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
+                            if stalenfs == '1':
+                                run('sudo umount /var/lib/nova/instances/global')
+                                run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
+                                if entries != self._args.storage_master:
+                                    run('sudo chown nova:nova /var/lib/nova/instances/global')
+
+        if self._args.storage_setup_mode == 'setup_global':
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        #Set autostart vm after node reboot
+                        run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+                        run('sudo service nova-compute restart')
 
         if self._args.storage_setup_mode == 'unconfigure':
             # Unconfigure started
@@ -388,8 +390,9 @@ class SetupNFSLivem(object):
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     fstab_added=run('sudo cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
                     if fstab_added == '1':
+                        run('sudo rm -rf %s' %(TMP_FSTAB))
                         run('sudo cat %s | grep -v livemnfsvol >> %s' %(ETC_FSTAB, TMP_FSTAB))
-                        run('sudo cp -f %s %s' %(TMP_FSTAB, ETC_FSTAB))
+                        run('sudo mv %s %s' %(TMP_FSTAB, ETC_FSTAB))
                     mounted=run('cat /proc/mounts | grep livemnfsvol|wc -l')
                     if mounted == '1':
                         mountused=run('lsof /var/lib/nova/instances/global | wc -l');
@@ -494,28 +497,28 @@ class SetupNFSLivem(object):
                             run('cp /tmp/interfaces /etc/network/interfaces');
 
                 #delete route on other nodes
-		else:
+                else:
                     with settings(host_string = 'root@%s' %(entries),
                                     password = entry_token):
-			vhost_present=run('netstat -rn|grep vhost |wc -l',
-					    shell='/bin/bash')
-			if vhost_present != '0':
-			    #check for dynamic route on the vm host
-			    dynroutedone=run('netstat -rn |grep %s|wc -l'
+                        vhost_present=run('netstat -rn|grep vhost |wc -l',
+                                            shell='/bin/bash')
+                        if vhost_present != '0':
+                            #check for dynamic route on the vm host
+                            dynroutedone=run('netstat -rn |grep %s|wc -l'
                                                 %(vmip), shell='/bin/bash')
-			    if dynroutedone == '1':
-				dynroutedone=run('route del %s dev vhost0'
+                            if dynroutedone == '1':
+                                dynroutedone=run('route del %s dev vhost0'
                                                     %(vmip), shell='/bin/bash')
-			    #check and static route on other compute
-			    staroutedone=run('cat /etc/network/interfaces '
+                            #check and static route on other compute
+                            staroutedone=run('cat /etc/network/interfaces '
                                                 '|grep %s|wc -l'
                                                 %(vmip), shell='/bin/bash')
-			    if staroutedone == '1':
-				staroutedone=run('cat /etc/network/interfaces '
+                            if staroutedone == '1':
+                                staroutedone=run('cat /etc/network/interfaces '
                                                     '|grep -v %s > '
                                                     '/tmp/interfaces'
                                                     %(vmip), shell='/bin/bash')
-				run('cp /tmp/interfaces /etc/network/interfaces');
+                                run('cp /tmp/interfaces /etc/network/interfaces');
                         else:
 
                             gwentry = ''
