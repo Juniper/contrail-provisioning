@@ -277,15 +277,20 @@ class SetupNFSLivem(object):
                             else:
                                 break
                         vdbavail=run('sudo parted /dev/vdb print |grep ext4|wc -l')
+                        vdbsize=run('sudo parted /dev/vdb print | \
+                                        grep Disk|awk \'{print $3}\'')
                         if vdbavail == '0':
-                            run('sudo mkfs.ext4  /dev/vdb')
+                            run('sudo parted -s /dev/vdb mklabel gpt')
+                            run('sudo parted -s /dev/vdb mkpart primary 1M %s'
+                                        %(vdbsize))
+                            run('sudo mkfs.ext4  /dev/vdb1')
                         run('sudo rm -rf /livemnfsvol')
                         run('sudo mkdir /livemnfsvol')
-                        run('sudo mount /dev/vdb /livemnfsvol')
+                        run('sudo mount /dev/vdb1 /livemnfsvol')
                         #Add to /etc/fstab for automount
 
                         while True:
-                            vdbuuid=run('ls -l /dev/disk/by-uuid/ |grep vdb|awk \'{print $9}\'', shell='/bin/bash')
+                            vdbuuid=run('ls -l /dev/disk/by-uuid/ |grep vdb1|awk \'{print $9}\'', shell='/bin/bash')
                             if vdbuuid != '':
                                 break
                             time.sleep(1)
@@ -294,7 +299,7 @@ class SetupNFSLivem(object):
                         if vdbfstab == '0':
                             run('sudo cp /etc/fstab /tmp/fstab')
                             run('sudo chmod  666 /tmp/fstab')
-                            run('echo \"# /livemnfsvol on /dev/vdb\" >> /tmp/fstab')
+                            run('echo \"# /livemnfsvol on /dev/vdb1\" >> /tmp/fstab')
                             run('echo \"UUID=%s /livemnfsvol ext4 rw,noatime,data=writeback,barrier=0,nobh,errors=remount-ro 0 0\" >> /tmp/fstab' %(vdbuuid))
                             run('sudo chmod  644 /tmp/fstab')
                             run('sudo mv /tmp/fstab /etc/fstab')
