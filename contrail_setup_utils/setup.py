@@ -162,6 +162,7 @@ class Setup(object):
             'ks_insecure':'False',
             'amqp_server_ip': '127.0.0.1',
             'manage_neutron' : True,
+            'contrail_internal_vip' : None,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -247,6 +248,7 @@ class Setup(object):
         parser.add_argument("--openstack_ip", help = "IP Address of Openstack Node")
         parser.add_argument("--internal_vip", help = "Internal VIP Address of HA Openstack Nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
+        parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
         parser.add_argument("--keystone_ip", help = "IP Address of Keystone Node")
         parser.add_argument("--openstack_mgmt_ip", help = "Management IP Address of Openstack Node")
         parser.add_argument("--collector_ip", help = "IP Address of Collector Node")
@@ -281,10 +283,11 @@ class Setup(object):
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
-        parser.add_argument("--database_index", help = "Index of this cfgm node")
+        parser.add_argument("--database_index", help = "Index of this database node")
         parser.add_argument("--galera_ip_list", help = "IP Addresses of Galera servers", nargs = '+', type = str)
         parser.add_argument("--openstack_ip_list", help = "IP Addresses of openstack Servers", nargs = '+', type = str)
         parser.add_argument("--openstack_index", help = "Index of this openstack node", type = int)
+        parser.add_argument("--cfgm_index", help = "Index of this cfgm node", type = int)
         parser.add_argument("--num_nodes", help = "Number of available nodes", type = int)
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
@@ -899,7 +902,7 @@ HWADDR=%s
             quantum_port = self._args.quantum_port
             quantum_service_protocol = self._args.quantum_service_protocol
             if not self.service_token:
-                with settings(host_string = 'root@%s' %(self._args.internal_vip or keystone_ip), password = env.password):
+                with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
                     self.service_token = tok_fd.read().strip()
@@ -940,6 +943,10 @@ HWADDR=%s
 
             if self._args.internal_vip:
                 local("echo 'INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
+            if self._args.contrail_internal_vip:
+                local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.contrail_internal_vip, temp_dir_name))
+            else:
+                local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.external_vip:
                 local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.external_vip, temp_dir_name))
             else:
@@ -1626,9 +1633,10 @@ SUBCHANNELS=1,2,3
             openstack_ip = self._args.openstack_ip
             keystone_ip = self._args.keystone_ip
             internal_vip = self._args.internal_vip
-            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
+            contrail_internal_vip = self._args.contrail_internal_vip or internal_vip
+            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
+            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.imageManager.ip.*/config.imageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
@@ -1639,7 +1647,7 @@ SUBCHANNELS=1,2,3
             local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")            
             if collector_ip:
-                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or collector_ip))
+                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or collector_ip))
                 local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             if self._args.cassandra_ip_list:
                 local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
@@ -1824,7 +1832,14 @@ SUBCHANNELS=1,2,3
 
 class KeepalivedSetup(Setup):
     def fixup_config_files(self):
-        vip_for_ips = [(self._args.internal_vip, self._args.openstack_ip, 'INTERNAL')]
+        if 'openstack' in self._args.role:
+            self_ip = self._args.openstack_ip
+            self_index = self._args.openstack_index
+        elif 'cfgm' in self._args.role:
+            self_ip = self._args.cfgm_ip
+            self_index = self._args.cfgm_index
+
+        vip_for_ips = [(self._args.internal_vip, self_ip, 'INTERNAL')]
         if self._args.external_vip:
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
         for vip, ip, vip_name in vip_for_ips:
@@ -1840,7 +1855,7 @@ class KeepalivedSetup(Setup):
             fall = 1
             garp_master_repeat = 3
             garp_master_refresh = 1
-            if self._args.openstack_index == 1:
+            if self_index == 1:
                 state = 'MASTER'
                 delay = 5
                 preempt_delay = 7
@@ -1848,11 +1863,15 @@ class KeepalivedSetup(Setup):
                 rise = 2 
                 fall = 2
             if vip_name == 'INTERNAL':
-                router_id = 100
+                router_id = 101
+                if 'openstack' in self._args.role:
+                    router_id = 100
             else:
-                router_id = 200
-            priority = router_id - (self._args.openstack_index - 1)
-            if self._args.num_nodes > 2 and self._args.openstack_index == 2:
+                router_id = 201
+                if 'openstack' in self._args.role:
+                    router_id = 200
+            priority = router_id - (self_index - 1)
+            if self._args.num_nodes > 2 and self_index == 2:
                 state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
