@@ -18,14 +18,19 @@ class SetupVncKeepalived(object):
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
         self._parse_args(args_str)
+        role = self._args.role
         self_ip = self._args.self_ip
         internal_vip = self._args.internal_vip
-        openstack_index = self._args.openstack_index
+        self_index = self._args.self_index
         num_nodes = self._args.num_nodes
 
-        setup_args_str = "--role openstack "
-        setup_args_str = setup_args_str + " --openstack_ip %s " % (self_ip)
-        setup_args_str = setup_args_str + " --openstack_index %s"  % (openstack_index)
+        setup_args_str = "--role %s " % role
+        if role == 'openstack':
+            setup_args_str = setup_args_str + " --openstack_ip %s " % (self_ip)
+            setup_args_str = setup_args_str + " --openstack_index %s"  % (self_index)
+        if role == 'cfgm':
+            setup_args_str = setup_args_str + " --cfgm_ip %s " % (self_ip)
+            setup_args_str = setup_args_str + " --cfgm_index %s"  % (self_index)
         setup_args_str = setup_args_str + " --internal_vip %s " % (internal_vip)
         setup_args_str = setup_args_str + " --num_nodes %s " % (num_nodes)
         if self._args.external_vip:
@@ -41,7 +46,7 @@ class SetupVncKeepalived(object):
     def _parse_args(self, args_str):
         '''
         Eg. python setup-vnc-keepalived.py --self_ip 10.1.5.11 --mgmt_self_ip 11.1.5.11
-                   --openstack_index 1 --internal_vip 10.1.5.13 --external_vip 11.1.5.13
+                   --self_index 1 --internal_vip 10.1.5.13 --external_vip 11.1.5.13
         '''
 
         # Source any specified config/ini file
@@ -75,12 +80,13 @@ class SetupVncKeepalived(object):
         all_defaults = {'global': global_defaults}
         parser.set_defaults(**all_defaults)
 
+        parser.add_argument("--role", help = "Role of the node")
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
-        parser.add_argument("--internal_vip", help = "Internal(private) Virtual IP Addresses of HA contrail nodes"),
-        parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA contrail nodes"),
-        parser.add_argument("--openstack_index", help = "The index of this openstack node")
-        parser.add_argument("--num_nodes", help = "Number of available openstack node")
+        parser.add_argument("--internal_vip", help = "Internal(private) Virtual IP Addresses of HA nodes"),
+        parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA nodes"),
+        parser.add_argument("--self_index", help = "The index of this HA node")
+        parser.add_argument("--num_nodes", help = "Number of available HA node")
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args
