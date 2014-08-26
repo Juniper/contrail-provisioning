@@ -1044,9 +1044,9 @@ HWADDR=%s
             self._template_substitute_write(database_nodemgr_param_template.template,
                                             template_vals, temp_dir_name + '/database_nodemgr_param')
             self._template_substitute_write(contrail_nodemgr_database_template.template,
-                                            template_vals, temp_dir_name + '/contrail-nodemgr-database.conf')
+                                            template_vals, temp_dir_name + '/contrail-database-nodemgr.conf')
             local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(temp_dir_name))
-            local("sudo mv %s/contrail-nodemgr-database.conf /etc/contrail/contrail-nodemgr-database.conf" %(temp_dir_name))
+            local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(temp_dir_name))
 
             # set high session timeout to survive glance led disk activity
             local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
