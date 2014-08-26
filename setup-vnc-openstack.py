@@ -22,6 +22,7 @@ class SetupVncOpenstack(object):
         cfgm_ip = self._args.cfgm_ip
         keystone_ip = self._args.keystone_ip
         internal_vip = self._args.internal_vip
+        contrail_internal_vip = self._args.contrail_internal_vip
         openstack_index = self._args.openstack_index
         openstack_ip_list = self._args.openstack_ip_list
         service_token = self._args.service_token
@@ -40,6 +41,8 @@ class SetupVncOpenstack(object):
         setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
         if internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
+        if contrail_internal_vip:
+            setup_args_str = setup_args_str + " --contrail_internal_vip %s " %(contrail_internal_vip)
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
         if self._args.haproxy:
@@ -105,6 +108,7 @@ class SetupVncOpenstack(object):
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
+        parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--quantum_service_protocol", 
