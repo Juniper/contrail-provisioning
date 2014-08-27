@@ -1887,6 +1887,11 @@ class OpenstackGaleraSetup(Setup):
             local("service cmon stop")
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
+            local("rm -rf /var/lib/mysql/galera.cache")
+            local("rm -rf /var/lib/mysql/ibdata*")
+            local("rm -rf /var/lib/mysql/ib_logfile*")
+            local("rm -rf /var/lib/mysql/*.log")
+            local("rm -rf /var/lib/mysql/cmon")
         # fix galera_param
         template_vals = {'__mysql_host__' : self._args.openstack_ip,
                          '__mysql_wsrep_nodes__' :
@@ -1925,12 +1930,12 @@ class OpenstackGaleraSetup(Setup):
         self.install_mysql_db()
         if self._args.openstack_index == 1:
             self.create_mysql_token_file()
+            self.setup_grants()
+            self.setup_cmon_tables()
+            self.setup_cmon_grants()
         else:
             self.get_mysql_token_file()
         self.set_mysql_root_password()
-        self.setup_grants()
-        self.setup_cmon_tables()
-        self.setup_cmon_grants()
         self.setup_cron()
 
         # fixup mysql/wsrep config
