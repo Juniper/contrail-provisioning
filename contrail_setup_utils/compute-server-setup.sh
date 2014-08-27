@@ -50,6 +50,21 @@ fi
 #CONTROLLER=10.1.5.12
 #SERVICE_TOKEN=ded4dd496c91df8eb61b
 
+if [ $is_ubuntu -eq 1 ] ; then
+    lsmod | grep kvm
+    if [ $? -ne 0 ]; then
+        modprobe -a kvm
+        echo "kvm" >> /etc/modules
+        VENDOR=`cat /proc/cpuinfo | grep 'vendor_id' | cut -d: -f2 | awk 'NR==1'`
+        if [[ "${VENDOR}" == *Intel* ]]; then
+            modprobe -a kvm-intel
+            echo "kvm-intel" >> /etc/modules
+        else
+            modprobe -a kvm-amd
+            echo "kvm-amd" >> /etc/modules
+        fi
+    fi
+fi
 source /etc/contrail/ctrl-details
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
