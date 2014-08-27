@@ -141,7 +141,7 @@ wsrep_causal_reads=0
 ##
 
 # State Snapshot Transfer method
-wsrep_sst_method=rsync
+wsrep_sst_method=xtrabackup
 
 # Address which donor should send State Snapshot to.
 # Should be the address of THIS node. DON'T SET IT TO DONOR ADDRESS!!!
@@ -160,4 +160,6 @@ wsrep_sst_auth=root:$__mysql_token__
 
 # Protocol version to use
 # wsrep_protocol_version=
+[sst]
+streamfmt=xbstream
 """)
