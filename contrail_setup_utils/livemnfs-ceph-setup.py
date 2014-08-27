@@ -84,7 +84,7 @@ class SetupNFSLivem(object):
                     wait_loop -= 1
                     if wait_loop <= 0:
                        break
-                time.sleep(10)
+                    time.sleep(10)
 
             #copy nova,libvirt,kvm entries
             novapassentry = ''
@@ -373,13 +373,13 @@ class SetupNFSLivem(object):
                                 if entries != self._args.storage_master:
                                     run('sudo chown nova:nova /var/lib/nova/instances/global')
 
-        if self._args.storage_setup_mode == 'setup_global':
-            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                if entries != self._args.storage_master:
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #Set autostart vm after node reboot
-                        run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
-                        run('sudo service nova-compute restart')
+            if self._args.storage_setup_mode == 'setup_global':
+                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                    if entries != self._args.storage_master:
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            #Set autostart vm after node reboot
+                            run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+                            run('sudo service nova-compute restart')
 
         if self._args.storage_setup_mode == 'unconfigure':
             # Unconfigure started
