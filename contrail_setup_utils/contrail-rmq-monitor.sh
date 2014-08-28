@@ -73,4 +73,13 @@ done
 (exec rm -rf "$file")&
 log_info_msg "Resetting RMQ Channels -- Done"
 
+for (( i=0; i<${COMPUTES_SIZE}; i++ ))
+ do
+  compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
+  if [[ -z "$compconsumer" ]]; then
+    (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
+    log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]} -- Done"
+  fi
+done
+
 exit 0
