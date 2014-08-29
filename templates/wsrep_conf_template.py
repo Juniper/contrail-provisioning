@@ -141,7 +141,7 @@ wsrep_causal_reads=0
 ##
 
 # State Snapshot Transfer method
-wsrep_sst_method=xtrabackup
+wsrep_sst_method=rsync
 
 # Address which donor should send State Snapshot to.
 # Should be the address of THIS node. DON'T SET IT TO DONOR ADDRESS!!!
