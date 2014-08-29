@@ -26,10 +26,10 @@ fi
 source $OLD_AGENT_CONFIG_FILE 2>/dev/null || true
 source $OLD_VROUTER_NODEMGR_CONFIG_FILE 2>/dev/null || true
 
-IPADDRESS=$(xmllint --xpath //config/agent/vhost/ip-address $OLD_AGENT_XML_CONFIG_FILE | cut -d'>' -f 2 | cut -d'<' -f 1)
-GATEWAY=$(xmllint --xpath //config/agent/vhost/gateway $OLD_AGENT_XML_CONFIG_FILE | cut -d'>' -f 2 | cut -d'<' -f 1)
-CONTROL_NETWORK_IP=$(xmllint --xpath xmllint --xpath //config/agent/control/ip-address $OLD_AGENT_XML_CONFIG_FILE | cut -d'>' -f 2 | cut -d'<' -f 1)
-MAX_CONTROL_NODES=$(xmllint --xpath //config/agent/discovery-server/control-instances $OLD_AGENT_XML_CONFIG_FILE | cut -d'>' -f 2 | cut -d'<' -f 1)
+IPADDRESS=$(xmllint --shell $OLD_AGENT_XML_CONFIG_FILE <<<"cat /config/agent/vhost[name='vhost0']/ip-address/text()" | grep -v -e "^/ >" -e "-")
+GATEWAY=$(xmllint --shell $OLD_AGENT_XML_CONFIG_FILE <<<"cat /config/agent/vhost[name='vhost0']/gateway/text()" | grep -v -e "^/ >" -e "-")
+CONTROL_NETWORK_IP=$(xmllint --shell $OLD_AGENT_XML_CONFIG_FILE <<<"cat /config/agent/control/ip-address/text()" | grep -v -e "^/ >" -e "-")
+MAX_CONTROL_NODES=$(xmllint --shell $OLD_AGENT_XML_CONFIG_FILE <<<"cat config/agent/discovery-server/control-instances/text()" | grep -v -e "^/ >" -e "-")
 
 (
 cat << EOF
@@ -142,7 +142,7 @@ control_network_ip=$CONTROL_NETWORK_IP
 # Everything in this section is mandatory
 
 # name of virtual host interface
-name=$DEVICE
+name=vhost0
 
 # IP address and prefix in ip/prefix_len format
 ip=$IPADDRESS
