@@ -63,4 +63,8 @@ wwwroot=/var/www/
 ssh_identity=''
 ssh_opts=-q
 ssh_port=22
+
+nodaemon=0
+monitored_mountpoints=/var/lib/mysql
+mysql_bindir=/usr/bin/
 """)
