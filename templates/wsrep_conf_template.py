@@ -116,13 +116,13 @@ wsrep_debug=0
 wsrep_convert_LOCK_to_trx=0
 
 # how many times to retry deadlocked autocommits
-wsrep_retry_autocommit=3
+wsrep_retry_autocommit=1
 
 # change auto_increment_increment and auto_increment_offset automatically
 wsrep_auto_increment_control=1
 
 # retry autoinc insert, which failed for duplicate key error
-wsrep_drupal_282555_workaround=1
+wsrep_drupal_282555_workaround=0
 
 # enable "strictly synchronous" semantics for read operations
 wsrep_causal_reads=0
@@ -160,6 +160,4 @@ wsrep_sst_auth=root:$__mysql_token__
 
 # Protocol version to use
 # wsrep_protocol_version=
-[sst]
-cpat='.*galera\.cache$\|.*sst_in_progress$\|.*grastate\.dat$\|.*\.err$\|.*\.log$\|.*RPM_UPGRADE_MARKER$\|.*RPM_UPGRADE_HISTORY$\|.*\.xyz$'
 """)
