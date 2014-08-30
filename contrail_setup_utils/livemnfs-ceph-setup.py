@@ -76,7 +76,13 @@ class SetupNFSLivem(object):
             else:
                 cpuselect = "4"
 
-            local('source /etc/contrail/openstackrc && nova flavor-create nfsvm_flavor 100 %s 20 %s' %(memselect, cpuselect), shell='/bin/bash')
+            nova_flavor_avail=local('source /etc/contrail/openstackrc && \
+                                    nova flavor-list |grep nfsvm_flavor|wc -l',
+                                    capture=True, shell='/bin/bash')
+            if nova_flavor_avail == '0':
+                local('source /etc/contrail/openstackrc && \
+                        nova flavor-create nfsvm_flavor 100 %s 20 %s'
+                        %(memselect, cpuselect), shell='/bin/bash')
 
             #check for neutron network if already present, otherwise add it
             neutronnet=local('source /etc/contrail/openstackrc && neutron net-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
@@ -572,10 +578,6 @@ class SetupNFSLivem(object):
             if vm_running == '1':
                 local('source /etc/contrail/openstackrc && nova delete livemnfs', shell='/bin/bash')
 
-            vmflavor = local('source /etc/contrail/openstackrc && nova flavor-list | grep nfsvm_flavor | wc -l', capture=True, shell='/bin/bash')
-            if vmflavor == '1':
-                local('source /etc/contrail/openstackrc &&  nova flavor-delete nfsvm_flavor', shell='/bin/bash')
-
             while True:
                 vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
                 if vm_running == '0':
@@ -583,6 +585,10 @@ class SetupNFSLivem(object):
                 else:
                     print 'Waiting for VM to be destroyed'
                     time.sleep(5)
+
+            vmflavor = local('source /etc/contrail/openstackrc && nova flavor-list | grep nfsvm_flavor | wc -l', capture=True, shell='/bin/bash')
+            if vmflavor != '0':
+                local('source /etc/contrail/openstackrc &&  nova flavor-delete nfsvm_flavor', shell='/bin/bash')
 
             #delete the neutron subnet
             neutronsubnet=local('source /etc/contrail/openstackrc && neutron subnet-list | grep %s |wc -l' %(nfs_livem_cidr), capture=True, shell='/bin/bash')
