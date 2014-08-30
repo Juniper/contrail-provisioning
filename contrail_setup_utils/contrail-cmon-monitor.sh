@@ -18,6 +18,14 @@ cmon_run=0
 viponme=0
 haprestart=0
 RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
+NOVA_SCHED_CHK="supervisorctl -s http://localhost:9010 status nova-scheduler"
+NOVA_CONS_CHK="supervisorctl -s http://localhost:9010 status nova-console"
+NOVA_CONSAUTH_CHK="supervisorctl -s http://localhost:9010 status nova-consoleauth"
+NOVA_SCHED_RST="service nova-scheduler restart"
+NOVA_CONS_RST="service nova-console restart"
+NOVA_CONSAUTH_RST="service nova-consoleauth restart"
+STATE_EXITED="EXITED"
+STATE_FATAL="EXITED"
 
 timestamp() {
     date +"%T"
@@ -96,27 +104,55 @@ if [ $viponme -eq 1 ]; then
        
        (exec $RMQ_MONITOR)& 
     fi
+   # Check periodically for RMQ status
+   if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
+      sleep $PERIODIC_RMQ_CHK_INTER
+      (exec $RMQ_MONITOR)&
+   fi
 else
    if [ $cmon_run == "y" ]; then
       $STOP_CMON
       log_info_msg "Stopped CMON on not finding VIP"
-   fi
 
-   #Check if the VIP was on this node and clear all session by restarting haproxy
-   hapid=$(pidof haproxy)
-   for (( i=0; i<${DIPS_SIZE}; i++ ))
-    do
-      dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
-      if [[ -n "$dipsonnonvip" ]]; then
+      #Check if the VIP was on this node and clear all session by restarting haproxy
+      hapid=$(pidof haproxy)
+      for (( i=0; i<${DIPS_SIZE}; i++ ))
+      do
+        dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
+        if [[ -n "$dipsonnonvip" ]]; then
          haprestart=1
          break
-      fi
-    done
+        fi
+      done
 
-    if [ $haprestart -eq 1 ]; then
+      if [ $haprestart -eq 1 ]; then
        (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
-    fi
+      fi
+   fi
 fi
       
+  # These checks will eventually be replaced when we have nodemgr plugged in
+  # for openstack services
+  # CHECK FOR NOVA SCHD
+  state=$($NOVA_SCHED_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_SCHED_RST)&
+     log_info_msg "Nova Scheduler restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONS
+  state=$($NOVA_CONS_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONS_RST)&
+     log_info_msg "Nova Console restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONSAUTH
+  state=$($NOVA_CONSAUTH_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONSAUTH_RST)&
+     log_info_msg "Nova ConsoleAuth restarted becuase of the state $state"
+  fi
+
 exit 0
