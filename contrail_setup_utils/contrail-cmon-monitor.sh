@@ -96,27 +96,32 @@ if [ $viponme -eq 1 ]; then
        
        (exec $RMQ_MONITOR)& 
     fi
+   # Check periodically for RMQ status
+   if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
+      sleep $PERIODIC_RMQ_CHK_INTER
+      (exec $RMQ_MONITOR)&
+   fi
 else
    if [ $cmon_run == "y" ]; then
       $STOP_CMON
       log_info_msg "Stopped CMON on not finding VIP"
-   fi
 
-   #Check if the VIP was on this node and clear all session by restarting haproxy
-   hapid=$(pidof haproxy)
-   for (( i=0; i<${DIPS_SIZE}; i++ ))
-    do
-      dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
-      if [[ -n "$dipsonnonvip" ]]; then
+      #Check if the VIP was on this node and clear all session by restarting haproxy
+      hapid=$(pidof haproxy)
+      for (( i=0; i<${DIPS_SIZE}; i++ ))
+      do
+        dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
+        if [[ -n "$dipsonnonvip" ]]; then
          haprestart=1
          break
-      fi
-    done
+        fi
+      done
 
-    if [ $haprestart -eq 1 ]; then
+      if [ $haprestart -eq 1 ]; then
        (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
-    fi
+      fi
+   fi
 fi
       
 exit 0

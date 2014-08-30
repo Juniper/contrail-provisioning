@@ -11,7 +11,8 @@ NOVA_COMPUTE_RESTART="service nova-compute restart"
 RMQ_CHANNEL_CHK="rabbitmqctl list_channels"
 RMQ_CHANNEL_OK="...done."
 RMQ_RESET="service rabbitmq-server restart"
-file="/tmp/rmq-chnl-ok"
+file="/tmp/rmq-chnl-ok.$RANDOM"
+reset_done=0
 
 if [ ! -f "$file" ] ; then
          touch "$file"
@@ -67,16 +68,17 @@ for (( i=0; i<${DIPS_SIZE}; i++ ))
   sleep 20
   chnlstate_run=$(verify_chnlstate)
   if [ $chnlstate_run == "n" ]; then
+     reset_done=1
      (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" $RMQ_RESET)&
+     log_info_msg "Resetting RMQ Channels -- Done"
   fi
 done
 (exec rm -rf "$file")&
-log_info_msg "Resetting RMQ Channels -- Done"
 
 for (( i=0; i<${COMPUTES_SIZE}; i++ ))
  do
   compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
-  if [[ -z "$compconsumer" ]]; then
+  if [[ -z "$compconsumer" ]] || [ $reset_done -eq 1 ]; then
     (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
     log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]} -- Done"
   fi

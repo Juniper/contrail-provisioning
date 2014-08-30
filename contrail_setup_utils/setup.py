@@ -1907,10 +1907,6 @@ class OpenstackGaleraSetup(Setup):
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
             local("rm -rf /var/lib/mysql/galera.cache")
-            local("rm -rf /var/lib/mysql/ibdata*")
-            local("rm -rf /var/lib/mysql/ib_logfile*")
-            local("rm -rf /var/lib/mysql/*.log")
-            local("rm -rf /var/lib/mysql/cmon")
         # fix galera_param
         template_vals = {'__mysql_host__' : self._args.openstack_ip,
                          '__mysql_wsrep_nodes__' :
@@ -1949,13 +1945,10 @@ class OpenstackGaleraSetup(Setup):
         self.install_mysql_db()
         if self._args.openstack_index == 1:
             self.create_mysql_token_file()
-            self.set_mysql_root_password()
-            self.setup_grants()
-            self.setup_cmon_tables()
-            self.setup_cmon_grants()
         else:
             self.get_mysql_token_file()
         self.set_mysql_root_password()
+        self.setup_grants()
         self.setup_cron()
 
         # fixup mysql/wsrep config
@@ -2036,35 +2029,28 @@ class OpenstackGaleraSetup(Setup):
         self.mysql_token = local('cat %s' % self.mysql_token_file, capture=True).strip()
 
     def set_mysql_root_password(self):
+        # Only for the very first time 
+        mysql_priv_access = "mysql -uroot -e"
         # Set root password for mysql
         with settings(warn_only=True):
             if local('echo show databases |mysql -u root > /dev/null').succeeded:
+                local('%s "use mysql; update user set password=password(\'%s\') where user=\'root\'"' % (mysql_priv_access, self.mysql_token))
                 local('mysqladmin password %s' % self.mysql_token)
             elif local('echo show databases |mysql -u root -p%s> /dev/null' % self.mysql_token).succeeded:
                 print "Mysql root password is already set to '%s'" % self.mysql_token
             else:
                 raise RuntimeError("MySQL root password unknown, reset and retry")
-
+                
     def setup_grants(self):
         mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
         host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
         for host in host_list:
+            with settings(hide('everything'),warn_only=True):
+                 local('mysql -u root -p%s -e "CREATE USER \'root\'@\'%s\' IDENTIFIED BY %s"' % (self.mysql_token, host, self.mysql_token))
             local('%s "SET WSREP_ON=0;SET SQL_LOG_BIN=0; GRANT ALL ON *.* TO root@%s IDENTIFIED BY \'%s\'"' %
                    (mysql_cmd, host, self.mysql_token))
         local('%s "SET wsrep_on=OFF; DELETE FROM mysql.user WHERE user=\'\'"' % mysql_cmd)
         local('%s "FLUSH PRIVILEGES"' % mysql_cmd)
-
-    def setup_cmon_tables(self):
-        local('mysql -u root -p%s -e "CREATE SCHEMA IF NOT EXISTS cmon"' % self.mysql_token)
-        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_db.sql' % self.mysql_token)
-        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_data.sql' % self.mysql_token)
-
-    def setup_cmon_grants(self):
-        mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
-        host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
-        for host in host_list:
-            local('%s "GRANT ALL PRIVILEGES on *.* TO cmon@%s IDENTIFIED BY \'cmon\' WITH GRANT OPTION"' %
-                   (mysql_cmd, host))
 
     def setup_cron(self):
         with settings(hide('everything'), warn_only=True):
@@ -2085,7 +2071,7 @@ class OpenstackGaleraSetup(Setup):
                     break
                 else:
                     time.sleep(2)
-                    print "Wating for first galera node to create new cluster."
+                    print "Waiting for first galera node to create new cluster."
             if wsrep_local_state != '4':
                 raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
             local("service %s restart" % self.mysql_svc)
