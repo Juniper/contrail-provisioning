@@ -1075,13 +1075,12 @@ class SetupCeph(object):
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
             #disable Contrail Web Storage feature
             with settings(warn_only=True):
-                storage_enable_variable = local('cat /usr/src/contrail/contrail-web-core/config/config.global.js | grep config.featurePkg.webStorage', capture=True);
+                storage_enable_variable = local('cat /etc/contrail/config.global.js | grep config.featurePkg.webStorage', capture=True);
             if storage_enable_variable:
-                local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
-                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
-                local('sudo service supervisor-webui stop')
-                time.sleep(5)
-                local('sudo service supervisor-webui start')
+                local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /etc/contrail/config.global.js > config.global.js.new')
+                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
+                local('sudo service supervisor-webui restart')
+
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -1448,14 +1447,14 @@ class SetupCeph(object):
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
             # enable Contrail Web Storage feature
             with settings(warn_only=True):
-                storage_enable_variable = local('cat /usr/src/contrail/contrail-web-core/config/config.global.js | grep config.featurePkg.webStorage', capture=True);
+                storage_enable_variable = local('cat /etc/contrail/config.global.js | grep config.featurePkg.webStorage', capture=True);
             if storage_enable_variable:
-                local('sudo sed "s/config.featurePkg.webStorage.enable = *;/config.featurePkg.webStorage.enable = true;/g" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
-                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+                local('sudo sed "s/config.featurePkg.webStorage.enable = *;/config.featurePkg.webStorage.enable = true;/g" /etc/contrail/config.global.js > config.global.js.new')
+                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
             else:
-                local('sudo cp  /usr/src/contrail/contrail-web-core/config/config.global.js /usr/src/contrail/contrail-web-storage/config.global.js.org')
-                local('sudo sed "/config.featurePkg.webController.enable/ a config.featurePkg.webStorage = {};\\nconfig.featurePkg.webStorage.path=\'\/usr\/src\/contrail\/contrail-web-storage\';\\nconfig.featurePkg.webStorage.enable = true;" /usr/src/contrail/contrail-web-core/config/config.global.js > config.global.js.new')
-                local('sudo mv config.global.js.new /usr/src/contrail/contrail-web-core/config/config.global.js')
+                local('sudo cp  /etc/contrail/config.global.js /usr/src/contrail/contrail-web-storage/config.global.js.org')
+                local('sudo sed "/config.featurePkg.webController.enable/ a config.featurePkg.webStorage = {};\\nconfig.featurePkg.webStorage.path=\'\/usr\/src\/contrail\/contrail-web-storage\';\\nconfig.featurePkg.webStorage.enable = true;" /etc/contrail/config.global.js > config.global.js.new')
+                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
 
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
         #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
@@ -1621,9 +1620,7 @@ class SetupCeph(object):
             local('sudo service libvirt-bin restart')
             local('sudo service nova-api restart')
             local('sudo service nova-scheduler restart')
-            local('sudo service supervisor-webui stop')
-            time.sleep(5)
-            local('sudo service supervisor-webui start')
+            local('sudo service supervisor-webui restart')
 
         # Create Cinder type for all Ceph backend
         if configure_with_ceph == 1:
