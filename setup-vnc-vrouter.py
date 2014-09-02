@@ -56,6 +56,7 @@ class SetupVncVrouter(object):
         
         if service_token:
             setup_args_str = setup_args_str + " --service_token %s " %(service_token)
+        ncontrols = 2
         setup_args_str = setup_args_str + " --ncontrols %s " %(ncontrols)
         if non_mgmt_ip: 
             setup_args_str = setup_args_str + " --non_mgmt_ip %s " %(non_mgmt_ip)
