@@ -90,6 +90,11 @@ openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_networ
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_subnet -1
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf QUOTAS quota_port -1
 
+# icehouse rpm also uses neutron-dist.conf to start neutron server, need to delete default service_provider. 
+if [ -f /usr/share/neutron/neutron-dist.conf ]; then
+    openstack-config --del /usr/share/neutron/neutron-dist.conf service_providers service_provider
+fi
+
 if [ -d /etc/neutron ]; then
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
