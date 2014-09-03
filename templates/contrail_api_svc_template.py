@@ -8,5 +8,5 @@ template = string.Template("""
 
 $__contrail_supervisorctl_lines__
 
-#supervisorctl -s http://localhost:9004 ${1} `basename ${0}`
+#supervisorctl -s unix:///tmp/supervisord_config.sock ${1} `basename ${0}`
 """)
