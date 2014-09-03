@@ -922,10 +922,11 @@ HWADDR=%s
                 local("echo 'SELF_MGMT_IP=%s' >> %s/ctrl-details" %(self._args.mgmt_self_ip, temp_dir_name))
             if self._args.openstack_ip_list:
                 local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
-            if 'compute' in self._args.role:
-                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
-            else:
-                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            #if 'compute' in self._args.role:
+            #    local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
+            #else:
+            #    local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -1872,7 +1873,7 @@ class KeepalivedSetup(Setup):
                     router_id = 200
             priority = router_id - (self_index - 1)
             if self._args.num_nodes > 2 and self_index == 2:
-                state = 'MASTER'
+                state = 'BACKUP'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
