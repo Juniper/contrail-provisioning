@@ -1872,7 +1872,7 @@ class KeepalivedSetup(Setup):
                     router_id = 200
             priority = router_id - (self_index - 1)
             if self._args.num_nodes > 2 and self_index == 2:
-                state = 'MASTER'
+                state = 'BACKUP'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
