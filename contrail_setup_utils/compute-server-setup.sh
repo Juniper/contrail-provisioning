@@ -144,7 +144,6 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
@@ -160,6 +159,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do
