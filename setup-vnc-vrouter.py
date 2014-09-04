@@ -53,7 +53,8 @@ class SetupVncVrouter(object):
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
         setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
         setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
-        setup_args_str = setup_args_str + " --amqp_server_ip_list %s" %(' '. join(amqp_server_ip_list))
+        if amqp_server_ip_list:
+            setup_args_str = setup_args_str + " --amqp_server_ip_list %s" %(' '. join(amqp_server_ip_list))
         setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
         
         if service_token:
