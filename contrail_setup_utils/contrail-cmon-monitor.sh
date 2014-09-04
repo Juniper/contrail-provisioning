@@ -24,8 +24,15 @@ NOVA_CONSAUTH_CHK="supervisorctl -s http://localhost:9010 status nova-consoleaut
 NOVA_SCHED_RST="service nova-scheduler restart"
 NOVA_CONS_RST="service nova-console restart"
 NOVA_CONSAUTH_RST="service nova-consoleauth restart"
+NOVA_COND_STOP="service nova-conductor stop"
+NOVA_COND_START="service nova-conductor start"
+NOVA_COND_STATUS="service nova-conductor status"
+NOVA_SCHED_STOP="service nova-conductor stop"
+NOVA_SCHED_START="service nova-conductor start"
+NOVA_SCHED_STATUS="service nova-scheduler status"
+NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
-STATE_FATAL="EXITED"
+STATE_FATAL="FATAL"
 
 timestamp() {
     date +"%T"
@@ -67,6 +74,7 @@ verify_mysql() {
       echo "n"
       return 0
    fi
+   exit 1
 }
 
 verify_cmon() {
@@ -83,6 +91,27 @@ verify_cmon() {
    fi
 }
 
+verify_nova_cond() {
+  cond=$($NOVA_COND_STATUS | awk '{print $2}')
+  if [ $cond == $NOVA_RUN_STATE ]; then
+     echo "y"
+     return 1
+  else
+     echo "n"
+     return 0
+  fi
+}
+
+verify_nova_sched() {
+  sched=$($NOVA_SCHED_STATUS | awk '{print $2}')
+  if [ $sched == $NOVA_RUN_STATE ]; then
+     echo "y"
+     return 1
+  else
+     echo "n"
+     return 0
+  fi
+}
 cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
@@ -111,7 +140,7 @@ if [ $viponme -eq 1 ]; then
    fi
 else
    if [ $cmon_run == "y" ]; then
-      $STOP_CMON
+      (exec $STOP_CMON)&
       log_info_msg "Stopped CMON on not finding VIP"
 
       #Check if the VIP was on this node and clear all session by restarting haproxy
@@ -153,6 +182,25 @@ fi
   if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
      (exec $NOVA_CONSAUTH_RST)&
      log_info_msg "Nova ConsoleAuth restarted becuase of the state $state"
+  fi
+
+  mysql_run=$(verify_mysql)
+  cond_run=$(verify_nova_cond)
+  sched_run=$(verify_nova_sched)
+  if [ $mysql_run == "n" ]; then
+     (exec $NOVA_COND_STOP)&
+     (exec $NOVA_SCHED_STOP)&
+     log_info_msg "Stopped conductor and scheduler becuase of Mysql dependency.
+                   Requests will be processed by other conductors and schedulers"
+  elif [ $mysql_run == "y" ]; then
+      if [ $cond_run == "n" ]; then
+         (exec $NOVA_COND_START)&
+         log_info_msg "Starting conductor after detecting mysql status"
+      fi
+      if [ $sched_run == "n" ]; then
+         (exec $NOVA_SCHED_START)&
+         log_info_msg "Starting scheduler after detecting mysql status"
+      fi
   fi
 
 exit 0
