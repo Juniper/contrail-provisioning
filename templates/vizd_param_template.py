@@ -26,6 +26,7 @@ template = string.Template("""#
 [COLLECTOR]
   port=$__contrail_listen_port__
 # server= 0.0.0.0
+# protobuf_port=$__contrail_analytics_protobuf_port__
 
 [DISCOVERY]
 # port=5998

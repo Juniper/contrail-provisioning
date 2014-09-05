@@ -305,6 +305,7 @@ class Setup(object):
         parser.add_argument("--self_collector_ip", help = "Self IP of Collector Node")
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of analytics data stored in database", type = int, default = 24 * 2)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int, default = -1)
+        parser.add_argument("--analytics_protobuf_port", help = "Listen port for analytics google protocol buffer server", type = int)
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
@@ -1080,9 +1081,14 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
+            if self._args.analytics_protobuf_port:
+                template_vals['__contrail_analytics_protobuf_port__'] = str(self._args.analytics_protobuf_port)
             self._template_substitute_write(vizd_param_template.template,
                                            template_vals, temp_dir_name + '/contrail-collector.conf')
             local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(temp_dir_name))
+            if self._args.analytics_protobuf_port:
+                local("sudo sed \"s/# protobuf_port/  protobuf_port/g\" /etc/contrail/contrail-collector.conf > %s/contrail-collector.conf.new" % (temp_dir_name))
+                local("sudo mv %s/contrail-collector.conf.new /etc/contrail/contrail-collector.conf" % (temp_dir_name))
 
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',

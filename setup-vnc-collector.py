@@ -37,6 +37,9 @@ class SetupVncCollector(object):
                                  % (self._args.analytics_syslog_port)                                                   
         if self._args.internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " % self._args.internal_vip
+        if self._args.analytics_protobuf_port is not None:
+            setup_args_str = setup_args_str + " --analytics_protobuf_port %d" \
+                                 % (self._args.analytics_protobuf_port)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -48,6 +51,7 @@ class SetupVncCollector(object):
         Eg. python setup-vnc-collector.py --cassandra_ip_list 10.1.1.1 10.1.1.2 
             --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11 
             --analytics_data_ttl 1 --analytics_syslog_port 3514
+            --analytics_protobuf_port 3333
         '''
 
         # Source any specified config/ini file
@@ -87,6 +91,7 @@ class SetupVncCollector(object):
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
+        parser.add_argument("--analytics_protobuf_port", help = "Listen port for analytics google protocol buffer server", type = int)
         self._args = parser.parse_args(remaining_argv)
 
     #end _parse_args
