@@ -67,7 +67,6 @@ if [ $is_ubuntu -eq 1 ] ; then
 fi
 source /etc/contrail/ctrl-details
 if [ $CONTROLLER != $COMPUTE ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
@@ -153,7 +152,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
@@ -178,7 +177,7 @@ elif [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
