@@ -20,6 +20,7 @@ class SetupVncVrouter(object):
         keystone_ip = self._args.keystone_ip
         internal_vip = self._args.internal_vip
         external_vip = self._args.external_vip
+        contrail_internal_vip = self._args.contrail_internal_vip
         service_token = self._args.service_token
         ncontrols = self._args.ncontrols
         non_mgmt_ip = self._args.non_mgmt_ip
@@ -30,6 +31,7 @@ class SetupVncVrouter(object):
         vgw_gateway_routes = self._args.gateway_routes
         ks_auth_protocol = self._args.keystone_auth_protocol
         ks_auth_port = self._args.keystone_auth_port
+        amqp_server_ip = self._args.amqp_server_ip
         amqp_server_ip_list = self._args.amqp_server_ip_list
         quantum_service_protocol = self._args.quantum_service_protocol
         if not self._args.openstack_mgmt_ip :
@@ -51,7 +53,9 @@ class SetupVncVrouter(object):
         setup_args_str = setup_args_str + " --openstack_mgmt_ip %s " %(openstack_mgmt_ip)
         setup_args_str = setup_args_str + " --ks_auth_protocol %s" %(ks_auth_protocol)
         setup_args_str = setup_args_str + " --ks_auth_port %s" %(ks_auth_port)
-        setup_args_str = setup_args_str + " --amqp_server_ip_list %s" %(' '. join(amqp_server_ip_list))
+        setup_args_str = setup_args_str + " --amqp_server_ip %s" %(amqp_server_ip)
+        if amqp_server_ip_list:
+            setup_args_str = setup_args_str + " --amqp_server_ip_list %s" %(' '. join(amqp_server_ip_list))
         setup_args_str = setup_args_str + " --quantum_service_protocol %s" %(quantum_service_protocol)
         
         if service_token:
@@ -76,6 +80,8 @@ class SetupVncVrouter(object):
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
         if external_vip:
             setup_args_str = setup_args_str + " --external_vip %s " %(external_vip)
+        if contrail_internal_vip:
+            setup_args_str = setup_args_str + " --contrail_internal_vip %s " %(contrail_internal_vip)
         if self._args.no_contrail_openstack:
             setup_args_str = setup_args_str + " --no_contrail_openstack"
 
@@ -116,6 +122,7 @@ class SetupVncVrouter(object):
             'haproxy': False,
             'ks_auth_protocol':'http',
             'ks_auth_port':'35357',
+            'amqp_server_ip':'127.0.0.1',
             'amqp_server_ip_list':'127.0.0.1',
             'quantum_service_protocol':'http',
             'vmware': None,
@@ -163,6 +170,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",default='35357')
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use",
             default = 'http')
+        parser.add_argument("--amqp_server_ip", help = "IP of the AMQP server to be used for openstack")
         parser.add_argument("--amqp_server_ip_list", help = "IP of the AMQP server to be used for openstack",
                             nargs='+', type=str)
         parser.add_argument("--vmware", help = "The Vmware ESXI IP")
@@ -171,6 +179,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
+        parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
 
         self._args = parser.parse_args(remaining_argv)

@@ -36,4 +36,7 @@ mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -e 'USE keystone ; DEL
 valid_token=$($mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -e 'USE keystone ; SELECT * FROM token;' | wc -l)
 log_info_msg "keystone-cleaner::Finishing token cleanup, there is still $valid_token valid tokens..."
 
+find /var/log/contrail/ha/ -size +10240k -exec rm -f {} \;
+find /var/log/cmon.log -size +10240k -exec rm -f {} \;
+
 exit 0

@@ -20,6 +20,7 @@ class SetupVncWebui(object):
         keystone_ip = self._args.keystone_ip
         collector_ip = self._args.collector_ip
         internal_vip = self._args.internal_vip
+        contrail_internal_vip = self._args.contrail_internal_vip
 
         setup_args_str = "--role webui"
         setup_args_str = setup_args_str + " --cfgm_ip %s" % (cfgm_ip)
@@ -33,6 +34,8 @@ class SetupVncWebui(object):
                              %(' '.join(self._args.cassandra_ip_list))                          
         if internal_vip:
             setup_args_str = setup_args_str + " --internal_vip %s " %(internal_vip)
+        if contrail_internal_vip:
+            setup_args_str = setup_args_str + " --contrail_internal_vip %s " %(contrail_internal_vip)
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -44,6 +47,7 @@ class SetupVncWebui(object):
         Eg. python setup-vnc-webui.py --cfgm_ip 10.84.12.11 --keystone_ip 10.84.12.12 
             --openstack_ip 10.84.12.12 --collector_ip 10.84.12.12
             --cassandra_ip_list 10.1.5.11 10.1.5.12 --internal_vip 10.84.12.200
+            --contrail_internal_vip 10.84.12.250
         '''
 
         # Source any specified config/ini file
@@ -87,6 +91,7 @@ class SetupVncWebui(object):
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
+        parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
 
         self._args = parser.parse_args(remaining_argv)
 

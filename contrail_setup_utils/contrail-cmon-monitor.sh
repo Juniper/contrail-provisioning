@@ -17,8 +17,22 @@ ARP_CACHE_FLUSH="arp -d $VIP"
 cmon_run=0
 viponme=0
 haprestart=0
-RMQ_CONSUMERS="rabbitmqctl list_consumers"
-NOVA_COMPUTE_RESTART="service nova-compute restart"
+RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
+NOVA_SCHED_CHK="supervisorctl -s http://localhost:9010 status nova-scheduler"
+NOVA_CONS_CHK="supervisorctl -s http://localhost:9010 status nova-console"
+NOVA_CONSAUTH_CHK="supervisorctl -s http://localhost:9010 status nova-consoleauth"
+NOVA_SCHED_RST="service nova-scheduler restart"
+NOVA_CONS_RST="service nova-console restart"
+NOVA_CONSAUTH_RST="service nova-consoleauth restart"
+NOVA_COND_STOP="service nova-conductor stop"
+NOVA_COND_START="service nova-conductor start"
+NOVA_COND_STATUS="service nova-conductor status"
+NOVA_SCHED_STOP="service nova-conductor stop"
+NOVA_SCHED_START="service nova-conductor start"
+NOVA_SCHED_STATUS="service nova-scheduler status"
+NOVA_RUN_STATE="RUNNING"
+STATE_EXITED="EXITED"
+STATE_FATAL="FATAL"
 
 timestamp() {
     date +"%T"
@@ -60,6 +74,7 @@ verify_mysql() {
       echo "n"
       return 0
    fi
+   exit 1
 }
 
 verify_cmon() {
@@ -76,11 +91,32 @@ verify_cmon() {
    fi
 }
 
+verify_nova_cond() {
+  cond=$($NOVA_COND_STATUS | awk '{print $2}')
+  if [ $cond == $NOVA_RUN_STATE ]; then
+     echo "y"
+     return 1
+  else
+     echo "n"
+     return 0
+  fi
+}
+
+verify_nova_sched() {
+  sched=$($NOVA_SCHED_STATUS | awk '{print $2}')
+  if [ $sched == $NOVA_RUN_STATE ]; then
+     echo "y"
+     return 1
+  else
+     echo "n"
+     return 0
+  fi
+}
 cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
-      $RUN_CMON  
+      (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
 
       for (( i=0; i<${COMPUTES_SIZE}; i++ ))
@@ -94,38 +130,77 @@ if [ $viponme -eq 1 ]; then
          (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
          log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
         done
-    fi
 
-   for (( i=0; i<${COMPUTES_SIZE}; i++ ))
-    do
-      compconsumer=$($RMQ_CONSUMERS | grep compute.${COMPUTES[i]} | awk '{print $1}')
-      if [[ -z "$compconsumer" ]]; then
-        echo "'$COMPUTES_USER@${COMPUTES[i]}'"
-        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$NOVA_COMPUTE_RESTART")&
-        log_info_msg "Nova compute consumer recovery on ${COMPUTES[i]}"
-      fi
-    done
+       (exec $RMQ_MONITOR)&
+    fi
+   # Check periodically for RMQ status
+   if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
+      sleep $PERIODIC_RMQ_CHK_INTER
+      (exec $RMQ_MONITOR)&
+   fi
 else
    if [ $cmon_run == "y" ]; then
-      $STOP_CMON
+      (exec $STOP_CMON)&
       log_info_msg "Stopped CMON on not finding VIP"
-   fi
 
-   #Check if the VIP was on this node and clear all session by restarting haproxy
-   hapid=$(pidof haproxy)
-   for (( i=0; i<${DIPS_SIZE}; i++ ))
-    do
-      dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
-      if [[ -n "$dipsonnonvip" ]]; then
+      #Check if the VIP was on this node and clear all session by restarting haproxy
+      hapid=$(pidof haproxy)
+      for (( i=0; i<${DIPS_SIZE}; i++ ))
+      do
+        dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
+        if [[ -n "$dipsonnonvip" ]]; then
          haprestart=1
          break
-      fi
-    done
+        fi
+      done
 
-    if [ $haprestart -eq 1 ]; then
-       $HAP_RESTART
+      if [ $haprestart -eq 1 ]; then
+       (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
-    fi
+      fi
+   fi
 fi
       
+  # These checks will eventually be replaced when we have nodemgr plugged in
+  # for openstack services
+  # CHECK FOR NOVA SCHD
+  state=$($NOVA_SCHED_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_SCHED_RST)&
+     log_info_msg "Nova Scheduler restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONS
+  state=$($NOVA_CONS_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONS_RST)&
+     log_info_msg "Nova Console restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONSAUTH
+  state=$($NOVA_CONSAUTH_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONSAUTH_RST)&
+     log_info_msg "Nova ConsoleAuth restarted becuase of the state $state"
+  fi
+
+  mysql_run=$(verify_mysql)
+  cond_run=$(verify_nova_cond)
+  sched_run=$(verify_nova_sched)
+  if [ $mysql_run == "n" ]; then
+     (exec $NOVA_COND_STOP)&
+     (exec $NOVA_SCHED_STOP)&
+     log_info_msg "Stopped conductor and scheduler becuase of Mysql dependency.
+                   Requests will be processed by other conductors and schedulers"
+  elif [ $mysql_run == "y" ]; then
+      if [ $cond_run == "n" ]; then
+         (exec $NOVA_COND_START)&
+         log_info_msg "Starting conductor after detecting mysql status"
+      fi
+      if [ $sched_run == "n" ]; then
+         (exec $NOVA_SCHED_START)&
+         log_info_msg "Starting scheduler after detecting mysql status"
+      fi
+  fi
+
 exit 0

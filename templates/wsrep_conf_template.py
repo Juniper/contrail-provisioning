@@ -36,8 +36,8 @@ innodb_flush_method=O_DIRECT
 innodb_thread_concurrency=0
 innodb_doublewrite=1
 innodb_io_capacity=2000
-innodb_write_io_threads=64
-innodb_read_io_threads=64
+innodb_write_io_threads=40
+innodb_read_io_threads=40
 innodb_file_per_table=1
 innodb_flush_log_at_trx_commit=2
 innodb_additional_mem_pool_size=1000M
@@ -94,7 +94,7 @@ wsrep_node_address=$__wsrep_node_address__
 #wsrep_node_incoming_address=
 
 # How many threads will process writesets from other nodes
-wsrep_slave_threads=81
+wsrep_slave_threads=70
 
 # DBUG options for wsrep provider
 #wsrep_dbug_option
