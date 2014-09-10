@@ -120,6 +120,7 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -225,7 +226,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$SELF_MGMT_IP:6999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6999
@@ -236,8 +237,8 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:3306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
@@ -250,6 +251,8 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf database db_retry_interval 1
     openstack-config --set /etc/nova/nova.conf database connection_debug 10
     openstack-config --set /etc/nova/nova.conf database pool_timeout 120
+elif [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
 fi
 
 echo "======= Enabling the services ======"

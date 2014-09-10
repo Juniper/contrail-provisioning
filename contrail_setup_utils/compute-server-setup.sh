@@ -67,11 +67,11 @@ if [ $is_ubuntu -eq 1 ] ; then
 fi
 source /etc/contrail/ctrl-details
 if [ $CONTROLLER != $COMPUTE ] ; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER/nova
+    openstack-config --del /etc/nova/nova.conf DEFAULT sql_connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
@@ -135,15 +135,16 @@ fi
 
 # Openstack HA specific configs
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
@@ -152,13 +153,39 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
     openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
+elif [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
+    openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5672
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do

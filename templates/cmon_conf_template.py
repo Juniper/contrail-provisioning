@@ -35,7 +35,7 @@ hostname=$__mysql_node_address__
 #ndb_connectstring=127.0.0.1
 
 ## The user that can SSH without password to the oter nodes
-os_user=root
+osuser=root
 
 # location of cmon.pid file. The pidfile is written in /tmp/ by default
 pidfile=/var/run/
@@ -63,4 +63,8 @@ wwwroot=/var/www/
 ssh_identity=''
 ssh_opts=-q
 ssh_port=22
+
+nodaemon=1
+monitored_mountpoints=/var/lib/mysql
+mysql_bindir=/usr/bin/
 """)

@@ -162,6 +162,7 @@ class Setup(object):
             'ks_insecure':'False',
             'amqp_server_ip': '127.0.0.1',
             'manage_neutron' : True,
+            'contrail_internal_vip' : None,
         }
         openstack_defaults = {
             'cfgm_ip': '127.0.0.1',
@@ -247,6 +248,7 @@ class Setup(object):
         parser.add_argument("--openstack_ip", help = "IP Address of Openstack Node")
         parser.add_argument("--internal_vip", help = "Internal VIP Address of HA Openstack Nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
+        parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
         parser.add_argument("--keystone_ip", help = "IP Address of Keystone Node")
         parser.add_argument("--openstack_mgmt_ip", help = "Management IP Address of Openstack Node")
         parser.add_argument("--collector_ip", help = "IP Address of Collector Node")
@@ -281,10 +283,11 @@ class Setup(object):
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "IP Addresses of Cassandra Nodes", nargs = '+', type = str)
         parser.add_argument("--zookeeper_ip_list", help = "IP Addresses of Zookeeper servers", nargs = '+', type = str)
-        parser.add_argument("--database_index", help = "Index of this cfgm node")
+        parser.add_argument("--database_index", help = "Index of this database node")
         parser.add_argument("--galera_ip_list", help = "IP Addresses of Galera servers", nargs = '+', type = str)
         parser.add_argument("--openstack_ip_list", help = "IP Addresses of openstack Servers", nargs = '+', type = str)
         parser.add_argument("--openstack_index", help = "Index of this openstack node", type = int)
+        parser.add_argument("--cfgm_index", help = "Index of this cfgm node", type = int)
         parser.add_argument("--num_nodes", help = "Number of available nodes", type = int)
         parser.add_argument("--quantum_port", help = "Quantum server port", default='9696')
         parser.add_argument("--n_api_workers",
@@ -899,7 +902,7 @@ HWADDR=%s
             quantum_port = self._args.quantum_port
             quantum_service_protocol = self._args.quantum_service_protocol
             if not self.service_token:
-                with settings(host_string = 'root@%s' %(self._args.internal_vip or keystone_ip), password = env.password):
+                with settings(host_string = 'root@%s' %(keystone_ip), password = env.password):
                     get("/etc/contrail/service.token", temp_dir_name)
                     tok_fd = open('%s/service.token' %(temp_dir_name))
                     self.service_token = tok_fd.read().strip()
@@ -919,10 +922,11 @@ HWADDR=%s
                 local("echo 'SELF_MGMT_IP=%s' >> %s/ctrl-details" %(self._args.mgmt_self_ip, temp_dir_name))
             if self._args.openstack_ip_list:
                 local("echo 'MEMCACHED_SERVERS=%s' >> %s/ctrl-details" % (':11211,'.join(self._args.openstack_ip_list) + ':11211', temp_dir_name))
-            if 'compute' in self._args.role:
-                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
-            else:
-                local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            #if 'compute' in self._args.role:
+            #    local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (':5672,'.join(self._args.amqp_server_ip_list) + ':5672', temp_dir_name))
+            #else:
+            #    local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
+            local("echo 'AMQP_SERVER=%s' >> %s/ctrl-details" % (self._args.amqp_server_ip, temp_dir_name))
             if self.haproxy:
                 local("echo 'QUANTUM=127.0.0.1' >> %s/ctrl-details" %(temp_dir_name))
             else:
@@ -940,9 +944,15 @@ HWADDR=%s
 
             if self._args.internal_vip:
                 local("echo 'INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
+            if self._args.contrail_internal_vip:
+                local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.contrail_internal_vip, temp_dir_name))
+            elif self._args.internal_vip:
+                # Openstack and config in same HA nodes, so sharing same VIP
+                local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.external_vip:
                 local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.external_vip, temp_dir_name))
-            else:
+            elif self._args.internal_vip:
+                # Single interface setup so both INTERNAL_VIP and EXTERNAL_VIP are same.
                 local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.openstack_index:
                 local("echo 'OPENSTACK_INDEX=%s' >> %s/ctrl-details" % (self._args.openstack_index, temp_dir_name))
@@ -1023,8 +1033,6 @@ HWADDR=%s
                   % (env_file))
             else:
                 local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss220k\"/g' %s" \
-                  % (env_file))
-            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss220k\"/g' %s" \
                   % (env_file))
             local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/g' %s" \
                   % (env_file))
@@ -1628,9 +1636,10 @@ SUBCHANNELS=1,2,3
             openstack_ip = self._args.openstack_ip
             keystone_ip = self._args.keystone_ip
             internal_vip = self._args.internal_vip
-            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
+            contrail_internal_vip = self._args.contrail_internal_vip or internal_vip
+            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or cfgm_ip))
+            local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or cfgm_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.imageManager.ip.*/config.imageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
@@ -1641,7 +1650,7 @@ SUBCHANNELS=1,2,3
             local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")            
             if collector_ip:
-                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or collector_ip))
+                local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or collector_ip))
                 local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             if self._args.cassandra_ip_list:
                 local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
@@ -1826,7 +1835,14 @@ SUBCHANNELS=1,2,3
 
 class KeepalivedSetup(Setup):
     def fixup_config_files(self):
-        vip_for_ips = [(self._args.internal_vip, self._args.openstack_ip, 'INTERNAL')]
+        if 'openstack' in self._args.role:
+            self_ip = self._args.openstack_ip
+            self_index = self._args.openstack_index
+        elif 'cfgm' in self._args.role:
+            self_ip = self._args.cfgm_ip
+            self_index = self._args.cfgm_index
+
+        vip_for_ips = [(self._args.internal_vip, self_ip, 'INTERNAL')]
         if self._args.external_vip:
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
         for vip, ip, vip_name in vip_for_ips:
@@ -1842,7 +1858,7 @@ class KeepalivedSetup(Setup):
             fall = 1
             garp_master_repeat = 3
             garp_master_refresh = 1
-            if self._args.openstack_index == 1:
+            if self_index == 1:
                 state = 'MASTER'
                 delay = 5
                 preempt_delay = 7
@@ -1850,12 +1866,16 @@ class KeepalivedSetup(Setup):
                 rise = 2 
                 fall = 2
             if vip_name == 'INTERNAL':
-                router_id = 100
+                router_id = 101
+                if 'openstack' in self._args.role:
+                    router_id = 100
             else:
-                router_id = 200
-            priority = router_id - (self._args.openstack_index - 1)
-            if self._args.num_nodes > 2 and self._args.openstack_index == 2:
-                state = 'MASTER'
+                router_id = 201
+                if 'openstack' in self._args.role:
+                    router_id = 200
+            priority = router_id - (self_index - 1)
+            if self._args.num_nodes > 2 and self_index == 2:
+                state = 'BACKUP'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
@@ -1889,6 +1909,7 @@ class OpenstackGaleraSetup(Setup):
             local("service cmon stop")
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
+            local("rm -rf /var/lib/mysql/galera.cache")
         # fix galera_param
         template_vals = {'__mysql_host__' : self._args.openstack_ip,
                          '__mysql_wsrep_nodes__' :
@@ -1907,7 +1928,7 @@ class OpenstackGaleraSetup(Setup):
                                         self._temp_dir_name + '/cmon_param')
         local("sudo mv %s/cmon_param /etc/contrail/ha/" % (self._temp_dir_name))
 
-        local("echo %s >> /etc/contrail/galeraid" % self._args.openstack_index)
+        local("echo %s > /etc/contrail/galeraid" % self._args.openstack_index)
         pdist = platform.dist()[0]
         if pdist in ['Ubuntu']:
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -1931,8 +1952,6 @@ class OpenstackGaleraSetup(Setup):
             self.get_mysql_token_file()
         self.set_mysql_root_password()
         self.setup_grants()
-        self.setup_cmon_tables()
-        self.setup_cmon_grants()
         self.setup_cron()
 
         # fixup mysql/wsrep config
@@ -2013,9 +2032,12 @@ class OpenstackGaleraSetup(Setup):
         self.mysql_token = local('cat %s' % self.mysql_token_file, capture=True).strip()
 
     def set_mysql_root_password(self):
+        # Only for the very first time
+        mysql_priv_access = "mysql -uroot -e"
         # Set root password for mysql
         with settings(warn_only=True):
             if local('echo show databases |mysql -u root > /dev/null').succeeded:
+                local('%s "use mysql; update user set password=password(\'%s\') where user=\'root\'"' % (mysql_priv_access, self.mysql_token))
                 local('mysqladmin password %s' % self.mysql_token)
             elif local('echo show databases |mysql -u root -p%s> /dev/null' % self.mysql_token).succeeded:
                 print "Mysql root password is already set to '%s'" % self.mysql_token
@@ -2026,22 +2048,12 @@ class OpenstackGaleraSetup(Setup):
         mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
         host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
         for host in host_list:
+            with settings(hide('everything'),warn_only=True):
+                 local('mysql -u root -p%s -e "CREATE USER \'root\'@\'%s\' IDENTIFIED BY %s"' % (self.mysql_token, host, self.mysql_token))
             local('%s "SET WSREP_ON=0;SET SQL_LOG_BIN=0; GRANT ALL ON *.* TO root@%s IDENTIFIED BY \'%s\'"' %
                    (mysql_cmd, host, self.mysql_token))
         local('%s "SET wsrep_on=OFF; DELETE FROM mysql.user WHERE user=\'\'"' % mysql_cmd)
         local('%s "FLUSH PRIVILEGES"' % mysql_cmd)
-
-    def setup_cmon_tables(self):
-        local('mysql -u root -p%s -e "CREATE SCHEMA IF NOT EXISTS cmon"' % self.mysql_token)
-        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_db.sql' % self.mysql_token)
-        local('mysql -u root -p%s < /usr/local/cmon/share/cmon/cmon_data.sql' % self.mysql_token)
-
-    def setup_cmon_grants(self):
-        mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
-        host_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
-        for host in host_list:
-            local('%s "GRANT ALL PRIVILEGES on *.* TO cmon@%s IDENTIFIED BY \'cmon\' WITH GRANT OPTION"' %
-                   (mysql_cmd, host))
 
     def setup_cron(self):
         with settings(hide('everything'), warn_only=True):
@@ -2062,7 +2074,7 @@ class OpenstackGaleraSetup(Setup):
                     break
                 else:
                     time.sleep(2)
-                    print "Wating for first galera node to create new cluster."
+                    print "Waiting for first galera node to create new cluster."
             if wsrep_local_state != '4':
                 raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
             local("service %s restart" % self.mysql_svc)

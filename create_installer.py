@@ -139,6 +139,7 @@ class CreateInstaller(object):
                           'setup-vnc-galera.py',
                           'contrail_setup_utils/contrail-bootstrap-galera.sh',
                           'contrail_setup_utils/contrail-cmon-monitor.sh',
+                          'contrail_setup_utils/contrail-rmq-monitor.sh',
                           'contrail_setup_utils/contrail-ha-check.sh',
                           'contrail_setup_utils/contrail-token-clean.sh',
                           'setup-vnc-keepalived.py',
