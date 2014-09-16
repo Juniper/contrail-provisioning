@@ -1456,6 +1456,7 @@ class SetupCeph(object):
             if pdist == 'Ubuntu':
                 local('sudo service libvirt-bin restart')
 
+            time.sleep(5)
             while True:
                 virsh_unsecret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
                 if virsh_unsecret != "":
