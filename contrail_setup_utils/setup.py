@@ -1603,6 +1603,8 @@ SUBCHANNELS=1,2,3
 #            if dev != 'vhost0':
                         with settings(warn_only = True):
                             local("sudo mv %s/ifcfg-vhost0 /etc/sysconfig/network-scripts/ifcfg-vhost0" % (temp_dir_name))
+                            local("sync")
+                            local("sleep 30")
                         ## make ifcfg-$dev
                         if not os.path.isfile (
                                 '/etc/sysconfig/network-scripts/ifcfg-%s.rpmsave' % dev):
