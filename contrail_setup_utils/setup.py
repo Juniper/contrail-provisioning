@@ -808,6 +808,7 @@ HWADDR=%s
                 local("rm /tmp/sysctl.new")
                 local('sysctl -p')
                 local('mkdir -p /var/crashes')
+                local('chmod 777 /var/crashes')
 
             try:
                 if pdist == 'fedora' or pdist == 'centos' or pdist == 'redhat':
