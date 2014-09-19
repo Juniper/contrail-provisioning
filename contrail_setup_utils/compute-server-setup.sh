@@ -83,7 +83,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
     else
-        if [ "$nova_compute_ver" == "2014.1.1" ]; then
+        if [ ${nova_compute_ver%%.*} -ge 2014 ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
             openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova

@@ -1604,7 +1604,6 @@ SUBCHANNELS=1,2,3
                         with settings(warn_only = True):
                             local("sudo mv %s/ifcfg-vhost0 /etc/sysconfig/network-scripts/ifcfg-vhost0" % (temp_dir_name))
                             local("sync")
-                            local("sleep 5")
                         ## make ifcfg-$dev
                         if not os.path.isfile (
                                 '/etc/sysconfig/network-scripts/ifcfg-%s.rpmsave' % dev):
