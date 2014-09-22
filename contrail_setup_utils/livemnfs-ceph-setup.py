@@ -57,6 +57,33 @@ class SetupNFSLivem(object):
                 else:
                     return
 
+            # default vm host values
+            memtotal = 16 * 1024 * 1024
+            cputotal = 8
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                if hostname == nfs_livem_host:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        memtotal = run('cat /proc/meminfo  | grep MemTotal | tr -s \' \' | cut -d " " -f 2', shell='/bin/bash')
+                        cputotal = run(' cat /proc/cpuinfo  | grep processor |  wc -l', shell='/bin/bash')
+
+            if long(memtotal) >= 32 * 1024 * 1024:
+                memselect = "16384"
+            else:
+                memselect = "8192"
+
+            if int(cputotal) >= 16:
+                cpuselect = "8"
+            else:
+                cpuselect = "4"
+
+            nova_flavor_avail=local('source /etc/contrail/openstackrc && \
+                                    nova flavor-list |grep nfsvm_flavor|wc -l',
+                                    capture=True, shell='/bin/bash')
+            if nova_flavor_avail == '0':
+                local('source /etc/contrail/openstackrc && \
+                        nova flavor-create nfsvm_flavor 100 %s 20 %s'
+                        %(memselect, cpuselect), shell='/bin/bash')
+
             #check for neutron network if already present, otherwise add it
             neutronnet=local('source /etc/contrail/openstackrc && neutron net-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if neutronnet == '0':
@@ -73,7 +100,7 @@ class SetupNFSLivem(object):
             if vm_running == '0':
                 vm_present=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
                 if vm_present == '0':
-                    local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 3 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
+                    local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 100 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
                 else:
                     local('source /etc/contrail/openstackrc && nova start livemnfs', shell='/bin/bash')
                 wait_loop = 10
@@ -558,6 +585,10 @@ class SetupNFSLivem(object):
                 else:
                     print 'Waiting for VM to be destroyed'
                     time.sleep(5)
+
+            vmflavor = local('source /etc/contrail/openstackrc && nova flavor-list | grep nfsvm_flavor | wc -l', capture=True, shell='/bin/bash')
+            if vmflavor != '0':
+                local('source /etc/contrail/openstackrc &&  nova flavor-delete nfsvm_flavor', shell='/bin/bash')
 
             #delete the neutron subnet
             neutronsubnet=local('source /etc/contrail/openstackrc && neutron subnet-list | grep %s |wc -l' %(nfs_livem_cidr), capture=True, shell='/bin/bash')
