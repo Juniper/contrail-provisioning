@@ -223,7 +223,7 @@ class SetupCeph(object):
         cur_pg = local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd pool get %s pg_num' %(pool), capture=True)
         cur_pg_cnt = int(cur_pg.split(':')[1])
         max_pg_cnt = 30 * osd_num
-	while True:
+        while True:
             cur_pg_cnt = 30 * cur_pg_cnt
             if cur_pg_cnt > max_pg_cnt:
                 self.set_pg_count_increment(pool, max_pg_cnt)
@@ -782,19 +782,21 @@ class SetupCeph(object):
                             disksplit = disks.split(':')
                             if disksplit[0] == add_storage_node and disksplit[0] == hostname:
                                 #print hostname
-                                if journal_available == 2:
-                                    #print disksplit[2]
-                                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                                        default_journal_size = 1024
-                                        num_primary = run('parted -s %s print|grep primary|wc -l' %(disksplit[2]), shell='/bin/bash')
-                                        part_num = int(num_primary) + 1
-                                        start_part = default_journal_size * part_num
-                                        end_part = start_part + default_journal_size
-                                        run('parted -s %s mkpart primary %dM %dM' %(disksplit[2], start_part, end_part))
-                                        storage_disk_node = disks + str(part_num)
-                                        new_storage_disk_list.append(storage_disk_node)
-                                else:
-                                        new_storage_disk_list.append(disks)
+                                # No need to partition
+                                # Ceph will do the partition
+                                #if journal_available == 2:
+                                #    #print disksplit[2]
+                                #    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                                #        default_journal_size = 1024
+                                #        num_primary = run('parted -s %s print|grep primary|wc -l' %(disksplit[2]), shell='/bin/bash')
+                                #        part_num = int(num_primary) + 1
+                                #        start_part = default_journal_size * part_num
+                                #        end_part = start_part + default_journal_size
+                                #        run('parted -s %s mkpart primary %dM %dM' %(disksplit[2], start_part, end_part))
+                                #        storage_disk_node = disks + str(part_num)
+                                #        new_storage_disk_list.append(storage_disk_node)
+                                #else:
+                                new_storage_disk_list.append(disks)
     
                     #print new_storage_disk_list
                     #print self._args.storage_disk_config
@@ -1304,19 +1306,21 @@ class SetupCeph(object):
                         disksplit = disks.split(':')
                         if hostname == disksplit[0]:
                             #print hostname
-                            if journal_available == 2:
-                                #print disksplit[2]
-                                with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                                    default_journal_size = 1024
-                                    num_primary = run('parted -s %s print|grep primary|wc -l' %(disksplit[2]), shell='/bin/bash')
-                                    part_num = int(num_primary) + 1
-                                    start_part = default_journal_size * part_num
-                                    end_part = start_part + default_journal_size
-                                    run('parted -s %s mkpart primary %dM %dM' %(disksplit[2], start_part, end_part))
-                                    storage_disk_node = disks + str(part_num)
-                                    new_storage_disk_list.append(storage_disk_node)
-                            else:
-                                    new_storage_disk_list.append(disks)
+                            # No need to partition
+                            # Ceph will do the partition
+                            #if journal_available == 2:
+                            #    #print disksplit[2]
+                            #    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            #        default_journal_size = 1024
+                            #        num_primary = run('parted -s %s print|grep primary|wc -l' %(disksplit[2]), shell='/bin/bash')
+                            #        part_num = int(num_primary) + 1
+                            #        start_part = default_journal_size * part_num
+                            #        end_part = start_part + default_journal_size
+                            #        run('parted -s %s mkpart primary %dM %dM' %(disksplit[2], start_part, end_part))
+                            #        storage_disk_node = disks + str(part_num)
+                            #        new_storage_disk_list.append(storage_disk_node)
+                            #else:
+                            new_storage_disk_list.append(disks)
                 #print new_storage_disk_list
                 #print self._args.storage_disk_config
     
