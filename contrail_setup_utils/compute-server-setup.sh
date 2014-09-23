@@ -136,56 +136,47 @@ fi
 # Openstack HA specific configs
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
-if [ "$INTERNAL_VIP" != "none" ]; then
+EXTERNAL_VIP=${EXTERNAL_VIP:-$INTERNAL_VIP}
+if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
+    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
+    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
+    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
+fi
+# Openstack and Contrail in different nodes.
+if [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
-    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
-    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
-    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
-elif [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
-    openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
+# Contrail HA.
+elif [ "$INTERNAL_VIP" == "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5672
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
-    openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 5
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
-    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port 5900
-    openstack-config --set /etc/nova/nova.conf DEFAULT vnc_port_total 100
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:6080/vnc_auto.html
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
-    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
-    openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
+# Openstack and Contrail in same nodes.
+elif [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" == "none" ]; then
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do
