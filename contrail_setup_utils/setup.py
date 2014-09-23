@@ -946,14 +946,8 @@ HWADDR=%s
                 local("echo 'INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.contrail_internal_vip:
                 local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.contrail_internal_vip, temp_dir_name))
-            elif self._args.internal_vip:
-                # Openstack and config in same HA nodes, so sharing same VIP
-                local("echo 'CONTRAIL_INTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.external_vip:
                 local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.external_vip, temp_dir_name))
-            elif self._args.internal_vip:
-                # Single interface setup so both INTERNAL_VIP and EXTERNAL_VIP are same.
-                local("echo 'EXTERNAL_VIP=%s' >> %s/ctrl-details" % (self._args.internal_vip, temp_dir_name))
             if self._args.openstack_index:
                 local("echo 'OPENSTACK_INDEX=%s' >> %s/ctrl-details" % (self._args.openstack_index, temp_dir_name))
             local("sudo cp %s/ctrl-details /etc/contrail/ctrl-details" %(temp_dir_name))
