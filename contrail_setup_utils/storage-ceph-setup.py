@@ -101,40 +101,6 @@ class SetupCeph(object):
         run('chmod a+x /tmp/osd_local_list.sh')
         run('/tmp/osd_local_list.sh')
 
-    def contrail_storage_ui_add(self):
-        if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
-            # enable Contrail Web Storage feature
-            with settings(warn_only=True):
-                storage_enable_variable = local('cat /etc/contrail/config.global.js | grep config.featurePkg.webStorage', capture=True);
-            if storage_enable_variable:
-                print 'Re-enable Contrail Web Storage feature'
-                local('sudo sed "s/config.featurePkg.webStorage.enable = *;/config.featurePkg.webStorage.enable = true;/g" /etc/contrail/config.global.js > config.global.js.new')
-                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
-            else:
-                print 'Enable Contrail Web Storage feature'
-                local('sudo cp  /etc/contrail/config.global.js /usr/src/contrail/contrail-web-storage/config.global.js.org')
-                local('sudo sed "/config.featurePkg.webController.enable/ a config.featurePkg.webStorage = {};\\nconfig.featurePkg.webStorage.path=\'\/usr\/src\/contrail\/contrail-web-storage\';\\nconfig.featurePkg.webStorage.enable = true;" /etc/contrail/config.global.js > config.global.js.new')
-                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
-
-            #restart the webui server
-            time.sleep(5);
-            print 'restarting... supervisor-webui service'
-            local('sudo service supervisor-webui restart')
-
-    def contrail_storage_ui_remove(self):
-        if self._args.storage_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
-            #disable Contrail Web Storage feature
-            with settings(warn_only=True):
-                storage_enable_variable = local('cat /etc/contrail/config.global.js | grep config.featurePkg.webStorage', capture=True);
-            if storage_enable_variable:
-                print 'Disable Contrail Web Storage feature'
-                local('sudo sed "/config.featurePkg.webStorage = {}/,/config.featurePkg.webStorage.enable = true;/d" /etc/contrail/config.global.js > config.global.js.new')
-                local('sudo cp config.global.js.new /etc/contrail/config.global.js')
-                #restart the webui server
-                time.sleep(5);
-                print 'restarting... supervisor-webui service'
-                local('sudo service supervisor-webui restart')
-
     def ceph_rest_api_service_add(self):
         # check for ceph-rest-api.conf
         # write /etc/init conf for service upstrart
@@ -1140,14 +1106,8 @@ class SetupCeph(object):
         time.sleep(2)
         local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
 
-        # Whenever Storage setup mode is reconfigure or unconfigure needs to remove below service and a feature
-        # 1. remove the ceph-rest-api service
-        # 2. remove the Storage UI feature
-        if self._args.storage_setup_mode == 'reconfigure' or self._args.storage_setup_mode == 'unconfigure':
-           if pdist == 'Ubuntu':
-               self.contrail_storage_ui_remove()
-               time.sleep(5)
-               self.ceph_rest_api_service_remove()
+        if pdist == 'Ubuntu':
+            self.ceph_rest_api_service_remove()
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -1770,8 +1730,6 @@ class SetupCeph(object):
 
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_add()
-            time.sleep(5)
-            self.contrail_storage_ui_add()
 
     #end __init__
 
