@@ -325,6 +325,9 @@ class Setup(object):
         parser.add_argument("--nfs-livem-image", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--add-storage-node", help = "Dynamic addition of storage node")
+        parser.add_argument("--storage-webui-ip", help = "IP Address of storage webui node")
+        parser.add_argument("--storage-webui-mode", help = "Config mode Storage WebUI Status")
+        parser.add_argument("--storage-master-ip", help = "IP Address of storage master node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
         parser.add_argument("--vmware", help = "Vmware ESXI IP", type=str)
         parser.add_argument("--vmware_username", help = "Vmware ESXI Username", type=str)
@@ -1791,23 +1794,35 @@ SUBCHANNELS=1,2,3
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/livemnfs-ceph-setup.py %s" %(storage_setup_args))
             else:
                 # Storage Configurations
-                # Setup Ceph services
-                storage_setup_args = " --storage-master %s" %(self._args.storage_master)
-                storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
-                if self._args.add_storage_node:
-                    storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)    
-                storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
-                storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
-                storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
-                storage_setup_args = storage_setup_args + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))    
-                storage_setup_args = storage_setup_args + " --storage-ssd-disk-config %s" %(' '.join(self._args.storage_ssd_disk_config))    
-                storage_setup_args = storage_setup_args + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))    
-                storage_setup_args = storage_setup_args + " --storage-local-disk-config %s" %(' '.join(self._args.storage_local_disk_config))    
-                storage_setup_args = storage_setup_args + " --storage-local-ssd-disk-config %s" %(' '.join(self._args.storage_local_ssd_disk_config))    
-                storage_setup_args = storage_setup_args + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))    
-                storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
-                with settings(host_string=self._args.storage_master):
-                    run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
+                # Storage WebUI
+                storage_webui_mode = self._args.storage_webui_mode
+                if storage_webui_mode == 'enabled':
+                    storage_setup_args = " --storage-webui-ip %s" %(self._args.storage_webui_ip)
+                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
+                    with settings(host_string=self._args.storage_webui_ip):
+                    storage_master_ip = self._args.storage_master_ip
+                    # Configuring the ceph rest server ip to storage webui config
+                    local("sudo sed \"s/config.ceph.server_ip.*/config.ceph.server_ip = '%s';/g\" /usr/src/contrail/contrail-web-storage/webroot/common/config/storage.config.global.js > storage.config.global.js.new" %(storage_master_ip))
+                    local("sudo mv storage.config.global.js.new /usr/src/contrail/contrail-web-storage/webroot/common/config/storage.config.global.js")
+                    run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-webui-setup.py %s" %(storage_setup_args))
+                else:
+                    # Setup Ceph services
+                    storage_setup_args = " --storage-master %s" %(self._args.storage_master)
+                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
+                    if self._args.add_storage_node:
+                        storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)
+                    storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
+                    storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
+                    storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
+                    storage_setup_args = storage_setup_args + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))
+                    storage_setup_args = storage_setup_args + " --storage-ssd-disk-config %s" %(' '.join(self._args.storage_ssd_disk_config))
+                    storage_setup_args = storage_setup_args + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))
+                    storage_setup_args = storage_setup_args + " --storage-local-disk-config %s" %(' '.join(self._args.storage_local_disk_config))
+                    storage_setup_args = storage_setup_args + " --storage-local-ssd-disk-config %s" %(' '.join(self._args.storage_local_ssd_disk_config))
+                    storage_setup_args = storage_setup_args + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))
+                    storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
+                    with settings(host_string=self._args.storage_master):
+                        run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
 
                 # Setup Live migration services
                 live_migration_status = self._args.live_migration
