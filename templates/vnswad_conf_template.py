@@ -153,6 +153,9 @@ physical_interface=$__contrail_physical_intf__
 # Path to the script which handles the netns commands
 netns_command=/usr/bin/opencontrail-vrouter-netns
 
+# SSL certificate path haproxy
+netns_haproxy_ssl_path=
+
 # Number of workers that will be used to start netns commands
 #netns_workers=1
 
