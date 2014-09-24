@@ -45,7 +45,7 @@ class SetupVncStorageWebUI(object):
         # Turn off help, so we print all options in response to -h
         conf_parser = argparse.ArgumentParser(add_help = False)
         
-        conf_parser.add_argument("-c", "--conf_file",
+	conf_parser.add_argument("-c", "--conf_file",
                                  help="Specify config file", metavar="FILE")
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
 
@@ -92,4 +92,4 @@ def main(args_str = None):
 #end main
 
 if __name__ == "__main__":
-    main() 
+    main()

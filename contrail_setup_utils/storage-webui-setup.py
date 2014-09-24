@@ -121,11 +121,11 @@ class SetupStorageWebUI(object):
         # Don't surpress add_help here so it will handle -h
         parser = argparse.ArgumentParser(
             # Inherit options from config_parser
-            parents=[conf_parser],
+            parents = [conf_parser],
             # print script description with -h/--help
             description=__doc__,
             # Don't mess with format of description
-            formatter_class=argparse.RawDescriptionHelpFormatter,
+            formatter_class = argparse.RawDescriptionHelpFormatter,
             )
 
         all_defaults = {'global': global_defaults}
