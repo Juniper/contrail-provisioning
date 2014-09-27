@@ -14,6 +14,8 @@ cassandra_server_list=$__contrail_cassandra_server_list__
 disc_server_ip=$__contrail_disc_server_ip__
 disc_server_port=$__contrail_disc_server_port__
 region_name=$__contrail_region_name__
+log_local=1
+log_level=SYS_NOTICE
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
