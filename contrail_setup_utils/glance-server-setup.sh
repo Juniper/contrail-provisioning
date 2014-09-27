@@ -79,6 +79,10 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+AMQP_PORT=5672
+if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
+    AMQP_PORT=5673
+fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -152,7 +156,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/glance/glance-api.conf DEFAULT bind_port 9393
     openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/glance/glance-api.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $INTERNAL_VIP:5000/v2.0/
 fi
 

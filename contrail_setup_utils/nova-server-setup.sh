@@ -121,6 +121,10 @@ SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
+AMQP_PORT=5672
+if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
+    AMQP_PORT=5673
+fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -235,7 +239,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:3306/nova
@@ -256,6 +260,7 @@ fi
 # Openstack and contrail in different nodes.
 if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
 fi
 
 echo "======= Enabling the services ======"
