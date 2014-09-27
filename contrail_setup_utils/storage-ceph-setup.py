@@ -140,6 +140,26 @@ class SetupCeph(object):
                 local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
             local('sudo service ceph-rest-api start', shell='/bin/bash')
 
+
+    def unconfigure_syslog(self):
+            # disable server:port syslog remote logging
+            for entries in self._args.collector_hosts:
+                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, SYSLOG_LOGPORT), capture=True)
+                if syslog_present == '1':
+                    local('sed -i "/*.* @%s:%s/d" /etc/rsyslog.d/50-default.conf' %(entries, SYSLOG_LOGPORT))
+                    # restart rsyslog service after remote logging enabled
+                    local('service rsyslog restart')
+
+            # find and replace syslog port to default in collector
+            for entries, entry_token in zip(self._args.collector_hosts, self._args.collector_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    syslog_port=run('grep "syslog_port=4514" /etc/contrail/contrail-collector.conf | wc -l')
+                    if syslog_port == '1':
+                        run('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=4514/syslog_port=-1/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+                        # restart collector after syslog default port change
+                        run('service contrail-collector restart')
+
+
     def ceph_rest_api_service_remove(self):
         # check the ceph-rest-api service
         # if it is running then trigger ceph-rest-api stop
@@ -844,25 +864,6 @@ class SetupCeph(object):
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
                         run('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
 
-            # enable server:port syslog remote logging
-            syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(self._args.storage_master, SYSLOG_LOGPORT), capture=True)
-            if syslog_present == '0':
-                local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(self._args.storage_master, SYSLOG_LOGPORT))
-            # find and replace syslog port in collector
-            syslog_port=local('grep "# syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
-            if syslog_port == '1':
-                local('cat /etc/contrail/contrail-collector.conf | sed "s/# syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
-
-            syslog_port=local('grep "syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
-            if syslog_port == '1':
-                local('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
-
-            # restart collector after syslog port change
-            local('service contrail-collector restart')
-
-            # restart rsyslog service after remote logging enabled
-            local('service rsyslog restart')
-
             if self._args.storage_ssd_disk_config[0] != 'none':
                 volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
                 if volumes_pool_avail != '0':
@@ -1108,6 +1109,7 @@ class SetupCeph(object):
 
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_remove()
+            self.unconfigure_syslog()
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -1362,19 +1364,26 @@ class SetupCeph(object):
                         run('sudo openstack-config --set /etc/ceph/ceph.conf  mon "mon cluster log to syslog" true')
 
             # enable server:port syslog remote logging
-            syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(self._args.storage_master, SYSLOG_LOGPORT), capture=True)
-            if syslog_present == '0':
-                local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(self._args.storage_master, SYSLOG_LOGPORT))
+            for entries in self._args.collector_hosts:
+                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, SYSLOG_LOGPORT), capture=True)
+                if syslog_present == '0':
+                    local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(entries, SYSLOG_LOGPORT))
 
-            syslog_port=local('grep "# syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
-            if syslog_port == '1':
-                local('cat /etc/contrail/contrail-collector.conf | sed "s/# syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+            # find and replace syslog port in collector
+            for entries, entry_token in zip(self._args.collector_hosts, self._args.collector_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    syslog_port=run('grep "# syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l')
+                    if syslog_port == '1':
+                        run('cat /etc/contrail/contrail-collector.conf | sed "s/# syslog_port=-1/syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
 
-            syslog_port=local('grep "syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l', capture=True)
-            if syslog_port == '1':
-                local('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=-1/  syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
+                    syslog_port=run('grep "syslog_port=-1" /etc/contrail/contrail-collector.conf | wc -l')
+                    if syslog_port == '1':
+                        run('cat /etc/contrail/contrail-collector.conf | sed "s/syslog_port=-1/syslog_port=4514/" > /tmp/contrail-collector.conf; mv /tmp/contrail-collector.conf /etc/contrail/contrail-collector.conf')
 
-            local('service contrail-collector restart')
+                    # restart collector after syslog port change
+                    run('service contrail-collector restart')
+
+            # restart rsyslog service after remote logging enabled
             local('service rsyslog restart')
 
 
@@ -1779,6 +1788,8 @@ class SetupCeph(object):
         parser.add_argument("--storage-nfs-disk-config", help = "Disk list to be used for local storage", nargs="+", type=str)
         parser.add_argument("--storage-journal-config", help = "Disk list to be used for distrubuted storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
+        parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
