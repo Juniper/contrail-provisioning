@@ -137,12 +137,16 @@ fi
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 EXTERNAL_VIP=${EXTERNAL_VIP:-$INTERNAL_VIP}
+AMQP_PORT=5672
+if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
+    AMQP_PORT=5673
+fi
 if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
