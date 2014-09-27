@@ -1079,8 +1079,7 @@ HWADDR=%s
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -1092,7 +1091,7 @@ HWADDR=%s
                                            template_vals, temp_dir_name + '/contrail-collector.conf')
             local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
                              '__contrail_redis_server_port__' : '6379',
                              '__contrail_http_server_port__' : '8091',
@@ -1107,9 +1106,9 @@ HWADDR=%s
             if self._args.internal_vip:
                 rest_api_port = '9081'
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
-                             '__contrail_log_local__': '0',
+                             '__contrail_log_local__': '1',
                              '__contrail_log_category__': '',
-                             '__contrail_log_level__': 'SYS_DEBUG',
+                             '__contrail_log_level__': 'SYS_NOTICE',
                              '__contrail_redis_server_port__' : '6379',
                              '__contrail_redis_query_port__' : '6379',
                              '__contrail_http_server_port__' : '8090',
@@ -1189,7 +1188,7 @@ HWADDR=%s
                              '__contrail_ks_auth_port__': ks_auth_port,
                              '__keystone_insecure_flag__': ks_insecure,
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
-                             '__contrail_log_file__': '/var/log/contrail/api.log',
+                             '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
@@ -1268,7 +1267,7 @@ HWADDR=%s
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
                              '__contrail_admin_token__': ks_admin_token,
-                             '__contrail_log_file__' : '/var/log/contrail/schema.log',
+                             '__contrail_log_file__' : '/var/log/contrail/contrail-schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
@@ -1297,7 +1296,7 @@ HWADDR=%s
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
                              '__contrail_admin_token__': ks_admin_token,
-                             '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
+                             '__contrail_log_file__' : '/var/log/contrail/contrail-svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
@@ -1314,7 +1313,7 @@ HWADDR=%s
                              '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
                              '__contrail_log_local__': 'True',
-                             '__contrail_log_file__': '/var/log/contrail/discovery.log',
+                             '__contrail_log_file__': '/var/log/contrail/contrail-discovery.log',
                              '__contrail_healthcheck_interval__': 5,
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                             }
