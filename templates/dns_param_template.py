@@ -18,8 +18,8 @@ template = string.Template("""#
   log_file=/var/log/contrail/dns.log
 # log_files_count=10
 # log_file_size=1048576 # 1MB
-# log_level=SYS_NOTICE
-# log_local=0
+  log_level=SYS_NOTICE
+  log_local=1
 # test_mode=0
 
 [DISCOVERY]

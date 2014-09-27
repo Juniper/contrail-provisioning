@@ -57,17 +57,17 @@ ks_admin_password = env.admin_token
 ks_admin_tenant_name = env.admin_tenant
 contrail_bin_dir = '/opt/contrail/bin'
 
-from contrail_config_templates import api_server_conf_template
+from contrail_config_templates import contrail_api_conf_template
 from contrail_config_templates import quantum_conf_template
-from contrail_config_templates import schema_transformer_conf_template
-from contrail_config_templates import svc_monitor_conf_template
-from contrail_config_templates import bgp_param_template
+from contrail_config_templates import contrail_schema_conf_template
+from contrail_config_templates import contrail_svc_monitor_conf_template
+from contrail_config_templates import contrail_control_conf_template
 from contrail_config_templates import dns_param_template
-from contrail_config_templates import vnswad_conf_template
-from contrail_config_templates import discovery_conf_template
-from contrail_config_templates import vizd_param_template
-from contrail_config_templates import qe_param_template
-from contrail_config_templates import opserver_param_template
+from contrail_config_templates import contrail_vrouter_agent_conf_template
+from contrail_config_templates import contrail_discovery_conf_template
+from contrail_config_templates import contrail_collector_conf_template
+from contrail_config_templates import contrail_query_engine_conf_template
+from contrail_config_templates import contrail_analytics_api_conf_template
 from contrail_config_templates import vnc_api_lib_ini_template
 from contrail_config_templates import agent_param_template
 from contrail_config_templates import contrail_api_ini_template
@@ -1079,8 +1079,7 @@ HWADDR=%s
         if 'collector' in self._args.role:
             self_collector_ip = self._args.self_collector_ip
             cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/collector.log',
-                             '__contrail_log_local__': '--log-local',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
                              '__contrail_discovery_ip__' : cfgm_ip,
                              '__contrail_host_ip__' : self_collector_ip,
                              '__contrail_listen_port__' : '8086',
@@ -1088,18 +1087,18 @@ HWADDR=%s
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                              '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
-            self._template_substitute_write(vizd_param_template.template,
+            self._template_substitute_write(contrail_collector_conf_template.template,
                                            template_vals, temp_dir_name + '/contrail-collector.conf')
             local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(temp_dir_name))
 
-            template_vals = {'__contrail_log_file__' : '/var/log/contrail/query-engine.log',
+            template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
                              '__contrail_redis_server__': '127.0.0.1',
                              '__contrail_redis_server_port__' : '6379',
                              '__contrail_http_server_port__' : '8091',
                              '__contrail_collector__' : '127.0.0.1',
                              '__contrail_collector_port__' : '8086',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
-            self._template_substitute_write(qe_param_template.template,
+            self._template_substitute_write(contrail_query_engine_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail-query-engine.conf')
             local("sudo mv %s/contrail-query-engine.conf /etc/contrail/contrail-query-engine.conf" %(temp_dir_name))
            
@@ -1107,9 +1106,9 @@ HWADDR=%s
             if self._args.internal_vip:
                 rest_api_port = '9081'
             template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
-                             '__contrail_log_local__': '0',
+                             '__contrail_log_local__': '1',
                              '__contrail_log_category__': '',
-                             '__contrail_log_level__': 'SYS_DEBUG',
+                             '__contrail_log_level__': 'SYS_NOTICE',
                              '__contrail_redis_server_port__' : '6379',
                              '__contrail_redis_query_port__' : '6379',
                              '__contrail_http_server_port__' : '8090',
@@ -1120,9 +1119,9 @@ HWADDR=%s
                              '__contrail_collector__': self_collector_ip,
                              '__contrail_collector_port__': '8086',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list)}
-            self._template_substitute_write(opserver_param_template.template,
-                                            template_vals, temp_dir_name + '/opserver_param')
-            local("sudo mv %s/opserver_param /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
+            self._template_substitute_write(contrail_analytics_api_conf_template.template,
+                                            template_vals, temp_dir_name + '/contrail-analytics-api.conf')
+            local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
                     
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
@@ -1189,13 +1188,13 @@ HWADDR=%s
                              '__contrail_ks_auth_port__': ks_auth_port,
                              '__keystone_insecure_flag__': ks_insecure,
                              '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
-                             '__contrail_log_file__': '/var/log/contrail/api.log',
+                             '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                              '__contrail_zookeeper_server_ip__': zk_servers_ports,
                             }
-            self._template_substitute_write(api_server_conf_template.template,
+            self._template_substitute_write(contrail_api_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail-api.conf')
             local("sudo mv %s/contrail-api.conf /etc/contrail/" %(temp_dir_name))
 
@@ -1268,12 +1267,12 @@ HWADDR=%s
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
                              '__contrail_admin_token__': ks_admin_token,
-                             '__contrail_log_file__' : '/var/log/contrail/schema.log',
+                             '__contrail_log_file__' : '/var/log/contrail/contrail-schema.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                             }
-            self._template_substitute_write(schema_transformer_conf_template.template,
+            self._template_substitute_write(contrail_schema_conf_template.template,
                                             template_vals, temp_dir_name + '/schema_transformer.conf')
             local("sudo mv %s/schema_transformer.conf /etc/contrail/schema_transformer.conf" %(temp_dir_name))
 
@@ -1297,13 +1296,13 @@ HWADDR=%s
                              '__contrail_admin_password__': ks_admin_password,
                              '__contrail_admin_tenant_name__': ks_admin_tenant_name,
                              '__contrail_admin_token__': ks_admin_token,
-                             '__contrail_log_file__' : '/var/log/contrail/svc-monitor.log',
+                             '__contrail_log_file__' : '/var/log/contrail/contrail-svc-monitor.log',
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                              '__contrail_disc_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_disc_server_port__': '5998',
                              '__contrail_region_name__': region_name,
                             }
-            self._template_substitute_write(svc_monitor_conf_template.template,
+            self._template_substitute_write(contrail_svc_monitor_conf_template.template,
                                             template_vals, temp_dir_name + '/svc_monitor.conf')
             local("sudo mv %s/svc_monitor.conf /etc/contrail/svc_monitor.conf" %(temp_dir_name))
 
@@ -1313,12 +1312,12 @@ HWADDR=%s
                              '__contrail_zk_server_port__': '2181',
                              '__contrail_listen_ip_addr__': '0.0.0.0',
                              '__contrail_listen_port__': '5998',
-                             '__contrail_log_local__': 'True',
-                             '__contrail_log_file__': '/var/log/contrail/discovery.log',
+                             '__contrail_log_local__': '1',
+                             '__contrail_log_file__': '/var/log/contrail/contrail-discovery.log',
                              '__contrail_healthcheck_interval__': 5,
                              '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in cassandra_server_list),
                             }
-            self._template_substitute_write(discovery_conf_template.template,
+            self._template_substitute_write(contrail_discovery_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail-discovery.conf')
             local("sudo mv %s/contrail-discovery.conf /etc/contrail/" %(temp_dir_name))
 
@@ -1378,7 +1377,7 @@ HWADDR=%s
                              '__contrail_host_ip__': control_ip,
                              '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
-            self._template_substitute_write(bgp_param_template.template,
+            self._template_substitute_write(contrail_control_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail-control.conf')
             local("sudo mv %s/contrail-control.conf /etc/contrail/contrail-control.conf" %(temp_dir_name))
 
@@ -1525,7 +1524,7 @@ HWADDR=%s
                     '__hypervisor_type__': hypervisor_type,
                     '__vmware_physical_interface__': vmware_dev,
                 }
-                self._template_substitute_write(vnswad_conf_template.template,
+                self._template_substitute_write(contrail_vrouter_agent_conf_template.template,
                         vnswad_conf_template_vals, temp_dir_name + '/vnswad.conf')
 
                 if vgw_public_vn_name and vgw_public_subnet:

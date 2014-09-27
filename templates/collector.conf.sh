@@ -56,8 +56,8 @@ cat << EOF
   log_file=$LOG_FILE
 # log_files_count=10
 # log_file_size=1048576 # 1MB
-# log_level=SYS_NOTICE
-# log_local=0
+  log_level=SYS_NOTICE
+  log_local=1
   syslog_port=$ANALYTICS_SYSLOG_PORT
 # test_mode=0
 
