@@ -1726,6 +1726,15 @@ SUBCHANNELS=1,2,3
             else:
                 quantum_ip = self._args.cfgm_ip
             local("sudo ./contrail_setup_utils/config-server-setup.sh")
+            # Wait for supervisor to start rabbitmq
+            for i in range(10):
+                status = local("sudo service rabbitmq-server status", capture=True)
+                if 'running' in status.lower():
+                    print "Rabbitmq started by supervisor config, continue to provision neutron/quantum."
+                    break
+                else:
+                    print "Rabbitmq not yet started by supervisor config, Retrying."
+                    time.sleep(2)
             local("sudo ./contrail_setup_utils/quantum-server-setup.sh")
             quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
                           %(keystone_ip, quantum_ip, ks_admin_tenant_name, ks_admin_user, ks_admin_password, self.service_token, 
