@@ -1962,6 +1962,7 @@ class OpenstackGaleraSetup(Setup):
             wsrep_conf_file = 'my.cnf'
             wsrep_template = wsrep_conf_centos_template.template
         self.mysql_token_file = '/etc/contrail/mysql.token'
+        local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://#g" %s' % (wsrep_conf))
 
         self.install_mysql_db()
         if self._args.openstack_index == 1:
