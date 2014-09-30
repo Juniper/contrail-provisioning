@@ -604,6 +604,14 @@ class SetupNFSLivem(object):
             if livemnfs == '1':
                 local('source /etc/contrail/openstackrc && /usr/bin/glance image-delete livemnfs', capture=True, shell='/bin/bash')
 
+            # Remove Storage scope configuration
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        #Set autostart vm after node reboot
+                        run('openstack-config --del /etc/nova/nova.conf DEFAULT storage_scope')
+                        run('sudo service nova-compute restart')
+
     #end __init__
 
     def _parse_args(self, args_str):
