@@ -327,7 +327,7 @@ class SetupNFSLivem(object):
                             run('sudo cp /etc/fstab /tmp/fstab')
                             run('sudo chmod  666 /tmp/fstab')
                             run('echo \"# /livemnfsvol on /dev/vdb1\" >> /tmp/fstab')
-                            run('echo \"UUID=%s /livemnfsvol ext4 rw,noatime,data=writeback,barrier=0,nobh,errors=remount-ro 0 0\" >> /tmp/fstab' %(vdbuuid))
+                            run('echo \"UUID=%s /livemnfsvol ext4 rw,noatime,barrier=0,nobh,errors=remount-ro 0 0\" >> /tmp/fstab' %(vdbuuid))
                             run('sudo chmod  644 /tmp/fstab')
                             run('sudo mv /tmp/fstab /etc/fstab')
 
@@ -352,7 +352,7 @@ class SetupNFSLivem(object):
                     if nfsexports == '0':
                         run('sudo cp /etc/exports /tmp/exports')
                         run('sudo chmod  666 /tmp/exports')
-                        run('sudo echo \"/livemnfsvol *(rw,async,no_subtree_check,no_root_squash)\" >> /tmp/exports')
+                        run('sudo echo \"/livemnfsvol *(rw,sync,no_subtree_check,no_root_squash)\" >> /tmp/exports')
                         run('sudo chmod  644 /tmp/exports')
                         run('sudo mv -f /tmp/exports /etc/exports')
                         run('sync')
