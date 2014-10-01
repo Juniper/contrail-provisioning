@@ -101,6 +101,12 @@ class SetupCeph(object):
         run('chmod a+x /tmp/osd_local_list.sh')
         run('/tmp/osd_local_list.sh')
 
+    def contrail_storage_set_logsize(self):
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.st     orage_host_tokens):
+            with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                bash_cephargs = run('grep "size 500M" /etc/logrotate.d/ceph | wc -l')
+                if bash_cephargs == "0":
+                    run('awk "/compress/{print \\\\"    size 500M\\\\"}1" /etc/logrotate.d/ceph > /tmp/ceph_set_logsize.txt; cp -f /tmp/ceph_set_logsize.txt /etc/logrotate.d/ceph')
     def ceph_rest_api_service_add(self):
         # check for ceph-rest-api.conf
         # write /etc/init conf for service upstrart
@@ -1739,6 +1745,7 @@ class SetupCeph(object):
 
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_add()
+            self.contrail_storage_set_logsize()
 
     #end __init__
 
