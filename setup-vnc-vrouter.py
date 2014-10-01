@@ -34,6 +34,7 @@ class SetupVncVrouter(object):
         amqp_server_ip = self._args.amqp_server_ip
         amqp_server_ip_list = self._args.amqp_server_ip_list
         quantum_service_protocol = self._args.quantum_service_protocol
+        metadata_secret = self._args.metadata_secret
         if not self._args.openstack_mgmt_ip :
             openstack_mgmt_ip = keystone_ip
         else:
@@ -84,6 +85,8 @@ class SetupVncVrouter(object):
             setup_args_str = setup_args_str + " --contrail_internal_vip %s " %(contrail_internal_vip)
         if self._args.no_contrail_openstack:
             setup_args_str = setup_args_str + " --no_contrail_openstack"
+        if self._args.metadata_secret:
+            setup_args_str = setup_args_str + " --metadata_secret %s" % metadata_secret
 
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -181,6 +184,7 @@ class SetupVncVrouter(object):
         parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
+        parser.add_argument("--metadata_secret", help = "Metadata Proxy secret from openstack node")
 
         self._args = parser.parse_args(remaining_argv)
 
