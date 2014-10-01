@@ -43,6 +43,13 @@ if [ -f /etc/redhat-release ]; then
    	OS_URL=neutron_url
    	OS_URL_TIMEOUT=neutron_url_timeout
    	META_DATA_PROXY=service_neutron_metadata_proxy
+        # remove quantum related configs if any in the nova.conf
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_tenant_name
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_username
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_password
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_auth_url
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_auth_strategy
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_url
    fi
 fi
 
@@ -71,6 +78,13 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    	OS_URL=neutron_url
    	OS_URL_TIMEOUT=neutron_url_timeout
    	META_DATA_PROXY=service_neutron_metadata_proxy
+        # remove quantum related configs if any in the nova.conf
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_tenant_name
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_username
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_password
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_admin_auth_url
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_auth_strategy
+        openstack-config --del /etc/nova/nova.conf DEFAULT quantum_url
    fi
 fi
 
