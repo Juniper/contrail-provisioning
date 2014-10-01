@@ -18,8 +18,8 @@ template = string.Template("""#
   log_file=/var/log/contrail/contrail-control.log
 # log_files_count=10
 # log_file_size=10485760 # 10MB
-# log_level=SYS_NOTICE
-# log_local=0
+  log_level=SYS_NOTICE
+  log_local=1
 # test_mode=0
 # xmpp_server_port=5269
 

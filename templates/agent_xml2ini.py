@@ -254,9 +254,9 @@ class Xml2Ini():
         ini_str += "# log_file=/var/log/contrail/vrouter.log\n\n"
         ini_str += "# Log severity levels. Possible values are SYS_EMERG, SYS_ALERT, SYS_CRIT,\n"
         ini_str += "# SYS_ERR, SYS_WARN, SYS_NOTICE, SYS_INFO and SYS_DEBUG. Default is SYS_DEBUG\n"
-        ini_str += "# log_level=SYS_DEBUG\n\n"
+        ini_str += "# log_level=SYS_NOTICE\n\n"
         ini_str += "# Enable/Disable local file logging. Possible values are 0 (disable) and 1 (enable)\n"
-        ini_str += "# log_local=0\n\n"
+        ini_str += "# log_local=1\n\n"
         ini_str += "# Encapsulation type for tunnel. Possible values are MPLSoGRE, MPLSoUDP, VXLAN\n"
         if obj.tunnel_type:
             ini_str += "tunnel_type=%s\n\n" %(obj.tunnel_type)
