@@ -1668,11 +1668,12 @@ SUBCHANNELS=1,2,3
         if 'compute' in self._args.role:
             cfgm_ip = self._args.cfgm_ip
             compute_ip = self._args.compute_ip
+            openstack_ip = self._args.openstack_mgmt_ip
             compute_hostname = socket.gethostname()
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 prov_args = "--host_name %s --host_ip %s --api_server_ip %s --oper add " \
-                            "--admin_user %s --admin_password %s --admin_tenant_name %s" \
-                            %(compute_hostname, compute_ip, cfgm_ip, ks_admin_user, ks_admin_password, ks_admin_tenant_name)
+                            "--admin_user %s --admin_password %s --admin_tenant_name %s --openstack_ip %s" \
+                            %(compute_hostname, compute_ip, cfgm_ip, ks_admin_user, ks_admin_password, ks_admin_tenant_name, openstack_ip)
                 run("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
     #end add_vnc_config
 
