@@ -88,7 +88,7 @@ class SetupVncCfgm(object):
             'keystone_ip': '127.0.0.1',
             'service_token': '',
             'use_certs': False,
-            'multi_tenancy': False,
+            'multi_tenancy': True,
             'nworkers': '1',
             'haproxy': False,
             'region_name': None,
@@ -122,7 +122,8 @@ class SetupVncCfgm(object):
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--use_certs", help = "Use certificates for authentication (irond)",
             action="store_true")
-        parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies token validation)",
+        parser.add_argument("--multi_tenancy", 
+            help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
             action="store_true")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
