@@ -245,6 +245,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$CONTROLLER:3306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
+    openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
     openstack-config --set /etc/nova/nova.conf database min_pool_size 100
     openstack-config --set /etc/nova/nova.conf database max_pool_size 700
