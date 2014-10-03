@@ -335,6 +335,7 @@ class Setup(object):
         parser.add_argument("--vmware_username", help = "Vmware ESXI Username", type=str)
         parser.add_argument("--vmware_passwd", help = "Vmware ESXI Password", type=str)
         parser.add_argument("--vmware_vmpg_vswitch", help = "Vmware VMPG vswitch name", type=str)
+        parser.add_argument("--metadata_secret", help = "Metadata Proxy secret from openstack node", default=None)
 
     
         self._args = parser.parse_args(remaining_argv)
@@ -1566,6 +1567,9 @@ HWADDR=%s
                     with open(filename, "a") as f:
                         f.write(gateway_str)
 
+                if self._args.metadata_secret:
+                    local("sudo openstack-config --set %s/vnswad.conf  METADATA \
+                           metadata_proxy_secret %s" % (temp_dir_name, self._args.metadata_secret))
                 local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(temp_dir_name))
                 local("sudo rm %s/vnswad.conf*" %(temp_dir_name))
 
