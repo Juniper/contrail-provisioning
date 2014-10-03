@@ -1226,6 +1226,7 @@ HWADDR=%s
                                             template_vals, temp_dir_name + '/contrail-api')
             local("sudo mv %s/contrail-api /etc/init.d/" %(temp_dir_name))
             local("sudo chmod a+x /etc/init.d/contrail-api")
+            local("sudo chmod a+x /etc/init.d/contrail-schema")
 
             # quantum plugin
             template_vals = {'__contrail_api_server_ip__': self._args.internal_vip or cfgm_ip,
