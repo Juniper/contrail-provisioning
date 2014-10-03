@@ -102,11 +102,24 @@ class SetupCeph(object):
         run('/tmp/osd_local_list.sh')
 
     def contrail_storage_set_logsize(self):
-        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.st     orage_host_tokens):
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
             with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                bash_cephargs = run('grep "size 500M" /etc/logrotate.d/ceph | wc -l')
-                if bash_cephargs == "0":
-                    run('awk "/compress/{print \\\\"    size 500M\\\\"}1" /etc/logrotate.d/ceph > /tmp/ceph_set_logsize.txt; cp -f /tmp/ceph_set_logsize.txt /etc/logrotate.d/ceph')
+                # if "size " exists then delete those "size " matching lines
+                run('sed "/^    size /d" /etc/logrotate.d/ceph > /tmp/ceph_set_logsize.txt ; cp -f /tmp/ceph_set_logsize.txt /etc/logrotate.d/ceph')
+                # find the ceph logging "/var/log/ceph/\*.log {" begin tag
+                bash_cephargs = run('grep "/var/log/ceph/\*.log {" /etc/logrotate.d/ceph | wc -l')
+                if bash_cephargs == "1":
+                    # if begin tag present then add "size 500M" line after that begin tag
+                    run('awk "/\/var\/log\/ceph\/\*.log {/{print;print \\\\"    size 500M\\\\";next}1" /etc/logrotate.d/ceph  > /tmp/ceph_set_logsize.txt     ; cp -f /tmp/ceph_set_logsize.txt /etc/logrotate.d/ceph')
+                else:
+                    # begin tag not found -- empty file case
+                    # add 1. begin tag 2. size 500M after begin tag 3. end tag
+                    run('echo "/var/log/ceph/*.log {" > /tmp/ceph_set_logsize.txt')
+                    run('echo "    size 500M" >> /tmp/ceph_set_logsize.txt')
+                    run('echo "}" >> /tmp/ceph_set_logsize.txt')
+                    # append the exisiting /etc/logrotate.d/ceph contents
+                    run('cat /etc/logrotate.d/ceph >> /tmp/ceph_set_logsize.txt ; cp -f /tmp/ceph_set_logsize.txt /etc/logrotate.d/ceph')
+
     def ceph_rest_api_service_add(self):
         # check for ceph-rest-api.conf
         # write /etc/init conf for service upstrart
