@@ -109,6 +109,7 @@ class CreateInstaller(object):
                           'contrail_setup_utils/database-server-setup.sh',
                           'contrail_setup_utils/database-server-cleanup.sh',
                           'contrail_setup_utils/cinder-server-setup.sh',
+                          'contrail_setup_utils/heat-server-setup.sh',
                           'contrail_setup_utils/keystone-server-setup.sh',
                           'contrail_setup_utils/glance-server-setup.sh',
                           'contrail_setup_utils/nova-server-setup.sh',

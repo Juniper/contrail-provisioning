@@ -33,6 +33,7 @@
 
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
+ENABLE_HEAT=yes
 
 if [ -z $ADMIN_PASSWORD ]; then
     echo ADMIN_PASSWORD must be defined
@@ -290,6 +291,27 @@ if [[ -n "$ENABLE_QUANTUM" ]]; then
             --publicurl http://localhost:9696 \
             --adminurl http://localhost:9696 \
             --internalurl http://localhost:9696
+	fi
+    fi
+fi
+
+if [[ -n "$ENABLE_HEAT" ]]; then
+    get_role heat_stack_user
+    get_role heat_stack_owner
+    HEAT_SERVICE=$(get_service heat orchestration "Orchestration Service")
+    HEAT_USER=$(get_service_user heat)
+    if [ -z $(user_role_lookup $HEAT_USER $SERVICE_TENANT admin) ]; then
+    keystone user-role-add --tenant-id $SERVICE_TENANT \
+                           --user-id $HEAT_USER \
+                           --role-id $ADMIN_ROLE
+    fi
+
+    if [[ -n "$ENABLE_ENDPOINTS" ]]; then
+	if [ -z $(endpoint_lookup $HEAT_SERVICE) ]; then
+        keystone endpoint-create --region RegionOne --service-id $HEAT_SERVICE \
+            --publicurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s' \
+            --adminurl 'http://'$CONTROLLER:'8004/v1/%(tenant_id)s' \
+            --internalurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s'
 	fi
     fi
 fi
