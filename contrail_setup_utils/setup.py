@@ -1715,8 +1715,10 @@ SUBCHANNELS=1,2,3
             local("sudo ./contrail_setup_utils/glance-server-setup.sh")
             local("sudo ./contrail_setup_utils/cinder-server-setup.sh")
             local("sudo ./contrail_setup_utils/nova-server-setup.sh")
-            if pdist in ['centos']:
-                local("sudo ./contrail_setup_utils/heat-server-setup.sh")
+            with settings(warn_only=True):
+                if (pdist in ['centos'] and
+                    local("rpm -qa | grep contrail-heat").succeeded):
+                    local("sudo ./contrail_setup_utils/heat-server-setup.sh")
             if pdist in ['Ubuntu']:
                 self.mysql_svc = 'mysql'
             elif pdist in ['centos', 'redhat']:
