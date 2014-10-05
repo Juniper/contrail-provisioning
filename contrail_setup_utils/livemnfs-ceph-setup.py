@@ -36,14 +36,15 @@ class SetupNFSLivem(object):
         self._parse_args(args_str)
         vm_running = 0
 
-        print self._args.storage_setup_mode
-        nfs_livem_image = self._args.nfs_livem_image[0]
-        nfs_livem_host = self._args.nfs_livem_host[0]
-        nfs_livem_subnet = self._args.nfs_livem_subnet[0]
-        nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
-        if self._args.storage_setup_mode == 'setup' or \
-            self._args.storage_setup_mode == 'setup_global':
+        #print self._args.storage_setup_mode
+        if (self._args.storage_setup_mode == 'setup' or
+            self._args.storage_setup_mode == 'setup_global') and \
+            self._args.nfs_livem_host:
 
+            nfs_livem_image = self._args.nfs_livem_image[0]
+            nfs_livem_host = self._args.nfs_livem_host[0]
+            nfs_livem_subnet = self._args.nfs_livem_subnet[0]
+            nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
             #check for vm image if already present, otherwise add it
             livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if livemnfs == '1':
@@ -384,7 +385,6 @@ class SetupNFSLivem(object):
                             run('sudo echo \"%s:/livemnfsvol %s nfs rw,bg,soft 0 0\" >> %s' %(vmip, NOVA_INST_GLOBAL, ETC_FSTAB))
                         mounted=run('sudo cat /proc/mounts | grep livemnfsvol|wc -l')
                         if mounted == '0':
-                            print mounted
                             run('ping -c 10 %s' %(vmip))
                             run('sudo rm -rf /var/lib/nova/instances/global')
                             run('sudo mkdir /var/lib/nova/instances/global')
@@ -400,17 +400,85 @@ class SetupNFSLivem(object):
                                 if entries != self._args.storage_master:
                                     run('sudo chown nova:nova /var/lib/nova/instances/global')
 
-            if self._args.storage_setup_mode == 'setup_global':
-                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                    if entries != self._args.storage_master:
-                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                            #Set autostart vm after node reboot
-                            run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
-                            run('sudo service nova-compute restart')
+        if (self._args.storage_setup_mode == 'setup' or
+            self._args.storage_setup_mode == 'setup_global') and \
+            self._args.nfs_livem_mount:
 
-        if self._args.storage_setup_mode == 'unconfigure':
+            nfs_mount_pt = self._args.nfs_livem_mount
+            nfs_server = nfs_mount_pt.split(':')[0]
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                # Not sure if mount in master is required
+                # if entries != self._args.storage_master:
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    # Add to fstab to auto-mount the nfs file system upon
+                    # reboot. The 'bg' option takes care of retrying mount
+                    # if the vm is not reachable.
+                    fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
+                    if fstab_added == '0':
+                        run('sudo echo \"%s %s nfs rw,bg,soft 0 0\" >> %s' %(nfs_mount_pt, NOVA_INST_GLOBAL, ETC_FSTAB))
+                    mounted=run('sudo cat /proc/mounts | grep %s|wc -l' %(nfs_mount_pt))
+                    if mounted == '0':
+                        run('ping -c 10 %s' %(nfs_server))
+                        run('sudo rm -rf /var/lib/nova/instances/global')
+                        run('sudo mkdir /var/lib/nova/instances/global')
+                        run('sudo mount /var/lib/nova/instances/global')
+                        if entries != self._args.storage_master:
+                            run('sudo chown nova:nova /var/lib/nova/instances/global')
+                    else:
+                        run('ping -c 10 %s' %(nfs_server))
+                        stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
+                        if stalenfs == '1':
+                            run('sudo umount /var/lib/nova/instances/global')
+                            run('sudo mount  /var/lib/nova/instances/global')
+                            if entries != self._args.storage_master:
+                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+
+        if self._args.storage_setup_mode == 'setup_global':
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                if entries != self._args.storage_master:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        #Set autostart vm after node reboot
+                        run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+                        run('sudo service nova-compute restart')
+
+        if self._args.storage_setup_mode == 'unconfigure' and \
+           self._args.nfs_livem_mount:
             # Unconfigure started
             # Umount /var/lib/nova/instances/global from all the nodes
+
+            nfs_mount_pt = self._args.nfs_livem_mount
+            nfs_server = nfs_mount_pt.split(':')[0]
+
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                # Not sure if mount in master is required
+                # if entries != self._args.storage_master:
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
+                    if fstab_added == '1':
+                        run('sudo rm -rf %s' %(TMP_FSTAB))
+                        run('sudo cat %s | grep -v %s >> %s' %(ETC_FSTAB, nfs_mount_pt, TMP_FSTAB))
+                        run('sudo mv %s %s' %(TMP_FSTAB, ETC_FSTAB))
+                    mounted=run('cat /proc/mounts | grep %s |wc -l' %(nfs_mount_pt))
+                    if mounted == '1':
+                        mountused=run('lsof /var/lib/nova/instances/global | wc -l');
+                        if mountused != '0':
+                            print '/var/lib/nova/instance/global is being used, Cannot unconfigure'
+                            return
+                        else:
+                            run('sudo umount /var/lib/nova/instances/global')
+
+
+        if self._args.storage_setup_mode == 'unconfigure' and \
+           self._args.nfs_livem_host:
+
+            # Unconfigure started
+            # Umount /var/lib/nova/instances/global from all the nodes
+
+            nfs_livem_image = self._args.nfs_livem_image[0]
+            nfs_livem_host = self._args.nfs_livem_host[0]
+            nfs_livem_subnet = self._args.nfs_livem_subnet[0]
+            nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
+
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 # Not sure if mount in master is required
                 # if entries != self._args.storage_master:
@@ -604,6 +672,7 @@ class SetupNFSLivem(object):
             if livemnfs == '1':
                 local('source /etc/contrail/openstackrc && /usr/bin/glance image-delete livemnfs', capture=True, shell='/bin/bash')
 
+        if self._args.storage_setup_mode == 'unconfigure':
             # Remove Storage scope configuration
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 if entries != self._args.storage_master:
@@ -658,6 +727,7 @@ class SetupNFSLivem(object):
         parser.add_argument("--nfs-livem-subnet", help = "subnet for nfs live migration vm", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "image for nfs live migration vm", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "host for nfs live migration vm", nargs="+", type=str)
+        parser.add_argument("--nfs-livem-mount", help = "Mount of External NFS server")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)

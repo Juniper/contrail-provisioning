@@ -326,6 +326,7 @@ class Setup(object):
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "Image for NFS for Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "Image for NFS for Live migration VM", nargs="+", type=str)
+        parser.add_argument("--nfs-livem-mount", help = "Mount of external NFS server", nargs="+", type=str)
         parser.add_argument("--add-storage-node", help = "Dynamic addition of storage node")
         parser.add_argument("--storage-webui-ip", help = "IP Address of storage webui node")
         parser.add_argument("--storage-webui-mode", help = "Config mode Storage WebUI Status")
@@ -1788,13 +1789,17 @@ SUBCHANNELS=1,2,3
 
                 if nfs_live_migration_enabled == 'enabled':
                     storage_setup_args = " --storage-master %s" %(self._args.storage_master)
-                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)    
-                    storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
-                    storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
-                    storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
-                    storage_setup_args = storage_setup_args + " --nfs-livem-subnet %s" %(' '.join(self._args.nfs_livem_subnet))    
-                    storage_setup_args = storage_setup_args + " --nfs-livem-image %s" %(' '.join(self._args.nfs_livem_image))    
-                    storage_setup_args = storage_setup_args + " --nfs-livem-host %s" %(' '.join(self._args.nfs_livem_host))    
+                    storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
+                    storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
+                    storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
+                    storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
+                    if self._args.nfs_livem_subnet:
+                        storage_setup_args = storage_setup_args + " --nfs-livem-subnet %s" \
+                                                                %(' '.join(self._args.nfs_livem_subnet))
+                        storage_setup_args = storage_setup_args + " --nfs-livem-image %s" %(' '.join(self._args.nfs_livem_image))
+                        storage_setup_args = storage_setup_args + " --nfs-livem-host %s" %(' '.join(self._args.nfs_livem_host))
+                    if self._args.nfs_livem_mount:
+                        storage_setup_args = storage_setup_args + " --nfs-livem-mount %s" %(' '.join(self._args.nfs_livem_mount))
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/livemnfs-ceph-setup.py %s" %(storage_setup_args))
             else:
