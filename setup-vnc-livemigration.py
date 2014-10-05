@@ -28,9 +28,12 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --live-migration %s" % (live_migration_status) 
         nfs_live_migration_option = self._args.nfs_live_migration
         setup_args_str = setup_args_str + " --nfs-live-migration %s" % (nfs_live_migration_option) 
-        setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet))
-        setup_args_str = setup_args_str + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image))
-        setup_args_str = setup_args_str + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
+        if self._args.nfs_livem_subnet:
+            setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet))
+            setup_args_str = setup_args_str + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image))
+            setup_args_str = setup_args_str + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
+        if self._args.nfs_livem_mount:
+            setup_args_str = setup_args_str + " --nfs-livem-mount %s" % (' '.join(self._args.nfs_livem_mount))
 
 
         #Setup storage if storage is defined in testbed.py
@@ -86,6 +89,7 @@ class SetupVncStorage(object):
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-image", help = "Image for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-host", help = "Image for the NFS Live migration VM", nargs="+", type=str)
+        parser.add_argument("--nfs-livem-mount", help = "mount point of external NFS server", nargs="+", type=str)
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
