@@ -1124,6 +1124,8 @@ HWADDR=%s
             self._template_substitute_write(contrail_analytics_api_conf_template.template,
                                             template_vals, temp_dir_name + '/contrail-analytics-api.conf')
             local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(temp_dir_name))
+            with settings(warn_only=True):
+                local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
                     
         if 'config' in self._args.role:
             keystone_ip = self._args.keystone_ip
