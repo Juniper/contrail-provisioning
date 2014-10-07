@@ -37,6 +37,7 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
         setup_args_str = setup_args_str + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
         setup_args_str = setup_args_str + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+        setup_args_str = setup_args_str + " --cfg-host %s" % (self._args.cfg_host)
 
         #Setup storage if storage is defined in testbed.py
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none' or self._args.storage_local_disk_config[0] != 'none' or self._args.storage_nfs_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
@@ -47,7 +48,7 @@ class SetupVncStorage(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-storage.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --live-migration enabled --collector-hosts 10.157.43.171 10.157.42.166 --collector-host-tokens n1keenA n1keenA
+        Eg. python setup-vnc-storage.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --live-migration enabled --collector-hosts 10.157.43.171 10.157.42.166 --collector-host-tokens n1keenA n1keenA --cfg-host 10.157.43.171
         '''
 
         # Source any specified config/ini file
@@ -95,6 +96,7 @@ class SetupVncStorage(object):
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
+        parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 

@@ -321,6 +321,7 @@ class Setup(object):
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
+        parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--nfs-live-migration", help = "NFS for Live migration enabled")
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for NFS for Live migration VM", nargs="+", type=str)
@@ -1833,6 +1834,7 @@ SUBCHANNELS=1,2,3
                     storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
                     storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
                     storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+                    storage_setup_args = storage_setup_args + " --cfg-host %s" %(self._args.cfg_host)
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
 
