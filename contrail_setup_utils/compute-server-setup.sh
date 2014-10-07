@@ -26,7 +26,7 @@ fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
    is_ubuntu=1
    is_redhat=0
-   nova_compute_version=`dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'`
+   nova_compute_version=`dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | grep -v nova-compute-libvirt | awk '{print $3}'`
    echo $nova_compute_version
    if [ "$nova_compute_version" == "2:2013.1.3-0ubuntu1" ]; then
    	OS_NET=quantum
@@ -98,6 +98,15 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
+fi
+
+if [ $is_ubuntu -eq 1 ] ; then
+    # change network_api_class for juno in nova-compute.conf
+    if [ "$nova_compute_version" == "1:2014.2~b3-0ubuntu1~cloud0" ]; then
+        if [ -f /etc/nova/nova-compute.conf ]; then
+            openstack-config --set /etc/nova/nova-compute.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        fi
+    fi
 fi
 
 if [ $VMWARE_IP ]; then
