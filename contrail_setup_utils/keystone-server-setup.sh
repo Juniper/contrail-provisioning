@@ -173,6 +173,8 @@ done
 # Update all config files with service username and password
 for svc in keystone; do
     openstack-config --del /etc/$svc/$svc.conf database connection
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT public_endpoint "http://$CONTROLLER:%(public_port)s/"
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT admin_endpoint "http://$CONTROLLER:%(admin_port)s/"
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
@@ -194,6 +196,8 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
+    openstack-config --set /etc/keystone/keystone.conf DEFAULT public_endpoint "http://$CONTROLLER:%(public_port)s/"
+    openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_endpoint "http://$CONTROLLER:%(admin_port)s/"
     openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
