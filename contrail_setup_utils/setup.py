@@ -790,6 +790,17 @@ HWADDR=%s
             with settings(warn_only = True):
                 local("sudo chkconfig iptables off")
                 local("sudo iptables --flush")
+                if pdist == 'redhat':
+                    local("sudo service iptables stop")
+                    local("sudo service ip6tables stop")
+                    local("sudo systemctl stop firewalld")
+                    local("sudo systemctl status firewalld")
+                    local("sudo chkconfig firewalld off")
+                    local("sudo /usr/libexec/iptables/iptables.init stop")
+                    local("sudo /usr/libexec/iptables/ip6tables.init stop")
+                    local("sudo service iptables save")
+                    local("sudo service ip6tables save")
+                    local("iptables -L")
 
             # usable core dump
             initf = '/etc/sysconfig/init'
