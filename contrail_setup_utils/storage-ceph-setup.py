@@ -1627,6 +1627,9 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT workers 120')
+            local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_chunk_size 8')
+            local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_pool images')
+            local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_ceph_conf /etc/ceph/ceph.conf')
 
         # Add NFS configurations if present
         create_nfs_disk_volume = 0
