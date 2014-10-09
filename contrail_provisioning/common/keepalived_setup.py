@@ -6,13 +6,18 @@
 import os
 import sys
 import argparse
+import netaddr
+import netifaces
 import ConfigParser
 
+from fabric.api import local
+
 from contrail_provisioning.common.base import ContrailSetup
+from contrail_provisioning.compute.network import ComputeNetworkSetup
 from contrail_provisioning.common.templates import keepalived_conf_template
 
 
-class KeepalivedSetup(ContrailSetup):
+class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
     def __init__(self, args_str = None):
         super(KeepalivedSetup, self).__init__()
         self._args = None
@@ -32,9 +37,9 @@ class KeepalivedSetup(ContrailSetup):
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--internal_vip", help = "Internal(private) Virtual IP Addresses of HA nodes"),
         parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA nodes"),
-        parser.add_argument("--self_index", help = "The index of this HA node")
+        parser.add_argument("--self_index", help = "The index of this HA node", type=int)
         parser.add_argument("--num_nodes", help = "Number of available HA node")
-        self._args = parser.parse_args(remaining_argv)
+        self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
         vip_for_ips = [(self._args.internal_vip, self._args.self_ip, 'INTERNAL')]

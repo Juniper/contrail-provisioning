@@ -8,6 +8,9 @@ import sys
 import argparse
 import ConfigParser
 
+from fabric.api import local,run
+from fabric.context_managers import settings
+
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.openstack.ha.templates import galera_param_template
 from contrail_provisioning.openstack.ha.templates import cmon_param_template
@@ -45,7 +48,7 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--openstack0_passwd", help = "Sudo user password  of this openstack node")
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
         parser.add_argument("--internal_vip", help = "Virtual IPP Addresses of HA Openstack nodes"),
-        self._args = parser.parse_args(remaining_argv)
+        self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
         with settings(warn_only=True):
@@ -73,15 +76,14 @@ class GaleraSetup(ContrailSetup):
         local("sudo mv %s/cmon_param /etc/contrail/ha/" % (self._temp_dir_name))
 
         local("echo %s > /etc/contrail/galeraid" % self._args.openstack_index)
-        pdist = platform.dist()[0]
-        if pdist in ['Ubuntu']:
+        if self.pdist in ['Ubuntu']:
             local("ln -sf /bin/true /sbin/chkconfig")
             self.mysql_svc = 'mysql'
             self.mysql_conf = '/etc/mysql/my.cnf'
             wsrep_conf = '/etc/mysql/conf.d/wsrep.cnf'
             wsrep_conf_file = 'wsrep.cnf'
             wsrep_template = wsrep_conf_template.template
-        elif pdist in ['centos', 'redhat']:
+        elif self.pdist in ['centos', 'redhat']:
             self.mysql_svc = 'mysqld'
             self.mysql_conf = '/etc/my.cnf'
             wsrep_conf = self.mysql_conf
@@ -109,7 +111,7 @@ class GaleraSetup(ContrailSetup):
         local('sed -i "/\[mysqld\]/a\interactive_timeout = 60" %s' % self.mysql_conf)
         local('sed -i "/\[mysqld\]/a\wait_timeout = 60" %s' % self.mysql_conf)
         # FIX for UTF8
-        if pdist in ['Ubuntu']:
+        if self.pdist in ['Ubuntu']:
             sku = local("dpkg -p contrail-install-packages | grep Version: | cut -d'~' -f2", capture=True)
             if sku == 'icehouse':
                 local('sed -i "/\[mysqld\]/a\character-set-server = utf8" %s' % self.mysql_conf)

@@ -33,7 +33,10 @@
 
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
-ENABLE_HEAT=yes
+ENABLE_HEAT=no
+if [ -f /etc/redhat-release ]; then
+    rpm -q contrail-heat > /dev/null && ENABLE_HEAT='yes'
+fi
 
 if [ -z $ADMIN_PASSWORD ]; then
     echo ADMIN_PASSWORD must be defined
