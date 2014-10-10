@@ -377,6 +377,19 @@ class Setup(object):
         local(r"sed -i 's/crashkernel=.*\([ | \"]\)/crashkernel=384M-2G:64M,2G-16G:128M,16G-:256M\1/g' /etc/grub.d/10_linux")
         local("update-grub")
 
+    def enable_kdump(self):
+        '''Enable kdump for centos based systems'''
+        with settings(warn_only=True):
+            status = local("chkconfig --list | grep kdump")
+            if status.failed:
+                print 'WARNING: Seems kexec-tools is not installed. Skipping enable kdump'
+                return False
+        local("chkconfig kdump on")
+        local("service kdump start")
+        local("service kdump status")
+        local("cat /sys/kernel/kexec_crash_loaded")
+        local("cat /proc/iomem | grep Crash")
+
     def enable_kernel_core (self):
         '''
             enable_kernel_core:
@@ -823,6 +836,12 @@ HWADDR=%s
                     self.setup_crashkernel_params()
             except Exception as e:
                 print "Ignoring failure kernel core dump"
+
+            try:
+                if pdist in ['fedora', 'centos', 'redhat']:
+                    self.enable_kdump()
+            except Exception as e:
+                print "Ignoring failure when enabling kdump"
  
         with settings(warn_only = True):
             # analytics venv instalation
