@@ -326,7 +326,7 @@ class UbuntuInterface(BaseInterface):
 
     def create_interface(self):
         '''Create interface config for normal interface for Ubuntu'''
-        log.info('Creating Interface: %s' %interface)
+        log.info('Creating Interface: %s' % self.device)
         mac = self.get_mac_addr(self.device)
         if not self.vlan:
             cfg = ['auto %s' %self.device,
