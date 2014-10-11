@@ -1851,9 +1851,11 @@ SUBCHANNELS=1,2,3
                     storage_setup_args = storage_setup_args + " --storage-local-ssd-disk-config %s" %(' '.join(self._args.storage_local_ssd_disk_config))
                     storage_setup_args = storage_setup_args + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))
                     storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
-                    storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
-                    storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
-                    storage_setup_args = storage_setup_args + " --cfg-host %s" %(self._args.cfg_host)
+                    if self._args.collector_hosts:
+                        storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
+                        storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+                    if self._args.cfg_host:
+                        storage_setup_args = storage_setup_args + " --cfg-host %s" %(self._args.cfg_host)
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
 
