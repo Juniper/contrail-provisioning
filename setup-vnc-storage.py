@@ -35,9 +35,11 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))    
         setup_args_str = setup_args_str + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))    
         setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
-        setup_args_str = setup_args_str + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
-        setup_args_str = setup_args_str + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
-        setup_args_str = setup_args_str + " --cfg-host %s" % (self._args.cfg_host)
+        if self._args.collector_hosts:
+            setup_args_str = setup_args_str + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
+            setup_args_str = setup_args_str + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+        if self._args.cfg_host:
+            setup_args_str = setup_args_str + " --cfg-host %s" % (self._args.cfg_host)
 
         #Setup storage if storage is defined in testbed.py
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none' or self._args.storage_local_disk_config[0] != 'none' or self._args.storage_nfs_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
