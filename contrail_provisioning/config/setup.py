@@ -234,7 +234,7 @@ class ConfigSetup(ContrailSetup):
         template_vals = {'__contrail_api_server_ip__': self._args.internal_vip or self._args.self_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_multi_tenancy__': self._args.multi_tenancy,
-                         '__contrail_keystone_ip__': '127.0.0.1',
+                         '__contrail_keystone_ip__': self._args.keystone_ip,
                          '__contrail_admin_token__': self._args.keystone_admin_token,
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
