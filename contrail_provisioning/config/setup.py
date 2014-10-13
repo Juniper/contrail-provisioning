@@ -397,15 +397,20 @@ class ConfigSetup(ContrailSetup):
         else:
             quantum_ip = self.cfgm_ip
         local("sudo config-server-setup.sh")
-        # Wait for supervisor to start rabbitmq
+        # Wait for supervisor to start contrail-api and rabbitmq
         for i in range(10):
-            status = local("sudo service rabbitmq-server status", capture=True)
-            if 'running' in status.lower():
-                print "Rabbitmq started by supervisor config, continue to provision neutron/quantum."
-                break
-            else:
-                print "Rabbitmq not yet started by supervisor config, Retrying."
+            services_status = {'contrail-api' : 'down', 'rabbitmq-server' : 'down'}
+            for service in services_status.keys():
+                status = local("sudo service %s status" % service, capture=True)
+                if 'running' in status.lower():
+                    print "[%s] started by supervisor config." % service
+                    services_status[service] = 'running'
+            if 'down' in services_status.values():
+                print "[contrail-api and rabbitmq] not yet started by supervisor config, Retrying."
                 sleep(2)
+            else:
+                print "[contrail-api and rabbitmq] started by supervisor config, continue to provision neutron/quantum."
+                break
         local("sudo quantum-server-setup.sh")
         quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
                       %(self._args.keystone_ip, quantum_ip, self._args.keystone_admin_tenant_name, self._args.keystone_admin_user, self._args.keystone_admin_passwd, self._args.service_token,
