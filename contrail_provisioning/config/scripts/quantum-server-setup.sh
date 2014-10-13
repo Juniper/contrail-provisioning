@@ -102,6 +102,10 @@ else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
 fi
 
+if [ -f /usr/share/neutron/neutron-dist.conf ]; then
+    openstack-config --del /usr/share/neutron/neutron-dist.conf service_providers
+fi
+
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT log_format '%(asctime)s.%(msecs)d %(levelname)8s [%(name)s] %(message)s'
 
 INTERNAL_VIP=${INTERNAL_VIP:-none}
