@@ -19,6 +19,7 @@ vrrp_instance $__vip_str__ {
         garp_master_refresh $__garp_master_refresh__
         advert_int 1
         virtual_router_id $__router_id__
+        vmac_xmit_base
         priority  $__priority__
         virtual_ipaddress {
                 $__virtual_ip__/$__virtual_ip_mask__ dev $__device__
