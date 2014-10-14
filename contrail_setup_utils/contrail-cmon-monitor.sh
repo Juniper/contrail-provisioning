@@ -119,19 +119,7 @@ if [ $viponme -eq 1 ]; then
       (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
 
-      for (( i=0; i<${COMPUTES_SIZE}; i++ ))
-       do
-        (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${COMPUTES[i]}" "$ARP_CACHE_FLUSH")&
-        log_info_msg "ARP clean up for VIP on ${COMPUTES[i]}"
-       done
-
-       for (( i=0; i<${DIPS_SIZE}; i++ ))
-        do
-         (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" "$ARP_CACHE_FLUSH")&
-         log_info_msg "ARP clean up for VIP on ${DIPS[i]}"
-        done
-
-       (exec $RMQ_MONITOR)&
+      (exec $RMQ_MONITOR)&
     fi
    # Check periodically for RMQ status
    if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
