@@ -67,4 +67,5 @@ ssh_port=22
 nodaemon=1
 monitored_mountpoints=/var/lib/mysql
 mysql_bindir=/usr/bin/
+staging_dir=/tmp
 """)
