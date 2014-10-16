@@ -295,9 +295,9 @@ class ComputeSetup(ContrailSetup, ComputeNetworkSetup):
                 with open(filename, "a") as f:
                     f.write(gateway_str)
 
-                if self._args.metadata_secret:
-                    local("sudo openstack-config --set %s/vnswad.conf METADATA \
-                           metadata_proxy_secret %s" % (temp_dir_name, self._args.metadata_secret))
+            if self._args.metadata_secret:
+                local("sudo openstack-config --set %s/vnswad.conf METADATA \
+                       metadata_proxy_secret %s" % (temp_dir_name, self._args.metadata_secret))
 
             local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(self._temp_dir_name))
             local("sudo rm %s/vnswad.conf*" %(self._temp_dir_name))
