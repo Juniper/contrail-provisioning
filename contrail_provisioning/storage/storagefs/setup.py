@@ -19,7 +19,7 @@ import json
 from pprint import pformat
 import xml.etree.ElementTree as ET
 import platform
-import pdb
+import commonport
 
 import tempfile
 from fabric.api import local, env, run, settings
@@ -41,9 +41,6 @@ class SetupCeph(object):
     NOVA_CONFIG_FILE='/etc/nova/nova.conf'
     global CEPH_CONFIG_FILE
     CEPH_CONFIG_FILE='/etc/ceph/ceph.conf'
-
-    global SYSLOG_LOGPORT
-    SYSLOG_LOGPORT='4514'
 
     def reset_mon_local_list(self):
         local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
@@ -144,9 +141,9 @@ class SetupCeph(object):
     def unconfigure_syslog(self):
             # disable server:port syslog remote logging
             for entries in self._args.collector_hosts:
-                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, SYSLOG_LOGPORT), capture=True)
+                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, commonport.SYSLOG_LOGPORT), capture=True)
                 if syslog_present == '1':
-                    local('sed -i "/*.* @%s:%s/d" /etc/rsyslog.d/50-default.conf' %(entries, SYSLOG_LOGPORT))
+                    local('sed -i "/*.* @%s:%s/d" /etc/rsyslog.d/50-default.conf' %(entries, commonport.SYSLOG_LOGPORT))
                     # restart rsyslog service after remote logging enabled
                     local('service rsyslog restart')
 
@@ -1365,9 +1362,9 @@ class SetupCeph(object):
 
             # enable server:port syslog remote logging
             for entries in self._args.collector_hosts:
-                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, SYSLOG_LOGPORT), capture=True)
+                syslog_present=local('grep "*.* @%s:%s" /etc/rsyslog.d/50-default.conf  | wc -l' %(entries, commonport.SYSLOG_LOGPORT), capture=True)
                 if syslog_present == '0':
-                    local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(entries, SYSLOG_LOGPORT))
+                    local('echo "*.* @%s:%s" >> /etc/rsyslog.d/50-default.conf' %(entries, commonport.SYSLOG_LOGPORT))
 
             # find and replace syslog port in collector
             for entries, entry_token in zip(self._args.collector_hosts, self._args.collector_host_tokens):
