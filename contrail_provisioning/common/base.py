@@ -170,30 +170,28 @@ class ContrailSetup(object):
         if self.pdist in ['centos', 'fedora', 'redhat']:
             core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
             local("%s >> %s" %(core_unlim, initf))
+
+        #Core pattern
+        pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
+        ip_fwd_setting = 'net.ipv4.ip_forward = 1'
+        sysctl_file = '/etc/sysctl.conf'
+        print pattern
+        with settings( warn_only= True) :
+            local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
+            local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
+            local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
+            local("rm /tmp/sysctl.new")
+            local('sysctl -p')
+            local('mkdir -p /var/crashes')
+            local('chmod 777 /var/crashes')
+
+        try:
+            if self.pdist in ['fedora', 'centos', 'redhat']:
+                self.enable_kernel_core ()
             if self.pdist == 'Ubuntu':
-                local('mkdir -p /var/crash')
-
-            #Core pattern
-            pattern= 'kernel.core_pattern = /var/crashes/core.%e.%p.%h.%t'
-            ip_fwd_setting = 'net.ipv4.ip_forward = 1'
-            sysctl_file = '/etc/sysctl.conf'
-            print pattern
-            with settings( warn_only= True) :
-                local('grep -q \'%s\' /etc/sysctl.conf || echo \'%s\' >> /etc/sysctl.conf' %(pattern, pattern))
-                local("sudo sed 's/net.ipv4.ip_forward.*/%s/g' %s > /tmp/sysctl.new" %(ip_fwd_setting,sysctl_file))
-                local("sudo mv /tmp/sysctl.new %s" %(sysctl_file))
-                local("rm /tmp/sysctl.new")
-                local('sysctl -p')
-                local('mkdir -p /var/crashes')
-                local('chmod 777 /var/crashes')
-
-            try:
-                if self.pdist in ['fedora', 'centos', 'redhat']:
-                    self.enable_kernel_core ()
-                if self.pdist == 'Ubuntu':
-                    self.setup_crashkernel_params()
-            except Exception as e:
-                print "Ignoring failure kernel core dump"
+                self.setup_crashkernel_params()
+        except Exception as e:
+            print "Ignoring failure kernel core dump"
 
     def setup(self):
         self.disable_selinux()
