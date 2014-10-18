@@ -5,6 +5,8 @@
 LOGFILE=/var/log/galera-bootstrap.log
 RETRIES=3
 MYIDFILE="/etc/contrail/galeraid"
+SST_FILE="/var/lib/mysql/rsync_sst_complete"
+GRA_FILE="/var/lib/mysql/grastate.dat"
 RETRY_TIMEOUT=60
 RETRY_INTERVAL=5
 
@@ -55,6 +57,15 @@ fi
 
 # Bootstrap galera cluster
 retry_flag=0
+
+if [ -f $SST_FILE ]; then
+   (exec rm -rf "$SST_FILE")&
+fi
+
+if [ -f $GRA_FILE ]; then
+   (exec rm -rf "$GRA_FILE")&
+fi
+
 bootstrap_retry_count=$(($RETRY_TIMEOUT / RETRY_INTERVAL))
 for i in $(eval echo {1..$bootstrap_retry_count}); do
     mysql_pid=$(verify_mysql)
