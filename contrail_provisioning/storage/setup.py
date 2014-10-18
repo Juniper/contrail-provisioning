@@ -38,6 +38,7 @@ class StorageSetup(ContrailSetup):
                 --live-migration enabled
                 --collector-hosts 10.157.43.171 10.157.42.166
                 --collector-host-tokens n1keenA n1keenA
+                --cfg-host 10.157.43.171
         '''
 
         parser = self._parse_args(args_str)
@@ -56,6 +57,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
+        parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 
@@ -90,6 +92,8 @@ class StorageSetup(ContrailSetup):
         storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
         storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
         storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+        if self._args.cfg_host:
+            storage_setup_args = storage_setup_args + " --cfg-host %s" % (self._args.cfg_host)
         for storage_host, storage_host_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if storage_host == self._args.storage_master:
                 storage_master_passwd = storage_host_token

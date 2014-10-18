@@ -886,7 +886,7 @@ class SetupCeph(object):
                             if disksplit[0] == hostname:
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                                     run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
@@ -917,7 +917,7 @@ class SetupCeph(object):
                             if disksplit[0] == hostname:
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                                     run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
@@ -1509,7 +1509,7 @@ class SetupCeph(object):
 
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
         #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
-        local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+        local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
 
         if configure_with_ceph == 1:
             # Cinder Configuration
@@ -1558,7 +1558,7 @@ class SetupCeph(object):
                     if local_disk_list != '':
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                             run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
@@ -1587,7 +1587,7 @@ class SetupCeph(object):
                     if local_ssd_disk_list != '':
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.storage_master))
+                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                             run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
@@ -1787,6 +1787,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
+        parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
@@ -1801,4 +1802,4 @@ def main(args_str = None):
 #end main
 
 if __name__ == "__main__":
-    main() 
+    main()
