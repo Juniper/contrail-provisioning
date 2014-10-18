@@ -256,7 +256,7 @@ class ConfigSetup(ContrailSetup):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
 
     def fixup_schema_transformer_config_file(self):
-        # schema_transformer.conf
+        # contrail-schema.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'schema-transformer',
@@ -278,12 +278,12 @@ class ConfigSetup(ContrailSetup):
                          '__contrail_disc_server_port__': '5998',
                         }
         self._template_substitute_write(contrail_schema_transformer_conf.template,
-                                        template_vals, self._temp_dir_name + '/schema_transformer.conf')
-        local("sudo mv %s/schema_transformer.conf /etc/contrail/schema_transformer.conf" %(self._temp_dir_name))
+                                        template_vals, self._temp_dir_name + '/contrail-schema.conf')
+        local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-schema")
 
     def fixup_svc_monitor_config_file(self):
-        # svc_monitor.conf
+        # contrail-svc-monitor.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'svc-monitor',
@@ -310,8 +310,8 @@ class ConfigSetup(ContrailSetup):
                          '__contrail_region_name__': self._args.region_name,
                         }
         self._template_substitute_write(contrail_svc_monitor_conf.template,
-                                        template_vals, self._temp_dir_name + '/svc_monitor.conf')
-        local("sudo mv %s/svc_monitor.conf /etc/contrail/svc_monitor.conf" %(self._temp_dir_name))
+                                        template_vals, self._temp_dir_name + '/contrail-svc-monitor.conf')
+        local("sudo mv %s/contrail-svc-monitor.conf /etc/contrail/contrail-svc-monitor.conf" %(self._temp_dir_name))
 
     def fixup_discovery_config_file(self):
         # discovery.conf_
