@@ -1304,6 +1304,7 @@ HWADDR=%s
                              '__contrail_ifmap_password__': 'svc-monitor',
                              '__contrail_api_server_ip__': self._args.internal_vip or cfgm_ip,
                              '__contrail_api_server_port__': '8082',
+                             '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.collector_ip,
                              '__contrail_keystone_ip__': keystone_ip,
                              '__contrail_ks_auth_protocol__': ks_auth_protocol,
                              '__contrail_ks_auth_port__': ks_auth_port,
