@@ -16,7 +16,7 @@ disc_server_port=$__contrail_disc_server_port__
 region_name=$__contrail_region_name__
 
 [SCHEDULER]
-analytics_server_ip=__contrail_analytics_server_ip__
+analytics_server_ip=$__contrail_analytics_server_ip__
 analytics_server_port=8081
 
 [SECURITY]
