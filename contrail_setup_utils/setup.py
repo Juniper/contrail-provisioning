@@ -84,6 +84,7 @@ from contrail_config_templates import ifmap_authorization_template
 from contrail_config_templates import ifmap_publisher_template
 from contrail_config_templates import ifmap_log4j_template
 from contrail_config_templates import keepalived_conf_template
+from contrail_config_templates import keepalived_vrrp_group_template
 from contrail_config_templates import galera_param_template
 from contrail_config_templates import cmon_param_template
 from contrail_config_templates import cmon_conf_template
@@ -1890,6 +1891,21 @@ class KeepalivedSetup(Setup):
         vip_for_ips = [(self._args.internal_vip, self_ip, 'INTERNAL')]
         if self._args.external_vip:
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
+            
+            # If both internal and external VIPs are available, then put them into a 
+            # group so that when they move, they move together between hosts.
+            internal_vip_str = '_'.join(['INTERNAL'] + self._args.internal_vip.split('.'))
+            external_vip_str = '_'.join(['EXTERNAL'] + self._args.external_vip.split('.'))
+
+            template_vals = {'__internal_vip_str__' : internal_vip_str,
+                             '__external_vip_str__' : external_vip_str,
+                            }
+            data = self._template_substitute(keepalived_vrrp_group_template.template,
+                                      template_vals)
+            with open(self._temp_dir_name + '/keepalived.conf', 'a+') as fp:
+                fp.write(data)
+                fp.close()
+
         for vip, ip, vip_name in vip_for_ips:
             # keepalived.conf
             device = self.get_device_by_ip(ip)
