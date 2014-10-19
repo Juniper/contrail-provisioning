@@ -1020,6 +1020,7 @@ class SetupCeph(object):
         local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store file')
         local('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT show_image_direct_url')
         local('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT rbd_store_user')
+        local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT workers 1')
         if pdist == 'centos':
             local('sudo service openstack-glance-api restart')
         if pdist == 'Ubuntu':
@@ -1625,6 +1626,7 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store rbd')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
+            local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT workers 120')
 
         # Add NFS configurations if present
         create_nfs_disk_volume = 0
