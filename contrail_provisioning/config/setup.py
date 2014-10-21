@@ -290,6 +290,7 @@ class ConfigSetup(ContrailSetup):
                          '__contrail_ifmap_password__': 'svc-monitor',
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
+                         '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.collector_ip,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
