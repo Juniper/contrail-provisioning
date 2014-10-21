@@ -17,6 +17,10 @@ region_name=$__contrail_region_name__
 log_local=1
 log_level=SYS_NOTICE
 
+[SCHEDULER]
+analytics_server_ip=$__contrail_analytics_server_ip__
+analytics_server_port=8081
+
 [SECURITY]
 use_certs=$__contrail_use_certs__
 keyfile=$__contrail_keyfile_location__
