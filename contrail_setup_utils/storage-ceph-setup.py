@@ -995,6 +995,7 @@ class SetupCeph(object):
                 break
 
         # Load the new crush map
+        local('sudo crushtool -c /tmp/ma-crush-map-new.txt -o /tmp/ma-newcrush-map')
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
 
         if self._args.storage_disk_config[0] != 'none':
