@@ -33,9 +33,11 @@
 
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
-ENABLE_HEAT=no
 if [ -f /etc/redhat-release ]; then
     rpm -q contrail-heat > /dev/null && ENABLE_HEAT='yes'
+fi
+if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
+    dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
 fi
 
 if [ -z $ADMIN_PASSWORD ]; then

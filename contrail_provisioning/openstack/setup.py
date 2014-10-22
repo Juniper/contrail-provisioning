@@ -149,6 +149,9 @@ class OpenstackSetup(ContrailSetup):
             if (self.pdist in ['centos'] and
                 local("rpm -qa | grep contrail-heat").succeeded):
                 local("sudo heat-server-setup.sh")
+            elif (self.pdist in ['Ubuntu'] and
+                local("dpkg -l | grep contrail-heat").succeeded):
+                local("sudo heat-server-setup.sh")
         local("service %s restart" % self.mysql_svc)
         local("service supervisor-openstack restart")
 
