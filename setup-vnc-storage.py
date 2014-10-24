@@ -35,6 +35,7 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))    
         setup_args_str = setup_args_str + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))    
         setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
+        setup_args_str = setup_args_str + " --storage-chassis-config %s" %(' '.join(self._args.storage_chassis_config))    
         if self._args.collector_hosts:
             setup_args_str = setup_args_str + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
             setup_args_str = setup_args_str + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
@@ -50,7 +51,7 @@ class SetupVncStorage(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python setup-vnc-storage.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --live-migration enabled --collector-hosts 10.157.43.171 10.157.42.166 --collector-host-tokens n1keenA n1keenA --cfg-host 10.157.43.171
+        Eg. python setup-vnc-storage.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --storage-chassis-config 10.157.42.166:0 10.157.42.168:1 --live-migration enabled --collector-hosts 10.157.43.171 10.157.42.166 --collector-host-tokens n1keenA n1keenA --cfg-host 10.157.43.171
         '''
 
         # Source any specified config/ini file
@@ -95,6 +96,7 @@ class SetupVncStorage(object):
         parser.add_argument("--storage-nfs-disk-config", help = "Disk list to be used for nfs storage", nargs="+", type=str)
         parser.add_argument("--storage-journal-config", help = "Disk list to be used for distributed storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--storage-chassis-config", help = "Chassis ID for the host to avoid replication between nodes in the same chassis", nargs="+", type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)

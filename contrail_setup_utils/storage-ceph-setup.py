@@ -34,7 +34,7 @@ class SetupCeph(object):
 
     # Added global variables for the files.
     # Use the variables instead of the filenames directly in the script
-    # to avoid typos and readability. 
+    # to avoid typos and readability.
     global CINDER_CONFIG_FILE
     CINDER_CONFIG_FILE='/etc/cinder/cinder.conf'
     global NOVA_CONFIG_FILE
@@ -45,6 +45,18 @@ class SetupCeph(object):
     MAX_POOL_COUNT = 1024
     global ceph_pool_list
     ceph_pool_list = []
+    global CS_CRUSH_MAP
+    CS_CRUSH_MAP='/tmp/ma-crush-map-cs'
+    global CS_CRUSH_MAP_MOD
+    CS_CRUSH_MAP_MOD='/tmp/ma-crush-map-cs-mod'
+    global CS_CRUSH_MAP_TXT
+    CS_CRUSH_MAP_TXT='/tmp/ma-crush-map-cs.txt'
+    global CS_CRUSH_MAP_MOD_TXT
+    CS_CRUSH_MAP_MOD_TXT='/tmp/ma-crush-map-cs-mod.txt'
+    global CS_CRUSH_MAP_MOD_TMP_TXT
+    CS_CRUSH_MAP_MOD_TMP_TXT='/tmp/ma-crush-map-cs-mod-tmp.txt'
+    global CEPH_ADMIN_KEYRING
+    CEPH_ADMIN_KEYRING='/etc/ceph/ceph.client.admin.keyring'
 
     global SYSLOG_LOGPORT
     SYSLOG_LOGPORT='4514'
@@ -196,7 +208,7 @@ class SetupCeph(object):
     def set_pg_pgp_count(self, osd_num, pool, host_cnt):
 
         # Calculate/Set PG count
-        # The pg/pgp set will not take into effect if ceph is already in the 
+        # The pg/pgp set will not take into effect if ceph is already in the
         # process of creating pgs. So its required to do ceph -s and check
         # if the pgs are currently creating and if not set the values
 
@@ -224,7 +236,7 @@ class SetupCeph(object):
                 self.set_pgp_count_increment(pool, cur_pg_cnt)
 
 
-    # Create HDD/SSD Pool 
+    # Create HDD/SSD Pool
     # For HDD/SSD pool, the crush map has to be changed to accomodate the
     # rules for the HDD/SSD pools. For this, new ssd, hdd specific hosts
     # have to be added to the map. The ssd, hdd specific maps will then
@@ -232,13 +244,13 @@ class SetupCeph(object):
     # to a rule entry. The rules will then be applied to the respective pools
     # created using the mkpool command.
     # For populating the map with the host/tier specific entries, A dictionary
-    # of host/tier specific entries will be created. This will include the 
-    # Total tier specific count, tier specific count for a particular host 
-    # and entries for the tier for a particular host. 
+    # of host/tier specific entries will be created. This will include the
+    # Total tier specific count, tier specific count for a particular host
+    # and entries for the tier for a particular host.
     # The host_<tier>_dict will have the tier specific entries and the count
-    # for a particular host. 
+    # for a particular host.
     # The following operation is performed.
-    # - Get existing crushmap. 
+    # - Get existing crushmap.
     # - Populate the tier/host specific rules.
     # - Compile/Apply the new crush map.
     # - Apply the ruleset to the tier specific pools.
@@ -670,13 +682,13 @@ class SetupCeph(object):
     # to a rule entry. The rules will then be applied to the respective pools
     # created using the mkpool command.
     # For populating the map with the host/tier specific entries, A dictionary
-    # of host/tier specific entries will be created. This will include the 
-    # Total tier specific count, tier specific count for a particular host 
-    # and entries for the tier for a particular host. 
+    # of host/tier specific entries will be created. This will include the
+    # Total tier specific count, tier specific count for a particular host
+    # and entries for the tier for a particular host.
     # The host_<tier>_dict will have the tier specific entries and the count
-    # for a particular host. 
+    # for a particular host.
     # The following operation is performed.
-    # - Get existing crushmap. 
+    # - Get existing crushmap.
     # - Populate the tier/host specific rules.
     # - Compile/Apply the new crush map.
     # - Apply the ruleset to the tier specific pools.
@@ -945,6 +957,7 @@ class SetupCeph(object):
                 break
 
         # Load the new crush map
+        local('sudo crushtool -c /tmp/ma-crush-map-new.txt -o /tmp/ma-newcrush-map')
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
 
         if self._args.storage_disk_config[0] != 'none':
@@ -997,6 +1010,420 @@ class SetupCeph(object):
         pool_index = 0
         self.set_pg_pgp_count(host_hdd_dict[('totalcount', '%s' %(pool_index))], 'volumes', host_hdd_dict[('hostcount', '%s' %(pool_index))])
         self.set_pg_pgp_count(host_hdd_dict[('totalcount', '%s' %(pool_index))], 'images', host_hdd_dict[('hostcount', '%s' %(pool_index))])
+
+    # Crush map modification for Chassis support
+    # This ensures that the replica will not happen between nodes
+    # in a single chassis.
+    # The Chassis id given in the testbed.py for each host will
+    # be used to create virtual groups. Replca will not happen between hosts
+    # of the same chassis id.
+    # For eg., consider a Quanta system that has 4 nodes in a single chassis.
+    # All the nodes in a single chassis should be given the same chassis id.
+    # Based on the chassis id, a hdd-chassis-<chassis-id> entry will be
+    # created. The hdd-chassis-<x> will have the list hosts that are in the
+    # Chassis.
+    # The root entry for default/hdd(incase of hdd/ssd pools will be
+    # modified to use hdd-chassis-<x>
+    # instead of using the host directly.
+    # The leaf in the rule will be set to use chassis instead of host.
+    # Original crush map will be as below for a no hdd/ssd pool.
+    # host cmbu-ceph-1 {
+    # ...
+    # }
+    # host cmbu-ceph-2 {
+    # ...
+    # }
+    # host cmbu-ceph-3 {
+    # ...
+    # }
+    # host cmbu-ceph-4 {
+    # ...
+    # }
+    # root default {
+    # ...
+    # item cmbu-ceph-1 weight 1.090
+    # item cmbu-ceph-2 weight 1.090
+    # item cmbu-ceph-3 weight 1.090
+    # item cmbu-ceph-4 weight 1.090
+    # }
+    # rule replicated_ruleset {
+    # ...
+    # step chooseleaf firstn 0 type host
+    # step emit
+    # }
+    # Consider each chassis has 2 nodes. Host1 and Host2 are in same chassis.
+    # Host3 and Host4 are in a different chassis. Replica should not happen
+    # between Host1 and Host2, similarly it should not happen between Host3
+    # and Host4.
+    # So the above crushmap will be modified to the following
+    # host cmbu-ceph-1 {
+    # ...
+    # }
+    # host cmbu-ceph-2 {
+    # ...
+    # }
+    # host cmbu-ceph-3 {
+    # ...
+    # }
+    # host cmbu-ceph-4 {
+    # ...
+    # }
+    # chassis hdd-chassis-0 {
+    # ...
+    # item cmbu-ceph-1 weight 1.090
+    # item cmbu-ceph-2 weight 1.090
+    # }
+    # chassis hdd-chassis-1 {
+    # ...
+    # item cmbu-ceph-3 weight 1.090
+    # item cmbu-ceph-4 weight 1.090
+    # }
+    # root default {
+    # ...
+    # item hdd-chassis-0 weight 2.180
+    # item hdd-chassis-1 weight 2.180
+    # }
+    # rule replicated_ruleset {
+    # ...
+    # step chooseleaf firstn 0 type chassis
+    # step emit
+    # }
+    #
+    # The above change will ensure that the chassis is the leaf node, which
+    # means that the replica created for an object in cmbu-ceph-1 will not
+    # be created under cmb-ceph-2 as they belong to the same chassis. Instead
+    # it will be put under a node in hdd-chassis-1
+    # This code is Idempotent.
+    def do_chassis_config(self):
+        if self._args.storage_chassis_config[0] == 'none':
+            return
+        # Get the decoded crush map in txt format
+        local('sudo ceph osd getcrushmap -o %s' %(CS_CRUSH_MAP))
+        local('sudo crushtool -d %s -o %s' %(CS_CRUSH_MAP, CS_CRUSH_MAP_TXT))
+
+        # If multipool is enabled, we cannot configure chassis
+        multipool_enabled = local('sudo cat %s | grep hdd-Pool|wc -l'
+                                %(CS_CRUSH_MAP_TXT), capture=True)
+        if multipool_enabled != '0':
+            print 'Cannot have both multipool and Chassis config'
+            return
+        multipool_enabled = local('sudo cat %s | grep ssd-Pool|wc -l'
+                                %(CS_CRUSH_MAP_TXT), capture=True)
+        if multipool_enabled != '0':
+            print 'Cannot have both multipool and Chassis config'
+            return
+
+        # Populate the chassis list with chassis id, indexed by hostname.
+        host_chassis_info = {}
+        chassis_list = {}
+        chassis_count = 0
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames,
+                    self._args.storage_hosts, self._args.storage_host_tokens):
+            for chassis in self._args.storage_chassis_config:
+                chassissplit = chassis.split(':')
+                if chassissplit[0] == hostname:
+                    host_chassis_info[hostname] = chassissplit[1]
+                    print 'Chassis - %s %s' %(hostname, chassissplit[1])
+                    if chassis_count == 0:
+                        chassis_list['%d' %(chassis_count)] = chassissplit[1]
+                        chassis_count = chassis_count + 1
+                    else:
+                        tmp_chassis_count = 0
+                        while tmp_chassis_count < chassis_count:
+                            if chassis_list['%d' %(tmp_chassis_count)] == \
+                                            chassissplit[1]:
+                                break
+                            tmp_chassis_count = tmp_chassis_count + 1
+                        if tmp_chassis_count >= chassis_count:
+                            chassis_list['%d' %(chassis_count)] = \
+                                                            chassissplit[1]
+                            chassis_count = chassis_count + 1
+        #print host_chassis_info
+        #print chassis_list
+
+        # Find the existing highest unique id. Remove the number of Chassis
+        # IDs as we will be recreating the chassis information.
+        cur_id = int(local('sudo cat %s |grep "id " |wc -l' %(CS_CRUSH_MAP_TXT),
+                                        capture=True))
+        num_chassis_config = int(local('sudo cat %s |grep ^chassis | wc -l '
+                                        %(CS_CRUSH_MAP_TXT), capture=True))
+        cur_id = cur_id - num_chassis_config
+        num_cdefault_config = int(local('sudo cat %s |grep ^root | \
+                                        grep -w cdefault | wc -l '
+                                        %(CS_CRUSH_MAP_TXT), capture=True))
+        num_cdefault_config = int(local('sudo cat %s |grep ^root | \
+                                        grep -w chdd | wc -l '
+                                        %(CS_CRUSH_MAP_TXT), capture=True))
+        num_cdefault_config = int(local('sudo cat %s |grep ^root | \
+                                        grep -w cssd | wc -l '
+                                        %(CS_CRUSH_MAP_TXT), capture=True))
+        cur_id += 1
+        #print 'cur_id = %s' %(cur_id)
+
+        # Find if we have HDD/SSD pools configured.
+        # hdd_pool_enabled = local('sudo cat %s | grep "root hdd"|wc -l'
+        #                         %(CS_CRUSH_MAP_TXT), capture=True)
+        ssd_pool_enabled = local('sudo cat %s | grep "root ssd"|wc -l'
+                                %(CS_CRUSH_MAP_TXT), capture=True)
+
+        root_entries=[]
+        pool_enabled = 0
+        if ssd_pool_enabled != '0':
+            pool_enabled = 1
+            root_entries.append('hdd')
+            root_entries.append('ssd')
+        else:
+            root_entries.append('default')
+
+        # Find Root default entry start and end.
+        # This will be maintained across modifications
+        def_line_str=local('cat  %s|grep -n ^root | grep -w default | tail -n 1'
+                                %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+                                capture=True)
+        def_line_start = int(def_line_str.split(':')[0])
+        def_line_end = def_line_start
+        while True:
+            item_line = local('cat %s | tail -n +%d | head -n 1'
+                                %(CS_CRUSH_MAP_TXT, def_line_end),
+                                capture=True)
+            if item_line.find('}') != -1:
+                break
+            def_line_end += 1
+
+        # Find the "root hdd" entry start and end.
+        # This will be maintained across modifications
+        rhdd_line_str=local('cat  %s|grep -n ^root | grep -w hdd | tail -n 1'
+                                %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+                                capture=True)
+        rhdd_line_start = 0
+        rhdd_line_end = 0
+        if rhdd_line_str != '':
+            rhdd_line_start = int(rhdd_line_str.split(':')[0])
+            rhdd_line_end = rhdd_line_start
+            while True:
+                item_line = local('cat %s | tail -n +%d | head -n 1'
+                                    %(CS_CRUSH_MAP_TXT, rhdd_line_end),
+                                    capture=True)
+                if item_line.find('}') != -1:
+                    break
+                rhdd_line_end += 1
+
+        # Find the "root ssd" entry start and end.
+        # This will be maintained across modifications
+        rssd_line_str=local('cat  %s|grep -n ^root | grep -w ssd | tail -n 1'
+                                %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+                                capture=True)
+        rssd_line_start = 0
+        rssd_line_end = 0
+        if rssd_line_str != '':
+            rssd_line_start = int(rssd_line_str.split(':')[0])
+            rssd_line_end = rssd_line_start
+            while True:
+                item_line = local('cat %s | tail -n +%d | head -n 1'
+                                    %(CS_CRUSH_MAP_TXT, rssd_line_end),
+                                    capture=True)
+                if item_line.find('}') != -1:
+                    break
+                rssd_line_end += 1
+
+        # Find if there is any host configurations after the "root default"
+        # These are the hosts for the hdd/ssd pool and has to be maintained
+        # across modifications
+        host_line_str = local('cat  %s | tail -n +%d | grep -n ^host |head -n 1'
+                                %(CS_CRUSH_MAP_TXT, def_line_start),
+                                shell='/bin/bash', capture=True)
+        host_line_start = 0
+        host_line_end = 0
+        if host_line_str != '':
+            host_line_start = def_line_start + \
+                                int(host_line_str.split(':')[0]) - 1
+            host_line_end_str = local('cat  %s | tail -n +%d | grep -n ^host | \
+                                tail -n 1'
+                                %(CS_CRUSH_MAP_TXT, def_line_start),
+                                shell='/bin/bash', capture=True)
+            host_line_end =  def_line_start + \
+                                int(host_line_end_str.split(':')[0])
+            while True:
+                item_line = local('cat %s | tail -n +%d | head -n 1'
+                                    %(CS_CRUSH_MAP_TXT, host_line_end),
+                                    capture=True)
+                if item_line.find('}') != -1:
+                    break
+                host_line_end += 1
+
+        # Check if there is already a chassis configuration
+        # If present ignore as we'll create again.
+        skip_line_str = local('cat  %s|grep -n ^chassis |head -n 1'
+                                %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+                                capture=True)
+        if skip_line_str != '':
+            skip_line_num = int(skip_line_str.split(':')[0])
+            if skip_line_num > def_line_start:
+                skip_line_num = def_line_start
+        else:
+            skip_line_num = def_line_start
+
+        # Start populating the modified Crush map
+        # First populate from beginning till the "root default"
+        local('cat %s | head -n %d > %s' %(CS_CRUSH_MAP_TXT,
+                        (skip_line_num -1), CS_CRUSH_MAP_MOD_TXT))
+        # Populate "root default"
+        local('cat %s | tail -n +%d | head -n %d >> %s' %(CS_CRUSH_MAP_TXT,
+                        def_line_start, (def_line_end - def_line_start + 1),
+                        CS_CRUSH_MAP_MOD_TXT))
+        # Populate host entries for hdd/ssd
+        if host_line_start != 0:
+            local('cat %s | tail -n +%d | head -n %d >> %s' %(CS_CRUSH_MAP_TXT,
+                        host_line_start, (host_line_end - host_line_start + 1),
+                        CS_CRUSH_MAP_MOD_TXT))
+        # Populate "root hdd"
+        if rhdd_line_start != 0:
+            local('cat %s | tail -n +%d | head -n %d >> %s' %(CS_CRUSH_MAP_TXT,
+                        rhdd_line_start, (rhdd_line_end - rhdd_line_start + 1),
+                        CS_CRUSH_MAP_MOD_TXT))
+        # Populate "root ssd"
+        if rssd_line_start != 0:
+            local('cat %s | tail -n +%d | head -n %d >> %s' %(CS_CRUSH_MAP_TXT,
+                        rssd_line_start, (rssd_line_end - rssd_line_start + 1),
+                        CS_CRUSH_MAP_MOD_TXT))
+
+        # Create new root entries for the chassis.
+        # use prefix of 'c' for the chassis entries
+        # The 'default' will be added as 'cdefault'
+        # The 'hdd' will be added as 'chdd'
+        # The 'ssd' will be added as 'cssd'
+        for entries in root_entries:
+            tmp_chassis_count = 0
+
+            local('echo "root c%s {" > %s' %(entries,
+                            CS_CRUSH_MAP_MOD_TMP_TXT))
+            local('echo "   id -%d      #do not change unnecessarily" \
+                            >> %s' %(cur_id, CS_CRUSH_MAP_MOD_TMP_TXT))
+            cur_id += 1
+            local('echo "   alg straw" >> %s' %(CS_CRUSH_MAP_MOD_TMP_TXT))
+            local('echo "   hash 0 #rjenkins1" >> %s'
+                            %(CS_CRUSH_MAP_MOD_TMP_TXT))
+            while tmp_chassis_count < chassis_count:
+                total_weight = float('0')
+                local('echo "chassis chassis-%s-%s {" >> %s' %(entries,
+                            tmp_chassis_count, CS_CRUSH_MAP_MOD_TXT))
+                local('echo "   id -%d      #do not change unnecessarily" \
+                            >> %s' %(cur_id, CS_CRUSH_MAP_MOD_TXT))
+                cur_id += 1
+                local('echo "   alg straw" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+                entry_str=local('cat  %s|grep -n ^root |grep -w %s |tail -n 1'
+                                %(CS_CRUSH_MAP_TXT, entries), shell='/bin/bash',
+                                capture=True)
+                entry_line_num = int(entry_str.split(':')[0])
+                while True:
+                    item_line=local('cat %s | tail -n +%d | head -n 1'
+                                    %(CS_CRUSH_MAP_TXT, entry_line_num),
+                                    capture=True)
+                    if item_line.find('}') != -1:
+                        break
+                    if item_line.find('item') != -1:
+                        unmod_line = item_line
+                        item_line.lstrip()
+                        tmp_host_name = item_line.split(' ')[1]
+                        tmp_host_name = tmp_host_name.replace('-hdd', '')
+                        tmp_host_name = tmp_host_name.replace('-ssd', '')
+                        #print tmp_host_name
+                        #if tmp_host_name.find('-hdd') != -1 || \
+                        #        tmp_host_name.find('-ssd') != -1:
+                        if host_chassis_info[tmp_host_name] == \
+                                    chassis_list['%d' %(tmp_chassis_count)]:
+                            local('echo "   %s" >> %s' %(unmod_line,
+                                    CS_CRUSH_MAP_MOD_TXT))
+                            total_weight += float(item_line.split(' ')[3])
+                    entry_line_num += 1
+                local('echo "}" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+                local('echo "   item chassis-%s-%s weight %0.3f" >> %s'
+                                %(entries, tmp_chassis_count, total_weight,
+                                    CS_CRUSH_MAP_MOD_TMP_TXT))
+                tmp_chassis_count += 1
+            local('echo "}" >> %s' %(CS_CRUSH_MAP_MOD_TMP_TXT))
+            local('cat %s >> %s' %(CS_CRUSH_MAP_MOD_TMP_TXT,
+                                    CS_CRUSH_MAP_MOD_TXT))
+
+        #root_line_str = local('cat %s|grep -n ^root |tail -n 1'
+        #                        %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+        #                            capture=True)
+        #root_line_num = int(root_line_str.split(':')[0])
+        #rule_line_str=local('cat %s|tail -n +%d|grep -n ^rule|tail -n 1'
+        #                        %(CS_CRUSH_MAP_TXT, root_line_num),
+        #                            shell='/bin/bash', capture=True)
+        #rule_line_num = int(rule_line_str.split(':')[0])
+        #local('cat %s|tail -n +%d|head -n %d >> %s' %(CS_CRUSH_MAP_TXT,
+        #                        root_line_num, (rule_line_num - 1),
+        #                        CS_CRUSH_MAP_MOD_TXT))
+
+        # Now that we have added all the root entries, add the rules
+        ruleset = 0
+        # Add the default rule
+        local('echo "rule replicated_ruleset {" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+        local('echo "   ruleset %d" >> %s' %(ruleset, CS_CRUSH_MAP_MOD_TXT))
+        ruleset += 1
+        local('echo "   type replicated" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+        local('echo "   min_size 1" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+        local('echo "   max_size 10" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+        if pool_enabled == 0:
+            local('echo "   step take cdefault" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step chooseleaf firstn 0 type chassis" >> %s'
+                                %(CS_CRUSH_MAP_MOD_TXT))
+        else:
+            local('echo "   step take default" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step chooseleaf firstn 0 type host" >> %s'
+                                %(CS_CRUSH_MAP_MOD_TXT))
+        local('echo "   step emit" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+        local('echo "}" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+
+        if pool_enabled == 1:
+            # Add the hdd rule
+            local('echo "rule hdd {" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   ruleset %d" >> %s' %(ruleset, CS_CRUSH_MAP_MOD_TXT))
+            hdd_ruleset = ruleset
+            ruleset += 1
+            local('echo "   type replicated" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   min_size 1" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   max_size 10" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step take chdd" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step chooseleaf firstn 0 type chassis" >> %s'
+                                %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step emit" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "}" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+
+            # Add the ssd rule
+            local('echo "rule ssd {" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   ruleset %d" >> %s' %(ruleset, CS_CRUSH_MAP_MOD_TXT))
+            ssd_ruleset = ruleset
+            ruleset += 1
+            local('echo "   type replicated" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   min_size 1" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   max_size 10" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step take cssd" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step chooseleaf firstn 0 type chassis" >> %s'
+                                %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "   step emit" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+            local('echo "}" >> %s' %(CS_CRUSH_MAP_MOD_TXT))
+
+        # Load the new crush map
+        local('sudo crushtool -c %s -o %s' %(CS_CRUSH_MAP_MOD_TXT,
+                                CS_CRUSH_MAP_MOD))
+        local('sudo ceph -k %s osd setcrushmap -i %s' %(CEPH_ADMIN_KEYRING,
+                                CS_CRUSH_MAP_MOD))
+        if pool_enabled == 1:
+            local('sudo ceph osd pool set volumes_hdd crush_ruleset %d'
+                                %(hdd_ruleset))
+            local('sudo ceph osd pool set volumes_ssd crush_ruleset %d'
+                                %(ssd_ruleset))
+            local('sudo ceph osd pool set images crush_ruleset %d'
+                                %(hdd_ruleset))
+            local('sudo ceph osd pool set volumes crush_ruleset %d'
+                                %(hdd_ruleset))
+        else:
+            local('sudo ceph osd pool set images crush_ruleset 0')
+            local('sudo ceph osd pool set volumes crush_ruleset 0')
+
 
     def add_nfs_disk_config(self):
         NFS_SERVER_LIST_FILE='/etc/cinder/nfs_server_list.txt'
@@ -1076,6 +1503,10 @@ class SetupCeph(object):
                          out = run('sudo ssh-keyscan -t rsa %s,%s' %(hostname,entries))
                          local('sudo echo "%s" >> ~/.ssh/known_hosts' % (out))
                          #local('sudo echo "%s" >> ~/.ssh/authorized_keys' % (out))
+
+        if self._args.storage_setup_mode == 'chassis_configure':
+            self.do_chassis_config()
+            return
 
         #Add a new node to the existing cluster
         if self._args.add_storage_node:
@@ -1333,6 +1764,8 @@ class SetupCeph(object):
             else:
                 self.create_hdd_ssd_pool()
                 #TODO: Add configurations to cinder
+
+            self.do_chassis_config()
 
             cinder_lvm_type_list=[]
             cinder_lvm_name_list=[]
@@ -1814,6 +2247,8 @@ class SetupCeph(object):
             if create_hdd_ssd_pool == 1:
                 self.create_hdd_ssd_pool()
 
+            self.do_chassis_config()
+
 
             time.sleep(3)
 
@@ -2220,7 +2655,7 @@ class SetupCeph(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. python storage-ceph-setup.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --live-migration enabled
+        Eg. python storage-ceph-setup.py --storage-master 10.157.43.171 --storage-hostnames cmbu-dt05 cmbu-ixs6-2 --storage-hosts 10.157.43.171 10.157.42.166 --storage-host-tokens n1keenA n1keenA --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg --storage-directory-config 10.157.42.166:/mnt/osd0 --storage-chassis-config 10.157.42.166:0 10.157.42.167:1 --live-migration enabled
         '''
 
         # Source any specified config/ini file
@@ -2264,6 +2699,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-nfs-disk-config", help = "Disk list to be used for local storage", nargs="+", type=str)
         parser.add_argument("--storage-journal-config", help = "Disk list to be used for distrubuted storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--storage-chassis-config", help = "Chassis ID for the host to avoid replication between nodes in the same chassis", nargs="+", type=str)
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
