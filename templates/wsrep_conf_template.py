@@ -26,12 +26,11 @@ innodb_autoinc_lock_mode=2
 
 # This is a must for paralell applying
 innodb_locks_unsafe_for_binlog=1
+
 #INNODB
 default-storage-engine=innodb
 engine-condition-pushdown=1
 innodb_stats_on_metadata=0
-innodb_autoinc_lock_mode=2
-innodb_locks_unsafe_for_binlog=1
 innodb_flush_method=O_DIRECT
 innodb_thread_concurrency=0
 innodb_doublewrite=1
@@ -121,7 +120,7 @@ wsrep_convert_LOCK_to_trx=0
 wsrep_retry_autocommit=1
 
 # change auto_increment_increment and auto_increment_offset automatically
-wsrep_auto_increment_control=0
+wsrep_auto_increment_control=1
 
 # retry autoinc insert, which failed for duplicate key error
 wsrep_drupal_282555_workaround=0
