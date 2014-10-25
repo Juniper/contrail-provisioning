@@ -1890,22 +1890,12 @@ class KeepalivedSetup(Setup):
             self_index = self._args.cfgm_index
 
         vip_for_ips = [(self._args.internal_vip, self_ip, 'INTERNAL')]
+        internal_device=self.get_device_by_ip(self_ip)
         if self._args.external_vip:
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
-            
-            # If both internal and external VIPs are available, then put them into a 
-            # group so that when they move, they move together between hosts.
-            internal_vip_str = '_'.join(['INTERNAL'] + self._args.internal_vip.split('.'))
-            external_vip_str = '_'.join(['EXTERNAL'] + self._args.external_vip.split('.'))
-
-            template_vals = {'__internal_vip_str__' : internal_vip_str,
-                             '__external_vip_str__' : external_vip_str,
-                            }
-            data = self._template_substitute(keepalived_vrrp_group_template.template,
-                                      template_vals)
-            with open(self._temp_dir_name + '/keepalived.conf', 'a+') as fp:
-                fp.write(data)
-                fp.close()
+            external_device=self.get_device_by_ip(self._args.mgmt_self_ip)
+        else:
+            external_device=internal_device
 
         for vip, ip, vip_name in vip_for_ips:
             # keepalived.conf
@@ -1920,6 +1910,9 @@ class KeepalivedSetup(Setup):
             fall = 1
             garp_master_repeat = 3
             garp_master_refresh = 1
+            ctrl_data_timeout=3
+            ctrl_data_rise=1
+            ctrl_data_fall=1
             if self_index == 1:
                 state = 'MASTER'
                 delay = 5
@@ -1953,6 +1946,11 @@ class KeepalivedSetup(Setup):
                              '__timeout__' : timeout,
                              '__rise__' : rise,
                              '__fall__' : fall,
+                             '__cd_timeout__' : ctrl_data_timeout,
+                             '__cd_rise__' : ctrl_data_rise,
+                             '__cd_fall__' : ctrl_data_fall,
+                             '__internal_device__' : internal_device,
+                             '__external_device__' : external_device,
                             }
             data = self._template_substitute(keepalived_conf_template.template,
                                       template_vals)
@@ -2044,7 +2042,7 @@ class OpenstackGaleraSetup(Setup):
                          '__wsrep_node_address__' : self._args.openstack_ip,
                          '__mysql_token__' : self.mysql_token,
                          '__wsrep_cluster_size__': len(self._args.galera_ip_list),
-                         '__wsrep_inc_offset__': self._args.openstack_index*10,
+                         '__wsrep_inc_offset__': self._args.openstack_index*100,
                         }
         self._template_substitute_write(wsrep_template, template_vals,
                                 self._temp_dir_name + '/%s' % wsrep_conf_file)
