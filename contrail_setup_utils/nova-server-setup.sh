@@ -260,10 +260,11 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
+    openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_max_attempts 10
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
     openstack-config --set /etc/nova/nova.conf database min_pool_size 100
     openstack-config --set /etc/nova/nova.conf database max_pool_size 700
-    openstack-config --set /etc/nova/nova.conf database max_overflow 100
+    openstack-config --set /etc/nova/nova.conf database max_overflow -1
     openstack-config --set /etc/nova/nova.conf database retry_interval 5
     openstack-config --set /etc/nova/nova.conf database max_retries -1
     openstack-config --set /etc/nova/nova.conf database db_max_retries 3
