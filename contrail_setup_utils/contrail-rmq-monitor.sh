@@ -13,6 +13,7 @@ LOGFILE=/var/log/contrail/ha/rmq-monitor.log
 RMQ_CHANNEL_OK="...done."
 RMQ_CLUSTER_OK="running_nodes"
 RMQ_RESET="service rabbitmq-server restart"
+RMQ_REST_INPROG="rabbitmq-reset"
 file="/tmp/ha-chk/rmq-chnl-ok"
 cluschk="/tmp/ha-chk/rmq-clst-ok"
 rstinprog="/tmp/ha-chk/rmq-rst-prog"
@@ -107,6 +108,18 @@ verify_cluststate()
  fi
 }
 
+verify_rstinprog()
+{
+ rstinprog=`cat $rstinprog`
+ if [[ $rstinprog == $RMQ_REST_INPROG ]]; then
+   echo "y"
+   return 1
+ else
+   echo "n"
+   return 0
+ fi
+}
+
 periodic_check()
 {
 i=1
@@ -130,6 +143,7 @@ checkfor_rst()
 {
 cluststate_run=$(verify_cluststate)
 chnlstate_run=$(verify_chnlstate)
+rstinpprog_run=$(verify_rstinprog)
 log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 
 if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]]; then
