@@ -110,6 +110,8 @@ gpgcheck=0
 CASSANDRA_CONF = '/etc/cassandra/conf'
 CASSANDRA_CONF_FILE = 'cassandra.yaml'
 CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+global mysql_redo_log_sz
+mysql_redo_log_sz='5242880'
 
 class ExtList (list):
     def findex (self, fun):
@@ -1924,6 +1926,7 @@ class KeepalivedSetup(Setup):
                 router_id = 101
                 if 'openstack' in self._args.role:
                     router_id = 100
+                external_device=internal_device
             else:
                 router_id = 201
                 if 'openstack' in self._args.role:
@@ -1970,6 +1973,7 @@ class OpenstackGaleraSetup(Setup):
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
             local("rm -rf /var/lib/mysql/galera.cache")
+            self.cleanup_redo_log()
         # fix galera_param
         template_vals = {'__mysql_host__' : self._args.openstack_ip,
                          '__mysql_wsrep_nodes__' :
@@ -2066,6 +2070,7 @@ class OpenstackGaleraSetup(Setup):
             install_db = local("service %s restart" % self.mysql_svc).failed
         if install_db:
             local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            self.cleanup_redo_log()
             local("service %s restart" % self.mysql_svc)
 
     def create_mysql_token_file(self):
@@ -2126,6 +2131,7 @@ class OpenstackGaleraSetup(Setup):
         local('rm %s/galera_cron' % self._temp_dir_name)
 
     def run_services(self):
+        self.cleanup_redo_log()
         if self._args.openstack_index == 1:
             local("service %s restart" % self.mysql_svc)
         else:
@@ -2143,6 +2149,15 @@ class OpenstackGaleraSetup(Setup):
             local("service %s restart" % self.mysql_svc)
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
+
+    def cleanup_redo_log(self):
+        # Delete the default initially created redo log file
+        # This is required coz the wsrep config changes the
+        # size of redo log file
+        with settings(warn_only = True):
+             siz = local("ls -l /var/lib/mysql/ib_logfile1 | awk '{print $5}'", capture=True).strip()
+             if siz == mysql_redo_log_sz:
+                local("rm -rf /var/lib/mysql/ib_logfile*")
 
 
 def main(args_str = None):
