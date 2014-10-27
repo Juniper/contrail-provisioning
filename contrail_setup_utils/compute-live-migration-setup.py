@@ -33,6 +33,13 @@ class SetupLivem(object):
         LIBVIRTD_TMP_BIN_CONF='/tmp/libvirtd.tmp'
 
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+           isos= 0
+           for os_entries in self._args.storage_os_hosts:
+               if os_entries == entries:
+                   isos = 1
+                   break
+           if isos == 1:
+               continue
            if entries != self._args.storage_master:
                with settings(host_string = 'root@%s' %(entries), password = entry_token):
                    if self._args.add_storage_node:
@@ -99,6 +106,8 @@ class SetupLivem(object):
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--storage-os-hosts", help = "storage os host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "storage os pass list", nargs='+', type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
