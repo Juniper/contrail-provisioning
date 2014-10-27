@@ -322,6 +322,10 @@ class Setup(object):
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
+        parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--nfs-live-migration", help = "NFS for Live migration enabled")
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for NFS for Live migration VM", nargs="+", type=str)
@@ -1857,6 +1861,17 @@ SUBCHANNELS=1,2,3
                         storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
                     if self._args.cfg_host:
                         storage_setup_args = storage_setup_args + " --cfg-host %s" %(self._args.cfg_host)
+
+                    if self._args.cinder_vip:
+                        storage_setup_args = storage_setup_args + " --cinder-vip %s" %(self._args.cinder_vip)
+
+                    if self._args.config_hosts:
+                        storage_setup_args = storage_setup_args + " --config-hosts %s" %(' '.join(self._args.config_hosts))
+
+                    if self._args.storage_os_hosts:
+                        storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+                        storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
 
@@ -1868,6 +1883,9 @@ SUBCHANNELS=1,2,3
                     storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))    
                     storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))    
                     storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))    
+                    if self._args.storage_os_hosts:
+                        storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+                        storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
                     if self._args.add_storage_node:
                         storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)    
                     with settings(host_string=self._args.storage_master):
