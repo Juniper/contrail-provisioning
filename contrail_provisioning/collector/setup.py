@@ -21,6 +21,7 @@ class CollectorSetup(ContrailSetup):
         self.global_defaults = {
             'cfgm_ip': '127.0.0.1',
             'self_collector_ip': '127.0.0.1',
+            'analytics_syslog_port': -1,
         }
 
         self.parse_args(args_str)
