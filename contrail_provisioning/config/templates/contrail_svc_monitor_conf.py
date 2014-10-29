@@ -26,14 +26,4 @@ ca_certs=$__contrail_cacertfile_location__
 [SCHEDULER]
 analytics_server_ip=$__contrail_analytics_server_ip__
 analytics_server_port=8081
-
-[KEYSTONE]
-auth_host=$__contrail_keystone_ip__
-auth_protocol=$__contrail_ks_auth_protocol__
-auth_port=$__contrail_ks_auth_port__
-auth_insecure=$__keystone_insecure_flag__
-admin_user=$__contrail_admin_user__
-admin_password=$__contrail_admin_password__
-admin_tenant_name=$__contrail_admin_tenant_name__
-admin_token=$__contrail_admin_token__
 """)
