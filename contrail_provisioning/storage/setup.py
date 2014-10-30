@@ -58,6 +58,10 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
+        parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 
@@ -97,6 +101,17 @@ class StorageSetup(ContrailSetup):
         for storage_host, storage_host_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
             if storage_host == self._args.storage_master:
                 storage_master_passwd = storage_host_token
+
+        if self._args.cinder_vip:
+            storage_setup_args = storage_setup_args + " --cinder-vip %s" %(self._args.cinder_vip)
+
+        if self._args.config_hosts:
+            storage_setup_args = storage_setup_args + " --config-hosts %s" %(' '.join(self._args.config_hosts))
+
+        if self._args.storage_os_hosts:
+            storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+            storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+        #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
             run("sudo storage-fs-setup %s" %(storage_setup_args))
         
