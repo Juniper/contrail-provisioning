@@ -32,6 +32,7 @@ class ConfigSetup(ContrailSetup):
             'keystone_admin_user': 'admin',
             'keystone_admin_passwd': 'contrail123',
             'keystone_admin_tenant_name': 'admin',
+            'keystone_service_tenant_name' : 'service',
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': True,
@@ -81,6 +82,8 @@ class ConfigSetup(ContrailSetup):
             help = "Auth protocol used to talk to keystone")
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",
             default = '35357')
+        parser.add_argument("--keystone_service_tenant_name",
+            help="Tenant name of the networking service user - neutron/quantum")
         parser.add_argument("--keystone_admin_token", 
             help = "admin_token value in keystone.conf")
         parser.add_argument("--keystone_insecure", 
