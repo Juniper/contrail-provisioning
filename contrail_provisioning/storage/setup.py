@@ -36,6 +36,7 @@ class StorageSetup(ContrailSetup):
                 --storage-disk-config 10.157.43.171:sde 10.157.43.171:sdf 10.157.43.171:sdg
                 --storage-directory-config 10.157.42.166:/mnt/osd0
                 --live-migration enabled
+                --storage-chassis-config 10.157.43.171:T0 10.157.43.172:T0 10.157.43.173:T1 157.43.174:T2
                 --collector-hosts 10.157.43.171 10.157.42.166
                 --collector-host-tokens n1keenA n1keenA
                 --cfg-host 10.157.43.171
@@ -54,6 +55,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-nfs-disk-config", help = "Disk list to be used for nfs storage", nargs="+", type=str)
         parser.add_argument("--storage-journal-config", help = "Disk list to be used for distributed storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
+        parser.add_argument("--storage-chassis-config", help = "Chassis ID for the host to avoid replication between nodes in the same chassis", nargs="+", type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
@@ -90,8 +92,10 @@ class StorageSetup(ContrailSetup):
         storage_setup_args = storage_setup_args + " --storage-local-ssd-disk-config %s" %(' '.join(self._args.storage_local_ssd_disk_config))
         storage_setup_args = storage_setup_args + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))
         storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
-        storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
-        storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
+        storage_setup_args = storage_setup_args + " --storage-chassis-config %s" %(' '.join(self._args.storage_chassis_config))
+        if self._args.collector_hosts:
+            storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
+            storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
         if self._args.cfg_host:
             storage_setup_args = storage_setup_args + " --cfg-host %s" % (self._args.cfg_host)
         for storage_host, storage_host_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
@@ -99,7 +103,7 @@ class StorageSetup(ContrailSetup):
                 storage_master_passwd = storage_host_token
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
             run("sudo storage-fs-setup %s" %(storage_setup_args))
-        
+
 
 def main(args_str = None):
     storage = StorageSetup(args_str)
