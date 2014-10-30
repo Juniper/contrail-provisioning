@@ -121,6 +121,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def build_ctrl_details(self):
         ctrl_infos = []
         ctrl_details = "%s/ctrl-details" % self._temp_dir_name
+        ctrl_infos.append('ADMIN_TENANT=%s' % self._args.keystone_admin_tenant_name)
         ctrl_infos.append('SERVICE_TOKEN=%s' % self._args.service_token)
         ctrl_infos.append('AUTH_PROTOCOL=%s' % self._args.keystone_auth_protocol)
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
