@@ -1236,7 +1236,7 @@ HWADDR=%s
             # initd script wrapper for contrail-api
             sctl_lines = ''
             for worker_id in range(int(n_api_workers)):
-                sctl_line = 'supervisorctl -s http://localhost:9004 ' + \
+                sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
                             '${1} `basename ${0}:%s`' %(worker_id)
                 sctl_lines = sctl_lines + sctl_line
 
@@ -1359,7 +1359,7 @@ HWADDR=%s
             # initd script wrapper for contrail-discovery
             sctl_lines = ''
             for worker_id in range(int(n_api_workers)):
-                sctl_line = 'supervisorctl -s http://localhost:9004 ' + \
+                sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
                             '${1} `basename ${0}:%s`' %(worker_id)
                 sctl_lines = sctl_lines + sctl_line
 
