@@ -49,6 +49,9 @@ class SetupCeph(object):
     global SYSLOG_LOGPORT
     SYSLOG_LOGPORT='4514'
 
+    global RABBIT_PORT
+    RABBIT_PORT='5673'
+
     def reset_mon_local_list(self):
         local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
         local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
@@ -945,6 +948,7 @@ class SetupCeph(object):
                 break
 
         # Load the new crush map
+        local('sudo crushtool -c /tmp/ma-crush-map-new.txt -o /tmp/ma-newcrush-map')
         local('sudo ceph -k /etc/ceph/ceph.client.admin.keyring osd setcrushmap -i /tmp/ma-newcrush-map')
 
         if self._args.storage_disk_config[0] != 'none':
@@ -1097,7 +1101,13 @@ class SetupCeph(object):
                     if dirsplit[0] == add_storage_node:
                         configure_with_ceph = 1
             if configure_with_ceph == 1:
-                ip_cidr=local('ip addr show |grep %s |awk \'{print $2}\'' %(self._args.storage_master), capture=True)
+                public_ip = self._args.storage_master
+                for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+                    if hostname == self._args.add_storage_node:
+                        public_ip = entries
+                        break
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    ip_cidr=run('ip addr show |grep -w %s |awk \'{print $2}\'' %(public_ip))
                 local('sudo openstack-config --set /root/ceph.conf global public_network %s\/%s' %(netaddr.IPNetwork(ip_cidr).network, netaddr.IPNetwork(ip_cidr).prefixlen))
                 for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
                     if hostname == add_storage_node:
@@ -1351,7 +1361,11 @@ class SetupCeph(object):
                             if disksplit[0] == hostname:
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+                                    if self._args.cinder_vip != 'none':
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+                                    else:
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                                     run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
@@ -1382,7 +1396,11 @@ class SetupCeph(object):
                             if disksplit[0] == hostname:
                                 if disksplit[0] == add_storage_node:
                                     run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+                                    if self._args.cinder_vip != 'none':
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+                                    else:
+                                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                                     run('sudo cinder-manage db sync')
                                     existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                                     if existing_backends != '':
@@ -1420,7 +1438,7 @@ class SetupCeph(object):
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
                         if configure_with_ceph == 1:
                             while True:
-                                virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
+                                virsh_unsecret=run('virsh secret-list  2>&1 | awk \'{print $1}\' | awk \'NR > 2 { print }\' | head -n 1')
                                 if virsh_unsecret != "":
                                     run('virsh secret-undefine %s' %(virsh_unsecret))
                                 else:
@@ -1435,8 +1453,10 @@ class SetupCeph(object):
                             # This should not be set for multi-backend. The virsh secret setting itself is enough for correct authentication.
                             #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
                             #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
-
-                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
+                        if self._args.cinder_vip != 'none':
+                            run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.cinder_vip), shell='/bin/bash')
+                        else:
+                            run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
                         if pdist == 'centos':
                             run('sudo chkconfig tgt on')
                             run('sudo service tgt restart')
@@ -1485,6 +1505,17 @@ class SetupCeph(object):
             local('sudo service openstack-glance-api restart')
         if pdist == 'Ubuntu':
             local('sudo service glance-api restart')
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store file')
+                    run('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT show_image_direct_url')
+                    run('sudo openstack-config --del /etc/glance/glance-api.conf DEFAULT rbd_store_user')
+                    run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT workers 1')
+                    if pdist == 'centos':
+                        run('sudo service openstack-glance-api restart')
+                    if pdist == 'Ubuntu':
+                        run('sudo service glance-api restart')
 
         cinderlst = local('(. /etc/contrail/openstackrc ;  cinder list --all-tenants| grep ocs-block | cut -d"|" -f 2)',  capture=True)
         if cinderlst != "":
@@ -1914,7 +1945,7 @@ class SetupCeph(object):
             #Remove existing secret keys and Set the secret keys for Ceph authentication
             time.sleep(5)
             while True:
-                virsh_unsecret=local('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1', capture=True)
+                virsh_unsecret=local('virsh secret-list  2>&1 | awk \'{print $1}\' | awk \'NR > 2 { print }\' | head -n 1', capture=True)
                 if virsh_unsecret != "":
                     local('virsh secret-undefine %s' %(virsh_unsecret))
                 else:
@@ -1940,6 +1971,16 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk glance_api_version 2')
             local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_backend_name RBD')
 
+            if self._args.storage_os_hosts[0] != 'none':
+                for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_driver cinder.volume.drivers.rbd.RBDDriver')
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_pool volumes')
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_user volumes')
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk rbd_secret_uuid %s' % (virsh_secret))
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk glance_api_version 2')
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-disk volume_backend_name RBD')
+
             for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
                 if entries != self._args.storage_master:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -1956,7 +1997,7 @@ class SetupCeph(object):
                             run('sudo service libvirt-bin restart')
 
                         while True:
-                            virsh_unsecret=run('virsh secret-list  2>&1 |cut -d " " -f 1 | awk \'NR > 2 { print }\' | head -n 1')
+                            virsh_unsecret=run('virsh secret-list  2>&1 | awk \'{print $1}\' | awk \'NR > 2 { print }\' | head -n 1')
                             if virsh_unsecret != "":
                                 run('virsh secret-undefine %s' %(virsh_unsecret))
                             else:
@@ -1969,12 +2010,20 @@ class SetupCeph(object):
             # Cinder Backend Configuration
             if create_hdd_ssd_pool == 0:
                 local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk')
+                if self._args.storage_os_hosts[0] != 'none':
+                    for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends rbd-disk')
             else:
                 back_end = 'rbd-disk'
                 for pool_name in ceph_pool_list:
                     back_end = back_end + ',' + ('rbd-%s-disk' %(pool_name))
 
                 local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends %s' %(back_end))
+                if self._args.storage_os_hosts[0] != 'none':
+                    for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT enabled_backends %s' %(back_end))
 
 
             if create_hdd_ssd_pool == 1:
@@ -1990,6 +2039,14 @@ class SetupCeph(object):
                     local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk rbd_user %s' %(pool_name, pool_name))
                     local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk rbd_secret_uuid %s' %(pool_name, virsh_secret))
                     local('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk volume_backend_name %s' %(pool_name, pool_name.upper()))
+                    if self._args.storage_os_hosts[0] != 'none':
+                        for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                            with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk volume_driver cinder.volume.drivers.rbd.RBDDriver' %(pool_name))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk rbd_pool %s' %(pool_name, pool_name))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk rbd_user %s' %(pool_name, pool_name))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk rbd_secret_uuid %s' %(pool_name, virsh_secret))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf rbd-%s-disk volume_backend_name %s' %(pool_name, pool_name.upper()))
                     for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
                         if entries != self._args.storage_master:
                             with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -2014,9 +2071,24 @@ class SetupCeph(object):
 
         local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
         #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
-        local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+        if self._args.cinder_vip != 'none':
+            local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+            local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+        else:
+            local('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
 
         local('sudo cinder-manage db sync')
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, cfg_entry, entry_token in zip(self._args.storage_os_hosts, self._args.config_hosts, self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@127.0.0.1/cinder')
+                    #recently contrail changed listen address from 0.0.0.0 to mgmt address so adding mgmt network to rabbit host
+                    if self._args.cinder_vip != 'none':
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+                    else:
+                        run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+                    run('sudo cinder-manage db sync')
 
         cinder_lvm_type_list=[]
         cinder_lvm_name_list=[]
@@ -2033,7 +2105,11 @@ class SetupCeph(object):
                     if local_disk_list != '':
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+                            if self._args.cinder_vip != 'none':
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+                            else:
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                             run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
@@ -2062,7 +2138,11 @@ class SetupCeph(object):
                     if local_ssd_disk_list != '':
                         if entries != self._args.storage_master:
                             run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT sql_connection mysql://cinder:cinder@%s/cinder' %(self._args.storage_master))
-                            run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
+                            if self._args.cinder_vip != 'none':
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cinder_vip))
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port %s' %(RABBIT_PORT))
+                            else:
+                                run('sudo openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host %s' %(self._args.cfg_host))
                             run('sudo cinder-manage db sync')
                         existing_backends=run('sudo cat /etc/cinder/cinder.conf |grep enabled_backends |awk \'{print $3}\'', shell='/bin/bash')
                         if existing_backends != '':
@@ -2090,7 +2170,10 @@ class SetupCeph(object):
                         # This should not be set for multi-backend. The virsh secret setting itself is enough for correct authentication.
                         #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_user volumes')
                         #run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT rbd_secret_uuid %s' % (virsh_secret))
-                    run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
+                    if self._args.cinder_vip != 'none':
+                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.cinder_vip), shell='/bin/bash')
+                    else:
+                        run('sudo openstack-config --set /etc/nova/nova.conf DEFAULT cinder_endpoint_template "http://%s:8776/v1/%%(project_id)s"' % (self._args.storage_master), shell='/bin/bash')
 
         if configure_with_ceph == 1:
             #Glance configuration
@@ -2101,6 +2184,16 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_chunk_size 8')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_pool images')
             local('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_ceph_conf /etc/ceph/ceph.conf')
+            if self._args.storage_os_hosts[0] != 'none':
+                for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT default_store rbd')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT show_image_direct_url True')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_user images')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT workers 120')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_chunk_size 8')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_pool images')
+                        run('sudo openstack-config --set /etc/glance/glance-api.conf DEFAULT rbd_store_ceph_conf /etc/ceph/ceph.conf')
 
         # Add NFS configurations if present
         create_nfs_disk_volume = 0
@@ -2150,6 +2243,29 @@ class SetupCeph(object):
             local('sudo service libvirt-bin restart')
             local('sudo service nova-api restart')
             local('sudo service nova-scheduler restart')
+            if self._args.storage_os_hosts[0] != 'none':
+                for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        run('sudo chkconfig cinder-api on')
+                        run('sudo service cinder-api restart')
+                        run('sudo chkconfig cinder-scheduler on')
+                        run('sudo service cinder-scheduler restart')
+                        if configure_with_ceph == 1:
+                            bash_cephargs = run('grep "CEPH_ARGS" /etc/init.d/cinder-volume | wc -l')
+                            #print bash_cephargs
+                            if bash_cephargs == "0":
+                                run('cat /etc/init.d/cinder-volume | awk \'{ print; if ($1== "start|stop)") print \"    CEPH_ARGS=\\\\"--id volumes\\\\"\" }\' > /tmp/cinder-volume.tmp')
+                                run('mv -f /tmp/cinder-volume.tmp /etc/init.d/cinder-volume; chmod a+x /etc/init.d/cinder-volume')
+                        run('sudo chkconfig cinder-volume on')
+                        run('sudo service cinder-volume restart')
+                        run('sudo service glance-api restart')
+                        run('sudo service nova-api restart')
+                        run('sudo service nova-conductor restart')
+                        run('sudo service nova-scheduler restart')
+                        run('sudo service libvirt-bin restart')
+                        run('sudo service nova-api restart')
+                        run('sudo service nova-scheduler restart')
+
 
         # Create Cinder type for all Ceph backend
         if configure_with_ceph == 1:
@@ -2181,6 +2297,15 @@ class SetupCeph(object):
             local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --volumes 100)')
             local('(. /etc/contrail/openstackrc ; cinder quota-update ocs-block-disk --snapshots 100)')
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+            isos= 0
+            if self._args.storage_os_hosts[0] != 'none':
+                for os_entries in self._args.storage_os_hosts:
+                    if os_entries == entries:
+                        isos = 1
+                        break
+
+            if isos == 1:
+                continue
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     if pdist == 'centos':
@@ -2267,6 +2392,10 @@ class SetupCeph(object):
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
+        parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 

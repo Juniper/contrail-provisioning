@@ -41,6 +41,15 @@ class SetupVncStorage(object):
         if self._args.cfg_host:
             setup_args_str = setup_args_str + " --cfg-host %s" % (self._args.cfg_host)
 
+        if self._args.cinder_vip:
+            setup_args_str = setup_args_str + " --cinder-vip %s" %(self._args.cinder_vip)
+
+        if self._args.config_hosts:
+            setup_args_str = setup_args_str + " --config-hosts %s" %(' '.join(self._args.config_hosts))
+
+        if self._args.storage_os_hosts:
+            setup_args_str = setup_args_str + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+            setup_args_str = setup_args_str + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
         #Setup storage if storage is defined in testbed.py
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none' or self._args.storage_local_disk_config[0] != 'none' or self._args.storage_nfs_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
             setup_obj = Setup(setup_args_str)
@@ -99,6 +108,10 @@ class SetupVncStorage(object):
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
+        parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 
