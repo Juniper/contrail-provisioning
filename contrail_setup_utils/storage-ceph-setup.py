@@ -467,7 +467,12 @@ class SetupCeph(object):
         # Configure Crush map
         # Add host entries
         local('sudo cat /tmp/ma-crush-map.txt |grep -v "^# end" > /tmp/ma-crush-map-new.txt')
-        cur_id=int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |wc -l', capture=True))
+        # Find the next unique id to be used for the hdd/ssd pool configuration.
+        # List all the IDS from the crush map file, which are in the format
+        # "id -10". 
+        # Capture the 2nd column and do a numeric sort and find the last entry
+        # This will give the highest id.
+        cur_id = int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |awk \'{print $2}\' | tr \'-\' \' \'| sort -n | tail -n 1', capture=True))
         cur_id += 1
 
         #print cur_id
@@ -872,7 +877,12 @@ class SetupCeph(object):
         #print host_ssd_dict
 
         local('sudo cat /tmp/ma-crush-map.txt |grep -v "^# end" > /tmp/ma-crush-map-new.txt')
-        cur_id=int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |wc -l', capture=True))
+        # Find the next unique id to be used for the hdd/ssd pool configuration.
+        # List all the IDS from the crush map file, which are in the format
+        # "id -10". 
+        # Capture the 2nd column and do a numeric sort and find the last entry
+        # This will give the highest id.
+        cur_id = int(local('sudo cat /tmp/ma-crush-map.txt |grep "id " |awk \'{print $2}\' | tr \'-\' \' \'| sort -n | tail -n 1', capture=True))
         cur_id += 1
 
         root_line_str=local('cat /tmp/ma-crush-map-new.txt |grep -n \"root hdd\"', capture=True)
@@ -1202,29 +1212,37 @@ class SetupCeph(object):
 
         # Find the existing highest unique id. Remove the number of Chassis
         # IDs as we will be recreating the chassis information.
-        num_chassis_config = int(local('sudo cat %s |grep ^chassis | wc -l '
-                                        %(CS_CRUSH_MAP_TXT), capture=True))
-        if num_chassis_config == 0:
-            cur_id = int(local('sudo cat %s |grep "id " |wc -l'
-                                %(CS_CRUSH_MAP_TXT),
-                                        capture=True))
-            cur_id += 1
-        else:
-            chs_line_str=local('cat  %s|grep -n "root chdd" | head -n 1'
-                                %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
-                                capture=True)
-            chs_line_start = int(chs_line_str.split(':')[0])
-            while True:
-                item_line = local('cat %s | tail -n +%d | head -n 1'
-                                    %(CS_CRUSH_MAP_TXT, chs_line_start),
-                                    capture=True)
-                if item_line.find('id ') != -1:
-                    break
-                chs_line_start += 1
-            new_id = item_line.split(' ')[1]
-            new_id = new_id.replace('-', '')
-            new_id = new_id.replace('#', '')
-            cur_id = int(new_id.replace('\t', ''))
+        # num_chassis_config = int(local('sudo cat %s |grep ^chassis | wc -l '
+        #                                 %(CS_CRUSH_MAP_TXT), capture=True))
+        # if num_chassis_config == 0:
+        #    cur_id = int(local('sudo cat %s |grep "id " |wc -l'
+        #                         %(CS_CRUSH_MAP_TXT),
+        #                                 capture=True))
+        # Find the next unique id to be used for the chassis configuration.
+        # List all the IDS from the crush map file, which are in the format
+        # "id -10". 
+        # Capture the 2nd column and do a numeric sort and find the last entry
+        # This will give the highest id.
+        cur_id = int(local('sudo cat %s |grep "id " |awk \'{print $2}\' | \
+                        tr \'-\' \' \'| sort -n | tail -n 1'
+                        %(CS_CRUSH_MAP_TXT), capture=True))
+        cur_id += 1
+        # else:
+        #     chs_line_str=local('cat  %s|grep -n "root chdd" | head -n 1'
+        #                         %(CS_CRUSH_MAP_TXT), shell='/bin/bash',
+        #                         capture=True)
+        #     chs_line_start = int(chs_line_str.split(':')[0])
+        #     while True:
+        #         item_line = local('cat %s | tail -n +%d | head -n 1'
+        #                             %(CS_CRUSH_MAP_TXT, chs_line_start),
+        #                             capture=True)
+        #         if item_line.find('id ') != -1:
+        #             break
+        #         chs_line_start += 1
+        #     new_id = item_line.split(' ')[1]
+        #     new_id = new_id.replace('-', '')
+        #     new_id = new_id.replace('#', '')
+        #     cur_id = int(new_id.replace('\t', ''))
 
         # Find if we have HDD/SSD pools configured.
         # If SSD pool is enabled, then it means that we have two pools
