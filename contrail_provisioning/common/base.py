@@ -160,6 +160,19 @@ class ContrailSetup(object):
                 local("sudo service ip6tables save")
                 local("iptables -L")
 
+    def enable_kdump(self):
+        '''Enable kdump for centos based systems'''
+        with settings(warn_only=True):
+            status = local("chkconfig --list | grep kdump")
+            if status.failed:
+                print 'WARNING: Seems kexec-tools is not installed. Skipping enable kdump'
+                return False
+        local("chkconfig kdump on")
+        local("service kdump start")
+        local("service kdump status")
+        local("cat /sys/kernel/kexec_crash_loaded")
+        local("cat /proc/iomem | grep Crash")
+
     def setup_coredump(self):
         # usable core dump
         initf = '/etc/sysconfig/init'
@@ -192,6 +205,13 @@ class ContrailSetup(object):
                 self.setup_crashkernel_params()
         except Exception as e:
             print "Ignoring failure kernel core dump"
+
+        try:
+            if self.pdist in ['fedora', 'centos', 'redhat']:
+                self.enable_kdump()
+        except Exception as e:
+            print "Ignoring failure when enabling kdump"
+            print "Exception: %s" % str(e)
 
     def setup(self):
         self.disable_selinux()
