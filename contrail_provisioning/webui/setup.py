@@ -46,6 +46,11 @@ class WebuiSetup(ContrailSetup):
                             nargs='+', type=str)
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
+        parser.add_argument("--vcenter_ip", help = "vcenter ip to connect to")
+        parser.add_argument("--vcenter_port", help = "vcenter port to connect to")
+        parser.add_argument("--vcenter_auth", help = "vcenter auth http or https")
+        parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
+        parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -74,6 +79,21 @@ class WebuiSetup(ContrailSetup):
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.cassandra_ip_list:
             local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.vcenter_ip:
+            local("sudo sed \"s/config.vcenter.server_ip.*/config.vcenter.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_ip))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.vcenter_port:
+            local("sudo sed \"s/config.vcenter.server_port.*/config.vcenter.server_port = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_port))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.vcenter_auth:
+            local("sudo sed \"s/config.vcenter.authProtocol.*/config.vcenter.authProtocol= '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_auth))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.vcenter_datacenter:
+            local("sudo sed \"s/config.vcenter.datacenter.*/config.vcenter.datacenter = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_datacenter))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.vcenter_dvswitch:
+            local("sudo sed \"s/config.vcenter.dvsswitch.*/config.vcenter.dvsswitch = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_dvswitch))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
 
