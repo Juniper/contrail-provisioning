@@ -31,6 +31,7 @@ setup(
             'setup-vnc-static-routes = contrail_provisioning.common.staticroute_setup:main',
             'setup-vnc-livemigration = contrail_provisioning.storage.livemigration_setup:main',
             'setup-vnc-storage-webui = contrail_provisioning.storage.webui_setup:main',
+            'setup-vcenter-plugin = contrail_provisioning.vcenter_plugin.setup:main',
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
             # Helper scripts
@@ -53,6 +54,8 @@ setup(
                # Collector executables
                'contrail_provisioning/collector/scripts/collector-server-setup.sh',
                'contrail_provisioning/collector/scripts/collector-server-cleanup.sh',
+               # Vcenter Plugin executables
+               'contrail_provisioning/vcenter_plugin/scripts/vcenter-plugin-setup.sh',
                # Control executables
                'contrail_provisioning/control/scripts/control-server-setup.sh',
                'contrail_provisioning/control/scripts/control-server-cleanup.sh',
