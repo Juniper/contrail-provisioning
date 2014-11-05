@@ -119,6 +119,21 @@ class StorageSetup(ContrailSetup):
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
             run("sudo storage-fs-setup %s" %(storage_setup_args))
 
+        live_migration_enabled = self._args.live_migration
+        if live_migration_enabled == 'enabled':
+            livem_setup_args = " --storage-master %s" %(self._args.storage_master)
+            livem_setup_args = livem_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
+            if self._args.add_storage_node:
+                livem_setup_args = livem_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)
+            livem_setup_args = livem_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
+            livem_setup_args = livem_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
+            livem_setup_args = livem_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
+            if self._args.storage_os_hosts:
+                livem_setup_args = livem_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+                livem_setup_args = livem_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+            with settings(host_string=self._args.storage_master, password=storage_master_passwd):
+                run("sudo compute-live-migration-setup %s" %(livem_setup_args))
+
 
 def main(args_str = None):
     storage = StorageSetup(args_str)
