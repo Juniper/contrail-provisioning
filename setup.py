@@ -37,7 +37,7 @@ setup(
             # Helper scripts
             'setup-quantum-in-keystone = contrail_provisioning.config.quantum_in_keystone_setup:main',
             'storage-fs-setup = contrail_provisioning.storage.storagefs.setup:main',
-            'compute-live-migration-setup = contrail_provisioning.storage.compute.livemigration_setup:main',
+            'compute-live-migration-setup = contrail_provisioning.storage.compute.livemigration:main',
             'livemnfs-setup = contrail_provisioning.storage.storagefs.livemnfs_setup:main',
             'storage-webui-setup = contrail_provisioning.storage.webui.setup:main',
         ],

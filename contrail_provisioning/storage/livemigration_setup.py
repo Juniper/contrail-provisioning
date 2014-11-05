@@ -75,21 +75,17 @@ class LiveMigrationSetup(ContrailSetup):
                 storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
                 storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
                 storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
-                live_migration_status = self._args.live_migration
-                setup_args_str = setup_args_str + " --live-migration %s" % (live_migration_status)
-                nfs_live_migration_option = self._args.nfs_live_migration
-                setup_args_str = setup_args_str + " --nfs-live-migration %s" % (nfs_live_migration_option)
                 if self._args.nfs_livem_subnet:
-                    setup_args_str = setup_args_str + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet))
-                    setup_args_str = setup_args_str + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image))
-                    setup_args_str = setup_args_str + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
+                    storage_setup_args = storage_setup_args + " --nfs-livem-subnet %s" % (' '.join(self._args.nfs_livem_subnet))
+                    storage_setup_args = storage_setup_args + " --nfs-livem-image %s" % (' '.join(self._args.nfs_livem_image))
+                    storage_setup_args = storage_setup_args + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
                 if self._args.nfs_livem_mount:
-                    setup_args_str = setup_args_str + " --nfs-livem-mount %s" % (' '.join(self._args.nfs_livem_mount))
+                    storage_setup_args = storage_setup_args + " --nfs-livem-mount %s" % (' '.join(self._args.nfs_livem_mount))
                 for storage_host, storage_host_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
                     if storage_host == self._args.storage_master:
                         storage_master_passwd = storage_host_token
                 with settings(host_string=self._args.storage_master, password=storage_master_passwd):
-                    sudo("livemnfs-ceph-setup %s" %(storage_setup_args))
+                    sudo("livemnfs-setup %s" %(storage_setup_args))
 
 
 def main(args_str = None):
