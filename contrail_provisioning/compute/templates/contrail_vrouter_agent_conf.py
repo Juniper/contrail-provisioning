@@ -75,6 +75,7 @@ max_control_nodes=$__contrail_discovery_ncontrol__
 
 # Hypervisor type. Possible values are kvm, xen and vmware
 type=$__hypervisor_type__
+mode=$__hypervisor_mode__
 
 # Link-local IP address and prefix in ip/prefix_len format (for xen)
 # xen_ll_ip=

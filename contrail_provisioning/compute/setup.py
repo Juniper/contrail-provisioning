@@ -65,6 +65,7 @@ class ComputeSetup(ContrailSetup, ComputeNetworkSetup):
             'vmware_passwd': 'c0ntrail123',
             'vmware_vmpg_vswitch': 'c0ntrail123',
             'no_contrail_openstack': False,
+            'orchestrator': 'openstack',
         }
 
         self.parse_args(args_str)
@@ -115,6 +116,7 @@ class ComputeSetup(ContrailSetup, ComputeNetworkSetup):
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
         parser.add_argument("--metadata_secret", help = "Metadata Proxy secret from openstack node")
+        parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -241,6 +243,9 @@ class ComputeSetup(ContrailSetup, ComputeNetworkSetup):
                     local("sudo mv agent_param.new /etc/contrail/agent_param")
             vmware_dev = ""
             hypervisor_type = "kvm"
+            mode=""
+            if self._args.orchestrator == 'vcenter':
+                mode="vcenter"
             if self._args.vmware:
                 vmware_dev = self.get_secondary_device(self.dev)
                 hypervisor_type = "vmware"
@@ -251,6 +256,7 @@ class ComputeSetup(ContrailSetup, ComputeNetworkSetup):
                 '__contrail_physical_intf__': self.dev,
                 '__contrail_control_ip__': compute_ip,
                 '__hypervisor_type__': hypervisor_type,
+                '__hypervisor_mode__': mode,
                 '__vmware_physical_interface__': vmware_dev,
             }
             self._template_substitute_write(contrail_vrouter_agent_conf.template,
