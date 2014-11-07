@@ -1419,12 +1419,10 @@ HWADDR=%s
             self._template_substitute_write(dns_param_template.template,
                                             dns_template_vals, temp_dir_name + '/dns.conf')
             local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
-            if pdist == 'Ubuntu':
-                for confl in 'rndc named'.split():
-                    local("".join(["sudo perl -pi -e ",
-                        "'s/(\\s*secret\\s+\").*\"\\s*;/",
-                        "\\1xvysmOR8lnUQRBcunkC6vg==\";/g;'",
-                        " /etc/contrail/dns/%s.conf" % confl]))
+            for confl in 'rndc named'.split():
+                local("".join(["sed -i 's/secret \"secret123\"",
+                               ";/secret \"xvysmOR8lnUQRBcunkC6vg==\";/g'",
+                               " /etc/contrail/dns/%s.conf" % confl]))
 
             with settings(host_string = 'root@%s' %(cfgm_ip), password = env.password):
                 if self._args.puppet_server:
