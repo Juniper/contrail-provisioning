@@ -84,12 +84,11 @@ class ControlSetup(ContrailSetup):
         self._template_substitute_write(dns_conf.template,
                                         dns_template_vals, self._temp_dir_name + '/dns.conf')
         local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(self._temp_dir_name))
-        if self.pdist == 'Ubuntu':
-            for confl in 'rndc named'.split():
-                local("".join(["sudo perl -pi -e ",
-                    "'s/(\\s*secret\\s+\").*\"\\s*;/",
-                    "\\1xvysmOR8lnUQRBcunkC6vg==\";/g;'",
-                    " /etc/contrail/dns/%s.conf" % confl]))
+        for confl in 'rndc named'.split():
+            local("".join(["sudo perl -pi -e ",
+                  "'s/(\\s*secret\\s+\").*\"\\s*;/",
+                  "\\1xvysmOR8lnUQRBcunkC6vg==\";/g;'",
+                  " /etc/contrail/dns/%s.conf" % confl]))
 
     def run_services(self):
         local("sudo control-server-setup.sh")
