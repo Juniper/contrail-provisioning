@@ -127,7 +127,7 @@ class GaleraSetup(ContrailSetup):
                          '__wsrep_node_address__' : self._args.self_ip,
                          '__mysql_token__' : self.mysql_token,
                          '__wsrep_cluster_size__': len(self._args.galera_ip_list),
-                         '__wsrep_inc_offset__': self._args.openstack_index*10,
+                         '__wsrep_inc_offset__': self._args.openstack_index*100,
                         }
         self._template_substitute_write(wsrep_template, template_vals,
                                 self._temp_dir_name + '/%s' % wsrep_conf_file)
