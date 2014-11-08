@@ -79,6 +79,7 @@ setup(
                'contrail_provisioning/openstack/scripts/contrail-cmon-monitor.sh',
                'contrail_provisioning/openstack/scripts/contrail-token-clean.sh',
                'contrail_provisioning/openstack/scripts/contrail-keystone-setup.sh',
+               'contrail_provisioning/openstack/scripts/chk_ctrldata.sh',
                # Openstack HA executables
                'contrail_provisioning/openstack/ha/scripts/contrail-ha-keystone-setup.sh',
                # Config file rewrite executables
