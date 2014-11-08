@@ -75,7 +75,7 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
                     router_id = 200
             priority = router_id - (self._args.self_index - 1)
             if self._args.num_nodes > 2 and self._args.self_index == 2:
-                state = 'BACKUP'
+                state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
             template_vals = {'__device__': device,
                              '__router_id__' : router_id,
