@@ -32,6 +32,7 @@ class GaleraSetup(ContrailSetup):
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
         self.parse_args(args_str)
+        self.mysql_redo_log_sz = '5242880'
 
     def parse_args(self, args_str):
         '''
@@ -57,6 +58,8 @@ class GaleraSetup(ContrailSetup):
             local("service mysql stop")
             local("rm -rf /var/lib/mysql/grastate.dat")
             local("rm -rf /var/lib/mysql/galera.cache")
+            self.cleanup_redo_log()
+
         # fix galera_param
         template_vals = {'__mysql_host__' : self._args.self_ip,
                          '__mysql_wsrep_nodes__' :
@@ -151,6 +154,7 @@ class GaleraSetup(ContrailSetup):
             install_db = local("service %s restart" % self.mysql_svc).failed
         if install_db:
             local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            self.cleanup_redo_log()
             local("service %s restart" % self.mysql_svc)
 
     def create_mysql_token_file(self):
@@ -211,6 +215,7 @@ class GaleraSetup(ContrailSetup):
         local('rm %s/galera_cron' % self._temp_dir_name)
 
     def run_services(self):
+        self.cleanup_redo_log()
         if self._args.openstack_index == 1:
             local("service %s restart" % self.mysql_svc)
         else:
@@ -228,6 +233,15 @@ class GaleraSetup(ContrailSetup):
             local("service %s restart" % self.mysql_svc)
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
+
+    def cleanup_redo_log(self):
+        # Delete the default initially created redo log file
+        # This is required coz the wsrep config changes the
+        # size of redo log file
+        with settings(warn_only = True):
+            siz = local("ls -l /var/lib/mysql/ib_logfile1 | awk '{print $5}'", capture=True).strip()
+            if siz == self.mysql_redo_log_sz:
+                local("rm -rf /var/lib/mysql/ib_logfile*")
 
 def main(args_str = None):
     galera = GaleraSetup(args_str)

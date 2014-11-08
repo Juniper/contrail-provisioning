@@ -42,6 +42,7 @@ class OpenstackSetup(ContrailSetup):
         elif self.pdist in ['centos', 'redhat']:
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
+        self.mysql_redo_log_sz='5242880'
 
     def parse_args(self, args_str):
         '''
