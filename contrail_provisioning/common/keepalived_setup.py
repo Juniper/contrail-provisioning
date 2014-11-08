@@ -43,8 +43,13 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
 
     def fixup_config_files(self):
         vip_for_ips = [(self._args.internal_vip, self._args.self_ip, 'INTERNAL')]
+        internal_device=self.get_device_by_ip(self._args.self_ip)
         if self._args.external_vip:
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
+            external_device=self.get_device_by_ip(self._args.mgmt_self_ip)a
+        else:
+            external_device=internal_device
+
         for vip, ip, vip_name in vip_for_ips:
             # keepalived.conf
             device = self.get_device_by_ip(ip)
@@ -58,6 +63,9 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
             fall = 1
             garp_master_repeat = 3
             garp_master_refresh = 1
+            ctrl_data_timeout=3
+            ctrl_data_rise=1
+            ctrl_data_fall=1
             if self._args.self_index == 1:
                 state = 'MASTER'
                 delay = 5
@@ -91,6 +99,11 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
                              '__timeout__' : timeout,
                              '__rise__' : rise,
                              '__fall__' : fall,
+                             '__cd_timeout__' : ctrl_data_timeout,
+                             '__cd_rise__' : ctrl_data_rise,
+                             '__cd_fall__' : ctrl_data_fall,
+                             '__internal_device__' : internal_device,
+                             '__external_device__' : external_device,
                             }
             data = self._template_substitute(keepalived_conf_template.template,
                                       template_vals)
