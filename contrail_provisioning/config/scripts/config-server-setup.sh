@@ -41,7 +41,7 @@ for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in supervisor-config quantum-server puppetmaster; do
+for svc in supervisor-support-service supervisor-config quantum-server puppetmaster; do
     chkconfig $svc on
 done
 
