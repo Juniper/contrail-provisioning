@@ -85,10 +85,9 @@ class ControlSetup(ContrailSetup):
                                         dns_template_vals, self._temp_dir_name + '/dns.conf')
         local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(self._temp_dir_name))
         for confl in 'rndc named'.split():
-            local("".join(["sudo perl -pi -e ",
-                  "'s/(\\s*secret\\s+\").*\"\\s*;/",
-                  "\\1xvysmOR8lnUQRBcunkC6vg==\";/g;'",
-                  " /etc/contrail/dns/%s.conf" % confl]))
+            local("".join(["sed -i 's/secret \"secret123\"",
+                           ";/secret \"xvysmOR8lnUQRBcunkC6vg==\";/g'",
+                           " /etc/contrail/dns/%s.conf" % confl]))
 
     def run_services(self):
         local("sudo control-server-setup.sh")
