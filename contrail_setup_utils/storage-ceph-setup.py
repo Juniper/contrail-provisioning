@@ -64,6 +64,9 @@ class SetupCeph(object):
     global RABBIT_PORT
     RABBIT_PORT='5673'
 
+    global MAX_MONS
+    MAX_MONS = 10
+
     def reset_mon_local_list(self):
         local('echo "get_local_daemon_ulist() {" > /tmp/mon_local_list.sh')
         local('echo "if [ -d \\"/var/lib/ceph/mon\\" ]; then" >> /tmp/mon_local_list.sh')
@@ -1570,11 +1573,50 @@ class SetupCeph(object):
             with settings(host_string = 'root@%s' %(entries), password = entry_token):
                 for hostname, host_ip in zip(self._args.storage_hostnames, self._args.storage_hosts):
                     run('cat /etc/hosts |grep -v %s > /tmp/hosts; echo %s %s >> /tmp/hosts; cp -f /tmp/hosts /etc/hosts' % (hostname, host_ip, hostname))
-        ceph_mon_hosts=''
+        ceph_mon_hosts = ''
+        ceph_mon_hosts_list = []
+        ceph_mon_count = 0
+        ceph_all_hosts = ''
+        storage_master_hostname = ''
         pdist = platform.dist()[0]
 
+        for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+            if entries == self._args.storage_master:
+                ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                storage_master_hostname = hostname
+                ceph_mon_count += 1;
+                ceph_mon_hosts_list.append(hostname)
+            if self._args.storage_os_hosts[0] != 'none':
+                for osnode in self._args.storage_os_hosts:
+                    if entries == osnode:
+                        ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                        ceph_mon_count += 1;
+                        ceph_mon_hosts_list.append(hostname)
+
+        if self._args.storage_mon_hosts[0] != 'none':
+            for entries in self._args.storage_mon_hosts:
+                ceph_mon_count += 1;
+                if ceph_mon_count <= MAX_MONS:
+                    ceph_mon_hosts = ceph_mon_hosts + entries + ' '
+                    ceph_mon_hosts_list.append(entries)
+        else:
+            for entries, hostname in zip(self._args.storage_hosts, self._args.storage_hostnames):
+                if entries == self._args.storage_master:
+                    continue
+                entry_hit = 0
+                if self._args.storage_os_hosts[0] != 'none':
+                    for osnode in self._args.storage_os_hosts:
+                        if entries == osnode:
+                            entry_hit = 1
+                            break
+                #if entry_hit == 0:
+                #    ceph_mon_count += 1;
+                #    if ceph_mon_count <= MAX_MONS:
+                #        ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                #        ceph_mon_hosts_list.append(hostname)
+
         for entries in self._args.storage_hostnames:
-            ceph_mon_hosts=ceph_mon_hosts+entries+' '
+            ceph_all_hosts = ceph_all_hosts + entries + ' '
 
         #print ceph_mon_hosts
         # setup SSH for autologin for Ceph
@@ -1638,6 +1680,7 @@ class SetupCeph(object):
                 for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
                     if hostname == self._args.add_storage_node:
                         public_ip = entries
+                        public_pass = entry_token
                         break
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     ip_cidr=run('ip addr show |grep -w %s |awk \'{print $2}\'' %(public_ip))
@@ -1652,7 +1695,14 @@ class SetupCeph(object):
                             run('sudo mkdir -p /var/lib/ceph/bootstrap-osd')
                             run('sudo mkdir -p /var/lib/ceph/osd')
                             run('sudo mkdir -p /etc/ceph')
-                local('sudo ceph-deploy --overwrite-conf mon create-initial %s' % (add_storage_node))
+                for hostname in ceph_mon_hosts_list:
+                    if hostname == add_storage_node:
+                        local('sudo ceph-deploy --overwrite-conf mon create-initial %s' % (add_storage_node))
+
+                with settings(host_string = 'root@%s' %(public_ip), password = public_pass):
+                    put('/etc/ceph/ceph.client.admin.keyring', '/etc/ceph/')
+                    put('/var/lib/ceph/bootstrap-osd/ceph.keyring', '/var/lib/ceph/bootstrap-osd/')
+
                 if self._args.storage_directory_config[0] != 'none':
                     for directory in self._args.storage_directory_config:
                         dirsplit = directory.split(':')
@@ -1661,8 +1711,8 @@ class SetupCeph(object):
                                 run('sudo mkdir -p %s' % (dirsplit[1]))
                                 run('sudo rm -rf %s' % (dirsplit[1]))
                                 run('sudo mkdir -p %s' % (dirsplit[1]))
-                            local('sudo ceph-deploy osd prepare %s' % (directory))
-                            local('sudo ceph-deploy osd activate %s' % (directory))
+                            local('sudo ceph-deploy --overwrite-conf osd prepare %s' % (directory))
+                            local('sudo ceph-deploy --overwrite-conf osd activate %s' % (directory))
                 # Setup Journal disks
                 storage_disk_list=[]
                 # Convert configuration from --storage-journal-config to ":" format
@@ -1795,7 +1845,7 @@ class SetupCeph(object):
                         if dirsplit[0] == add_storage_node:
                             local('sudo ceph-deploy disk zap %s' % (disks))
                             # For prefirefly use prepare/activate on ubuntu release
-                            local('sudo ceph-deploy osd create %s' % (disks))
+                            local('sudo ceph-deploy --overwrite-conf osd create %s' % (disks))
 
 
             # Find the host count
@@ -1863,9 +1913,6 @@ class SetupCeph(object):
             volumes_pool_avail=local('sudo rados lspools |grep volumes_hdd | wc -l ', capture=True)
             if volumes_pool_avail != '0':
                 self.add_to_hdd_ssd_pool()
-            else:
-                self.create_hdd_ssd_pool()
-                #TODO: Add configurations to cinder
 
             # Perform chassis configuration
             self.do_chassis_config()
@@ -2141,7 +2188,7 @@ class SetupCeph(object):
                         self.reset_mon_remote_list()
                         self.reset_osd_remote_list()
         time.sleep(2)
-        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts), capture=False, shell='/bin/bash')
+        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts), capture=False, shell='/bin/bash')
 
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_remove()
@@ -2337,21 +2384,36 @@ class SetupCeph(object):
 
             time.sleep(20)
 
-            for entries in self._args.storage_hostnames:
-                local('sudo ceph-deploy gatherkeys %s' % (entries))
+
+            # gather keys for current system
+            local('sudo ceph-deploy gatherkeys %s' % (storage_master_hostname))
+
+            # gather keys for non monitor systems
+            for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                mon_present = 0
+                for monentries in ceph_mon_hosts_list:
+                    if hostname == monentries:
+                        mon_present = 1
+                        break
+
+                if mon_present == 0:
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        put('/etc/ceph/ceph.client.admin.keyring', '/etc/ceph/')
+                        put('/var/lib/ceph/bootstrap-osd/ceph.keyring', '/var/lib/ceph/bootstrap-osd/')
+
             osd_count = 0
             if self._args.storage_directory_config[0] != 'none':
                 for directory in self._args.storage_directory_config:
-                    local('sudo ceph-deploy osd prepare %s' % (directory))
+                    local('sudo ceph-deploy --overwrite-conf  osd prepare %s' % (directory))
                 for directory in self._args.storage_directory_config:
-                    local('sudo ceph-deploy osd activate %s' % (directory))
+                    local('sudo ceph-deploy --overwrite-conf  osd activate %s' % (directory))
                     osd_count += 1
 
             # Ceph deploy OSD create
             if new_storage_disk_list != []:
                 for disks in new_storage_disk_list:
                     # For prefirefly use prepare/activate on ubuntu release
-                    local('sudo ceph-deploy osd create %s' % (disks))
+                    local('sudo ceph-deploy --overwrite-conf osd create %s' % (disks))
                     osd_count += 1
 
             # Find the host count
@@ -2940,6 +3002,7 @@ class SetupCeph(object):
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--storage-mon-hosts", help = "storage compute mon list", nargs='+', type=str)
         parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
