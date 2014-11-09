@@ -36,6 +36,7 @@ class SetupVncStorage(object):
         setup_args_str = setup_args_str + " --storage-journal-config %s" %(' '.join(self._args.storage_journal_config))    
         setup_args_str = setup_args_str + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))    
         setup_args_str = setup_args_str + " --storage-chassis-config %s" %(' '.join(self._args.storage_chassis_config))
+        setup_args_str = setup_args_str + " --storage-mon-hosts %s" %(' '.join(self._args.storage_mon_hosts))
         if self._args.collector_hosts:
             setup_args_str = setup_args_str + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
             setup_args_str = setup_args_str + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
@@ -111,6 +112,7 @@ class SetupVncStorage(object):
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--storage-mon-hosts", help = "storage compute mon list", nargs='+', type=str)
         parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)

@@ -325,6 +325,7 @@ class Setup(object):
         parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--cinder-vip", help = "Cinder vip")
         parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
+        parser.add_argument("--storage-mon-hosts", help = "storage compute mon list", nargs='+', type=str)
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--live-migration", help = "Live migration enabled")
@@ -1858,6 +1859,7 @@ SUBCHANNELS=1,2,3
                     storage_setup_args = storage_setup_args + " --storage-nfs-disk-config %s" %(' '.join(self._args.storage_nfs_disk_config))
                     storage_setup_args = storage_setup_args + " --storage-directory-config %s" %(' '.join(self._args.storage_directory_config))
                     storage_setup_args = storage_setup_args + " --storage-chassis-config %s" %(' '.join(self._args.storage_chassis_config))
+                    storage_setup_args = storage_setup_args + " --storage-mon-hosts %s" %(' '.join(self._args.storage_mon_hosts))
                     if self._args.collector_hosts:
                         storage_setup_args = storage_setup_args + " --collector-hosts %s" %(' '.join(self._args.collector_hosts))
                         storage_setup_args = storage_setup_args + " --collector-host-tokens %s" %(' '.join(self._args.collector_host_tokens))
