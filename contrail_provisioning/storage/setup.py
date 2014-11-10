@@ -66,6 +66,9 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
+        parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
+        parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -115,10 +118,18 @@ class StorageSetup(ContrailSetup):
         if self._args.storage_os_hosts:
             storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
             storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+
+        if self._args.disks_to_remove:
+            storage_setup_args = storage_setup_args + " --disks-to-remove %s" %(' '.join(self._args.disks_to_remove))
+
+        if self._args.hosts_to_remove:
+            storage_setup_args = storage_setup_args + " --hosts-to-remove %s" %(' '.join(self._args.hosts_to_remove))
+
         #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
             run("sudo storage-fs-setup %s" %(storage_setup_args))
 
+        # Generic live-migration configurations
         live_migration_enabled = self._args.live_migration
         if live_migration_enabled == 'enabled':
             livem_setup_args = " --storage-master %s" %(self._args.storage_master)

@@ -122,6 +122,8 @@ class SetupCeph(object):
     CEPH_DISK_THREADS = 2
     global REPLICA_ONE
     REPLICA_ONE = 1
+    global REPLICA_TWO
+    REPLICA_TWO = 2
     global REPLICA_DEFAULT
     REPLICA_DEFAULT = 2
     # Global variables used across functions
@@ -1887,11 +1889,6 @@ class SetupCeph(object):
         return
     #end do_ssh_config()
 
-    # Function to remove a storage node
-    def do_remove_storage_node(self):
-        return
-    #end do_remove_storage_node()
-
     # Function to unconfigure Storage
     # This will remove all the storage configurations
     def do_storage_unconfigure(self):
@@ -2206,11 +2203,23 @@ class SetupCeph(object):
         # If there is no 'journal' configuration, may be its inline in disk
         # Just use the storage_disk_config/storage_ssd_disk_config
         else:
+            for hostname, entries, entry_token in \
+                        zip(self._args.storage_hostnames,
+                            self._args.storage_hosts,
+                            self._args.storage_host_tokens):
+                for disks in self._args.storage_disk_config:
+                    disksplit = disks.split(':')
+                    if disksplit[0] == hostname:
+                        storage_disk_list.append(disks)
             if self._args.storage_ssd_disk_config[0] != 'none':
-                storage_disk_list = self._args.storage_disk_config + \
-                                            self._args.storage_ssd_disk_config
-            else:
-                storage_disk_list = self._args.storage_disk_config
+                for hostname, entries, entry_token in \
+                        zip(self._args.storage_hostnames,
+                            self._args.storage_hosts,
+                            self._args.storage_host_tokens):
+                    for ssd_disks in self._args.storage_ssd_disk_config:
+                        disksplit = ssd_disks.split(':')
+                        if disksplit[0] == hostname:
+                            storage_disk_list.append(ssd_disks)
 
         # Remove the Pool numbers from the disk list. The pool name should
         # always start with 'P'
@@ -2581,12 +2590,25 @@ class SetupCeph(object):
             if host_count <= 1:
                 local('sudo ceph osd pool set volumes size %s'
                                     %(REPLICA_ONE))
+                local('sudo ceph osd pool set images size %s'
+                                    %(REPLICA_ONE))
+            elif host_count == 2:
+                local('sudo ceph osd pool set volumes size %s'
+                                    %(REPLICA_TWO))
+                local('sudo ceph osd pool set images size %s'
+                                    %(REPLICA_TWO))
             else:
-                rep_size=local('sudo ceph osd pool get volumes size | \
+                rep_size = local('sudo ceph osd pool get volumes size | \
                                     awk \'{print $2}\'',
                                     shell='/bin/bash', capture=True)
-                if rep_size == '1':
+                if rep_size != REPLICA_DEFAULT:
                     local('sudo ceph osd pool set volumes size %s'
+                                    %(REPLICA_DEFAULT))
+                rep_size = local('sudo ceph osd pool get images size | \
+                                    awk \'{print $2}\'',
+                                    shell='/bin/bash', capture=True)
+                if rep_size != REPLICA_DEFAULT:
+                    local('sudo ceph osd pool set images size %s'
                                     %(REPLICA_DEFAULT))
 
             # Set PG/PGP count based on osd new count
@@ -3570,6 +3592,7 @@ class SetupCeph(object):
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-api restart')
                         run('sudo service nova-scheduler restart')
+        return
     #end do_service_restarts_1()
 
     # Function for cinder type configurations
@@ -3635,6 +3658,7 @@ class SetupCeph(object):
                                 cinder type-key %s set volume_backend_name=%s)'
                                 %(lvm_types, lvm_names))
         local('sudo service cinder-volume restart')
+        return
 
     #end do_configure_cinder_types()
 
@@ -3687,6 +3711,7 @@ class SetupCeph(object):
                         run('sudo service cinder-volume restart')
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
+        return
     #end do_service_restarts_2()
 
     # Function for configuration of storage stats daemon
@@ -3703,7 +3728,201 @@ class SetupCeph(object):
                                     disc_server_ip %s'
                                     %(STORAGE_NODEMGR_CONF, self._args.cfg_host))
                         run('sudo service contrail-storage-stats restart')
+        return
     #end do_configure_stats_daemon()
+
+    # Function to remove each OSD in the self._args.disks_to_remove list.
+    def do_remove_osd(self):
+        for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+            for disk_to_remove in self._args.disks_to_remove:
+                if hostname == disk_to_remove.split(':')[0]:
+                    with settings(host_string = 'root@%s' %(entries),
+                                                    password = entry_token):
+                        # Find the mounts and using the mount, find the OSD
+                        # number.
+                        # Remove osd using ceph commands.
+                        # Unmount the drive and destroy the partitions
+                        mounted = run('sudo cat /proc/mounts | grep %s | wc -l'
+                                            %(disk_to_remove.split(':')[1]))
+                        if mounted != '0':
+                            osd_det = run('sudo mount | grep %s | \
+                                                awk \'{ print $3 }\''
+                                                %(disk_to_remove.split(':')[1]),
+                                                shell='/bin/bash')
+                            if osd_det != '':
+                                osd_num = osd_det.split('-')[1]
+                                run('sudo stop ceph-osd id=%s' %(osd_num))
+                                run('sudo ceph -k %s osd out %s'
+                                            %(CEPH_ADMIN_KEYRING, osd_num))
+                                run('sudo ceph osd crush remove osd.%s'
+                                                                %(osd_num))
+                                run('sudo ceph -k %s auth del osd.%s'
+                                            %(CEPH_ADMIN_KEYRING, osd_num))
+                                run('sudo ceph -k %s osd rm %s'
+                                            %(CEPH_ADMIN_KEYRING, osd_num))
+                                run('sudo umount /var/lib/ceph/osd/ceph-%s'
+                                                                %(osd_num))
+                                run('sudo parted -s %s mklabel gpt 2>&1 > \
+                                                                /dev/null'
+                                            %(disk_to_remove.split(':')[1]))
+        return
+    #end do_remove_osd()
+
+    # Function to create the list of OSDs to remove.
+    # This is called during a storage node delete.
+    def do_create_osd_remove_config(self):
+
+        disks_to_remove = []
+        for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+            for host_to_remove in self._args.hosts_to_remove:
+                if hostname == host_to_remove:
+                    with settings(host_string = 'root@%s' %(entries),
+                                        password = entry_token):
+                        # Check if ceph-osd process is running on the node which
+                        # has to be removed.
+                        # If ceph-osd is running, get the osd number and find
+                        # the corresponding mount name.
+                        # Create the list of hostname:mountname and save it to
+                        # self._args.disks_to_remove.
+                        # This will be removed using the do_remove_osd()
+                        line_num = 1
+                        while True:
+                            ceph_id = run('ps  -ef | grep ceph-osd | \
+                                                    grep -v grep | grep -v asok | \
+                                                    tail -n +%s | head -n 1 | \
+                                                    awk \'{print $11}\''
+                                                    %(line_num))
+                            if ceph_id != '':
+                                mount_name = run('sudo cat /proc/mounts | \
+                                                grep -w ceph-%s | \
+                                                awk \'{print $1}\'' %(ceph_id))
+                                disk_name = mount_name[:-1]
+                                disks_to_remove.append('%s:%s' %(hostname,
+                                                                    disk_name))
+                            else:
+                                break
+                            line_num += 1
+        self._args.disks_to_remove = disks_to_remove
+        return
+
+    #end do_create_osd_remove_config()
+
+    # Function to remove the monitor when a storage node is deleted.
+    def do_remove_monitor(self):
+        for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+            for host_to_remove in self._args.hosts_to_remove:
+                if hostname == host_to_remove:
+                    with settings(host_string = 'root@%s' %(entries),
+                                        password = entry_token):
+                        # Check if mon is running, if so destroy the mon
+                        # Remove ceph related directories.
+                        mon_running = local('ceph mon stat | grep -w %s | wc -l'
+                                                    %(hostname), capture=True)
+                        if mon_running != '0':
+                            local('ceph-deploy mon destroy %s' %(hostname))
+                        run('sudo rm -rf /var/lib/ceph')
+                        run('sudo rm -rf /var/run/ceph')
+                        run('sudo rm -rf /etc/ceph')
+        return
+    #end do_remove_monitor()
+
+    # Remove the disks to be deleted from the configuration variables.
+    # The variables will be used during crush map setting
+    def do_remove_osd_config(self):
+
+        disk_list = []
+        # Find the delete entries in the storage_disk_config
+        # and remove it.
+        for disks in self._args.storage_disk_config:
+            disksplit = disks.split(':')
+            disk_match = 0
+            for disk_to_remove in self._args.disks_to_remove:
+                if ('%s:%s' %(disksplit[0], disksplit[1]) ==
+                                                    disk_to_remove):
+                    disk_match = 1
+            if disk_match == 0:
+                disk_list.append(disks)
+        self._args.storage_disk_config = disk_list
+        # Find the delete entries in the storage_ssd_disk_config
+        # and remove it.
+        if self._args.storage_ssd_disk_config[0] != 'none':
+            disk_list = []
+            for disks in self._args.storage_ssd_disk_config:
+                disksplit = disks.split(':')
+                disk_match = 0
+                for disk_to_remove in self._args.disks_to_remove:
+                    if ('%s:%s' %(disksplit[0], disksplit[1]) ==
+                                                    disk_to_remove):
+                        disk_match = 1
+                if disk_match == 0:
+                    disk_list.append(disks)
+            self._args.storage_ssd_disk_config = disk_list
+        return
+
+    #end do_remove_osd_config()
+
+    # Top level function for remove disk
+    # TODO: Add support for local lvm disks
+    def do_storage_remove_disk(self):
+        global configure_with_ceph
+        if self._args.storage_directory_config[0] != 'none' or \
+                self._args.storage_disk_config[0] != 'none' or \
+                self._args.storage_ssd_disk_config[0] != 'none':
+            configure_with_ceph = 1
+        else:
+            configure_with_ceph = 0
+
+        if configure_with_ceph:
+
+            # remove osd info from config
+            self.do_remove_osd_config()
+
+            # Remove OSD
+            self.do_remove_osd()
+
+            # Modify the crush map for HDD/SSD/Chassis
+            self.do_crush_map_config()
+
+            # Configure Ceph pools
+            self.do_configure_pools()
+
+        return
+
+    # Top level function for remove disk
+    # TODO: Add support for local lvm disk hosts
+    def do_storage_remove_host(self):
+        global configure_with_ceph
+        if self._args.storage_directory_config[0] != 'none' or \
+                self._args.storage_disk_config[0] != 'none' or \
+                self._args.storage_ssd_disk_config[0] != 'none':
+            configure_with_ceph = 1
+        else:
+            configure_with_ceph = 0
+
+        if configure_with_ceph:
+
+            # remove host info from config
+            self.do_create_osd_remove_config()
+
+            # remove osd info from config
+            self.do_remove_osd_config()
+
+            # Remove OSD
+            self.do_remove_osd()
+
+            # Remove mon if present
+            self.do_remove_monitor()
+
+            # Modify the crush map for HDD/SSD/Chassis
+            self.do_crush_map_config()
+
+            # Configure Ceph pools
+            self.do_configure_pools()
+
+        return
 
     # Top level function for storage setup.
     def do_storage_setup(self):
@@ -3824,6 +4043,16 @@ class SetupCeph(object):
             self.do_storage_setup()
             return
 
+        # Remove disk from Ceph/LVM/NFS
+        if self._args.storage_setup_mode == 'remove_disk':
+            self.do_storage_remove_disk()
+            return
+
+        # Remove host from storage
+        if self._args.storage_setup_mode == 'remove_host':
+            self.do_storage_remove_host()
+            return
+
         return
 
     #end __init__
@@ -3884,6 +4113,8 @@ class SetupCeph(object):
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
+        parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
