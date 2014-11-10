@@ -9,6 +9,11 @@ template = string.Template("""#
 [DEFAULT]
 # collectors= # Provided by discovery server
 # dns_config_file=dns_config.xml
+# named_config_file=named.conf             # named config file
+# named_config_directory=/etc/contrail/dns # named config directory
+# named_log_file=/var/log/named/bind.log   # named log file
+# rndc_config_file=rndc.conf               # rndc config file
+# rndc_secret=secretkey                    # rndc secret
   hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
   hostname=$__contrail_hostname__ # Retrieved as `hostname`
 # http_server_port=8092
