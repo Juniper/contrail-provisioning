@@ -7,9 +7,12 @@ import os
 import sys
 import argparse
 import ConfigParser
+import time
 
 from fabric.api import local,run
-from fabric.context_managers import settings
+from fabric.context_managers import lcd, hide, settings
+from fabric.operations import get, put
+
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.openstack.ha.templates import galera_param_template
@@ -44,7 +47,7 @@ class GaleraSetup(ContrailSetup):
 
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node or Virtual IP of the cluster nodes.")
-        parser.add_argument("--openstack_index", help = "The index of this openstack node")
+        parser.add_argument("--openstack_index", help = "The index of this openstack node", type = int)
         parser.add_argument("--openstack0_user", help = "Sudo user of this openstack node")
         parser.add_argument("--openstack0_passwd", help = "Sudo user password  of this openstack node")
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
