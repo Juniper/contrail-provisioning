@@ -107,7 +107,7 @@ class ConfigSetup(ContrailSetup):
 
 def main(args_str = None):
     config_args = ConfigSetup(args_str)._args
-    if config_args.orch is 'openstack':
+    if config_args.orch == 'openstack':
         config = ConfigOpenstackSetup(config_args)
     # For future Orchestrator, inherit ConfigBaseSetup and
     # add functionality specific to Orchestrator.
