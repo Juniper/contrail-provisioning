@@ -26,12 +26,11 @@ innodb_autoinc_lock_mode=2
 
 # This is a must for paralell applying
 innodb_locks_unsafe_for_binlog=1
+
 #INNODB
 default-storage-engine=innodb
 engine-condition-pushdown=1
 innodb_stats_on_metadata=0
-innodb_autoinc_lock_mode=2
-innodb_locks_unsafe_for_binlog=1
 innodb_flush_method=O_DIRECT
 innodb_thread_concurrency=0
 innodb_doublewrite=1
