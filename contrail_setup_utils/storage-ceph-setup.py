@@ -2024,6 +2024,16 @@ class SetupCeph(object):
                             run('sudo service nova-compute restart')
                             run('sudo chkconfig cinder-volume on')
                             run('sudo service cinder-volume restart')
+
+            # configure discovery details in storage stats configuration
+            # restart contrail-stats-daemon on the newly added node.
+            if configure_with_ceph == 1:
+                for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+                    if hostname == add_storage_node:
+                        with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            if pdist == 'Ubuntu':
+                                run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
+                                run('sudo service contrail-storage-stats restart')
             return
 
         #Cleanup existing configuration
