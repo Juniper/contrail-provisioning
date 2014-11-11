@@ -44,6 +44,7 @@ innodb_additional_mem_pool_size=1000M
 innodb_buffer_pool_size=1G
 innodb_rollback_on_timeout=ON
 innodb_lock_wait_timeout=10
+innodb_log_file_size=64M
 auto_increment_increment=$__wsrep_cluster_size__
 auto_increment_offset=$__wsrep_inc_offset__
 
