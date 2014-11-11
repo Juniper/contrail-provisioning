@@ -81,6 +81,7 @@ setup(
                'contrail_provisioning/openstack/scripts/contrail-keystone-setup.sh',
                # Openstack HA executables
                'contrail_provisioning/openstack/ha/scripts/contrail-ha-keystone-setup.sh',
+               'contrail_provisioning/openstack/scripts/contrail-galera-check.sh',
                # Config file rewrite executables
                'contrail_provisioning/compute/scripts/vrouter-agent.conf.sh',
                # Tools 
