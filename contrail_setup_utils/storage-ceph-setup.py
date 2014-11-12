@@ -2984,8 +2984,20 @@ class SetupCeph(object):
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
 
+        # start contrail-storage-stats daemon on all storage-compute nodes
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
-            if entries != self._args.storage_master:
+            isos= 0
+            # skip all storage-master nodes
+            if self._args.storage_os_hosts[0] != 'none':
+                for os_entries in self._args.storage_os_hosts:
+                    if os_entries == entries:
+                        isos = 1
+                        break
+
+            if isos == 1:
+                continue
+            # skip first storage-master node
+            if entries != self._args.storage_master :
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     if pdist == 'Ubuntu':
                         run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
