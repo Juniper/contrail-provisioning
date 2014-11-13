@@ -328,6 +328,7 @@ class Setup(object):
         parser.add_argument("--storage-mon-hosts", help = "storage compute mon list", nargs='+', type=str)
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
+        parser.add_argument("--cfg-vip", help = "cfg vip")
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--nfs-live-migration", help = "NFS for Live migration enabled")
         parser.add_argument("--nfs-livem-subnet", help = "Subnet for NFS for Live migration VM", nargs="+", type=str)
@@ -1876,6 +1877,8 @@ SUBCHANNELS=1,2,3
                         storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
                         storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
 
+                    if self._args.cfg_vip:
+                        storage_setup_args = storage_setup_args + " --cfg-vip %s" %(self._args.cfg_vip)
                     with settings(host_string=self._args.storage_master):
                         run("python /opt/contrail/contrail_installer/contrail_setup_utils/storage-ceph-setup.py %s" %(storage_setup_args))
 

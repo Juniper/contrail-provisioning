@@ -235,6 +235,32 @@ class SetupCeph(object):
                         run('sudo rm -rf /etc/init/ceph-rest-api.conf')
     #end ceph_rest_api_service_remove()
 
+    def contrail_storage_stats_service_remove(self):
+        # check if contrail-storage-stats is running
+        # if it is running then trigger contrail-storage-stats stop
+        # finally revert discovery contrail-storage-stats config
+        for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+            isos = 0
+            # skip all storage-master nodes
+            if self._args.storage_os_hosts[0] != 'none':
+                for os_entries in self._args.storage_os_hosts:
+                    if os_entries == entries:
+                        isos = 1
+                        break
+
+            if isos == 1:
+                continue
+
+            # skip first storage-master node
+            if entries != self._args.storage_master :
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    contrail_stats_process_running=run('ps -ef|grep -v grep|grep contrail-storage-stats |wc -l')
+                    if contrail_stats_process_running != '0':
+                        run('sudo service contrail-storage-stats stop')
+                    # reset disc_server_ip
+                    run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip 127.0.0.1')
+
+
     def set_pg_count_increment(self, pool, pg_count):
         while True:
             time.sleep(2);
@@ -2114,7 +2140,12 @@ class SetupCeph(object):
                     if hostname == add_storage_node:
                         with settings(host_string = 'root@%s' %(entries), password = entry_token):
                             if pdist == 'Ubuntu':
-                                run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
+                                if self._args.cfg_vip != 'none':
+                                    run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_vip))
+                                elif self._args.cinder_vip != 'none':
+                                    run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cinder_vip))
+                                else:
+                                    run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
                                 run('sudo service contrail-storage-stats restart')
             return
 
@@ -2238,6 +2269,7 @@ class SetupCeph(object):
         if pdist == 'Ubuntu':
             self.ceph_rest_api_service_remove()
             self.unconfigure_syslog()
+            self.contrail_storage_stats_service_remove()
 
         if self._args.storage_setup_mode == 'unconfigure':
             print 'Storage configuration removed'
@@ -2984,11 +3016,28 @@ class SetupCeph(object):
                         run('sudo service libvirt-bin restart')
                         run('sudo service nova-compute restart')
 
+        # start contrail-storage-stats daemon on all storage-compute nodes
         for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
-            if entries != self._args.storage_master:
+            isos= 0
+            # skip all storage-master nodes
+            if self._args.storage_os_hosts[0] != 'none':
+                for os_entries in self._args.storage_os_hosts:
+                    if os_entries == entries:
+                        isos = 1
+                        break
+
+            if isos == 1:
+                continue
+            # skip first storage-master node
+            if entries != self._args.storage_master :
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     if pdist == 'Ubuntu':
-                        run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
+                        if self._args.cfg_vip != 'none':
+                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_vip))
+                        elif self._args.cinder_vip != 'none':
+                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cinder_vip))
+                        else:
+                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
                         run('sudo service contrail-storage-stats restart')
 
         if pdist == 'Ubuntu':
@@ -3052,6 +3101,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
+        parser.add_argument("--cfg-vip", help = "Config vip")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
