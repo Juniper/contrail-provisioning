@@ -462,7 +462,7 @@ class SetupCeph(object):
                                     error
 
                         #host_ssd_dict[hostname, host_ssd_dict[hostname,'count']] = disksplit[1] + ':' + osdnum
-                        host_ssd_dict['%s-%s' %(hostname, pool_index), host_ssd_dict[hostname,'count']] = osdnum
+                        host_ssd_dict['%s-%s' %(hostname, pool_index), host_ssd_dict['%s-%s' %(hostname, pool_index),'count']] = osdnum
                         host_ssd_dict['%s-%s' %(hostname, pool_index), 'count'] += 1
                         host_ssd_dict[('totalcount', '%s' %(pool_index))] += 1
         #print host_hdd_dict
