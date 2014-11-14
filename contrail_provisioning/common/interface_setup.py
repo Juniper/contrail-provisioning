@@ -343,7 +343,8 @@ class UbuntuInterface(BaseInterface):
         else:
             cfg = ['auto %s' %self.device,
                    'iface %s inet manual' %self.device,
-                   'hwaddress ether %s' %mac]
+                   'hwaddress ether %s' %mac,
+                   'down ip addr flush dev %s' %self.device]
         self.write_network_script(cfg)
         if self.vlan:
             self.create_vlan_interface()
@@ -386,7 +387,8 @@ class UbuntuInterface(BaseInterface):
                 cfg.append('gateway %s' %self.gw)
         else:
             cfg = ['auto %s' %self.device,
-                   'iface %s inet manual' %self.device]
+                   'iface %s inet manual' %self.device,
+                   'down ip addr flush dev %s' %self.device]
         cfg += self.bond_opts_str.split("\n")
         self.write_network_script(cfg)
         if self.vlan:
