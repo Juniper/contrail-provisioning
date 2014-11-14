@@ -22,6 +22,7 @@ from contrail_provisioning.config.templates import contrail_api_ini_centos
 from contrail_provisioning.config.templates import contrail_api_svc
 from contrail_provisioning.config.templates import contrail_plugin_ini
 from contrail_provisioning.config.templates import contrail_schema_transformer_conf
+from contrail_provisioning.config.templates import contrail_device_manager_conf
 from contrail_provisioning.config.templates import contrail_svc_monitor_conf
 from contrail_provisioning.config.templates import contrail_discovery_conf
 from contrail_provisioning.config.templates import contrail_discovery_ini
@@ -46,6 +47,7 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_contrail_api_supervisor_ini()
         self.fixup_contrail_api_initd()
         self.fixup_schema_transformer_config_file()
+        self.fixup_device_manager_config_file()
         self.fixup_svc_monitor_config_file()
         self.fixup_discovery_config_file()
         self.fixup_discovery_supervisor_ini()
@@ -164,6 +166,36 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
         local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-schema")
+
+    def fixup_device_manager_config_file(self):
+        # contrail-device-manager.conf
+        self.rabbit_host = self.cfgm_ip
+        self.rabbit_port = 5672
+        if self._args.internal_vip:
+            self.rabbit_host = self._args.internal_vip
+            self.rabbit_port = 5673
+        template_vals = {'__rabbit_server_ip__': self.rabbit_host,
+                         '__rabbit_server_port__': self.rabbit_port,
+                         '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_api_server_port__': '8082',
+                         '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
+                         '__contrail_use_certs__': self._args.use_certs,
+                         '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/device_manager_key.pem',
+                         '__contrail_certfile_location__': '/etc/contrail/ssl/certs/device_manager.pem',
+                         '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
+                         '__contrail_admin_user__': self._args.keystone_admin_user,
+                         '__contrail_admin_password__': self._args.keystone_admin_passwd,
+                         '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
+                         '__contrail_admin_token__': self._args.keystone_admin_token,
+                         '__contrail_log_file__' : '/var/log/contrail/contrail-device-manager.log',
+                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_disc_server_port__': '5998',
+                        }
+        self._template_substitute_write(contrail_device_manager_conf.template,
+                                        template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
+        local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
+        local("sudo chmod a+x /etc/init.d/contrail-device-manager")
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
