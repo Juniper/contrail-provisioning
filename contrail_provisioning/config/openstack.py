@@ -148,8 +148,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             quantum_ip = self._args.internal_vip
         else:
             quantum_ip = self.cfgm_ip
-        super(ConfigOpenstackSetup, self).run_services()
-        local("sudo quantum-server-setup.sh")
         quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
                       %(self._args.keystone_ip, quantum_ip, self._args.keystone_admin_tenant_name, self._args.keystone_admin_user, self._args.keystone_admin_passwd, self._args.service_token,
                         env.password)
@@ -157,6 +155,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             quant_args += " --region_name %s" %(self._args.region_name)
         if self._args.manage_neutron:
             local("setup-quantum-in-keystone %s" %(quant_args))
+
+        super(ConfigOpenstackSetup, self).run_services()
+        local("sudo quantum-server-setup.sh")
 
     def setup(self):
         self.disable_selinux()
