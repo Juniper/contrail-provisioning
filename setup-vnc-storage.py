@@ -52,6 +52,10 @@ class SetupVncStorage(object):
         if self._args.storage_os_hosts:
             setup_args_str = setup_args_str + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
             setup_args_str = setup_args_str + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+
+        if self._args.cfg_vip:
+            setup_args_str = setup_args_str + " --cfg-vip %s" %(self._args.cfg_vip)
+
         #Setup storage if storage is defined in testbed.py
         if self._args.storage_disk_config[0] != 'none' or self._args.storage_directory_config[0] != 'none' or self._args.storage_local_disk_config[0] != 'none' or self._args.storage_nfs_disk_config[0] != 'none' or self._args.storage_local_ssd_disk_config[0] != 'none' or self._args.storage_ssd_disk_config[0] != 'none':
             setup_obj = Setup(setup_args_str)
@@ -118,6 +122,7 @@ class SetupVncStorage(object):
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node to the existing cluster")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
+        parser.add_argument("--cfg-vip", help = "Config vip")
 
         self._args = parser.parse_args(remaining_argv)
 
