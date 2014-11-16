@@ -1418,8 +1418,8 @@ HWADDR=%s
                              '__contrail_cert_ops__': '%s' %(certdir) if use_certs else '',
                             }
             self._template_substitute_write(dns_param_template.template,
-                                            dns_template_vals, temp_dir_name + '/dns.conf')
-            local("sudo mv %s/dns.conf /etc/contrail/dns.conf" %(temp_dir_name))
+                                            dns_template_vals, temp_dir_name + '/contrail-dns.conf')
+            local("sudo mv %s/contrail-dns.conf /etc/contrail/contrail-dns.conf" %(temp_dir_name))
             if pdist == 'Ubuntu':
                 for confl in 'rndc named'.split():
                     local("".join(["sudo perl -pi -e ",
