@@ -81,7 +81,9 @@ class WebuiSetup(ContrailSetup):
             local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_ip:
+            orchestrator = 'vcenter'
             local("sudo sed \"s/config.vcenter.server_ip.*/config.vcenter.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_ip))
+            local("sudo sed \"s/config.orchestration.Manager.*/config.orchestration.Manager = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(orchestrator))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_port:
             local("sudo sed \"s/config.vcenter.server_port.*/config.vcenter.server_port = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_port))
