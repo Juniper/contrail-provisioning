@@ -25,6 +25,10 @@ class WebuiSetup(ContrailSetup):
             'keystone_ip': '127.0.0.1',
             'openstack_ip': '127.0.0.1',
             'collector_ip' : '127.0.0.1',
+            'keystone_admin_user': 'admin',
+            'keystone_admin_password': 'contrail123',
+            'keystone_admin_tenant_name': 'admin',
+            'keystone_admin_token': '',
         }
         self.parse_args(args_str)
 
@@ -51,7 +55,14 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--vcenter_auth", help = "vcenter auth http or https")
         parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
         parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
-
+        parser.add_argument("--keystone_admin_user",
+                            help = "Keystone admin user name.")
+        parser.add_argument("--keystone_admin_password",
+                            help = "Keystone admin user's password.")
+        parser.add_argument("--keystone_admin_tenant_name",
+                            help = "Keystone admin tenant name.")
+        parser.add_argument("--keystone_admin_token",
+                            help = "admin_token value in keystone.conf")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
@@ -62,6 +73,11 @@ class WebuiSetup(ContrailSetup):
         keystone_ip = self._args.keystone_ip
         internal_vip = self._args.internal_vip
         contrail_internal_vip = self._args.contrail_internal_vip or internal_vip
+        keystone_admin_user = self._args.keystone_admin_user
+        keystone_admin_password = self._args.keystone_admin_password
+        keystone_admin_tenant_name = self._args.keystone_admin_tenant_name
+        keystone_admin_token = self._args.keystone_admin_token
+
         local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
@@ -74,6 +90,19 @@ class WebuiSetup(ContrailSetup):
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if keystone_admin_user:
+            local("sudo sed \"s/auth.admin_user.*/auth.admin_user = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(keystone_admin_user))
+            local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
+        if keystone_admin_password:
+            local("sudo sed \"s/auth.admin_password.*/auth.admin_password = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(keystone_admin_password))
+            local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
+        if keystone_admin_token:
+            local("sudo sed \"s/auth.admin_token.*/auth.admin_token = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(keystone_admin_token))
+            local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
+        if keystone_admin_tenant_name:
+            local("sudo sed \"s/auth.admin_tenant_name.*/auth.admin_tenant_name = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(keystone_admin_tenant_name))
+            local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
+
         if self._args.collector_ip:
             local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.collector_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
