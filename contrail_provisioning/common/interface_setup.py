@@ -20,12 +20,13 @@ import json
 import subprocess
 from netaddr import IPNetwork
 from tempfile import NamedTemporaryFile
+from distutils.version import LooseVersion
 
 logging.basicConfig(format='%(asctime)-15s:: %(funcName)s:%(levelname)s::\
                             %(message)s',
                     level=logging.INFO)
 log = logging.getLogger(__name__)
-PLATFORM = platform.dist()[0]
+(PLATFORM, VERSION, EXTRA) = platform.linux_distribution()
 
 bond_opts_dict  = {'arp_interval' : 'int',
                    'arp_ip_target': 'ipaddr_list',
@@ -253,7 +254,10 @@ class UbuntuInterface(BaseInterface):
     def restart_service(self):
         '''Restart network service for Ubuntu'''
         log.info('Restarting Network Services...')
-        os.system('sudo /etc/init.d/networking restart')
+        if LooseVersion(VERSION) < LooseVersion("14.04"):
+            subprocess.call('sudo /etc/init.d/networking restart', shell=True)
+        else:
+            subprocess.call('sudo ifdown -a && sudo ifup -a', shell=True)
         time.sleep(5)
 
     def remove_lines(self, ifaces, filename):
