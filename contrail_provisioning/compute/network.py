@@ -12,7 +12,7 @@ from fabric.context_managers import settings
 class ComputeNetworkSetup(object):
     def find_gateway (self, dev):
         gateway = ''
-        gateway = local("netstat -rn | grep ^\"0.0.0.0\" | grep %s | awk '{ print $2 }'" % dev,
+        gateway = local("netstat -rn | grep ^\"0.0.0.0\" | head -n 1 | grep %s | awk '{ print $2 }'" % dev,
                 capture = True).strip()
         return gateway
 
