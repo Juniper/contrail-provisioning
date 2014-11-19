@@ -22,7 +22,7 @@ class StorageWebuiSetup(ContrailSetup):
             args_str = ' '.join(sys.argv[1:])
 
         self.global_defaults = {
-            'storage_master_ip': '127.0.0.1',
+            'storage_rest_ip': '127.0.0.1',
             'storage_webui_ip': '127.0.0.1',
             'storage_webui_mode':'enabled'
         }
@@ -30,12 +30,12 @@ class StorageWebuiSetup(ContrailSetup):
 
     def parse_args(self, args_str):
         '''
-        Eg. setup-vnc-storage-webui --storage-master-ip 10.157.43.171
+        Eg. setup-vnc-storage-webui --storage-rest-ip 10.157.43.171
             --storage-webui-ip  10.157.43.171 --storage-setup-mode setup
         '''
         parser = self._parse_args(args_str)
 
-        parser.add_argument("--storage-master-ip", help = "IP Address of storage master node")
+        parser.add_argument("--storage-rest-ip", help = "IP Address of ceph rest api ip address")
         parser.add_argument("--storage-webui-ip", help = "IP Address of storage webui node")
         parser.add_argument("--storage-webui-mode", help = "Config mode Storage WebUI Status")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
@@ -55,12 +55,11 @@ class StorageWebuiSetup(ContrailSetup):
         # Storage WebUI
         storage_webui_mode = self._args.storage_webui_mode
         if storage_webui_mode == 'enabled':
-            storage_setup_args = " --storage-webui-ip %s" %(self._args.storage_webui_ip)
-            storage_setup_args = storage_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
+            storage_setup_args = " --storage-setup-mode %s" % (self._args.storage_setup_mode)
             with settings(host_string=self._args.storage_webui_ip):
-                storage_master_ip = self._args.storage_master_ip
+                storage_rest_ip = self._args.storage_rest_ip
                 # Configuring the ceph rest server ip to storage webui config
-                local("sudo sed \"s/config.ceph.server_ip.*/config.ceph.server_ip = '%s';/g\" /usr/src/contrail/contrail-web-storage/webroot/common/config/storage.config.global.js > storage.config.global.js.new" %(storage_master_ip))
+                local("sudo sed \"s/config.ceph.server_ip.*/config.ceph.server_ip = '%s';/g\" /usr/src/contrail/contrail-web-storage/webroot/common/config/storage.config.global.js > storage.config.global.js.new" %(storage_rest_ip))
                 local("sudo mv storage.config.global.js.new /usr/src/contrail/contrail-web-storage/webroot/common/config/storage.config.global.js")
                 run("sudo storage-webui-setup %s" %(storage_setup_args))
 
