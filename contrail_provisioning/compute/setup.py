@@ -113,7 +113,7 @@ def main(args_str = None):
     # add functionality specific to Orchestrator.
     else:
         # Defaults to provision only contrail compute without Orchestrator.
-        compute = ComputeBaseSetup(config_args)
+        compute = ComputeBaseSetup(compute_args)
     compute.setup()
 
 if __name__ == "__main__":
