@@ -97,7 +97,7 @@ class SetupStorageWebUI(object):
 
     def _parse_args(self, args_str):
         '''
-        Eg. storage-webui-setup --storage-webui-ip 10.157.43.171 --storage-setup-mode setup
+        Eg. storage-webui-setup --storage-setup-mode setup
         '''
 
         # Source any specified config/ini file
@@ -109,7 +109,6 @@ class SetupStorageWebUI(object):
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
 
         global_defaults = {
-         'storage-webui-ip': '127.0.0.1',
         }
 
         if args.conf_file:
@@ -130,7 +129,6 @@ class SetupStorageWebUI(object):
 
         all_defaults = {'global': global_defaults}
         parser.set_defaults(**all_defaults)
-        parser.add_argument("--storage-webui-ip", help = "IP Address of storage webui node")
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
 
         self._args = parser.parse_args(remaining_argv)
