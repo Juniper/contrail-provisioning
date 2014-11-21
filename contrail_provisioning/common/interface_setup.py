@@ -88,9 +88,9 @@ class BaseInterface(object):
           try:
             if (not isinstance(value, int) and value in compare_dict[key]) or\
                ('int' in compare_dict[key] and int(value)) or\
-               ('macaddr' in compare_dict[key] and self.isvalid_mac(value)) or\
+               ('macaddr' in compare_dict[key] and self.is_valid_mac(value)) or\
                ('ipaddr_list' in compare_dict[key] and
-                                 self.isvalid_ipaddr_list(value)) or\
+                                 self.is_valid_ipaddr_list(value)) or\
                ('string' in compare_dict[key] and isinstance(value,basestring)):
                 return True
           except:
@@ -129,7 +129,7 @@ class BaseInterface(object):
                                   struct.pack('256s', iface[:15]))
             macaddr = ''.join(['%02x:' % ord(each) for each in macinfo[18:24]])[:-1]
         except IOError, err:
-            log.warn('Seems there is no such interface (%s)' %iface)
+            raise Exception('Unable to fetch MAC address of interface (%s)' %iface)
         return macaddr
 
     def create_vlan_interface(self):
