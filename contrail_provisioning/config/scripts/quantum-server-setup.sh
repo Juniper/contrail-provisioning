@@ -101,6 +101,8 @@ if [ -d /etc/neutron ]; then
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
+
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT max_header_line 65536
 fi
 
 if [ -f /usr/share/neutron/neutron-dist.conf ]; then
