@@ -54,6 +54,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             ctrl_infos.append('VMWARE_USERNAME=%s' % self._args.vmware_username)
             ctrl_infos.append('VMWARE_PASSWD=%s' % self._args.vmware_passwd)
             ctrl_infos.append('VMWARE_VMPG_VSWITCH=%s' % self._args.vmware_vmpg_vswitch)
+        if self._args.dpdk:
+            ctrl_infos.append('DPDK_MODE=True')
         self.update_vips_in_ctrl_details(ctrl_infos)
 
         for ctrl_info in ctrl_infos:
