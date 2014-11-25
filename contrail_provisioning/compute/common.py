@@ -157,6 +157,14 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if self._args.vmware:
                 vmware_dev = self.get_secondary_device(self.dev)
                 hypervisor_type = "vmware"
+
+            # Set template options for DPDK mode
+            pci_dev = ""
+            platform_mode = "default"
+            if self._args.dpdk:
+                platform_mode = "dpdk"
+                pci_dev = local("/opt/contrail/bin/dpdk_nic_bind.py --status | grep %s | cut -d' ' -f 1" %(self.dev), capture=True)
+
             vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                 '__contrail_vhost_gateway__': self.gateway,
                 '__contrail_discovery_ip__': discovery_ip,
@@ -166,6 +174,9 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 '__hypervisor_type__': hypervisor_type,
                 '__hypervisor_mode__': mode,
                 '__vmware_physical_interface__': vmware_dev,
+                '__contrail_work_mode__': platform_mode,
+                '__pci_dev__': pci_dev,
+                '__physical_interface_mac__': self.mac,
             }
             self._template_substitute_write(contrail_vrouter_agent_conf.template,
                     vnswad_conf_template_vals, self._temp_dir_name + '/vnswad.conf')
