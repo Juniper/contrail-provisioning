@@ -121,12 +121,26 @@ fi
 openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
-openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $COMPUTE
-openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $COMPUTE
-openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 
+# Workaround for vnc IP. To be removed when vhost traffic in DPDK mode is implemented
+if [ $WORKAROUND_MGMT_IP ]; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $WORKAROUND_MGMT_IP
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $WORKAROUND_MGMT_IP
+else
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $COMPUTE
+    openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $COMPUTE
+fi
+
+openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_interval  0
-openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
+
+# Running DPDK apps inside VMs require more modern cpu model
+if [ "$DPDK_MODE" == "True" ]; then
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode host-model
+else
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
+fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
 
 #use contrail specific vif driver
@@ -194,6 +208,12 @@ elif [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" == "none" ]; th
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
+fi
+
+# Set userspace vhost and hugepages for DPDK vRouter
+if [ "$DPDK_MODE" == "True" ]; then
+    openstack-config --set /etc/nova/nova.conf CONTRAIL use_userspace_vhost true
+    openstack-config --set /etc/nova/nova.conf LIBVIRT use_huge_pages true
 fi
 
 for svc in openstack-nova-compute supervisor-vrouter; do

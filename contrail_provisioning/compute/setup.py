@@ -55,6 +55,8 @@ class ComputeSetup(ContrailSetup):
             'orchestrator': 'openstack',
             'cpu_mode': None,
             'cpu_model': None,
+            'dpdk': False,
+            'workaround_mgmt_ip': None,
         }
 
         self.parse_args(args_str)
@@ -111,6 +113,8 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
         parser.add_argument("--cpu_mode", help = "VM cpu_mode, can be one of 'none', 'host-model', 'host-passthrough', 'custom'")
         parser.add_argument("--cpu_model", help = "VM cpu_model, required if cpu_mode is 'custom'. eg. 'Nehalem'")
+        parser.add_argument("--dpdk", help = "vRouter/DPDK mode.", action="store_true")
+        parser.add_argument("--workaround_mgmt_ip", help = "Workaround for managment IP Address")
 
         self._args = parser.parse_args(self.remaining_argv)
 
