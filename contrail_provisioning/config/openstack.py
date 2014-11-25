@@ -33,6 +33,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_contrail_plugin_ini()
         self.fixup_schema_transformer_config_file()
         self.fixup_contrail_schema_supervisor_ini()
+        self.fixup_device_manager_config_file()
+        #self.fixup_contrail_device_manager_supervisor_ini()
         self.fixup_svc_monitor_config_file()
         self.fixup_contrail_svc_monitor_supervisor_ini()
         self.fixup_discovery_config_file()
@@ -71,6 +73,16 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                ]
         config_file_args = ' --conf_file '.join(config_files)
         local('sudo openstack-config --set %s program:contrail-schema command "/usr/bin/contrail-schema --conf_file %s"'
+              % (contrail_svc_ini, config_file_args))
+
+    def fixup_contrail_device_manager_supervisor_ini(self):
+        contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-device-manager.ini"
+        config_files = [
+                '/etc/contrail/contrail-device-manager.conf',
+                '/etc/contrail/contrail-keystone-auth.conf',
+               ]
+        config_file_args = ' --conf_file '.join(config_files)
+        local('sudo openstack-config --set %s program:contrail-device-manager command "/usr/bin/contrail-device-manager --conf_file %s"'
               % (contrail_svc_ini, config_file_args))
 
     def fixup_contrail_svc_monitor_supervisor_ini(self):

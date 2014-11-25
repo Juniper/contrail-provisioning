@@ -187,7 +187,7 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_device_manager_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
         local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
-        local("sudo chmod a+x /etc/init.d/contrail-device-manager")
+        #local("sudo chmod a+x /etc/init.d/contrail-device-manager")
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
