@@ -55,6 +55,7 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--vcenter_auth", help = "vcenter auth http or https")
         parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
         parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
+        parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
         parser.add_argument("--admin_user",
                             help = "Identity Manager admin user name.")
         parser.add_argument("--admin_password",
@@ -126,8 +127,10 @@ class WebuiSetup(ContrailSetup):
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_dvswitch:
             local("sudo sed \"s/config.vcenter.dvsswitch.*/config.vcenter.dvsswitch = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_dvswitch))
-            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")        
+        if self._args.orchestrator == 'vcenter':
+           local("sudo sed \"s/config.multi_tenancy.enable.*/config.multi_tenancy.enable = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
+           local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
     def run_services(self):
         local("sudo webui-server-setup.sh")
