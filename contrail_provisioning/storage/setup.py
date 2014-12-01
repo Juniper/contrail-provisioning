@@ -56,6 +56,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-journal-config", help = "Disk list to be used for distributed storage journal", nargs="+", type=str)
         parser.add_argument("--storage-directory-config", help = "Directories to be sued for distributed storage", nargs="+", type=str)
         parser.add_argument("--storage-chassis-config", help = "Chassis ID for the host to avoid replication between nodes in the same chassis", nargs="+", type=str)
+        parser.add_argument("--cfg-vip", help = "cfg vip")
         parser.add_argument("--live-migration", help = "Live migration enabled")
         parser.add_argument("--collector-hosts", help = "IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
@@ -118,6 +119,9 @@ class StorageSetup(ContrailSetup):
         if self._args.storage_os_hosts:
             storage_setup_args = storage_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
             storage_setup_args = storage_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+
+        if self._args.cfg_vip:
+            storage_setup_args = storage_setup_args + " --cfg-vip %s" %(self._args.cfg_vip)
 
         if self._args.disks_to_remove:
             storage_setup_args = storage_setup_args + " --disks-to-remove %s" %(' '.join(self._args.disks_to_remove))
