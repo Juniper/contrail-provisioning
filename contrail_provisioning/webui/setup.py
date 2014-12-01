@@ -112,6 +112,7 @@ class WebuiSetup(ContrailSetup):
         if self._args.vcenter_ip:
             orchestrator = 'vcenter'
             local("sudo sed \"s/config.vcenter.server_ip.*/config.vcenter.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_ip))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
             local("sudo sed \"s/config.orchestration.Manager.*/config.orchestration.Manager = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(orchestrator))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_port:
