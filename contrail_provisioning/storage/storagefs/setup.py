@@ -2651,8 +2651,8 @@ class SetupCeph(object):
                 run('sudo mkdir -p /var/lib/ceph/osd')
                 run('sudo mkdir -p /var/run/ceph/')
                 run('sudo mkdir -p /etc/ceph')
-                ip_cidr = run('ip addr show |grep -w %s |awk \'{print $2}\''
-                                    %(entry))
+                ip_cidr = run('ip addr show |grep -w %s |awk \'{print $2}\' | \
+                                    head -n 1' %(entry))
 
                 # Check if monitor is already running
                 # If mon is not running, start the mon.
