@@ -126,7 +126,7 @@ class WebuiSetup(ContrailSetup):
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_dvswitch:
             local("sudo sed \"s/config.vcenter.dvsswitch.*/config.vcenter.dvsswitch = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_dvswitch))
-            local("sudo mv config.global.js.new /etc/contrail/config.global.js")        
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.orchestrator == 'vcenter':
            local("sudo sed \"s/config.multi_tenancy.enable.*/config.multi_tenancy.enable = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
