@@ -97,6 +97,8 @@ class SetupCeph(object):
     CEPH_REST_API_CONF = '/etc/init/ceph-rest-api.conf'
     global CEPH_VOLUME_KEYRING
     CEPH_VOLUME_KEYRING = '/etc/ceph/client.volumes.keyring'
+    global CEPH_BOOTSTRAP_OSD_KEYRING
+    CEPH_BOOTSTRAP_OSD_KEYRING = '/var/lib/ceph/bootstrap-osd/ceph.keyring'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -108,6 +110,9 @@ class SetupCeph(object):
     # Denotes the OS type whether Ubuntu or Centos.
     global pdist
     pdist = platform.dist()[0]
+    # Maximum monitors to be created
+    global MAX_MONS
+    MAX_MONS = 10
     # Maximum number of pool that can be created for HDD and SSD
     global MAX_POOL_COUNT
     MAX_POOL_COUNT = 1024
@@ -171,6 +176,18 @@ class SetupCeph(object):
     global create_nfs_disk_volume
     create_nfs_disk_volume = 0
 
+    # global mon host string
+    global ceph_mon_hosts
+    ceph_mon_hosts = ''
+    # global mon host list
+    global ceph_mon_hosts_list
+    ceph_mon_hosts_list = []
+    # monitor count
+    global ceph_mon_count
+    ceph_mon_count = 0
+    # global all host list
+    global ceph_all_hosts
+    ceph_all_hosts = ''
     # The function create a script which runs and lists the mons
     # running on the local node
     def reset_mon_local_list(self):
@@ -1889,10 +1906,61 @@ class SetupCeph(object):
         return
     #end do_ssh_config()
 
+    # create monlist
+    def do_create_monlist(self):
+        global configure_with_ceph
+        global ceph_mon_hosts
+        global ceph_mon_hosts_list
+        global ceph_mon_count
+        global ceph_all_hosts
+
+        # first create master monitor list
+        for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+            if entries == self._args.storage_master:
+                ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                ceph_mon_count += 1;
+                ceph_mon_hosts_list.append(hostname)
+            if self._args.storage_os_hosts[0] != 'none':
+                for osnode in self._args.storage_os_hosts:
+                    if entries == osnode:
+                        ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                        ceph_mon_count += 1;
+                        ceph_mon_hosts_list.append(hostname)
+
+        # first try to use configured compute monitor list
+        # if configured monitor list is empty then start
+        # monitors on first "N" computes
+        # where master monitor list + "N" compute monitors <= MAX_MONS
+        if self._args.storage_mon_hosts[0] != 'none':
+            for entries in self._args.storage_mon_hosts:
+                ceph_mon_count += 1;
+                if ceph_mon_count <= MAX_MONS:
+                    ceph_mon_hosts = ceph_mon_hosts + entries + ' '
+                    ceph_mon_hosts_list.append(entries)
+        else:
+            for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+                if entries == self._args.storage_master:
+                    continue
+                entry_hit = 0
+                if self._args.storage_os_hosts[0] != 'none':
+                    for osnode in self._args.storage_os_hosts:
+                        if entries == osnode:
+                            entry_hit = 1
+                            break
+                if entry_hit == 0:
+                    ceph_mon_count += 1;
+                    if ceph_mon_count <= MAX_MONS:
+                        ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
+                        ceph_mon_hosts_list.append(hostname)
+
+        for entries in self._args.storage_hostnames:
+            ceph_all_hosts = ceph_all_hosts + entries + ' '
+    # end do_create_monlist
+
+
     # Function to unconfigure Storage
     # This will remove all the storage configurations
     def do_storage_unconfigure(self):
-        global configure_with_ceph
 
         if self._args.storage_directory_config[0] != 'none' or \
                 self._args.storage_disk_config[0] != 'none' or \
@@ -1903,10 +1971,8 @@ class SetupCeph(object):
 
         # TODO: use mon list
         # Find the list of mons
-        ceph_mon_hosts = ''
+        pdist = platform.dist()[0]
 
-        for entries in self._args.storage_hostnames:
-            ceph_mon_hosts = ceph_mon_hosts+entries+' '
 
         # Remove the glance configuration if Ceph is configured.
         if configure_with_ceph:
@@ -2095,7 +2161,7 @@ class SetupCeph(object):
                         run('sudo rm -rf /etc/ceph')
         time.sleep(2)
         # Purge data on all the nodes.
-        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_mon_hosts),
+        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts),
                                             capture=False, shell='/bin/bash')
         # Remove local Ceph directories
         local('sudo rm -rf /var/lib/ceph')
@@ -2352,7 +2418,7 @@ class SetupCeph(object):
                 # Allow disk partition changes to sync.
                 time.sleep(5)
                 # For prefirefly use prepare/activate on ubuntu release
-                local('sudo ceph-deploy osd create %s' % (ceph_disk_entry))
+                local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
                 time.sleep(5)
                 osd_running = self.do_osd_check(ceph_disk_entry)
                 if osd_running == FALSE:
@@ -2633,14 +2699,46 @@ class SetupCeph(object):
 
     # Function for Ceph gather keys
     def do_gather_keys(self):
-        for entries in self._args.storage_hostnames:
-            local('sudo ceph-deploy gatherkeys %s' % (entries))
+        global ceph_mon_hosts_list
+        # perform gather keys on primary storage master
+        # generated keys are then used on non-monitor nodes
+        # to communicate
+        for hostname, entry, entry_token in \
+                                        zip(self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+            if entry == self._args.storage_master:
+                storage_master_hostname = hostname
+                break
+
+        # gather keys on primary storage master
+        local('sudo ceph-deploy gatherkeys %s' % (storage_master_hostname))
+
+        # copy gathers keys from primary storage master
+        # to non-monitor nodes
+        for hostname, entry, entry_token in \
+                                        zip(self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+            mon_present = 0
+            for monentries in ceph_mon_hosts_list:
+                if monentries == hostname:
+                    mon_present = 1
+                    break
+            if mon_present == 0:
+                with settings(host_string = 'root@%s' %(entry),
+                              password = entry_token):
+                    put(CEPH_ADMIN_KEYRING, \
+                        '/etc/ceph/')
+                    put(CEPH_BOOTSTRAP_OSD_KEYRING, \
+                        '/var/lib/ceph/bootstrap-osd/')
         return
     #end do_gather_keys()
 
     # Function to create monitor if its not already running
     def do_monitor_create(self):
         # TODO: use mon list to create the mons
+        global ceph_mon_hosts_list
         for hostname, entry, entry_token in \
                                         zip(self._args.storage_hostnames,
                                             self._args.storage_hosts,
@@ -2668,8 +2766,10 @@ class SetupCeph(object):
                                     global public_network %s\/%s'
                                     %(netaddr.IPNetwork(ip_cidr).network,
                                     netaddr.IPNetwork(ip_cidr).prefixlen))
-                        local('sudo ceph-deploy --overwrite-conf mon \
-                                    create-initial %s' % (hostname))
+                        for mon_hostname in ceph_mon_hosts_list:
+                            if mon_hostname == hostname:
+                                local('sudo ceph-deploy --overwrite-conf mon \
+                                       create-initial %s' % (hostname))
                     else:
                         # Storage master, create a new mon
                         local('sudo ceph-deploy new %s' % (hostname))
@@ -4009,6 +4109,8 @@ class SetupCeph(object):
         # Do the ssh key configuration
         self.do_ssh_config()
 
+        # Create monitor list
+        self.do_create_monlist()
         # Following all are specific setups based on the setup_mode
 
         # Do a unconfigure of all the nodes that are part of ceph.
@@ -4108,6 +4210,7 @@ class SetupCeph(object):
         parser.add_argument("--collector-host-tokens", help = "Passwords of collector nodes", nargs='+', type=str)
         parser.add_argument("--cfg-host", help = "IP Address of config node")
         parser.add_argument("--cinder-vip", help = "Cinder vip")
+        parser.add_argument("--storage-mon-hosts", help = "storage compute mon list", nargs='+', type=str)
         parser.add_argument("--config-hosts", help = "config host list", nargs='+', type=str)
         parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
