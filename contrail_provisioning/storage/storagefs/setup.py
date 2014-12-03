@@ -266,6 +266,7 @@ class SetupCeph(object):
         # if service not running then replace app.ceph_port to 5005
         # start the ceph-rest-api service
         # This works only on Ubuntu
+        # first master node
         rest_api_conf_available = local('ls %s 2>/dev/null | wc -l'
                                             %(CEPH_REST_API_CONF), capture=True)
         if rest_api_conf_available == '0':
@@ -321,11 +322,35 @@ class SetupCeph(object):
         ceph_rest_api_process_running = local('ps -ef | grep -v grep | \
                                     grep ceph-rest-api | wc -l', capture=True)
         if ceph_rest_api_process_running == '0':
-            # Change the port to 5005 and start the service
+            # Change the port to 5006 (in vip case) or 5005 (in non-vip case) and start the service
             entry_present = local('grep \"app.run(host=app.ceph_addr, port=app.ceph_port)\" /usr/bin/ceph-rest-api | wc -l', capture=True)
             if entry_present == '1':
-                local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
+                if self._args.cinder_vip != 'none':
+                    local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5006)/" /usr/bin/ceph-rest-api')
+                else:
+                    local('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
             local('sudo service ceph-rest-api start', shell='/bin/bash')
+
+        # remaining configured master nodes for HA
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    # check for rest api conf file
+                    rest_api_conf_avail = run('ls %s 2>/dev/null | wc -l' %(CEPH_REST_API_CONF))
+                    # if not present copy from first master to other master nodes
+                    if rest_api_conf_avail == '0':
+                        put(CEPH_REST_API_CONF, '/etc/init/')
+                    # check for ceph rest api running status
+                    ceph_rest_api_process_running=run('ps -ef|grep -v grep|grep ceph-rest-api|wc -l')
+                    if ceph_rest_api_process_running == '0':
+                        entry_present=run('grep \"app.run(host=app.ceph_addr, port=app.ceph_port)\" /usr/bin/ceph-rest-api | wc -l')
+                        # Change the port to 5006 (in vip case) or 5005 (in non-vip case) and start the service
+                        if entry_present == '1':
+                            if self._args.cinder_vip != 'none':
+                                run('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5006)/" /usr/bin/ceph-rest-api')
+                            else:
+                                run('sudo sed -i "s/app.run(host=app.ceph_addr, port=app.ceph_port)/app.run(host=app.ceph_addr, port=5005)/" /usr/bin/ceph-rest-api')
+                        run('sudo service ceph-rest-api start')
     #end ceph_rest_api_service_add()
 
     # Function to remove ceph-rest-api service
@@ -341,10 +366,21 @@ class SetupCeph(object):
         if ceph_rest_api_process_running != '0':
             local('sudo service ceph-rest-api stop', shell='/bin/bash')
 
-        rest_api_conf_available = local('ls %s 2>/dev/null | wc -l', capture=True)
+        rest_api_conf_available = local('ls %s 2>/dev/null | wc -l' %(CEPH_REST_API_CONF), capture=True)
         if rest_api_conf_available != '0':
             local('sudo rm -rf %s' %(CEPH_REST_API_CONF), shell='/bin/bash')
-
+        # remaining configured master nodes for HA
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, entry_token in zip(self._args.storage_os_hosts, self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    # check the ceph-rest-api service and stop it on remaining master nodes
+                    ceph_rest_api_process_running=run('ps -ef|grep -v grep|grep ceph-rest-api|wc -l')
+                    if ceph_rest_api_process_running != '0':
+                        run('sudo service ceph-rest-api stop')
+                    # remove rest api conf file from remaining master nodes
+                    rest_api_conf_avail=run('ls %s 2>/dev/null | wc -l' %(CEPH_REST_API_CONF))
+                    if rest_api_conf_available != '0':
+                        run('sudo rm -rf %s' %(CEPH_REST_API_CONF))
     #end ceph_rest_api_service_remove()
 
     # Function to configure syslog for Ceph
