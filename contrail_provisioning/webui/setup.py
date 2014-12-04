@@ -63,6 +63,7 @@ class WebuiSetup(ContrailSetup):
                             help = "Identity Manager admin tenant name.")
         parser.add_argument("--admin_token",
                             help = "admin_token value in Identity Manager's config file")
+        parser.add_argument("--mt_enable", help = "multi_tenancy enable flag")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
@@ -77,6 +78,7 @@ class WebuiSetup(ContrailSetup):
         admin_password = self._args.admin_password
         admin_tenant_name = self._args.admin_tenant_name
         admin_token = self._args.admin_token
+        mt_enable = self._args.mt_enable
 
         local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
@@ -89,6 +91,8 @@ class WebuiSetup(ContrailSetup):
         local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or keystone_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
+        local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        local("sudo sed \"s/config.multi_tenancy.enable.*/config.multi_tenancy.enable = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(mt_enable))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if admin_user:
             local("sudo sed \"s/auth.admin_user.*/auth.admin_user = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(admin_user))
