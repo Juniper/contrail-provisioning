@@ -225,9 +225,9 @@ fi
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $GLANCE_SERVICE) ]; then
     keystone endpoint-create --region RegionOne --service-id $GLANCE_SERVICE \
-        --publicurl http://localhost:9292/v1 \
-        --adminurl http://localhost:9292/v1 \
-        --internalurl http://localhost:9292/v1
+        --publicurl http://$CONTROLLER:9292/v1 \
+        --adminurl http://$CONTROLLER:9292/v1 \
+        --internalurl http://$CONTROLLER:9292/v1
     fi
 fi
 
@@ -253,9 +253,9 @@ fi
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $CINDER_SERVICE) ]; then
     keystone endpoint-create --region RegionOne --service-id $CINDER_SERVICE \
-        --publicurl 'http://localhost:8776/v1/$(tenant_id)s' \
-        --adminurl 'http://localhost:8776/v1/$(tenant_id)s' \
-        --internalurl 'http://localhost:8776/v1/$(tenant_id)s'
+        --publicurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s' \
+        --adminurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s' \
+        --internalurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s'
     fi
 fi
 
