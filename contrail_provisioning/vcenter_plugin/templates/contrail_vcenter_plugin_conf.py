@@ -10,14 +10,19 @@ template = string.Template("""#
 # Everything in this section is optional
 
 # Vcenter plugin URL
-vcenter_plugin.url=$__contrail_vcenter_url__
+vcenter.url=$__contrail_vcenter_url__
 
 #Vcenter credentials
 vcenter.username=$__contrail_vcenter_username__
 vcenter.password=$__contrail_vcenter_password__
 
+vcenter.datacenter=$__contrail_vcenter_datacenter__
+vcenter.dvswitch=$__contrail_vcenter_dvswitch__
+
 # IP address and port to be used to connect to api server.
 api.hostname=$__contrail_api_hostname__
 api.port=$__contrail_api_port__
+
+zookeeper.serverlist=$__contrail_zookeeper_serverlist__
 
 """)
