@@ -405,26 +405,26 @@ class SetupCeph(object):
         # check if contrail-storage-stats is running
         # if it is running then trigger contrail-storage-stats stop
         # finally revert discovery contrail-storage-stats config
-        for entries, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
-            isos = 0
-            # skip all storage-master nodes
-            if self._args.storage_os_hosts[0] != 'none':
-                for os_entries in self._args.storage_os_hosts:
-                    if os_entries == entries:
-                        isos = 1
-                        break
 
-            if isos == 1:
-                continue
-
-            # skip first storage-master node
-            if entries != self._args.storage_master :
-                with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    contrail_stats_process_running=run('ps -ef|grep -v grep|grep contrail-storage-stats |wc -l')
-                    if contrail_stats_process_running != '0':
-                        run('sudo service contrail-storage-stats stop')
-                    # reset disc_server_ip
-                    run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip 127.0.0.1')
+        # loop over storage compute host list to start contrail-storage-stats
+        # only on storage compute nodes
+        for compute_hostname in self._args.storage_compute_hostnames:
+            for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+                # match storage compute with current hostname
+                # to get host ip and passwd
+                if compute_hostname == hostname:
+                    with settings(host_string = 'root@%s' %(entries),
+                                  password = entry_token):
+                        contrail_stats_process_running = run('ps -ef| \
+                            grep -v grep| grep contrail-storage-stats |wc -l')
+                        if contrail_stats_process_running != '0':
+                            run('sudo service contrail-storage-stats stop')
+                        # reset disc_server_ip
+                        run('sudo openstack-config --set \
+                            /etc/contrail/contrail-storage-nodemgr.conf \
+                            DEFAULTS disc_server_ip 127.0.0.1')
+                    break   
     #end contrail_storage_stats_service_remove
 
     # Function to configure syslog for Ceph
@@ -3876,32 +3876,27 @@ class SetupCeph(object):
 
     # Function for configuration of storage stats daemon
     def do_configure_stats_daemon(self):
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                        self._args.storage_host_tokens):
-            # start contrail-storage-stats daemon on all storage-compute nodes
-            isos= 0
-            # skip all storage-master nodes
-            if self._args.storage_os_hosts[0] != 'none':
-                for os_entries in self._args.storage_os_hosts:
-                    if os_entries == entries:
-                        isos = 1
-                        break
-            if isos == 1:
-                continue
-            # skip first storage-master node
-            if entries != self._args.storage_master:
-                with settings(host_string = 'root@%s' %(entries),
-                                        password = entry_token):
-                    if pdist == 'Ubuntu':
-                        # Set the discovery server ip in the config and
-                        # start the service.
-                        if self._args.cfg_vip != 'none':
-                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_vip))
-                        elif self._args.cinder_vip != 'none':
-                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cinder_vip))
-                        else:
-                            run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
-                        run('sudo service contrail-storage-stats restart')
+        # loop over storage compute host list to start contrail-storage-stats
+        # only on storage compute nodes
+        for compute_hostname in self._args.storage_compute_hostnames:
+            for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+                #match storage compute with current hostname to get
+                # host ip and passwd
+                if compute_hostname == hostname:
+                    with settings(host_string = 'root@%s' %(entries),
+                                  password = entry_token):
+                        if pdist == 'Ubuntu':
+                            # Set the discovery server ip in the config and
+                            # start the service.
+                            if self._args.cfg_vip != 'none':
+                                run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_vip))
+                            elif self._args.cinder_vip != 'none':
+                                run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cinder_vip))
+                            else:
+                                run('sudo openstack-config --set /etc/contrail/contrail-storage-nodemgr.conf DEFAULTS disc_server_ip %s' %(self._args.cfg_host))
+                            run('sudo service contrail-storage-stats restart')
+                    break
         return
     #end do_configure_stats_daemon()
 
@@ -4273,6 +4268,7 @@ class SetupCeph(object):
 
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
+        parser.add_argument("--storage-compute-hostnames", help = "Host names of storage compute nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-disk-config", help = "Disk list to be used for distrubuted storage", nargs="+", type=str)
