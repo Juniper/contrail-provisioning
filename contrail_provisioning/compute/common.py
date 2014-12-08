@@ -148,6 +148,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if self._args.orchestrator == 'vcenter':
                 mode="vcenter"
                 vmware_dev = "eth1"
+                hypervisor_type = "vmware"
             if self._args.vmware:
                 vmware_dev = self.get_secondary_device(self.dev)
                 hypervisor_type = "vmware"
