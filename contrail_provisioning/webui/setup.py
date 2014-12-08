@@ -8,7 +8,7 @@ import sys
 import argparse
 import ConfigParser
 
-from fabric.api import local
+from fabric.api import local, env, run, settings
 
 from contrail_provisioning.common.base import ContrailSetup
 
@@ -48,6 +48,7 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--collector_ip", help = "IP Address of the Collector node")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
+        parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--vcenter_ip", help = "vcenter ip to connect to")
@@ -127,7 +128,15 @@ class WebuiSetup(ContrailSetup):
         if self._args.vcenter_dvswitch:
             local("sudo sed \"s/config.vcenter.dvsswitch.*/config.vcenter.dvsswitch = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_dvswitch))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-
+        if self._args.orchestrator == 'vcenter':
+           with settings(warn_only=True):
+              mt_enable_variable = local('cat /etc/contrail/config.global.js | grep config.multi_tenancy', capture=True);
+           if mt_enable_variable:
+              local("sudo sed \"s/config.multi_tenancy.enable.*/config.multi_tenancy.enable = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+           else:
+              local("sudo sed \"/config.vcenter.ca/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enable = false;\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
     def run_services(self):
         local("sudo webui-server-setup.sh")
