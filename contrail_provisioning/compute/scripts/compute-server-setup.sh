@@ -102,7 +102,7 @@ fi
 
 if [ $is_ubuntu -eq 1 ] ; then
     # change network_api_class for juno in nova-compute.conf
-    if [ "$nova_compute_version" == "1:2014.2~b3-0ubuntu1~cloud0" ]; then
+    if [ "$nova_compute_version" == "1:2014.2-0ubuntu1~cloud0.2contrail" ]; then
         if [ -f /etc/nova/nova-compute.conf ]; then
             openstack-config --set /etc/nova/nova-compute.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
