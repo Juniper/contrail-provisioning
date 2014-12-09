@@ -14,7 +14,6 @@ template = string.Template("""
 ## mysqld options _MANDATORY_ for correct opration of the cluster
 ##
 [mysqld]
-transaction-isolation = READ-COMMITTED
 low_priority_updates=1
 # (This must be substituted by wsrep_format)
 binlog_format=ROW
