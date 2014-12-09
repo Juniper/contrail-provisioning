@@ -9,6 +9,8 @@ mysql_user=keystone
 mysql_password=keystone
 mysql_host=localhost
 mysql=$(which mysql)
+cmon_user_pass=cmon
+cmon_stats_purge="call sp_cmon_purge_history;"
 
 timestamp() {
     date +"%T"
@@ -38,5 +40,8 @@ log_info_msg "keystone-cleaner::Finishing token cleanup, there is still $valid_t
 
 find /var/log/contrail/ha/ -size +10240k -exec rm -f {} \;
 find /var/log/cmon.log -size +10240k -exec rm -f {} \;
+
+mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -e "use cmon; ${cmon_stats_purge}"
+log_info_msg "Purged cmon stats history"
 
 exit 0
