@@ -137,6 +137,17 @@ class WebuiSetup(ContrailSetup):
            else:
               local("sudo sed \"/config.vcenter.ca/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enable = false;\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+           with settings(warn_only=True):
+               static_auth = local('cat /etc/contrail/config.global.js | grep config.staticAuth', capture=True)
+           if admin_user and admin_password :
+              if static_auth:
+                 local("sudo sed \"s/config.staticAuth\[0].username.*/config.staticAuth\[0].username = '" + admin_user + "';/g\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo sed \"s/config.staticAuth\[0].password.*/config.staticAuth\[0].password = '" + admin_password + "';/g\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo sed \"s/config.staticAuth\[0].roles.*/config.staticAuth\[0].roles = ['superAdmin'];/g\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+              else:
+                 local("sudo sed \"/config.multi_tenancy.enable/ a \\\n// staticAuth\\nconfig.staticAuth = [];\\nconfig.staticAuth[0] = {};\\nconfig.staticAuth[0].username = '" + admin_user + "';\\nconfig.staticAuth[0].password = '" + admin_password + "';\\nconfig.staticAuth[0].roles = ['superAdmin'];\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
     def run_services(self):
         local("sudo webui-server-setup.sh")
