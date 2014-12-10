@@ -99,6 +99,8 @@ class SetupCeph(object):
     CEPH_VOLUME_KEYRING = '/etc/ceph/client.volumes.keyring'
     global CEPH_BOOTSTRAP_OSD_KEYRING
     CEPH_BOOTSTRAP_OSD_KEYRING = '/var/lib/ceph/bootstrap-osd/ceph.keyring'
+    global CINDER_VOLUME_INIT_CONFIG
+    CINDER_VOLUME_INIT_CONFIG = '/etc/init/cinder-volume.conf'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -1918,7 +1920,7 @@ class SetupCeph(object):
                                             password = entry_token):
                 for hostname, host_ip in zip(self._args.storage_hostnames,
                                             self._args.storage_hosts):
-                    run('cat /etc/hosts |grep -v %s > /tmp/hosts; \
+                    run('cat /etc/hosts |grep -v -w %s > /tmp/hosts; \
                             echo %s %s >> /tmp/hosts; \
                             cp -f /tmp/hosts /etc/hosts' \
                             % (hostname, host_ip, hostname))
@@ -2795,6 +2797,39 @@ class SetupCeph(object):
         return
     #end do_gather_keys()
 
+    # Function to update mon list in ceph.conf
+    def do_update_monhost_config(self):
+        global ceph_mon_hosts_list
+        mon_initial_members = ''
+        mon_host = ''
+
+        # create mon_initial_members list
+        for hostname in ceph_mon_hosts_list:
+            mon_initial_members = mon_initial_members + hostname + ', '
+
+        # create mon_host list
+        for monhostname in ceph_mon_hosts_list:
+            for hostname, entry, entry_token in \
+                                        zip(self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+                if hostname == monhostname:
+                    mon_host = mon_host + entry + ', '
+
+        #loop over all storage hosts and replace mon_initial_memers and mon_host
+        for hostname, entry, entry_token in \
+                                        zip(self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+            with settings(host_string = 'root@%s' %(entry),
+                          password = entry_token):
+                run('sudo openstack-config --set %s global "mon_initial_members" "%s"'
+                    %(CEPH_CONFIG_FILE, mon_initial_members[:-2]))
+                run('sudo openstack-config --set %s global "mon_host" "%s"'
+                    %(CEPH_CONFIG_FILE, mon_host[:-2]))
+
+    # end do_create_monlist
+
     # Function to create monitor if its not already running
     def do_monitor_create(self):
         # TODO: use mon list to create the mons
@@ -2843,6 +2878,18 @@ class SetupCeph(object):
 
         # wait for mons to sync
         time.sleep(20)
+
+        # update ceph mon host list on all storage nodes
+        self.do_update_monhost_config()
+
+        print ('checking health after updating initial monitors and mon host')
+        for entry, entry_token in \
+            zip(self._args.storage_hosts,
+                self._args.storage_host_tokens):
+            if entry == self._args.storage_master:
+                with settings(host_string = 'root@%s' %(entry),
+                              password = entry_token):
+                    self.do_cluster_health_check()
 
         # Run gather keys on all the nodes.
         self.do_gather_keys()
@@ -3394,6 +3441,42 @@ class SetupCeph(object):
                                         self._args.cfg_host))
                     # After doing the mysql change, do a db sync
                     run('sudo cinder-manage db sync')
+
+        # configure cinder db retries
+        local('sudo openstack-config --set %s database db_max_retries -1' \
+                                            %(CINDER_CONFIG_FILE))
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, entry_token in zip(self._args.storage_os_hosts,
+                                            self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries),
+                              password = entry_token):
+                    run('sudo openstack-config --set %s database \
+                         db_max_retries -1' %(CINDER_CONFIG_FILE))
+
+        # set nofile limit
+        nofilecheck = local('sudo cat %s | grep -w \
+                             "limit nofile 102400 102400" | wc -l' \
+                             %(CINDER_VOLUME_INIT_CONFIG), capture=True)
+        if nofilecheck == '0':
+            local('awk \'/exec/{print \"limit nofile 102400 102400\"}1\' %s > \
+                   /tmp/cinder_volume_init' %(CINDER_VOLUME_INIT_CONFIG))
+            local('mv /tmp/cinder_volume_init %s' %(CINDER_VOLUME_INIT_CONFIG))
+        if self._args.storage_os_hosts[0] != 'none':
+            for entries, entry_token in zip(self._args.storage_os_hosts,
+                                            self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entries),
+                              password = entry_token):
+                    nofilecheck = run('sudo cat %s | grep -w \
+                                      "limit nofile 102400 102400" | wc -l' \
+                                      %(CINDER_VOLUME_INIT_CONFIG))
+                    if nofilecheck == '0':
+                        run('awk \'/exec/{print \
+                            \"limit nofile 102400 102400\"}1\' %s > \
+                            /tmp/cinder_volume_init' \
+                            %(CINDER_VOLUME_INIT_CONFIG))
+                        run('mv /tmp/cinder_volume_init %s' \
+                            %(CINDER_VOLUME_INIT_CONFIG))
+
         return
     #end do_configure_cinder()
 
@@ -3662,6 +3745,51 @@ class SetupCeph(object):
                                             %(GLANCE_API_CONF, CEPH_CONFIG_FILE))
         return
     #end do_configure_glance_rbd()
+
+    # Function to check cluster health
+    def do_cluster_health_check(self):
+        monstate = run('ceph  health')
+        monslen = len(monstate)
+        while  monstate.find("HEALTH_OK", 0, monslen) == -1  and \
+               monstate.find("HEALTH_WARN", 0, monslen):
+            time.sleep(2)
+            monstate = run('ceph  health')
+            monslen = len(monstate)
+
+
+    # Function to restart monitors after package upgrade
+    def do_monitor_restarts(self):
+        for monhostname in ceph_mon_hosts_list:
+            for entries, entry_token, hostname in zip(self._args.storage_hosts, \
+                self._args.storage_host_tokens, self._args.storage_hostnames):
+                if monhostname == hostname:
+                    with settings(host_string = 'root@%s' %(entries),
+                                  password = entry_token):
+                        mon = run('sudo ps -ef | grep ceph-mon | \
+                                  grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
+                        if mon != '':
+                            run('sudo sudo restart ceph-mon id=%s' %(mon))
+                            print ('checking health after restarting \
+                                    ceph-mon %s' %(mon))
+                            self.do_cluster_health_check()
+    #end do_monitor_restarts
+
+    # Function to restart osds after package upgrade
+    def do_osd_restarts(self):
+        for entries, entry_token, hostname in zip(self._args.storage_hosts, \
+            self._args.storage_host_tokens, self._args.storage_hostnames):
+                with settings(host_string = 'root@%s' %(entries),
+                              password = entry_token):
+                    osdlist = run('sudo ps -ef | grep ceph-osd | \
+                                  grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
+                    for osd in osdlist:
+                        run('sudo sudo restart ceph-osd id=%s' %(osd))
+                        print ('checking health after restarting \
+                                ceph-osd %s' %(osd))
+                        self.do_cluster_health_check()
+    #end do_osd_restarts
+
+
 
     # Function for first set of restarts.
     # This is done after all the cinder/nova/glance configurations
@@ -4101,6 +4229,18 @@ class SetupCeph(object):
 
         return
 
+    def do_storage_upgrade(self):
+
+        if self._args.storage_directory_config[0] != 'none' or \
+                self._args.storage_disk_config[0] != 'none' or \
+                self._args.storage_ssd_disk_config[0] != 'none':
+            # restart monitors after package upgrade
+            self.do_monitor_restarts()
+            # restart osds after package upgrade
+            self.do_osd_restarts()
+
+
+
     # Top level function for storage setup.
     def do_storage_setup(self):
         global configure_with_ceph
@@ -4230,6 +4370,11 @@ class SetupCeph(object):
         # Remove host from storage
         if self._args.storage_setup_mode == 'remove_host':
             self.do_storage_remove_host()
+            return
+
+        if self._args.storage_setup_mode == 'upgrade':
+            self.do_storage_upgrade()
+            self.do_storage_setup()
             return
 
         return
