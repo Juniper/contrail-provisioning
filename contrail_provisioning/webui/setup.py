@@ -132,10 +132,10 @@ class WebuiSetup(ContrailSetup):
            with settings(warn_only=True):
               mt_enable_variable = local('cat /etc/contrail/config.global.js | grep config.multi_tenancy', capture=True);
            if mt_enable_variable:
-              local("sudo sed \"s/config.multi_tenancy.enable.*/config.multi_tenancy.enable = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo sed \"s/config.multi_tenancy.enabled.*/config.multi_tenancy.enabled = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
            else:
-              local("sudo sed \"/config.vcenter.ca/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enable = false;\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo sed \"/config.vcenter.ca/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enabled = false;\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
     def run_services(self):
