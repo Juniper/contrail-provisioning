@@ -97,7 +97,7 @@ class SetupNFSLivem(object):
             net_id = livemnfs=local('source /etc/contrail/openstackrc && neutron net-list |grep livemnfs| awk \'{print $2}\'', capture=True, shell='/bin/bash')
 
             #check for vm if already running, otherwise start it
-            vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
+            vm_running=local('source /etc/contrail/openstackrc && nova list | grep -w " livemnfs " |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
             if vm_running == '0':
                 vm_present=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
                 if vm_present == '0':
@@ -263,7 +263,7 @@ class SetupNFSLivem(object):
 
                     cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep available | wc -l' , capture=True, shell='/bin/bash')
 
-                nova_id=local('source /etc/contrail/openstackrc &&  nova list |grep livemnfs | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
+                nova_id=local('source /etc/contrail/openstackrc &&  nova list |grep -w " livemnfs " | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 cinder_id=local('source /etc/contrail/openstackrc &&  cinder list |grep livemnfsvol | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 # Check if volume is attached to the right VM
                 volvmattached=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep %s | wc -l' %(nova_id) , capture=True, shell='/bin/bash')
