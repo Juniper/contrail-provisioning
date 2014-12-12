@@ -1924,7 +1924,7 @@ class SetupCeph(object):
                                             password = entry_token):
                 for hostname, host_ip in zip(self._args.storage_hostnames,
                                             self._args.storage_hosts):
-                    run('cat /etc/hosts |grep -v -w %s > /tmp/hosts; \
+                    run('cat /etc/hosts | grep -v -w %s$ > /tmp/hosts; \
                             echo %s %s >> /tmp/hosts; \
                             cp -f /tmp/hosts /etc/hosts' \
                             % (hostname, host_ip, hostname))
@@ -2885,15 +2885,6 @@ class SetupCeph(object):
 
         # update ceph mon host list on all storage nodes
         self.do_update_monhost_config()
-
-        print ('checking health after updating initial monitors and mon host')
-        for entry, entry_token in \
-            zip(self._args.storage_hosts,
-                self._args.storage_host_tokens):
-            if entry == self._args.storage_master:
-                with settings(host_string = 'root@%s' %(entry),
-                              password = entry_token):
-                    self.do_cluster_health_check()
 
         # Run gather keys on all the nodes.
         self.do_gather_keys()
