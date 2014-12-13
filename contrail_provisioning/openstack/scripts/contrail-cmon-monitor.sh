@@ -34,6 +34,13 @@ NOVA_SCHED_STATUS="service nova-scheduler status"
 NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
+cmon_user_pass="cmon"
+SET_CMON_PURGE="update cmon_configuration set value=1 where param='PURGE';"
+SET_CMON_SCHEMA_PARAM="update cmon_configuration set value=86400 where param='db_schema_stats_collection_interval';"
+SET_CMON_STATS_COLL_PARAM="update cmon_configuration set value=1440 where param='db_stats_collection_interval';"
+SET_CMON_HOST_COLL_PARAM="update cmon_configuration set value=1440 where param='host_stats_collection_interval';"
+SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=1440 where param='log_collection_interval';"
+SET_CMON_STATS_PARAM="update cmon_configuration set value=720 where param='db_hourly_stats_collection_interval';"
 
 timestamp() {
     date +"%T"
@@ -119,6 +126,14 @@ if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
       (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
+
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_PURGE}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_SCHEMA_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
+      log_info_msg "Done setting params for cmon"
 
       (exec $RMQ_MONITOR)&
     fi
