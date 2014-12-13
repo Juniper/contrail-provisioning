@@ -28,6 +28,7 @@ from contrail_provisioning.config.templates import contrail_discovery_ini
 from contrail_provisioning.config.templates import contrail_discovery_ini_centos
 from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import vnc_api_lib_ini
+from contrail_provisioning.config.templates import contrail_sudoers
 
 
 class ConfigBaseSetup(ContrailSetup):
@@ -51,6 +52,7 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_discovery_supervisor_ini()
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
+        self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
 
@@ -245,6 +247,15 @@ class ConfigBaseSetup(ContrailSetup):
         # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
         # Orchestrator specific setup if required.
         local("sudo openstack-config --del /etc/contrail/vnc_api_lib.ini auth")
+
+    def fixup_contrail_sudoers(self):
+        # sudoers for contrail
+            template_vals = {
+                            }
+            self._template_substitute_write(contrail_sudoers.template,
+                                            template_vals, self._temp_dir_name + '/contrail_sudoers')
+            local("sudo mv %s/contrail_sudoers /etc/sudoers.d/" %(self._temp_dir_name))
+            local("sudo chmod 440 /etc/sudoers.d/contrail_sudoers")
 
     def run_services(self):
         if self._args.internal_vip:
