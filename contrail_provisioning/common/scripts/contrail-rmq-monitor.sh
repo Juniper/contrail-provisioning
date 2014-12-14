@@ -146,7 +146,7 @@ chnlstate_run=$(verify_chnlstate)
 rstinpprog_run=$(verify_rstinprog)
 log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 
-if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]]; then
+if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] && [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
     for (( i=0; i<${DIPS_SIZE}; i++ ))
      do 
