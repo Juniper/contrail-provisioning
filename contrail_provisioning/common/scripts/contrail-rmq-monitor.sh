@@ -146,16 +146,12 @@ chnlstate_run=$(verify_chnlstate)
 rstinpprog_run=$(verify_rstinprog)
 log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 
-if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]]; then
+if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
-    for (( i=0; i<${DIPS_SIZE}; i++ ))
-     do 
-       sleep 20
-       (exec ssh -o StrictHostKeyChecking=no "$COMPUTES_USER@${DIPS[i]}" $RMQ_RESET)&
-       (exec $RMQ_REST_INPROG > "$rstinprog")&
-       log_info_msg "Resetting RMQ on ${DIPS[i]} -- Done"
-     done
-    (exec rm -rf "$rstinprog")&
+   (exec $RMQ_RESET)&
+   (exec $RMQ_REST_INPROG > "$rstinprog")&
+   log_info_msg "Resetting RMQ -- Done"
+   (exec rm -rf "$rstinprog")&
  fi
 fi
 (exec rm -rf "$file")&
