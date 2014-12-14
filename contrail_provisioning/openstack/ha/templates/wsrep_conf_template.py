@@ -14,7 +14,6 @@ template = string.Template("""
 ## mysqld options _MANDATORY_ for correct opration of the cluster
 ##
 [mysqld]
-transaction-isolation = READ-COMMITTED
 low_priority_updates=1
 # (This must be substituted by wsrep_format)
 binlog_format=ROW
@@ -67,6 +66,10 @@ key_buffer_size = 24M
 # Query Cache is not supported with wsrep
 #query_cache_size=0
 #query_cache_type=0
+
+# Query timeout
+wait_timeout=600
+interactive_timeout=600
 
 # Override bind-address
 # In some systems bind-address defaults to 127.0.0.1, and with mysqldump SST
