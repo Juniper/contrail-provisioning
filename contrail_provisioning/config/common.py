@@ -86,6 +86,10 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_contrail_api_config_file(self):
         self.rabbit_host = self.cfgm_ip
         self.rabbit_port = 5672
+        if self._args.orch == 'vcenter':
+            multi_tenancy_flag = False
+        else:
+            multi_tenancy_flag = self._args.multi_tenancy
         if self._args.internal_vip:
             self.rabbit_host = self._args.internal_vip
             self.rabbit_port = 5673
@@ -100,7 +104,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/apiserver_key.pem',
                          '__contrail_certfile_location__': '/etc/contrail/ssl/certs/apiserver.pem',
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
-                         '__contrail_multi_tenancy__': self._args.multi_tenancy,
+                         '__contrail_multi_tenancy__': multi_tenancy_flag,
                          '__rabbit_server_ip__': self._args.internal_vip or self.rabbit_host,
                          '__rabbit_server_port__': self.rabbit_port,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
