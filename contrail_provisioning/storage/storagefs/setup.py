@@ -3785,6 +3785,15 @@ class SetupCeph(object):
     #end do_osd_restarts
 
 
+    def restart_service(self, service_name, timeout=15, retries=3):
+        while retries:
+            try:
+                run("service %s restart" % service_name, timeout=timeout)
+            except:
+                pass
+            if run("service %s status | grep -i 'running'" % service_name).succeeded:
+                return
+        raise RuntimeError("Failed to restart %s" % service_name)
 
     # Function for first set of restarts.
     # This is done after all the cinder/nova/glance configurations
@@ -3815,13 +3824,9 @@ class SetupCeph(object):
             local('sudo service openstack-nova-conductor restart')
             local('sudo service openstack-nova-scheduler restart')
             local('sudo service libvirtd restart')
-            local('sudo service openstack-nova-api restart')
-            local('sudo service openstack-nova-scheduler restart')
         if pdist == 'Ubuntu':
             local('sudo chkconfig cinder-api on')
-            local('sudo service cinder-api restart')
             local('sudo chkconfig cinder-scheduler on')
-            local('sudo service cinder-scheduler restart')
             if configure_with_ceph == 1:
                 bash_cephargs = local('grep "CEPH_ARGS" \
                                         /etc/init.d/cinder-volume | \
@@ -3836,23 +3841,26 @@ class SetupCeph(object):
                             /etc/init.d/cinder-volume; \
                             chmod a+x /etc/init.d/cinder-volume')
             local('sudo chkconfig cinder-volume on')
-            local('sudo service cinder-volume restart')
-            local('sudo service glance-api restart')
-            local('sudo service nova-api restart')
-            local('sudo service nova-conductor restart')
-            local('sudo service nova-scheduler restart')
-            local('sudo service libvirt-bin restart')
-            local('sudo service nova-api restart')
-            local('sudo service nova-scheduler restart')
+            for entries, entry_token in zip(self._args.storage_hosts, \
+                self._args.storage_host_tokens):
+                if self._args.storage_master == entries:
+                    with settings(host_string = 'root@%s' %(entries),
+                        password = entry_token):
+                        self.restart_service('cinder-api')
+                        self.restart_service('cinder-scheduler')
+                        self.restart_service('cinder-volume')
+                        self.restart_service('glance-api')
+                        self.restart_service('nova-api')
+                        self.restart_service('nova-conductor')
+                        self.restart_service('nova-scheduler')
+                        self.restart_service('libvirt-bin')
             if self._args.storage_os_hosts[0] != 'none':
                 for entries, entry_token in zip(self._args.storage_os_hosts,
                                             self._args.storage_os_host_tokens):
                     with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
                         run('sudo chkconfig cinder-api on')
-                        run('sudo service cinder-api restart')
                         run('sudo chkconfig cinder-scheduler on')
-                        run('sudo service cinder-scheduler restart')
                         if configure_with_ceph == 1:
                             bash_cephargs = run('grep "CEPH_ARGS" \
                                                 /etc/init.d/cinder-volume | \
@@ -3867,14 +3875,14 @@ class SetupCeph(object):
                                         /etc/init.d/cinder-volume; \
                                         chmod a+x /etc/init.d/cinder-volume')
                         run('sudo chkconfig cinder-volume on')
-                        run('sudo service cinder-volume restart')
-                        run('sudo service glance-api restart')
-                        run('sudo service nova-api restart')
-                        run('sudo service nova-conductor restart')
-                        run('sudo service nova-scheduler restart')
-                        run('sudo service libvirt-bin restart')
-                        run('sudo service nova-api restart')
-                        run('sudo service nova-scheduler restart')
+                        self.restart_service('cinder-api')
+                        self.restart_service('cinder-scheduler')
+                        self.restart_service('cinder-volume')
+                        self.restart_service('glance-api')
+                        self.restart_service('nova-api')
+                        self.restart_service('nova-conductor')
+                        self.restart_service('nova-scheduler')
+                        self.restart_service('libvirt-bin')
         return
     #end do_service_restarts_1()
 
