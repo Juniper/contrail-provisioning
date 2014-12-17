@@ -291,7 +291,7 @@ SUBCHANNELS=1,2,3
                         %(compute_hostname, compute_ip, self._args.cfgm_ip, 
                           self._args.keystone_admin_user,
                           self._args.keystone_admin_password,
-                          self._args.keystone_admin_tenant_name, self._args.openstack_mgmt_ip)
+                          self._args.keystone_admin_tenant_name, self._args.keystone_ip)
             run("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
 
     def setup(self):
