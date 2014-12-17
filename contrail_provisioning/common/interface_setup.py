@@ -335,7 +335,6 @@ class UbuntuInterface(BaseInterface):
         if not self.vlan:
             cfg = ['auto %s' %self.device,
                    'iface %s inet static' %self.device,
-                   'hwaddress ether %s' %mac,
                    'address %s' %self.ipaddr,
                    'netmask  %s' %self.netmask]
             if self.gw:
@@ -343,7 +342,6 @@ class UbuntuInterface(BaseInterface):
         else:
             cfg = ['auto %s' %self.device,
                    'iface %s inet manual' %self.device,
-                   'hwaddress ether %s' %mac,
                    'down ip addr flush dev %s' %self.device]
         self.write_network_script(cfg)
         if self.vlan:
@@ -356,7 +354,6 @@ class UbuntuInterface(BaseInterface):
             mac = self.get_mac_addr(each)
             cfg = ['auto %s' %each,
                    'iface %s inet manual' %each,
-                   'hwaddress ether %s' %mac,
                    'down ip addr flush dev %s' %each,
                    'bond-master %s' %self.device]
             self.write_network_script(cfg)
