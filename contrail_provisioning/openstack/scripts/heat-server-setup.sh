@@ -146,3 +146,7 @@ echo "======= Starting the services ======"
 for svc in heat-api heat-engine; do
     service $svc restart
 done
+
+# db_sync heat database to make sure tables are created
+echo "======= heat db-sync ====="
+heat-manage db_sync
