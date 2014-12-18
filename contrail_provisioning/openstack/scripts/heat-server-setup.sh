@@ -98,6 +98,7 @@ for APP in heat; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
         openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        heat-manage db_sync
     fi
 done
 
@@ -146,3 +147,4 @@ echo "======= Starting the services ======"
 for svc in heat-api heat-engine; do
     service $svc restart
 done
+
