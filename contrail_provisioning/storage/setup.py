@@ -40,12 +40,14 @@ class StorageSetup(ContrailSetup):
                 --collector-hosts 10.157.43.171 10.157.42.166
                 --collector-host-tokens n1keenA n1keenA
                 --cfg-host 10.157.43.171
+                --storage-compute-hostnames cmbu-dt05 cmbu-ixs6-2
         '''
 
         parser = self._parse_args(args_str)
 
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
+        parser.add_argument("--storage-compute-hostnames", help = "Host names of storage compute nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-disk-config", help = "Disk list to be used for distributed storage", nargs="+", type=str)
@@ -92,6 +94,7 @@ class StorageSetup(ContrailSetup):
         if self._args.add_storage_node:
             storage_setup_args = storage_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)
         storage_setup_args = storage_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
+        storage_setup_args = storage_setup_args + " --storage-compute-hostnames %s" %(' '.join(self._args.storage_compute_hostnames))
         storage_setup_args = storage_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
         storage_setup_args = storage_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
         storage_setup_args = storage_setup_args + " --storage-disk-config %s" %(' '.join(self._args.storage_disk_config))
