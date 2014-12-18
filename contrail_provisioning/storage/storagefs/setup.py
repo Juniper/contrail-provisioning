@@ -3778,10 +3778,12 @@ class SetupCeph(object):
                     osdlist = run('sudo ps -ef | grep ceph-osd | \
                                   grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
                     for osd in osdlist:
-                        run('sudo sudo restart ceph-osd id=%s' %(osd))
-                        print ('checking health after restarting \
+                        osd = osd.strip('\n\r')
+                        if osd != '':
+                            run('sudo sudo restart ceph-osd id=%s' %(osd))
+                            print ('checking health after restarting \
                                 ceph-osd %s' %(osd))
-                        self.do_cluster_health_check()
+                            self.do_cluster_health_check()
     #end do_osd_restarts
 
 
