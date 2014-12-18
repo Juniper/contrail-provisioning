@@ -3,7 +3,7 @@ import sys
 import argparse
 import ConfigParser
 
-from fabric.api import local
+from fabric.api import local, settings
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.collector.templates import contrail_query_engine_conf
@@ -49,6 +49,11 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_collector()
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
+        self.fixup_contrail_snmp_collector()
+
+    def fixup_contrail_snmp_collector(self):
+        with settings(warn_only=True):
+            local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
