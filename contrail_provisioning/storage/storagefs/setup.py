@@ -20,6 +20,7 @@ from pprint import pformat
 import xml.etree.ElementTree as ET
 import platform
 import commonport
+import StringIO
 
 import tempfile
 from fabric.api import local, env, run, settings
@@ -3777,13 +3778,16 @@ class SetupCeph(object):
                               password = entry_token):
                     osdlist = run('sudo ps -ef | grep ceph-osd | \
                                   grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
-                    for osd in osdlist:
+                    osdl = StringIO.StringIO(osdlist)
+                    osd = osdl.readline()
+                    while osd:
                         osd = osd.strip('\n\r')
                         if osd != '':
                             run('sudo sudo restart ceph-osd id=%s' %(osd))
                             print ('checking health after restarting \
                                 ceph-osd %s' %(osd))
                             self.do_cluster_health_check()
+                        osd = osdl.readline()
     #end do_osd_restarts
 
 
