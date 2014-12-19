@@ -108,6 +108,18 @@ verify_cluststate()
  fi
 }
 
+check_partition()
+{
+ part=$(rabbitmqctl cluster_status | grep partitions | grep ctrl | wc -l)
+ if [[ $part -ne 0 ]]; then
+        echo "y"
+        return 1
+     else
+        echo "n"
+        return 0
+ fi
+}
+
 verify_rstinprog()
 {
  rstinprog=`cat $rstinprog`
@@ -143,10 +155,11 @@ checkfor_rst()
 {
 cluststate_run=$(verify_cluststate)
 chnlstate_run=$(verify_chnlstate)
+part_state=$(check_partition)
 rstinpprog_run=$(verify_rstinprog)
 log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 
-if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
+if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state == "y" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
    (exec $RMQ_RESET)&
    (exec $RMQ_REST_INPROG > "$rstinprog")&
