@@ -39,6 +39,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_discovery_supervisor_ini()
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
+        self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
 
