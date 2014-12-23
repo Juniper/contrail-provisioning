@@ -208,7 +208,7 @@ else
 fi
       
 #Cleanup if there exists sockets in CLOSE_WAIT
-clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT)
+clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
 if [[ $clssoc -ne 0 ]]; then
    netstat -anp |\
    grep ':33306 ' |\

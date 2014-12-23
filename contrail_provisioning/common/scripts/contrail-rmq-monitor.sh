@@ -162,7 +162,7 @@ log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state == "y" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
    (exec $RMQ_RESET)&
-   (exec $RMQ_REST_INPROG > "$rstinprog")&
+   (echo $RMQ_REST_INPROG > "$rstinprog")&
    log_info_msg "Resetting RMQ -- Done"
    (exec rm -rf "$rstinprog")&
  fi
