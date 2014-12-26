@@ -32,6 +32,7 @@ setup(
             'setup-vnc-livemigration = contrail_provisioning.storage.livemigration_setup:main',
             'setup-vnc-storage-webui = contrail_provisioning.storage.webui_setup:main',
             'setup-vcenter-plugin = contrail_provisioning.vcenter_plugin.setup:main',
+            'setup-vnc-tor-agent = contrail_provisioning.toragent.setup:main',
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
             # Helper scripts
