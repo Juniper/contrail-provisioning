@@ -48,6 +48,7 @@ class ComputeSetup(ContrailSetup):
             'vmware_passwd': 'c0ntrail123',
             'vmware_vmpg_vswitch': 'c0ntrail123',
             'no_contrail_openstack': False,
+            'no_nova_config': False,
             'orchestrator': 'openstack',
         }
 
@@ -98,6 +99,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
         parser.add_argument("--no_contrail_openstack", help = "Do not provision contrail Openstack in compute node.", action="store_true")
+        parser.add_argument("--no_nova_config", help = "Do not configure anything related to nova.", action="store_true")
         parser.add_argument("--metadata_secret", help = "Metadata Proxy secret from openstack node")
         parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
 
