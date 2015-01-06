@@ -22,9 +22,11 @@ RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
 NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
 NOVA_CONSAUTH_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-consoleauth"
+NOVA_COND_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-conductor"
 NOVA_SCHED_RST="service nova-scheduler restart"
 NOVA_CONS_RST="service nova-console restart"
 NOVA_CONSAUTH_RST="service nova-consoleauth restart"
+NOVA_COND_RST="service nova-conductor restart"
 NOVA_COND_STOP="service nova-conductor stop"
 NOVA_COND_START="service nova-conductor start"
 NOVA_COND_STATUS="service nova-conductor status"
@@ -34,6 +36,13 @@ NOVA_SCHED_STATUS="service nova-scheduler status"
 NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
+cmon_user_pass="cmon"
+SET_CMON_PURGE="update cmon_configuration set value=1 where param='PURGE';"
+SET_CMON_SCHEMA_PARAM="update cmon_configuration set value=86400 where param='db_schema_stats_collection_interval';"
+SET_CMON_STATS_COLL_PARAM="update cmon_configuration set value=1440 where param='db_stats_collection_interval';"
+SET_CMON_HOST_COLL_PARAM="update cmon_configuration set value=1440 where param='host_stats_collection_interval';"
+SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=1440 where param='log_collection_interval';"
+SET_CMON_STATS_PARAM="update cmon_configuration set value=720 where param='db_hourly_stats_collection_interval';"
 
 timestamp() {
     date +"%T"
@@ -113,12 +122,51 @@ verify_nova_sched() {
      return 0
   fi
 }
+
+  # These checks will eventually be replaced when we have nodemgr plugged in
+  # for openstack services
+  # CHECK FOR NOVA SCHD
+  state=$($NOVA_SCHED_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_SCHED_RST)&
+     log_info_msg "Nova Scheduler restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONS
+  state=$($NOVA_CONS_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONS_RST)&
+     log_info_msg "Nova Console restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA CONSAUTH
+  state=$($NOVA_CONSAUTH_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_CONSAUTH_RST)&
+     log_info_msg "Nova ConsoleAuth restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR NOVA COND
+  state=$($NOVA_COND_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $NOVA_COND_RST)&
+     log_info_msg "Nova Conductor restarted becuase of the state $state"
+  fi
+
 cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
       (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
+
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_PURGE}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_SCHEMA_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
+      log_info_msg "Done setting params for cmon"
 
       (exec $RMQ_MONITOR)&
     fi
@@ -143,6 +191,15 @@ else
         fi
       done
 
+      for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+      do
+        dipsonnonvip=$(lsof -p $hapid | grep ${DIPHOSTS[i]} | awk '{print $9}')
+        if [[ -n "$dipsonnonvip" ]]; then
+         haprestart=1
+         break
+        fi
+      done
+
       if [ $haprestart -eq 1 ]; then
        (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
@@ -150,46 +207,17 @@ else
    fi
 fi
       
-  # These checks will eventually be replaced when we have nodemgr plugged in
-  # for openstack services
-  # CHECK FOR NOVA SCHD
-  state=$($NOVA_SCHED_CHK | awk '{print $2}')
-  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
-     (exec $NOVA_SCHED_RST)&
-     log_info_msg "Nova Scheduler restarted becuase of the state $state"
-  fi
-
-  # CHECK FOR NOVA CONS
-  state=$($NOVA_CONS_CHK | awk '{print $2}')
-  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
-     (exec $NOVA_CONS_RST)&
-     log_info_msg "Nova Console restarted becuase of the state $state"
-  fi
-
-  # CHECK FOR NOVA CONSAUTH
-  state=$($NOVA_CONSAUTH_CHK | awk '{print $2}')
-  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
-     (exec $NOVA_CONSAUTH_RST)&
-     log_info_msg "Nova ConsoleAuth restarted becuase of the state $state"
-  fi
-
-  mysql_run=$(verify_mysql)
-  cond_run=$(verify_nova_cond)
-  sched_run=$(verify_nova_sched)
-  if [ $mysql_run == "n" ]; then
-     (exec $NOVA_COND_STOP)&
-     (exec $NOVA_SCHED_STOP)&
-     log_info_msg "Stopped conductor and scheduler becuase of Mysql dependency.
-                   Requests will be processed by other conductors and schedulers"
-  elif [ $mysql_run == "y" ]; then
-      if [ $cond_run == "n" ]; then
-         (exec $NOVA_COND_START)&
-         log_info_msg "Starting conductor after detecting mysql status"
-      fi
-      if [ $sched_run == "n" ]; then
-         (exec $NOVA_SCHED_START)&
-         log_info_msg "Starting scheduler after detecting mysql status"
-      fi
-  fi
+#Cleanup if there exists sockets in CLOSE_WAIT
+clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
+if [[ $clssoc -ne 0 ]]; then
+   netstat -anp |\
+   grep ':33306 ' |\
+   grep CLOSE_WAIT |\
+   awk '{print $7}' |\
+   cut -d \/ -f1 |\
+   grep -oE "[[:digit:]]{1,}" |\
+   xargs kill -9
+   log_info_msg "Cleaned connections to mysql that were in CLOSE_WAIT"
+fi
 
 exit 0
