@@ -4,6 +4,7 @@
 #
 
 import os
+import re
 import netifaces
 
 from fabric.api import local
