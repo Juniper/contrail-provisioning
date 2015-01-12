@@ -44,6 +44,11 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self.fixup_vrouter_nodemgr_param()
         self.fixup_contrail_vrouter_agent()
 
+    def setup_lbaas_prereq(self):
+        if self.pdist in ['centos']:
+           local('groupadd -f nogroup')
+           local("sed -i s/'Defaults    requiretty'/'#Defaults    requiretty'/g /etc/sudoers")
+
     def add_dev_tun_in_cgroup_device_acl(self):
         # add /dev/net/tun in cgroup_device_acl needed for type=ethernet interfaces
         with settings(warn_only = True):
@@ -267,6 +272,8 @@ SUBCHANNELS=1,2,3
                     local("sudo chkconfig network on")
                     local("sudo chkconfig supervisor-vrouter on")
         # end self.pdist == centos | fedora | redhat
+        # setup lbaas prereqs
+        self.setup_lbaas_prereq()
 
         if self.pdist in ['Ubuntu']:
             self._rewrite_net_interfaces_file(self.dev, self.mac, self.vhost_ip, self.netmask, self.gateway,
