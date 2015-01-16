@@ -192,7 +192,7 @@ HWADDR=%s
             os.unlink('/etc/sysconfig/network-scripts/route-%s'%device)
     #end def migrate_routes
 
-    def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip):
+    def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip, esxi_vm, vmpg_mtu):
         with settings(warn_only = True):
             result = local('grep \"iface vhost0\" /etc/network/interfaces')
         if result.succeeded :
@@ -259,6 +259,13 @@ HWADDR=%s
                 local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
                 local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
 
+        if esxi_vm:
+            local("sed -i '/auto eth1/,/down/d' %s" % temp_intf_file)
+            local("echo 'auto eth1' >> %s" % temp_intf_file)
+            local("echo 'iface eth1 inet manual' >> %s" % temp_intf_file)
+            local("echo '    pre-up ifconfig eth1 up mtu %s' >> %s" % (vmpg_mtu, temp_intf_file))
+            local("echo '    post-down ifconfig eth1 down' >> %s" % temp_intf_file)
+
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
@@ -266,6 +273,8 @@ HWADDR=%s
         local("echo '    pre-up %s/if-vhost0' >> %s" %(self.contrail_bin_dir, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
+        if esxi_vm:
+            local("echo '    mtu 1496' >> %s" %(temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
         if (not self._args.non_mgmt_ip) and gateway_ip:
