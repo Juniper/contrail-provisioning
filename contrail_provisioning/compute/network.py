@@ -266,6 +266,7 @@ HWADDR=%s
         local("echo '    pre-up %s/if-vhost0' >> %s" %(self.contrail_bin_dir, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
+        local("echo '    mtu 1496' >> %s" %(temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
         if (not self._args.non_mgmt_ip) and gateway_ip:
