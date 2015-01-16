@@ -47,6 +47,7 @@ class ComputeSetup(ContrailSetup):
             'vmware_username': 'root',
             'vmware_passwd': 'c0ntrail123',
             'vmware_vmpg_vswitch': 'c0ntrail123',
+            'vmware_vmpg_vswitch_mtu': '9000',
             'no_contrail_openstack': False,
             'no_nova_config': False,
             'orchestrator': 'openstack',
@@ -95,6 +96,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
+        parser.add_argument("--vmware_vmpg_vswitch_mtu", help = "The Vmware VMPG vswitch MTU")
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
