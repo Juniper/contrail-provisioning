@@ -265,6 +265,7 @@ HWADDR=%s
             local("echo 'iface eth1 inet manual' >> %s" % temp_intf_file)
             local("echo '    pre-up ifconfig eth1 up mtu %s' >> %s" % (vmpg_mtu, temp_intf_file))
             local("echo '    post-down ifconfig eth1 down' >> %s" % temp_intf_file)
+            local("ifconfig eth1 mtu %s" % vmpg_mtu)
 
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
