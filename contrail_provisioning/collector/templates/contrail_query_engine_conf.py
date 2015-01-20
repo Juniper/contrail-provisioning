@@ -29,5 +29,6 @@ template = string.Template("""#
 [REDIS]
   port=$__contrail_redis_server_port__
   server=$__contrail_redis_server__
+  $__contrail_redis_password__
 
 """)

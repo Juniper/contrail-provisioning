@@ -20,5 +20,5 @@ disc_server_port = $__contrail_discovery_port__
 [REDIS]
 redis_server_port = $__contrail_redis_server_port__
 redis_query_port = $__contrail_redis_query_port__
-
+$__contrail_redis_password__
 """)
