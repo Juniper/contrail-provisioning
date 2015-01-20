@@ -43,6 +43,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
+        parser.add_argument("--redis_password", help = "Redis password")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -63,7 +64,11 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_http_server_port__' : '8089',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
-                         '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
+                         '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port),
+                         '__contrail_redis_password__' : ''
+                       }
+        if self._args.redis_password:
+            template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
         self._template_substitute_write(contrail_collector_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-collector.conf')
         local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(self._temp_dir_name))
@@ -75,7 +80,10 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_http_server_port__' : '8091',
                          '__contrail_collector__' : '127.0.0.1',
                          '__contrail_collector_port__' : '8086',
-                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list)}
+                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_redis_password__' : ''}
+        if self._args.redis_password:
+            template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
         self._template_substitute_write(contrail_query_engine_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-query-engine.conf')
         local("sudo mv %s/contrail-query-engine.conf /etc/contrail/contrail-query-engine.conf" %(self._temp_dir_name))
@@ -97,7 +105,10 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_discovery_port__' : 5998,
                          '__contrail_collector__': self._args.self_collector_ip,
                          '__contrail_collector_port__': '8086',
-                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list)}
+                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_redis_password__' : ''}
+        if self._args.redis_password:
+            template_vals['__contrail_redis_password__'] = 'redis_password = '+ self._args.redis_password
         self._template_substitute_write(contrail_analytics_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-analytics-api.conf')
         local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(self._temp_dir_name))

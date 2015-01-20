@@ -77,5 +77,6 @@ port=6379
 
 # IP address of redis-server
 server=127.0.0.1
+$__contrail_redis_password__
 
 """)
