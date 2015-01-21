@@ -276,7 +276,9 @@ SUBCHANNELS=1,2,3
         self.setup_lbaas_prereq()
 
         if self.pdist in ['Ubuntu']:
-            self._rewrite_net_interfaces_file(self.dev, self.mac, self.vhost_ip, self.netmask, self.gateway)
+            self._rewrite_net_interfaces_file(self.dev, self.mac, self.vhost_ip, self.netmask, self.gateway,
+                        self._args.vmware, self._args.vmware_vmpg_vswitch_mtu,
+                        self._args.vmware_fabpg_vswitch_mtu)
         # end self.pdist == ubuntu
 
         else: # of if self.dev and self.dev != 'vhost0'
