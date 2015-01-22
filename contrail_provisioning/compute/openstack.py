@@ -92,6 +92,15 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_connection_host %s' % (network_api, self._args.cfgm_ip))
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_url http://%s:9696' % (network_api, self._args.cfgm_ip))
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT %s_admin_password %s' % (network_api, self._args.service_token))
+        cpu_mode = self._args.cpu_mode
+        cpu_model = self._args.cpu_model
+        valid_cpu_modes = ['none', 'host-model', 'host-passthrough', 'custom']
+        if cpu_mode is not None and cpu_mode.lower() in valid_cpu_modes:
+            local("openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode %s" % cpu_mode.lower())
+            if cpu_mode == 'custom':
+                if cpu_model is None:
+                    raise Exception("cpu_model is required if cpu_mode is 'custom'")
+                local("openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_model %s" % cpu_model)
 
         super(ComputeOpenstackSetup, self).run_services()
 

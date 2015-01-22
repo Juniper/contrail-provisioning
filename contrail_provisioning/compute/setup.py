@@ -53,6 +53,8 @@ class ComputeSetup(ContrailSetup):
             'no_contrail_openstack': False,
             'no_nova_config': False,
             'orchestrator': 'openstack',
+            'cpu_mode': None,
+            'cpu_model': None,
         }
 
         self.parse_args(args_str)
@@ -107,6 +109,8 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--no_nova_config", help = "Do not configure anything related to nova.", action="store_true")
         parser.add_argument("--metadata_secret", help = "Metadata Proxy secret from openstack node")
         parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
+        parser.add_argument("--cpu_mode", help = "VM cpu_mode, can be one of 'none', 'host-model', 'host-passthrough', 'custom'")
+        parser.add_argument("--cpu_model", help = "VM cpu_model, required if cpu_mode is 'custom'. eg. 'Nehalem'")
 
         self._args = parser.parse_args(self.remaining_argv)
 
