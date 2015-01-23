@@ -35,7 +35,7 @@ agent_name=$__contrail_agent_name__
 # log_category=
 
 # Local log file name
-# log_file=/var/log/contrail/vrouter.log
+log_file=/var/log/contrail/contrail-tor-agent-$__contrail_tor_id__.log
 
 # Log severity levels. Possible values are SYS_EMERG, SYS_ALERT, SYS_CRIT,
 # SYS_ERR, SYS_WARN, SYS_NOTICE, SYS_INFO and SYS_DEBUG. Default is SYS_DEBUG
