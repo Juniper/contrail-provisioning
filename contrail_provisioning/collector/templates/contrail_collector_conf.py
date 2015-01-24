@@ -9,8 +9,15 @@ template = string.Template("""#
 [DEFAULT]
 # Everything in this section is optional
 
-# Time-to-live in hours of the data stored by collector into cassandra
+# Time-to-live in hours of the various data stored by collector into
+# cassandra
+# analytics_configaudit_ttl, if not set (or set to -1), defaults to analytics_data_ttl
+# analytics_statsdata_ttl, if not set (or set to -1), defaults to analytics_data_ttl
+# analytics_flowdata_ttl, if not set (or set to -1), defaults to analytics_statsdata_ttl
 analytics_data_ttl=$__contrail_analytics_data_ttl__
+analytics_configaudit_ttl=$__contrail_configaudit_ttl__
+analytics_statsdata_ttl=$__contrail_statsdata_ttl__
+analytics_flowdata_ttl=$__contrail_flowdata_ttl__
 
 # IP address and port to be used to connect to cassandra.
 # Multiple IP:port strings separated by space can be provided
