@@ -41,6 +41,9 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
         parser.add_argument("--num_nodes", help = "Number of collector nodes", type = int)
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
+        parser.add_argument("--analytics_config_audit_ttl", help = "TTL in hours of config audit data stored in cassandra database", type = int, default = -1)
+        parser.add_argument("--analytics_statistics_ttl", help = "TTL in hours of stats data stored in cassandra database", type = int, default = -1)
+        parser.add_argument("--analytics_flow_ttl", help = "TTL in hours of flow data stored in cassandra database", type = int, default = -1)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         self._args = parser.parse_args(self.remaining_argv)
@@ -58,6 +61,9 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_http_server_port__' : '8089',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
+                         '__contrail_config_audit_ttl__' : self._args.analytics_config_audit_ttl,
+                         '__contrail_statistics_ttl__' : self._args.analytics_statistics_ttl,
+                         '__contrail_flow_ttl__' : self._args.analytics_flow_ttl,
                          '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port)}
         self._template_substitute_write(contrail_collector_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-collector.conf')
