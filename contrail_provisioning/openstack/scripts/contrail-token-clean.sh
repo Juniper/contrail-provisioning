@@ -41,6 +41,14 @@ log_info_msg "keystone-cleaner::Finishing token cleanup, there is still $valid_t
 find /var/log/contrail/ha/ -size +10240k -exec rm -f {} \;
 find /var/log/cmon.log -size +10240k -exec rm -f {} \;
 
-mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -e "use cmon; ${cmon_stats_purge}"
-log_info_msg "Purged cmon stats history"
+# Restricting purge cmon logs to be run in only one server.
+# Run the purge script only if cmon is running in the server.
+killall -q -0 cmon
+if [ $? -eq "0" ]; then
+    mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -e "use cmon; ${cmon_stats_purge}"
+    log_info_msg "Purged cmon stats history"
+else
+    log_info_msg "CMON is not running, hence skipping to purge cmon stats history"
+fi
+
 exit 0
