@@ -29,7 +29,8 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tor_id__':self._args.tor_id,
                          '__contrail_tsn_ovs_port__':self._args.tor_ovs_port,
                          '__contrail_tsn_ip__':self._args.tsn_ip,
-                         '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol,
+                         '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol, 
+                         '__contrail_control_ip__':self._args.self_ip
                         }
         self._template_substitute_write(tor_agent_conf.template,
                                         template_vals, self._temp_dir_name + '/tor_agent_conf')
@@ -77,6 +78,7 @@ class TorAgentSetup(ContrailSetup):
         '''
         parser = self._parse_args(args_str)
 
+        parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
         parser.add_argument("--agent_name", help = "Name of the TOR agent")
         parser.add_argument("--http_server_port", help = "Port number for the HTTP server.")
         parser.add_argument("--discovery_server_ip", help = "IP Address of the config node")
