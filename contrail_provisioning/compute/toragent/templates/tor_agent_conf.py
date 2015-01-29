@@ -83,7 +83,7 @@ server=$__contrail_discovery_ip__
 [NETWORKS]
 # control-channel IP address used by WEB-UI to connect to vnswad to fetch
 # required information (Optional)
-# control_network_ip=
+control_network_ip=$__contrail_control_ip__
 
 [TOR]
 # IP address of the TOR to manage
