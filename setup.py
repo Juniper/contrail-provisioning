@@ -10,7 +10,7 @@ def requirements(filename):
 
 setup(
     name='ContrailProvisioning',
-    version='0.1dev',
+    version='0.1.dev0',
     packages=find_packages(),
     long_description="Contrail VNC Provisioning API Implementation",
     install_requires=requirements('requirements.txt'),
