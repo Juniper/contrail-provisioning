@@ -9,6 +9,7 @@ __version__ = '1.0'
 import os
 import re
 import sys
+import glob
 import argparse
 import socket
 import fcntl
@@ -266,17 +267,16 @@ class UbuntuInterface(BaseInterface):
         '''
         log.info('Remove Existing Interface configs in %s' %filename)
         # read existing file
-        if not filename:
-            filename = os.path.join(os.path.sep, 'etc', 'network', 'interfaces')
-
         with open(filename, 'r') as fd:
             cfg_file = fd.read()
 
         # get blocks
         keywords = ['allow-', 'auto', 'iface', 'source', 'mapping']
-        pattern = '\n\s*' + '|\n\s*'.join(keywords)
+        pattern = '(?:^|\n)\s*(?:{})'.format('|'.join(map(re.escape, keywords)))
         iters = re.finditer(pattern, cfg_file)
         indices = [match.start() for match in iters]
+        if not indices:
+            return
         matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
 
         # backup old file
@@ -292,7 +292,8 @@ class UbuntuInterface(BaseInterface):
             fd.write('%s\n' %cfg_file[0:indices[0]])
             for each in matches:
                 each = each.strip()
-                if re.match(auto_pattern, each) or re.match(iface_pattern, each):
+                if re.match(auto_pattern, each) or\
+                   re.match(iface_pattern, each):
                     continue
                 else:
                     fd.write('%s\n' %each)
@@ -301,11 +302,76 @@ class UbuntuInterface(BaseInterface):
 
     def pre_conf(self):
         '''Execute commands before interface configuration for Ubuntu'''
-        filename = os.path.join(os.path.sep, 'etc', 'network', 'interfaces')
+        self.default_cfg_file = os.path.join(os.path.sep, 'etc',
+                                             'network', 'interfaces')
         ifaces = [self.device] + self.members
         if self.vlan:
             ifaces += [self.device + '.' + self.vlan, 'vlan'+self.vlan]
-        self.remove_lines(ifaces, filename)
+
+        # Get matching files from 'source' keyword and create a dict
+        sourced_files = self.get_sourced_files()
+        sourced_files.append(self.default_cfg_file)
+        self.intf_cfgfile_dict = self.map_intf_cfgfile(ifaces, sourced_files)
+
+        # Trim down the to be overwritten interfaces section from all cfg files
+        for cfg_file in sourced_files:
+            self.remove_lines(ifaces, cfg_file)
+
+    def map_intf_cfgfile(self, ifaces, cfg_files):
+        if not cfg_files:
+            return None
+        mapped_intf_cfgfile = dict()
+        for file in cfg_files:
+            with open(file, 'r') as fd:
+                contents = fd.read()
+                for iface in ifaces:
+                    regex = '(?:^|\n)\s*iface\s+%s\s+'%iface
+                    if re.search(regex, contents):
+                        if not iface in mapped_intf_cfgfile.keys():
+                            mapped_intf_cfgfile[iface] = list()
+                        mapped_intf_cfgfile[iface].append(file)
+        for iface in ifaces:
+            if not iface in mapped_intf_cfgfile.keys():
+                mapped_intf_cfgfile[iface] = [self.default_cfg_file]
+            if len(mapped_intf_cfgfile[iface]) != 1:
+                raise Exception('Found multiple references for interface %s'
+                                ' namely %s' %(iface, mapped_intf_cfgfile[iface]))
+        return mapped_intf_cfgfile
+
+    def get_sourced_files(self):
+        '''Get config files matching the device and/or members'''
+        files = self.get_valid_files(self.get_source_entries())
+        files += self.get_source_directory_files()
+        return list(set(files))
+
+    def get_source_directory_files(self):
+        '''Get source-directory entry and make list of valid files'''
+        regex = '(?:^|\n)\s*source-directory\s+(\S+)'
+        files = list()
+        with open(self.default_cfg_file, 'r') as fd:
+            entries = re.findall(regex, fd.read())
+        dirs = [d for d in self.get_valid_files(entries) if os.path.isdir(d)]
+        for dir in dirs:
+            files.extend([os.path.join(dir, f) for f in os.listdir(dir)\
+                          if os.path.isfile(os.path.join(dir, f)) and \
+                          re.match('^[a-zA-Z0-9_-]+$', f)])
+        return files
+
+    def get_source_entries(self):
+        '''Get entries matching source keyword from /etc/network/interfaces file'''
+        regex = '(?:^|\n)\s*source\s+(\S+)'
+        with open(self.default_cfg_file, 'r') as fd:
+            return re.findall(regex, fd.read())
+
+    def get_valid_files(self, entries):
+        '''Provided a list of glob'd strings, return matching file names'''
+        files = list()
+        prepend = os.path.join(os.path.sep, 'etc', 'network') + os.path.sep
+        for entry in entries:
+            entry = entry.lstrip('./') if entry.startswith('./') else entry
+            entry = prepend+entry if not entry.startswith(os.path.sep) else entry
+            files.extend(glob.glob(entry))
+        return files
 
     def validate_bond_opts(self):
         self.bond_opts_str = 'bond-slaves none\n'
@@ -315,9 +381,9 @@ class UbuntuInterface(BaseInterface):
             else:
                 self.bond_opts_str += 'bond-%s %s\n'%(key, self.bond_opts[key])
 
-    def write_network_script(self, cfg):
+    def write_network_script(self, device, cfg):
         '''Append new configs to interfaces file'''
-        interface_file = os.path.join(os.path.sep, 'etc', 'network', 'interfaces')
+        interface_file = self.intf_cfgfile_dict[device][0]
         os.system('sudo cp %s %s' %(interface_file, self.tempfile.name))
 
         # write new file
@@ -343,7 +409,7 @@ class UbuntuInterface(BaseInterface):
             cfg = ['auto %s' %self.device,
                    'iface %s inet manual' %self.device,
                    'down ip addr flush dev %s' %self.device]
-        self.write_network_script(cfg)
+        self.write_network_script(self.device, cfg)
         if self.vlan:
             self.create_vlan_interface()
 
@@ -356,7 +422,7 @@ class UbuntuInterface(BaseInterface):
                    'iface %s inet manual' %each,
                    'down ip addr flush dev %s' %each,
                    'bond-master %s' %self.device]
-            self.write_network_script(cfg)
+            self.write_network_script(each, cfg)
 
     def create_vlan_interface(self):
         '''Create interface config for vlan sub interface'''
@@ -368,7 +434,7 @@ class UbuntuInterface(BaseInterface):
                'vlan-raw-device %s' %self.device]
         if self.gw:
             cfg.append('gateway %s' %self.gw)
-        self.write_network_script(cfg)
+        self.write_network_script(interface, cfg)
 
     def create_bonding_interface(self):
         '''Create interface config for bond master'''
@@ -387,7 +453,7 @@ class UbuntuInterface(BaseInterface):
                    'iface %s inet manual' %self.device,
                    'down ip addr flush dev %s' %self.device]
         cfg += self.bond_opts_str.split("\n")
-        self.write_network_script(cfg)
+        self.write_network_script(self.device, cfg)
         if self.vlan:
             self.create_vlan_interface()
 
