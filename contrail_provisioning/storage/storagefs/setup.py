@@ -2484,6 +2484,22 @@ class SetupCeph(object):
                 local('sudo ceph-deploy disk zap %s' % (ceph_disk_entry))
                 # Allow disk partition changes to sync.
                 time.sleep(5)
+
+                diskentry = ceph_disk_entry.split(':')
+                for hostname, entries, entry_token in \
+                        zip(self._args.storage_hostnames,
+                            self._args.storage_hosts,
+                            self._args.storage_host_tokens):
+                    if hostname == diskentry[0]:
+                        with settings(host_string = 'root@%s' %(entries),
+                                      password = entry_token):
+                            ip_cidr = run('ip addr show |grep -w %s |awk \'{print $2}\' | \
+                                          head -n 1' %(entries))
+                        local('sudo openstack-config --set /root/ceph.conf \
+                                    global public_network %s\/%s'
+                                    %(netaddr.IPNetwork(ip_cidr).network,
+                                    netaddr.IPNetwork(ip_cidr).prefixlen))
+                        break
                 # For prefirefly use prepare/activate on ubuntu release
                 local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
                 time.sleep(5)
@@ -2833,6 +2849,9 @@ class SetupCeph(object):
                 run('sudo openstack-config --set %s global "mon_host" "%s"'
                     %(CEPH_CONFIG_FILE, mon_host[:-2]))
 
+        # restart monitors after package upgrade
+        self.do_monitor_restarts()
+
     # end do_create_monlist
 
     # Function to create monitor if its not already running
@@ -2883,9 +2902,6 @@ class SetupCeph(object):
 
         # wait for mons to sync
         time.sleep(20)
-
-        # update ceph mon host list on all storage nodes
-        self.do_update_monhost_config()
 
         # Run gather keys on all the nodes.
         self.do_gather_keys()
@@ -4299,6 +4315,9 @@ class SetupCeph(object):
 
             # Create the required OSDs
             self.do_osd_create()
+
+            # update ceph mon host list on all storage nodes
+            self.do_update_monhost_config()
 
             # Modify the crush map for HDD/SSD/Chassis
             self.do_crush_map_config()
