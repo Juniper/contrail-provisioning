@@ -5,6 +5,7 @@
 
 import os
 import re
+import glob
 import netifaces
 
 from fabric.api import local
@@ -192,10 +193,59 @@ HWADDR=%s
             os.unlink('/etc/sysconfig/network-scripts/route-%s'%device)
     #end def migrate_routes
 
+    def get_cfgfile_for_dev(self, iface, cfg_files):
+        if not cfg_files:
+            return None
+        mapped_intf_cfgfile = None
+        for file in cfg_files:
+            with open(file, 'r') as fd:
+                contents = fd.read()
+                regex = '(?:^|\n)\s*iface\s+%s\s+'%iface
+                if re.search(regex, contents):
+                    mapped_intf_cfgfile = file
+        return mapped_intf_cfgfile
+
+    def get_sourced_files(self):
+        '''Get all sourced config files'''
+        files = self.get_valid_files(self.get_source_entries())
+        files += self.get_source_directory_files()
+        return list(set(files))
+
+    def get_source_directory_files(self):
+        '''Get source-directory entry and make list of valid files'''
+        regex = '(?:^|\n)\s*source-directory\s+(\S+)'
+        files = list()
+        with open(self.default_cfg_file, 'r') as fd:
+            entries = re.findall(regex, fd.read())
+        dirs = [d for d in self.get_valid_files(entries) if os.path.isdir(d)]
+        for dir in dirs:
+            files.extend([os.path.join(dir, f) for f in os.listdir(dir)\
+                          if os.path.isfile(os.path.join(dir, f)) and \
+                          re.match('^[a-zA-Z0-9_-]+$', f)])
+        return files
+
+    def get_source_entries(self):
+        '''Get entries matching source keyword from /etc/network/interfaces file'''
+        regex = '(?:^|\n)\s*source\s+(\S+)'
+        with open(self.default_cfg_file, 'r') as fd:
+            return re.findall(regex, fd.read())
+
+    def get_valid_files(self, entries):
+        '''Provided a list of glob'd strings, return matching file names'''
+        files = list()
+        prepend = os.path.join(os.path.sep, 'etc', 'network') + os.path.sep
+        for entry in entries:
+            entry = entry.lstrip('./') if entry.startswith('./') else entry
+            entry = prepend+entry if not entry.startswith(os.path.sep) else entry
+            files.extend(glob.glob(entry))
+        return files
+
     def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip, esxi_vm, vmpg_mtu):
-        with settings(warn_only = True):
-            result = local('grep \"iface vhost0\" /etc/network/interfaces')
-        if result.succeeded :
+        self.default_cfg_file = '/etc/network/interfaces'
+        cfg_files = self.get_sourced_files()
+        cfg_files.append(self.default_cfg_file)
+        intf_cfgfile = self.get_cfgfile_for_dev('vhost0', cfg_files)
+        if intf_cfgfile:
             print "Interface vhost0 is already present in /etc/network/interfaces"
             print "Skipping rewrite of this file"
             return
@@ -221,9 +271,10 @@ HWADDR=%s
                 local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifup_parts_file))
                 local("sudo sed -i 's/%s/vhost0/g' %s" %(dev, ifdown_parts_file))
 
+        dev_cfgfile = self.get_cfgfile_for_dev(dev, cfg_files)
         temp_intf_file = '%s/interfaces' %(self._temp_dir_name)
-        local("cp /etc/network/interfaces %s" %(temp_intf_file))
-        with open('/etc/network/interfaces', 'r') as fd:
+        local("cp %s %s" %(dev_cfgfile, temp_intf_file))
+        with open(dev_cfgfile, 'r') as fd:
             cfg_file = fd.read()
 
         if not self._args.non_mgmt_ip:
@@ -291,4 +342,4 @@ HWADDR=%s
         local("echo '\n' >> %s" %(temp_intf_file))
 
         # move it to right place
-        local("sudo mv -f %s /etc/network/interfaces" %(temp_intf_file))
+        local("sudo mv -f %s %s" %(temp_intf_file, dev_cfgfile))
