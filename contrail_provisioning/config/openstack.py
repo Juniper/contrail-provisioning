@@ -166,7 +166,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                         env.password)
         if self._args.region_name:
             quant_args += " --region_name %s" %(self._args.region_name)
-        if self._args.manage_neutron:
+        if self._args.manage_neutron == 'yes':
             local("setup-quantum-in-keystone %s" %(quant_args))
 
         super(ConfigOpenstackSetup, self).run_services()
