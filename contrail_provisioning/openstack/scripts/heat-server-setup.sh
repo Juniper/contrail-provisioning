@@ -125,7 +125,7 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf clients_contrail user $ADMIN_USER
     openstack-config --set /etc/$svc/$svc.conf clients_contrail password $ADMIN_TOKEN
     openstack-config --set /etc/$svc/$svc.conf clients_contrail tenant $ADMIN_TENANT
-    openstack-config --set /etc/$svc/$svc.conf clients_contrail api_server $CONTROLLER
+    openstack-config --set /etc/$svc/$svc.conf clients_contrail api_server $API_SERVER
     openstack-config --set /etc/$svc/$svc.conf clients_contrail api_base_url /
 done
 
