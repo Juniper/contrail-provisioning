@@ -79,6 +79,7 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
+        ctrl_infos.append('API_SERVER=%s' % self._args.cfgm_ip)
         if self._args.mgmt_self_ip:
             ctrl_infos.append('SELF_MGMT_IP=%s' % self._args.mgmt_self_ip)
         if self._args.openstack_ip_list:
