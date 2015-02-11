@@ -53,7 +53,7 @@ class DatabaseSetup(ContrailSetup):
             parser.add_argument("--dir", help = "Directory where database binary exists", default = '/etc/cassandra')
         parser.add_argument("--initial_token", help = "Initial token for database node")
         parser.add_argument("--seed_list", help = "List of seed nodes for database", nargs='+')
-        parser.add_argument("--data_dir", help = "Directory where database stores data", default='/home/cassandra')
+        parser.add_argument("--data_dir", help = "Directory where database stores data")
         parser.add_argument("--analytics_data_dir", help = "Directory where database stores analytics data")
         parser.add_argument("--ssd_data_dir", help = "SSD directory that database stores data")
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
