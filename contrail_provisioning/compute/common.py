@@ -46,7 +46,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
 
     def setup_lbaas_prereq(self):
         if self.pdist in ['centos']:
-           local('groupadd nogroup')
+           local('groupadd -f nogroup')
            local("sed -i s/'Defaults    requiretty'/'#Defaults    requiretty'/g /etc/sudoers")
 
     def add_dev_tun_in_cgroup_device_acl(self):
