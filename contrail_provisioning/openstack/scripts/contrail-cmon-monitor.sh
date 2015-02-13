@@ -43,6 +43,7 @@ SET_CMON_STATS_COLL_PARAM="update cmon_configuration set value=1440 where param=
 SET_CMON_HOST_COLL_PARAM="update cmon_configuration set value=1440 where param='host_stats_collection_interval';"
 SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=1440 where param='log_collection_interval';"
 SET_CMON_STATS_PARAM="update cmon_configuration set value=720 where param='db_hourly_stats_collection_interval';"
+SET_CMON_BACKUP_RETENTION="update cmon_configuration set value=1 where param='BACKUP_RETENTION';"
 
 timestamp() {
     date +"%T"
@@ -166,6 +167,7 @@ if [ $viponme -eq 1 ]; then
       mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
       mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
       mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
+      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_BACKUP_RETENTION}"
       log_info_msg "Done setting params for cmon"
 
       (exec $RMQ_MONITOR)&
