@@ -66,11 +66,14 @@ if [ $is_ubuntu -eq 1 ] ; then
     fi
 fi
 source /etc/contrail/ctrl-details
+HYPERVISOR=${HYPERVISOR:-"libvirt"}
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --del /etc/nova/nova.conf DEFAULT sql_connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
-    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
-    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
+    if [ "$HYPERVISOR" == "libvirt" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
+        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
+    fi
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
@@ -90,6 +93,10 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
             openstack-config --set /etc/nova/nova.conf DEFAULT instaces_path /var/lib/nova/instances
         fi
+    fi
+    if [ "$HYPERVISOR" == "docker" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
+        openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
     fi
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
@@ -124,21 +131,25 @@ openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
 
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $COMPUTE
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $COMPUTE
-
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
-openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_interval  0
 
-# Running DPDK apps inside VMs require more modern cpu model
-if [ "$DPDK_MODE" == "True" ]; then
-    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode host-model
-else
-    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
-fi
+openstack-config --set /etc/nova/nova.conf DEFAULT heal_instance_info_cache_interval  0
 
 openstack-config --set /etc/nova/nova.conf DEFAULT image_cache_manager_interval 0
 
-#use contrail specific vif driver
-openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
+if [ "$HYPERVISOR" == "libvirt" ]; then
+    # Running DPDK apps inside VMs require more modern cpu model
+    if [ "$DPDK_MODE" == "True" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode host-model
+    else
+        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_mode none
+    fi
+    #use contrail specific vif driver
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
+elif [ "$HYPERVISOR" == "docker" ]; then
+    openstack-config --set /etc/nova/nova.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
+    openstack-config --set /etc/nova/nova-compute.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
+fi
 
 # Use noopdriver for firewall
 openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
