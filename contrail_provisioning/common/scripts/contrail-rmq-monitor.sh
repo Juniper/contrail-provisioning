@@ -138,7 +138,7 @@ i=1
 while [ $i -lt  12 ]
 do
  (rabbitmqctl list_channels | grep done > "$file") & pid=$!
- (rabbitmqctl cluster_status | grep running_nodes > "$cluschk") & pid1=$!
+ (rabbitmqctl cluster_status | grep -A 1 running_nodes > "$cluschk") & pid1=$!
  log_info_msg "pidof pending rmq channel $pid and cluster check $pid1"
  sleep 10
  if [ -d "/proc/${pid}" ] || [ -d "/proc/${pid1}" ]; then
@@ -170,6 +170,11 @@ fi
 (exec rm -rf "$file")&
 (exec rm -rf "$cluschk")&
 }
+
+stalels=$(ps -ef | grep rabbitmqctl | grep list_channels | awk '{print $2}')
+stalecs=$(ps -ef | grep rabbitmqctl | grep cluster_status | awk '{print $2}')
+(exec kill -9 "$stalels")&
+(exec kill -9 "$stalecs")&
 
 main()
 {
