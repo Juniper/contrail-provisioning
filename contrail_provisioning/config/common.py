@@ -197,10 +197,17 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
+        self.rabbit_host = self.cfgm_ip
+        self.rabbit_port = 5672
+        if self._args.internal_vip:
+            self.rabbit_host = self._args.internal_vip
+            self.rabbit_port = 5673
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'svc-monitor',
                          '__contrail_ifmap_password__': 'svc-monitor',
+                         '__rabbit_server_ip__': self.rabbit_host,
+                         '__rabbit_server_port__': self.rabbit_port,
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.collector_ip,
