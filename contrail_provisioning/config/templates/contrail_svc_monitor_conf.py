@@ -16,6 +16,8 @@ disc_server_port=$__contrail_disc_server_port__
 region_name=$__contrail_region_name__
 log_local=1
 log_level=SYS_NOTICE
+rabbit_server=$__rabbit_server_ip__
+rabbit_port=$__rabbit_server_port__
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
