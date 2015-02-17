@@ -41,6 +41,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_password)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
+        ctrl_infos.append('HYPERVISOR=%s' % self._args.hypervisor)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:

@@ -122,6 +122,7 @@ export ADMIN_TOKEN
 export SERVICE_TOKEN
 
 for cfg in api; do
+    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT container_formats ami,ari,aki,bare,ovf,ova,docker
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT notifier_strategy noop
    if [ $is_ubuntu -eq 0 ] ; then
         if [ "$glance_ver" == "2014.1.1" ]; then

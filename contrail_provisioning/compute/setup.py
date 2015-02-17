@@ -56,6 +56,7 @@ class ComputeSetup(ContrailSetup):
             'cpu_mode': None,
             'cpu_model': None,
             'dpdk': False,
+            'hypervisor' : 'libvirt',
         }
 
         self.parse_args(args_str)
@@ -75,6 +76,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--openstack_mgmt_ip", help = "Mgmt IP Address of the openstack node if it is different from openstack_IP")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
+        parser.add_argument("--hypervisor", help = "Hypervisor to be provisioned in this(compute) node")
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--ncontrols", help = "Number of control-nodes in the system")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
