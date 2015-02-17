@@ -14,7 +14,6 @@ mysql_port=33306
 mysql=$(which mysql)
 cmon_user_pass=cmon
 cmon_stats_purge="call sp_cmon_purge_history;"
-viponme=0
 
 timestamp() {
     date +"%T"
