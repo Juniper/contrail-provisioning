@@ -220,8 +220,13 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.quantumv2.api.API
     else
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        if [[ $nova_api_version == *"2013.2"* ]]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        else
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
+        fi
     fi
+
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 else
     if [ "$nova_api_ver" == "2014.1.1" ]; then
