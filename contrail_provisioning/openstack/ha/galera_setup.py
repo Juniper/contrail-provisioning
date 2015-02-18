@@ -213,7 +213,14 @@ class GaleraSetup(ContrailSetup):
     def setup_cron(self):
         with settings(hide('everything'), warn_only=True):
             local('crontab -l > %s/galera_cron' % self._temp_dir_name)
-        local('echo "0,30 * * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
+        if self._args.openstack_index == 1:
+            local('echo "35 * * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
+        elif self._args.openstack_index == 2:
+            local('echo "22 */1 * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
+        elif self._args.openstack_index == 3:
+            local('echo "7 */2 * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
+        else:
+            local('echo "30 * * * * /opt/contrail/bin/contrail-token-clean.sh" >> %s/galera_cron' % self._temp_dir_name)
         local('crontab %s/galera_cron' % self._temp_dir_name)
         local('rm %s/galera_cron' % self._temp_dir_name)
 
