@@ -220,13 +220,13 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.quantumv2.api.API
     else
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 else
     if [ "$nova_api_ver" == "2014.1.1" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
         openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
         openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
