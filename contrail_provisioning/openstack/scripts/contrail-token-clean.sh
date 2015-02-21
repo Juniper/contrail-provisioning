@@ -7,6 +7,8 @@
 source /etc/contrail/ha/cmon_param
 
 LOGFILE=/var/log/contrail/ha/token-cleanup.log
+MYIPS=$(ip addr show | sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
+viponme=0
 mysql_user=keystone
 mysql_password=keystone
 mysql_host=$VIP
@@ -42,7 +44,15 @@ log_info_msg "keystone-cleaner::Starting token cleanup"
 
 log_info_msg "keystone-cleaner::Finishing token cleanup, there are $valid_token valid tokens..."
 
-    mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; ${cmon_stats_purge}"
+for myip in $MYIPS
+ do
+  if [ $myip == $VIP ]; then
+     viponme=1
+     break
+  fi
+ done
+
+if [ $viponme -eq 1 ]; then
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table cmon_log;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table memory_usage_history;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table cpu_stats_history;"
@@ -65,8 +75,8 @@ log_info_msg "keystone-cleaner::Finishing token cleanup, there are $valid_token 
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table alarm_log;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table mysql_query_histogram;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table mysql_slow_queries;"
-
-log_info_msg "Purged cmon stats history"
+    log_info_msg "Purged cmon stats history"
+fi
 
 find /var/log/contrail/ha/ -size +10240k -exec rm -f {} \;
 find /var/log/cmon.log -size +10240k -exec rm -f {} \;
