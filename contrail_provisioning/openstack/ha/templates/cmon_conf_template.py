@@ -44,8 +44,8 @@ pidfile=/var/run/
 logfile=/var/log/cmon.log
 
 # collection intervals (in seconds)
-db_stats_collection_interval=30
-host_stats_collection_interval=30
+db_stats_collection_interval=86400
+host_stats_collection_interval=86400
 
 # mysql servers in the cluster. "," or " " sep. list
 mysql_server_addresses=$__mysql_nodes__
