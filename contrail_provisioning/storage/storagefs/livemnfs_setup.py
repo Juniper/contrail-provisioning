@@ -145,6 +145,18 @@ class SetupNFSLivem(object):
                             if vgwifrunning == '0':
                                 run('vif --create livemnfsvgw --mac 00:00:5e:00:01:00')
                                 run('ifconfig livemnfsvgw up')
+                            #Upgrade issue in 2.10
+                            if vgwifrunning != '0':
+                                vif_id = run('vif --list | grep livemnfsvgw | awk \'{print $1}\' | cut -d \'/\' -f 2')
+                                vif_reconfig_req = run('vif --get %s | grep HWaddr | grep 00:00:00:00:00:00 | wc -l' %(vif_id))
+                                if vif_reconfig_req != '0':
+                                    run('vif --del %s' %(vif_id))
+                                    run('vif --create livemnfsvgw --mac 00:00:5e:00:01:00')
+                                    run('ifconfig livemnfsvgw up')
+                                    run('cat /etc/network/interfaces | sed \'s/livemnfsvgw --mac 00:01:5e:00:00/livemnfsvgw --mac 00:00:5e:00:01:00/g\' > /tmp/interfaces.tmp')
+                                    run('cp /tmp/interfaces.tmp /etc/network/interfaces')
+                                    run('service supervisor-vrouter restart' , shell='/bin/bash')
+
                             #check and add auto start of vgw interface
                             vgwifconfig=run('cat /etc/network/interfaces | grep livemnfsvgw|wc -l')
                             if vgwifconfig == '0':
@@ -202,6 +214,17 @@ class SetupNFSLivem(object):
                                         self._args.storage_host_tokens):
                                 if gwhostname == vmhost:
                                     gwentry = gwentries
+                            #Upgrade to 2.1 issue
+                            dynvhostroute=run('netstat -rn |grep %s|grep 0.0.0.0|wc -l' %(vmip), shell='/bin/bash')
+                            if dynvhostroute != '0':
+                                run('route del %s dev vhost0' %(vmip),
+                                                shell='/bin/bash')
+                                run('cat /etc/network/interfaces '
+                                                '|grep -v %s > '
+                                                '/tmp/interfaces'
+                                                %(vmip), shell='/bin/bash')
+                                run('cp /tmp/interfaces /etc/network/interfaces');
+
                             #check for dynamic route on the vm host
                             dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                             if dynroutedone == '0':
