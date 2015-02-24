@@ -26,6 +26,7 @@ class DatabaseSetup(ContrailSetup):
             'dir' : '/usr/share/cassandra',
             'database_listen_ip' : '127.0.0.1',
             'cfgm_ip': '127.0.0.1',
+            'minimum_diskGB': '4',
         }
         self.parse_args(args_str)
 
@@ -59,6 +60,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--database_index", help = "The index of this databse node")
+        parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for contrail database")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -144,14 +146,13 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
+
         template_vals = {
-                        '__contrail_discovery_ip__': self._args.cfgm_ip
+                        '__contrail_discovery_ip__': self._args.cfgm_ip,
+                        '__minimum_diskGB__': self._args.minimum_diskGB
                         }
-        self._template_substitute_write(database_nodemgr_param_template.template,
-                                        template_vals, self._temp_dir_name + '/database_nodemgr_param')
         self._template_substitute_write(contrail_database_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
-        local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(self._temp_dir_name))
         local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
 
         # set high session timeout to survive glance led disk activity
