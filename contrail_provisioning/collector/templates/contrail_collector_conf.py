@@ -23,6 +23,10 @@ analytics_flow_ttl=$__contrail_flow_ttl__
 # Multiple IP:port strings separated by space can be provided
 cassandra_server_list=$__contrail_cassandra_server_list__
 
+# IP address and port to be used to connect to kafka.
+# Multiple IP:port strings separated by space can be provided
+kafka_broker_list=$__contrail_kafka_broker_list__
+
 # IP address of analytics node. Resolved IP of 'hostname'
 hostip=$__contrail_host_ip__
 

@@ -59,6 +59,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--database_index", help = "The index of this databse node")
+        parser.add_argument("--kafka_broker_id", help = "The broker id of the database node")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -171,6 +172,18 @@ class DatabaseSetup(ContrailSetup):
 
         #put cluster-unique zookeeper's instance id in myid
         local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
+
+        #Update the broker id of the /usr/share/kafka/config/server.properties
+        KAFKA_SERVER_PROPERTIES='/usr/share/kafka/config/server.properties'
+        cnd = os.path.exists(KAFKA_SERVER_PROPERTIES)
+        if not cnd:
+            raise RuntimeError('%s does not appear to be a kafka config directory' % KAFKA_SERVER_PROPERTIES)
+	if self._args.kafka_broker_id is not None:
+            self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'broker.id=', 'broker.id='+self._args.kafka_broker_id)
+        #Add all the zoo keeper server address to the server.properties file
+        zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
+        zk_list_str = ','.join(map(str, zk_list))
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=', 'zookeeper.connect='+zk_list_str)
 
     def run_services(self):
         local("sudo database-server-setup.sh %s" % (self.database_listen_ip))
