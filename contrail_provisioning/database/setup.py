@@ -59,6 +59,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--database_index", help = "The index of this databse node")
+        parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for contrail database")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -144,15 +145,12 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
-        template_vals = {
-                        '__contrail_discovery_ip__': self._args.cfgm_ip
-                        }
-        self._template_substitute_write(database_nodemgr_param_template.template,
-                                        template_vals, self._temp_dir_name + '/database_nodemgr_param')
-        self._template_substitute_write(contrail_database_nodemgr_template.template,
-                                        template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
-        local("sudo mv %s/database_nodemgr_param /etc/contrail/database_nodemgr_param" %(self._temp_dir_name))
-        local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
+
+        config_file = '/etc/contrail/contrail-database-nodemgr.conf'
+        if self._args.cfgm_ip:
+            local("sudo sed -i 's/^server=.*/server=%s/g' %s" %(self._args.cfgm_ip, config_file))
+        if self._args.minimum_diskGB:
+            local("sudo sed -i 's/^minimum_diskGB=.*/minimum_diskGB=%s/g' %s" %(self._args.minimum_diskGB, config_file))
 
         # set high session timeout to survive glance led disk activity
         local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
