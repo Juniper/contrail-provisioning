@@ -1926,9 +1926,10 @@ class SetupCeph(object):
                 for hostname, host_ip in zip(self._args.storage_hostnames,
                                             self._args.storage_hosts):
                     run('cat /etc/hosts | grep -v -w %s$ > /tmp/hosts; \
-                            echo %s %s >> /tmp/hosts; \
+                            a=`cat /tmp/hosts | grep -w "%s[ ]*%s" | wc -l`; \
+                            if [ "$a" == "0" ]; then echo %s %s >> /tmp/hosts; fi ; \
                             cp -f /tmp/hosts /etc/hosts' \
-                            % (hostname, host_ip, hostname))
+                            % (hostname, host_ip, hostname, host_ip, hostname))
 
         # Generate public id using ssh-keygen and first add the key to the
         # authorized keys file and the known_hosts file in the master itself.
