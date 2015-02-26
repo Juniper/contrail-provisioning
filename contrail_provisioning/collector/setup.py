@@ -21,6 +21,14 @@ class CollectorSetup(ContrailSetup):
             'cfgm_ip': '127.0.0.1',
             'self_collector_ip': '127.0.0.1',
             'analytics_syslog_port': -1,
+            'keystone_ip': '127.0.0.1',
+            'keystone_admin_user': 'admin',
+            'keystone_admin_passwd': 'contrail123',
+            'keystone_admin_tenant_name': 'admin',
+            'keystone_service_tenant_name' : 'service',
+            'keystone_auth_protocol': 'http',
+            'keystone_auth_port': '35357',
+            'multi_tenancy': True,
         }
 
         self.parse_args(args_str)
@@ -28,9 +36,10 @@ class CollectorSetup(ContrailSetup):
 
     def parse_args(self, args_str):
         '''
-        Eg. setup-vnc-collector --cassandra_ip_list 10.1.1.1 10.1.1.2 
-            --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11 
+        Eg. setup-vnc-collector --cassandra_ip_list 10.1.1.1 10.1.1.2
+            --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11
             --analytics_data_ttl 1 --analytics_syslog_port 3514
+            --keystone_ip 10.1.5.11
         '''
 
         parser = self._parse_args(args_str)
@@ -47,6 +56,24 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--redis_password", help = "Redis password")
         parser.add_argument("--kafka_enabled", help = "kafka enabled flag")
+        parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
+        parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
+        parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
+        parser.add_argument("--keystone_admin_tenant_name", help = "Keystone admin tenant name.")
+        parser.add_argument("--keystone_admin_token",
+            help = "admin_token value in keystone.conf")
+        parser.add_argument("--keystone_auth_protocol",
+            help = "Auth protocol used to talk to keystone")
+        parser.add_argument("--keystone_auth_port",
+                help="Port of Keystone to talk to",
+            default = '35357')
+        parser.add_argument("--keystone_insecure",
+            help = "Connect to keystone in secure or insecure mode if in" + \
+                    "https mode",
+            default = 'False')
+        parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
+            action="store_true")
+        parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -54,6 +81,8 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
         self.fixup_contrail_snmp_collector()
+        if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
+            self.fixup_keystone_auth_config_file()
         if self._args.kafka_enabled == 'True':
             self.fixup_contrail_alarm_gen()
 
