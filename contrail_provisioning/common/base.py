@@ -15,6 +15,7 @@ import platform
 import ConfigParser
 
 from fabric.api import *
+from contrail_provisioning.common.templates import contrail_keystone_auth_conf
 
 class ContrailSetup(object):
     def __init__(self):
@@ -212,6 +213,25 @@ class ContrailSetup(object):
         except Exception as e:
             print "Ignoring failure when enabling kdump"
             print "Exception: %s" % str(e)
+
+    def fixup_keystone_auth_config_file(self):
+        # Keystone auth config ini
+        if os.path.exist('/etc/contrail/contrail-keystone-auth.conf'):
+            return
+        template_vals = {
+                         '__contrail_keystone_ip__': self._args.keystone_ip,
+                         '__contrail_admin_user__': self._args.keystone_admin_user,
+                         '__contrail_admin_password__': self._args.keystone_admin_passwd,
+                         '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
+                         '__contrail_admin_token__': self._args.keystone_admin_token,
+                         '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
+                         '__contrail_ks_auth_port__': self._args.keystone_auth_port,
+                         '__keystone_insecure_flag__': self._args.keystone_insecure,
+                         '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
+                        }
+        self._template_substitute_write(contrail_keystone_auth_conf.template,
+                                        template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
+        local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
 
     def setup(self):
         self.disable_selinux()

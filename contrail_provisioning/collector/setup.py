@@ -54,6 +54,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
         self.fixup_contrail_snmp_collector()
+        self.fixup_keystone_auth_config_file()
 
     def fixup_contrail_snmp_collector(self):
         with settings(warn_only=True):
