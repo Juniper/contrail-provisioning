@@ -13,7 +13,6 @@ from fabric.context_managers import settings
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
-from contrail_provisioning.config.templates import contrail_keystone_auth_conf
 
 class ConfigOpenstackSetup(ConfigBaseSetup):
     def __init__(self, config_args, args_str=None):
@@ -44,23 +43,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
-
-    def fixup_keystone_auth_config_file(self):
-        # Keystone auth config ini
-        template_vals = {
-                         '__contrail_keystone_ip__': self._args.keystone_ip,
-                         '__contrail_admin_user__': self._args.keystone_admin_user,
-                         '__contrail_admin_password__': self._args.keystone_admin_passwd,
-                         '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
-                         '__contrail_admin_token__': self._args.keystone_admin_token,
-                         '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
-                         '__contrail_ks_auth_port__': self._args.keystone_auth_port,
-                         '__keystone_insecure_flag__': self._args.keystone_insecure,
-                         '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
-                        }
-        self._template_substitute_write(contrail_keystone_auth_conf.template,
-                                        template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
-        local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
 
     def fixup_contrail_api_config_file(self):
         super(ConfigOpenstackSetup, self).fixup_contrail_api_config_file()
