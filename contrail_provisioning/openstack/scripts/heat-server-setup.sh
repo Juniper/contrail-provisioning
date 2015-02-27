@@ -130,7 +130,7 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
 
     openstack-config --set /etc/$svc/$svc.conf clients_contrail user $ADMIN_USER
     openstack-config --set /etc/$svc/$svc.conf clients_contrail password $ADMIN_TOKEN

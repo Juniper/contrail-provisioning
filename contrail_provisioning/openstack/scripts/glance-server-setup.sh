@@ -135,7 +135,7 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_idle_timeout 3600
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
-    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP

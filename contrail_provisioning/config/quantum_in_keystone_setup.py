@@ -57,14 +57,10 @@ class QuantumSetup(object):
         self._quant_admin_name = "admin"
 
         try:
-            if self._args_svc_passwd:
-                self.kshandle = client.Client(token=self._args_svc_passwd,
-                                              endpoint=self._auth_url)
-            else:
-                self.kshandle = client.Client(username=self._args_user,
-                                              password=self._args_passwd,
-                                              tenant_name=self._args_tenant_id,
-                                              auth_url=self._auth_url)
+            self.kshandle = client.Client(username=self._args_user,
+                                          password=self._args_passwd,
+                                          tenant_name=self._args_tenant_id,
+                                          auth_url=self._auth_url)
         except Exception as e:
             print e
             raise e
