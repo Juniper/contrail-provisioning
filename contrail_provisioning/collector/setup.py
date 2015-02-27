@@ -10,7 +10,6 @@ from contrail_provisioning.collector.templates import contrail_query_engine_conf
 from contrail_provisioning.collector.templates import contrail_collector_conf
 from contrail_provisioning.collector.templates import contrail_analytics_api_conf
 
-
 class CollectorSetup(ContrailSetup):
     def __init__(self, args_str = None):
         super(CollectorSetup, self).__init__()
@@ -47,6 +46,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--redis_password", help = "Redis password")
+        parser.add_argument("--kafka_enabled", help = "kafka enabled flag")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -54,6 +54,21 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
         self.fixup_contrail_snmp_collector()
+        if self._args.kafka_enabled == 'True':
+            self.fixup_contrail_alarm_gen()
+
+    def fixup_contrail_alarm_gen(self):
+        ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
+        cnd = os.path.exists(ALARM_GEN_CONF_FILE)
+        if not cnd:
+            raise RuntimeError('%s does not exist' % ALARM_GEN_CONF_FILE)
+        kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
+        kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#kafka_broker_list', 'kafka_broker_list = ' + kafka_broker_list_str)
+        #prepare zklist
+        zk_list = [server[0] + ":2181" for server in self.cassandra_server_list]
+        zk_list_str = ' '.join(map(str, zk_list))
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#zk_list', 'zk_list = ' + zk_list_str)
 
     def fixup_contrail_snmp_collector(self):
         with settings(warn_only=True):
@@ -71,10 +86,15 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_statistics_ttl__' : self._args.analytics_statistics_ttl,
                          '__contrail_flow_ttl__' : self._args.analytics_flow_ttl,
                          '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port),
-                         '__contrail_redis_password__' : ''
+                         '__contrail_redis_password__' : '',
+                         '__contrail_kafka_broker_list__':''
                        }
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
+        if self._args.kafka_enabled == 'True':
+            kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
+            kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+            template_vals['__contrail_kafka_broker_list__'] = kafka_broker_list_str
         self._template_substitute_write(contrail_collector_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-collector.conf')
         local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(self._temp_dir_name))
