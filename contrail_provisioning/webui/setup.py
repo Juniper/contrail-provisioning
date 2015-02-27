@@ -64,6 +64,7 @@ class WebuiSetup(ContrailSetup):
                             help = "Identity Manager admin tenant name.")
         parser.add_argument("--admin_token",
                             help = "admin_token value in Identity Manager's config file")
+        parser.add_argument("--redis_password", help = "Redis password")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
@@ -109,6 +110,9 @@ class WebuiSetup(ContrailSetup):
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.cassandra_ip_list:
             local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.redis_password:
+            local("sudo sed \"s/config.redis_password.*/config.redis_password = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.redis_password))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_ip:
             orchestrator = 'vcenter'
