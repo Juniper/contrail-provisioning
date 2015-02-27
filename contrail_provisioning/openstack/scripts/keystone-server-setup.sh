@@ -71,9 +71,10 @@ source /etc/contrail/ctrl-details
 
 # Check if ADMIN/SERVICE Password has been set
 ADMIN_PASSWORD=${ADMIN_TOKEN:-contrail123}
-SERVICE_PASSWORD=${SERVICE_TOKEN:-$(/opt/contrail/contrail_installer/contrail_setup_utils/setup-service-token.sh; cat $CONF_DIR/service.token)}
+SERVICE_PASSWORD=${ADMIN_TOKEN:-contrail123}
+SERVICE_TOKEN=${SERVICE_TOKEN:-$(/opt/contrail/contrail_installer/contrail_setup_utils/setup-service-token.sh; cat $CONF_DIR/service.token)}
 
-openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_PASSWORD
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
 # Stop keystone if it is already running (to reload the new admin token)
 service supervisor-openstack status >/dev/null 2>&1 &&
@@ -124,7 +125,7 @@ EOF
 
 cat > $CONF_DIR/keystonerc <<EOF
 export OS_USERNAME=admin
-export SERVICE_TOKEN=$SERVICE_PASSWORD
+export SERVICE_TOKEN=$SERVICE_TOKEN
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 EOF
 
@@ -175,7 +176,7 @@ for svc in keystone; do
     openstack-config --del /etc/$svc/$svc.conf database connection
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
     openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates

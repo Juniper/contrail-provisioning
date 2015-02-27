@@ -10,7 +10,7 @@ if [ -f $CONF_DIR/service.token ]; then
   exit
 fi
 
-SERVICE_PASSWORD=$(openssl rand -hex 10)
-echo -n $SERVICE_PASSWORD > $CONF_DIR/service.token
+SERVICE_TOKEN=$(openssl rand -hex 10)
+echo -n $SERVICE_TOKEN > $CONF_DIR/service.token
 chmod 400 $CONF_DIR/service.token
 
