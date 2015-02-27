@@ -175,7 +175,7 @@ for svc in keystone; do
     openstack-config --del /etc/$svc/$svc.conf database connection
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_PASSWORD
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
     openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates

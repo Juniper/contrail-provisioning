@@ -106,7 +106,7 @@ export SERVICE_TOKEN
 for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $INTERNAL_VIP
