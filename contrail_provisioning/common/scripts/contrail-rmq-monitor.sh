@@ -170,8 +170,8 @@ fi
 (exec rm -rf "$file")&
 (exec rm -rf "$cluschk")&
 
-stalels=$(`ps -ef | grep rabbitmqctl | grep list_channels | awk ‘{print $2}’`)
-stalecs=$(`ps -ef | grep rabbitmqctl | grep cluster_status | awk ‘{print $2}’`)
+stalels=$(ps -ef | grep rabbitmqctl | grep list_channels | awk '{print $2}')
+stalecs=$(ps -ef | grep rabbitmqctl | grep cluster_status | awk '{print $2}')
 (exec kill -9 "$stalels")&
 (exec kill -9 "$stalecs")&
 }
