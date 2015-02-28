@@ -8,12 +8,14 @@ source /etc/contrail/ha/cmon_param
 LOGFILE=/var/log/contrail/ha/cmon-monitor.log
 MYIPS=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 RUN_STATE="isrunning"
-CMON_SVC_CHECK="service cmon status"
-RUN_CMON="service cmon start"
-STOP_CMON="service cmon stop"
+CMON_SVC_CHECK=$(pgrep -xf '/usr/local/cmon/sbin/cmon -r /var/run/cmon')
+CMON_RUN_DIR="/var/run/cmon"
+RUN_CMON="/usr/local/cmon/sbin/cmon -r /var/run/cmon"
+STOP_CMON="killall -e /usr/local/cmon/sbin/cmon"
+mysql_host=$VIP
+mysql_port=33306
 MYSQL_SVC_CHECK="service mysql status"
 HAP_RESTART="service haproxy restart"
-ARP_CACHE_FLUSH="arp -d $VIP"
 cmon_run=0
 viponme=0
 haprestart=0
@@ -41,9 +43,10 @@ SET_CMON_PURGE="update cmon_configuration set value=1 where param='PURGE';"
 SET_CMON_SCHEMA_PARAM="update cmon_configuration set value=86400 where param='db_schema_stats_collection_interval';"
 SET_CMON_STATS_COLL_PARAM="update cmon_configuration set value=86400 where param='db_stats_collection_interval';"
 SET_CMON_HOST_COLL_PARAM="update cmon_configuration set value=86400 where param='host_stats_collection_interval';"
-SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=1440 where param='log_collection_interval';"
-SET_CMON_STATS_PARAM="update cmon_configuration set value=720 where param='db_hourly_stats_collection_interval';"
+SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=86400 where param='log_collection_interval';"
+SET_CMON_STATS_PARAM="update cmon_configuration set value=24 where param='db_hourly_stats_collection_interval';"
 SET_CMON_BACKUP_RETENTION="update cmon_configuration set value=1 where param='BACKUP_RETENTION';"
+
 
 timestamp() {
     date +"%T"
@@ -89,9 +92,9 @@ verify_mysql() {
 }
 
 verify_cmon() {
-   cmon=$($CMON_SVC_CHECK | awk '{print $2 $3}')
+   cmon=$CMON_SVC_CHECK
    cmonpid=$(pidof cmon)
-   if [ $cmon == $RUN_STATE ] && [ -n "$cmonpid" ]; then
+   if [ $cmon == $cmonpid ] && [ -n "$cmonpid" ]; then
       log_info_msg "CMON is Running"
       echo "y"
       return 1
@@ -158,19 +161,22 @@ cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
+      (exec mkdir -p $CMON_RUN_DIR)&
       (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
-
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_PURGE}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_SCHEMA_PARAM}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_COLL_PARAM}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
-      mysql -u${cmon_user_pass} -p${cmon_user_pass} -e "USE cmon; ${SET_CMON_BACKUP_RETENTION}"
-      log_info_msg "Done setting params for cmon"
-
       (exec $RMQ_MONITOR)&
+      # Wait for 3 seconds for cmon to initialize 
+      # these updates are required as cmon.conf does not have purge and backup_retention fields
+      # in addition these params need to be synced across the cluster
+      #sleep 3
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_PURGE}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_SCHEMA_PARAM}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_STATS_COLL_PARAM}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
+      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_BACKUP_RETENTION}"
+      #log_info_msg "Done setting params for cmon"
     fi
    # Check periodically for RMQ status
    if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
@@ -180,6 +186,7 @@ if [ $viponme -eq 1 ]; then
 else
    if [ $cmon_run == "y" ]; then
       (exec $STOP_CMON)&
+      (exec rm -r $CMON_RUN_DIR)&
       log_info_msg "Stopped CMON on not finding VIP"
 
       #Check if the VIP was on this node and clear all session by restarting haproxy
@@ -210,7 +217,7 @@ else
 fi
       
 #Cleanup if there exists sockets in CLOSE_WAIT
-clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT)
+clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
 if [[ $clssoc -ne 0 ]]; then
    netstat -anp |\
    grep ':33306 ' |\
