@@ -150,7 +150,8 @@ class DatabaseSetup(ContrailSetup):
 
         template_vals = {
                         '__contrail_discovery_ip__': self._args.cfgm_ip,
-                        '__minimum_diskGB__': self._args.minimum_diskGB
+                        '__minimum_diskGB__': self._args.minimum_diskGB,
+                        '__hostip__': self.database_listen_ip,
                         }
         self._template_substitute_write(contrail_database_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
