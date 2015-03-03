@@ -1926,9 +1926,10 @@ class SetupCeph(object):
                 for hostname, host_ip in zip(self._args.storage_hostnames,
                                             self._args.storage_hosts):
                     run('cat /etc/hosts | grep -v -w %s$ > /tmp/hosts; \
-                            echo %s %s >> /tmp/hosts; \
+                            a=`cat /tmp/hosts | grep -w "%s[ ]*%s" | wc -l`; \
+                            if [ "$a" == "0" ]; then echo %s %s >> /tmp/hosts; fi ; \
                             cp -f /tmp/hosts /etc/hosts' \
-                            % (hostname, host_ip, hostname))
+                            % (hostname, host_ip, hostname, host_ip, hostname))
 
         # Generate public id using ssh-keygen and first add the key to the
         # authorized keys file and the known_hosts file in the master itself.
@@ -2484,6 +2485,22 @@ class SetupCeph(object):
                 local('sudo ceph-deploy disk zap %s' % (ceph_disk_entry))
                 # Allow disk partition changes to sync.
                 time.sleep(5)
+
+                diskentry = ceph_disk_entry.split(':')
+                for hostname, entries, entry_token in \
+                        zip(self._args.storage_hostnames,
+                            self._args.storage_hosts,
+                            self._args.storage_host_tokens):
+                    if hostname == diskentry[0]:
+                        with settings(host_string = 'root@%s' %(entries),
+                                      password = entry_token):
+                            ip_cidr = run('ip addr show |grep -w %s |awk \'{print $2}\' | \
+                                          head -n 1' %(entries))
+                        local('sudo openstack-config --set /root/ceph.conf \
+                                    global public_network %s\/%s'
+                                    %(netaddr.IPNetwork(ip_cidr).network,
+                                    netaddr.IPNetwork(ip_cidr).prefixlen))
+                        break
                 # For prefirefly use prepare/activate on ubuntu release
                 local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
                 time.sleep(5)
@@ -2833,6 +2850,9 @@ class SetupCeph(object):
                 run('sudo openstack-config --set %s global "mon_host" "%s"'
                     %(CEPH_CONFIG_FILE, mon_host[:-2]))
 
+        # restart monitors after package upgrade
+        self.do_monitor_restarts()
+
     # end do_create_monlist
 
     # Function to create monitor if its not already running
@@ -2883,9 +2903,6 @@ class SetupCeph(object):
 
         # wait for mons to sync
         time.sleep(20)
-
-        # update ceph mon host list on all storage nodes
-        self.do_update_monhost_config()
 
         # Run gather keys on all the nodes.
         self.do_gather_keys()
@@ -2964,7 +2981,6 @@ class SetupCeph(object):
         local('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
         local('mv -f /tmp/.bashrc ~/.bashrc')
         local('echo export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
-        local('. ~/.bashrc')
         local('ceph-authtool -p -n client.volumes %s > %s' %(VOLUMES_KEYRING,
                                                             CLIENT_VOLUMES))
 
@@ -4308,6 +4324,9 @@ class SetupCeph(object):
 
             # Create the required OSDs
             self.do_osd_create()
+
+            # update ceph mon host list on all storage nodes
+            self.do_update_monhost_config()
 
             # Modify the crush map for HDD/SSD/Chassis
             self.do_crush_map_config()
