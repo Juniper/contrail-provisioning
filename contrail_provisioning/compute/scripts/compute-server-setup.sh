@@ -149,6 +149,9 @@ if [ "$HYPERVISOR" == "libvirt" ]; then
 elif [ "$HYPERVISOR" == "docker" ]; then
     openstack-config --set /etc/nova/nova.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
     openstack-config --set /etc/nova/nova-compute.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
+    openstack-config --del /etc/nova/nova.conf DEFAULT libvirt_use_virtio_for_bridges
+    openstack-config --del /etc/nova/nova-compute.conf libvirt
+    openstack-config --del /etc/nova/nova-compute.conf DEFAULT network_api_class
 fi
 
 # Use noopdriver for firewall
