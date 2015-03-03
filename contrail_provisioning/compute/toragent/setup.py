@@ -22,15 +22,15 @@ class TorAgentBaseSetup(ContrailSetup):
 
 
     def fixup_tor_agent(self):
-        template_vals = {'__contrail_agent_name__':self._args.agent_name,
+        template_vals = {'__contrail_control_ip__':self._args.self_ip,
+                         '__contrail_agent_name__':self._args.agent_name,
                          '__contrail_http_server_port__':self._args.http_server_port,
                          '__contrail_discovery_ip__':self._args.discovery_server_ip,
                          '__contrail_tor_ip__':self._args.tor_ip,
                          '__contrail_tor_id__':self._args.tor_id,
                          '__contrail_tsn_ovs_port__':self._args.tor_ovs_port,
                          '__contrail_tsn_ip__':self._args.tsn_ip,
-                         '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol, 
-                         '__contrail_control_ip__':self._args.self_ip
+                         '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol,
                         }
         self._template_substitute_write(tor_agent_conf.template,
                                         template_vals, self._temp_dir_name + '/tor_agent_conf')
