@@ -117,6 +117,12 @@ class DatabaseSetup(ContrailSetup):
             if not os.path.exists(analytics_dir_link):
                 local("sudo mkdir -p %s" % (analytics_dir))
                 local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
+        else:
+            if not data_dir:
+                data_dir = '/var/lib/cassandra/data'
+            analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
+            if not os.path.exists(analytics_dir_link):
+                local("sudo mkdir -p %s" % (analytics_dir_link))
         if seed_list:
             self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')
 
