@@ -97,6 +97,9 @@ class CollectorSetup(ContrailSetup):
         zk_list = [server[0] + ":2181" for server in self.cassandra_server_list]
         zk_list_str = ' '.join(map(str, zk_list))
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#zk_list', 'zk_list = ' + zk_list_str)
+        #prepare alarm gen conf file
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_ip', 'disc_server_ip = ' + self._args.cfgm_ip)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_port', 'disc_server_port = 5998')
 
     def fixup_contrail_snmp_collector(self):
         with settings(warn_only=True):
