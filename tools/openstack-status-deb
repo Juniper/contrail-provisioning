@@ -33,6 +33,7 @@ dpkg -l keystone 2> /dev/null 1> /dev/null && keystone='keystone'
 dpkg -l openstack-quantum-contrail 2> /dev/null 1> /dev/null && quantum='quantum'
 dpkg -l openstack-swift 2> /dev/null 1> /dev/null && swift='swift'
 dpkg -l cinder-common 2> /dev/null 1> /dev/null && cinder='cinder'
+dpkg -l ceilometer-common 2> /dev/null 1> /dev/null && ceilometer='ceilometer'
 dpkg -l libvirt0 2> /dev/null 1> /dev/null && libvirtd='libvirt-bin'
 dpkg -l qpidd 2> /dev/null 1> /dev/null && qpidd='qpidd'
 dpkg -l rabbitmq-server 2> /dev/null 1> /dev/null && rabbitmq='rabbitmq-server'
@@ -202,6 +203,16 @@ if test "$cinder"; then
   printf "== Cinder services ==\n"
   for service in api scheduler volume; do
     check_svc cinder-$service
+  done
+fi
+
+if test "$ceilometer"; then
+  printf "== Ceilometer services ==\n"
+  service_installed ceilometer-alarm-notifier && notifier=alarm-notifier
+  service_installed ceilometer-alarm-evaluator && evaluator=alarm-evaluator
+  service_installed ceilometer-agent-notification && notification=agent-notification
+  for service in api agent-central agent-compute collector $notifier $evaluator $notification; do
+    check_svc ceilometer-$service
   done
 fi
 

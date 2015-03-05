@@ -33,6 +33,7 @@ rpm -q openstack-keystone > /dev/null && keystone='keystone'
 rpm -q openstack-quantum > /dev/null && quantum='quantum'
 rpm -q openstack-swift > /dev/null && swift='swift'
 rpm -q openstack-cinder > /dev/null && cinder='cinder'
+rpm -q openstack-ceilometer-common > /dev/null && ceilometer='ceilometer'
 rpm -q libvirt > /dev/null && libvirtd='libvirtd'
 rpm -q qpid-cpp-server > /dev/null && qpidd='qpidd'
 rpm -q rabbitmq-server > /dev/null && rabbitmq='rabbitmq-server'
@@ -198,6 +199,16 @@ if test "$cinder"; then
   printf "== Cinder services ==\n"
   for service in api scheduler volume; do
     check_svc openstack-cinder-$service
+  done
+fi
+
+if test "$ceilometer"; then
+  printf "== Ceilometer services ==\n"
+  service_installed openstack-ceilometer-alarm-notifier && notifier=alarm-notifier
+  service_installed openstack-ceilometer-alarm-evaluator && evaluator=alarm-evaluator
+  service_installed openstack-ceilometer-notification && notification=notification
+  for service in api central compute collector $notifier $evaluator $notification; do
+    check_svc openstack-ceilometer-$service
   done
 fi
 
