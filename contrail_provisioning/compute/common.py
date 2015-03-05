@@ -299,8 +299,12 @@ SUBCHANNELS=1,2,3
         #end if self.dev and self.dev != 'vhost0' :
 
     def run_services(self):
-        for svc in ['openstack-nova-compute', 'supervisor-vrouter']:
+        nova_compute = 'openstack-nova-compute'
+        if self.pdist in ['Ubuntu']:
+            nova_compute = 'nova-compute'
+        for svc in [nova_compute, 'supervisor-vrouter']:
             local('chkconfig %s on' % svc)
+        local('service %s restart' % nova_compute)
 
     def add_vnc_config(self):
         compute_ip = self._args.self_ip
