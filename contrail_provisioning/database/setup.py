@@ -120,9 +120,15 @@ class DatabaseSetup(ContrailSetup):
         else:
             if not data_dir:
                 data_dir = '/var/lib/cassandra/data'
-            analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
-            if not os.path.exists(analytics_dir_link):
-                local("sudo mkdir -p %s" % (analytics_dir_link))
+            analytics_dir = os.path.join(data_dir, 'ContrailAnalytics')
+            if not os.path.exists(analytics_dir):
+                local("sudo mkdir -p %s" % (analytics_dir))
+
+        disk_cmd = "df -Pk " + analytics_dir + " | grep % | awk '{print $2}'"
+        total_disk = local(disk_cmd, capture = True).strip()
+        if (int(total_disk)/(1024*1024) < int(self._args.minimum_diskGB)):
+            raise RuntimeError('Minimum disk space for analytics db is not met')
+
         if seed_list:
             self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')
 
