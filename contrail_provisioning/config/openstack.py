@@ -162,7 +162,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         else:
             quantum_ip = self.cfgm_ip
         quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
-                      %(self._args.keystone_ip, quantum_ip, self._args.keystone_admin_tenant_name, self._args.keystone_admin_user, self._args.keystone_admin_passwd, self._args.service_token,
+                      %(self._args.keystone_ip, quantum_ip, self._args.keystone_admin_tenant_name, self._args.keystone_admin_user, self._args.keystone_admin_passwd, self._args.keystone_admin_passwd,
                         env.password)
         if self._args.region_name:
             quant_args += " --region_name %s" %(self._args.region_name)

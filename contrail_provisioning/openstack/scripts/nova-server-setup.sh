@@ -178,7 +178,7 @@ export SERVICE_TOKEN
 for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $SERVICE_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host 127.0.0.1
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
@@ -188,7 +188,7 @@ done
 openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
-openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $SERVICE_TOKEN
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $ADMIN_TOKEN
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
