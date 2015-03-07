@@ -241,7 +241,7 @@ HWADDR=%s
         return files
 
     def _rewrite_net_interfaces_file(self, dev, mac, vhost_ip, netmask, gateway_ip, esxi_vm, vmpg_mtu,
-                                     fabpg_mtu):
+                                     datapg_mtu):
         self.default_cfg_file = '/etc/network/interfaces'
         cfg_files = self.get_sourced_files()
         cfg_files.append(self.default_cfg_file)
@@ -325,8 +325,8 @@ HWADDR=%s
         local("echo '    pre-up %s/if-vhost0' >> %s" %(self.contrail_bin_dir, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
-        if esxi_vm and fabpg_mtu:
-            local("echo '    mtu %s' >> %s" %(fabpg_mtu, temp_intf_file))
+        if esxi_vm and datapg_mtu:
+            local("echo '    mtu %s' >> %s" %(datapg_mtu, temp_intf_file))
         if vhost_ip:
             local("echo '    address %s' >> %s" %(vhost_ip, temp_intf_file))
         if (not self._args.non_mgmt_ip) and gateway_ip:
