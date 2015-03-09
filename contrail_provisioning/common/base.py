@@ -231,6 +231,16 @@ class ContrailSetup(object):
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
 
+    def set_config(self, fl, sec, var, val=''):
+        with settings(warn_only=True):
+            local("openstack-config --set %s %s %s '%s'" % (
+                        fl, sec, var, val))
+
+    def del_config(self, fl, sec, var):
+        with settings(warn_only=True):
+            local("openstack-config --del %s %s %s" % (
+                        fl, sec, var))
+
     def setup(self):
         self.disable_selinux()
         self.disable_iptables()

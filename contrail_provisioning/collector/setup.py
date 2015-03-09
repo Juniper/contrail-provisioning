@@ -102,8 +102,22 @@ class CollectorSetup(ContrailSetup):
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_port', 'disc_server_port = 5998')
 
     def fixup_contrail_snmp_collector(self):
+        conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
         with settings(warn_only=True):
             local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
+            local("> " + conf_fl)
+        self.set_config(conf_fl, 'DEFAULTS', 'collectors',
+                        '127.0.0.1:8086')
+        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
+                        self._args.cfgm_ip)
+        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
+        self.set_config('/etc/contrail/supervisord_analytics_files/' +\
+                        'contrail-snmp-collector.ini',
+                        'program:contrail-snmp-collector',
+                        'command',
+                        '/usr/bin/contrail-snmp-collector --conf_file ' + \
+                        conf_fl + ' --conf_file ' + \
+                        '/etc/contrail/contrail-keystone-auth.conf')
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
