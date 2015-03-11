@@ -26,7 +26,7 @@ class DatabaseSetup(ContrailSetup):
             'dir' : '/usr/share/cassandra',
             'database_listen_ip' : '127.0.0.1',
             'cfgm_ip': '127.0.0.1',
-            'minimum_diskGB': '4',
+            'minimum_diskGB': '256',
         }
         self.parse_args(args_str)
 
