@@ -70,6 +70,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
 
     def run_services(self):
         contrail_openstack = not(getattr(self._args, 'no_contrail_openstack', False))
+        config_nova = not(getattr(self._args, 'no_nova_config', False))
         if contrail_openstack:
             if self._fixed_qemu_conf:
                 if self.pdist in ['centos', 'fedora', 'redhat']:
@@ -82,7 +83,6 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             # degradation for nova tables
             local("sudo compute-server-setup.sh")
         else:
-            config_nova = not(getattr(self._args, 'no_nova_config', False))
             if config_nova:
                 #use contrail specific vif driver
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
@@ -105,6 +105,12 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
                     raise Exception("cpu_model is required if cpu_mode is 'custom'")
                 local("openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_model %s" % cpu_model)
 
+        nova_compute = 'openstack-nova-compute'
+        if self.pdist in ['Ubuntu']:
+            nova_compute = 'nova-compute'
+        local('chkconfig %s on' % nova_compute)
+        if config_nova:
+            local('service %s restart' % nova_compute)
         super(ComputeOpenstackSetup, self).run_services()
 
     def setup(self):
