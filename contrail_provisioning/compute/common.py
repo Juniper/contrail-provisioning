@@ -304,7 +304,9 @@ SUBCHANNELS=1,2,3
             nova_compute = 'nova-compute'
         for svc in [nova_compute, 'supervisor-vrouter']:
             local('chkconfig %s on' % svc)
-        local('service %s restart' % nova_compute)
+        config_nova = not(getattr(self._args, 'no_nova_config', False))
+        if config_nova:
+            local('service %s restart' % nova_compute)
 
     def add_vnc_config(self):
         compute_ip = self._args.self_ip
