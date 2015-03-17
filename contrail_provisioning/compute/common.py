@@ -305,14 +305,13 @@ SUBCHANNELS=1,2,3
     def add_vnc_config(self):
         compute_ip = self._args.self_ip
         compute_hostname = socket.gethostname()
-        with settings(host_string = '%s@%s' %(self._args.cfgm_user, self._args.cfgm_ip), password=self._args.cfgm_passwd):
-            prov_args = "--host_name %s --host_ip %s --api_server_ip %s --oper add " \
-                        "--admin_user %s --admin_password %s --admin_tenant_name %s --openstack_ip %s" \
-                        %(compute_hostname, compute_ip, self._args.cfgm_ip, 
-                          self._args.keystone_admin_user,
-                          self._args.keystone_admin_password,
-                          self._args.keystone_admin_tenant_name, self._args.keystone_ip)
-            run("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
+        prov_args = "--host_name %s --host_ip %s --api_server_ip %s --oper add " \
+                    "--admin_user %s --admin_password %s --admin_tenant_name %s --openstack_ip %s" \
+                    %(compute_hostname, compute_ip, self._args.cfgm_ip,
+                      self._args.keystone_admin_user,
+                      self._args.keystone_admin_password,
+                      self._args.keystone_admin_tenant_name, self._args.keystone_ip)
+        local("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
 
     def setup(self):
         self.disable_selinux()
