@@ -100,6 +100,11 @@ class CollectorSetup(ContrailSetup):
         #prepare alarm gen conf file
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_ip', 'disc_server_ip = ' + self._args.cfgm_ip)
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_port', 'disc_server_port = 5998')
+        if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.disable'):
+            if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
+                os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
+	    os.rename('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.disable',\
+                      '/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
 
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
