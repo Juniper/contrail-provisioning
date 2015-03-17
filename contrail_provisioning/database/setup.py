@@ -7,6 +7,7 @@ import os
 import sys
 import argparse
 import ConfigParser
+import re
 
 from fabric.api import *
 
@@ -198,9 +199,23 @@ class DatabaseSetup(ContrailSetup):
         zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
         zk_list_str = ','.join(map(str, zk_list))
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=', 'zookeeper.connect='+zk_list_str)
+        #Set replication factor to 2 if more than one kafka broker is available
+        if (len(zk_list)>1):
+            if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
+                local('sudo echo "default.replication.factor=2" >> %s' % (KAFKA_SERVER_PROPERTIES))
 
     def run_services(self):
         local("sudo database-server-setup.sh %s" % (self.database_listen_ip))
+
+    #Checks if a pattern is present in the file or not
+    def file_pattern_check(self, file_name, regexp):
+        rs = re.compile(regexp)
+        with open(file_name, 'r') as f:
+            for line in f:
+                match = rs.search(line)
+                if match:
+                    return True
+        return False
 
 def main(args_str = None):
     database = DatabaseSetup(args_str)
