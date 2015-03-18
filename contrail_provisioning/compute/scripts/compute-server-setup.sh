@@ -107,15 +107,6 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 fi
 
-if [ $is_ubuntu -eq 1 ] ; then
-    # change network_api_class for juno in nova-compute.conf
-    if [ "$nova_compute_version" == "1:2014.2-0ubuntu1~cloud0.2contrail" ]; then
-        if [ -f /etc/nova/nova-compute.conf ]; then
-            openstack-config --set /etc/nova/nova-compute.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
-        fi
-    fi
-fi
-
 if [ $VMWARE_IP ]; then
     openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
     openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver vmwareapi.ContrailESXDriver
