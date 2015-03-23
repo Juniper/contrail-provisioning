@@ -25,6 +25,7 @@ NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status n
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
 NOVA_CONSAUTH_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-consoleauth"
 NOVA_COND_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-conductor"
+CIND_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status cinder-scheduler"
 NOVA_SCHED_RST="service nova-scheduler restart"
 NOVA_CONS_RST="service nova-console restart"
 NOVA_CONSAUTH_RST="service nova-consoleauth restart"
@@ -35,6 +36,10 @@ NOVA_COND_STATUS="service nova-conductor status"
 NOVA_SCHED_STOP="service nova-scheduler stop"
 NOVA_SCHED_START="service nova-scheduler start"
 NOVA_SCHED_STATUS="service nova-scheduler status"
+CIND_SCHED_RST="service cinder-scheduler restart"
+CIND_SCHED_STOP="service cinder-scheduler stop"
+CIND_SCHED_START="service cinder-scheduler start"
+CIND_SCHED_STATUS="service cinder-scheduler status"
 NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
@@ -155,6 +160,13 @@ verify_nova_sched() {
   if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
      (exec $NOVA_COND_RST)&
      log_info_msg "Nova Conductor restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR CINDER SCHD
+  state=$($CIND_SCHED_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $CIND_SCHED_RST)&
+     log_info_msg "Cinder Scheduler restarted becuase of the state $state"
   fi
 
 cmon_run=$(verify_cmon)
