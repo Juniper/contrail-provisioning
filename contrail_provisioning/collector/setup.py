@@ -80,6 +80,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
         self.fixup_contrail_snmp_collector()
+        self.fixup_contrail_topology()
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
             self.fixup_keystone_auth_config_file()
         if self._args.kafka_enabled == 'True':
@@ -105,9 +106,7 @@ class CollectorSetup(ContrailSetup):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
         with settings(warn_only=True):
             local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
-            local("> " + conf_fl)
-        self.set_config(conf_fl, 'DEFAULTS', 'collectors',
-                        '127.0.0.1:8086')
+            local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
                         self.cassandra_server_list[0][0] + ':2181')
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
@@ -120,6 +119,19 @@ class CollectorSetup(ContrailSetup):
                         '/usr/bin/contrail-snmp-collector --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
+
+    def fixup_contrail_topology(self):
+        conf_fl = '/etc/contrail/contrail-topology.conf'
+        with settings(warn_only=True):
+            local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
+        self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
+                        self.cassandra_server_list[0][0] + ':2181')
+        self.set_config('/etc/contrail/supervisord_analytics_files/' +\
+                        'contrail-topology.ini',
+                        'program:contrail-topology',
+                        'command',
+                        '/usr/bin/contrail-topology --conf_file ' + \
+                        conf_fl)
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
