@@ -247,6 +247,24 @@ class SetupNFSLivem(object):
                                     run('echo \"up route add %s gw %s\" >> '
                                             '/etc/network/interfaces'
                                             %(vmip, gwentry));
+                            # Add route to the local master node.
+                            dynroutedone=local('netstat -rn |grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash',
+                                                capture=True)
+                            if dynroutedone == '0':
+                                local('route add %s gw %s' %(vmip, gwentry),
+                                                    shell='/bin/bash')
+                            #check and add static route on master
+                            staroutedone=local('cat /etc/network/interfaces '
+                                                '|grep %s|wc -l'
+                                                %(vmip), shell='/bin/bash',
+                                                capture=True)
+                            if staroutedone == '0':
+                                    local('echo \"\" >> '
+                                            '/etc/network/interfaces');
+                                    local('echo \"up route add %s gw %s\" >> '
+                                            '/etc/network/interfaces'
+                                            %(vmip, gwentry));
 
                 #cinder volume creation and attaching to VM
                 avail=local('rados df | grep avail | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
@@ -255,10 +273,9 @@ class SetupNFSLivem(object):
                 avail_gb = int(avail)/1024/1024/2/3
                 print avail_gb
                 # update quota if available is > 1T
-                if avail_gb > 1000:
-                    quota_gb = avail_gb + 1000
-                    admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
-                    local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
+                quota_gb = (avail_gb * 3)
+                admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
+                local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
 
                 cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
                 if cindervolavail == '0':
@@ -380,8 +397,6 @@ class SetupNFSLivem(object):
                                 break
 
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                    # Not sure if mount in master is required
-                    # if entries != self._args.storage_master:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
                         # Add to fstab to auto-mount the nfs file system upon
                         # reboot. The 'bg' option takes care of retrying mount
@@ -395,16 +410,14 @@ class SetupNFSLivem(object):
                             run('sudo rm -rf /var/lib/nova/instances/global')
                             run('sudo mkdir /var/lib/nova/instances/global')
                             run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
-                            if entries != self._args.storage_master:
-                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+                            run('sudo chown nova:nova /var/lib/nova/instances/global')
                         else:
                             run('ping -c 10 %s' %(vmip))
                             stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
                             if stalenfs == '1':
                                 run('sudo umount /var/lib/nova/instances/global')
                                 run('sudo mount %s:/livemnfsvol /var/lib/nova/instances/global' %(vmip))
-                                if entries != self._args.storage_master:
-                                    run('sudo chown nova:nova /var/lib/nova/instances/global')
+                                run('sudo chown nova:nova /var/lib/nova/instances/global')
 
         if (self._args.storage_setup_mode == 'setup' or
             self._args.storage_setup_mode == 'setup_global') and \
@@ -413,8 +426,6 @@ class SetupNFSLivem(object):
             nfs_mount_pt = self._args.nfs_livem_mount
             nfs_server = nfs_mount_pt.split(':')[0]
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                # Not sure if mount in master is required
-                # if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     # Add to fstab to auto-mount the nfs file system upon
                     # reboot. The 'bg' option takes care of retrying mount
@@ -428,24 +439,21 @@ class SetupNFSLivem(object):
                         run('sudo rm -rf /var/lib/nova/instances/global')
                         run('sudo mkdir /var/lib/nova/instances/global')
                         run('sudo mount /var/lib/nova/instances/global')
-                        if entries != self._args.storage_master:
-                            run('sudo chown nova:nova /var/lib/nova/instances/global')
+                        run('sudo chown nova:nova /var/lib/nova/instances/global')
                     else:
                         run('ping -c 10 %s' %(nfs_server))
                         stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
                         if stalenfs == '1':
                             run('sudo umount /var/lib/nova/instances/global')
                             run('sudo mount  /var/lib/nova/instances/global')
-                            if entries != self._args.storage_master:
-                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+                            run('sudo chown nova:nova /var/lib/nova/instances/global')
 
         if self._args.storage_setup_mode == 'setup_global':
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                if entries != self._args.storage_master:
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #Set autostart vm after node reboot
-                        run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
-                        run('sudo service nova-compute restart')
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    #Set autostart vm after node reboot
+                    run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+                    run('sudo service nova-compute restart')
 
         if self._args.storage_setup_mode == 'unconfigure' and \
            self._args.nfs_livem_mount:
@@ -456,8 +464,6 @@ class SetupNFSLivem(object):
             nfs_server = nfs_mount_pt.split(':')[0]
 
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                # Not sure if mount in master is required
-                # if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
                     if fstab_added == '1':
@@ -486,8 +492,6 @@ class SetupNFSLivem(object):
             nfs_livem_cidr = str (netaddr.IPNetwork('%s' %(nfs_livem_subnet)).cidr)
 
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                # Not sure if mount in master is required
-                # if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
                     fstab_added=run('sudo cat %s | grep livemnfsvol | wc -l' %(ETC_FSTAB))
                     if fstab_added == '1':
@@ -615,7 +619,7 @@ class SetupNFSLivem(object):
                             dynroutedone=run('route del %s gw %s'
                                                 %(vmip, gwentry),
                                                 shell='/bin/bash')
-                        #check and delete static route on master
+                        #check and delete static route
                         staroutedone=run('cat /etc/network/interfaces '
                                             '|grep %s|wc -l'
                                             %(vmip), shell='/bin/bash')
@@ -625,6 +629,25 @@ class SetupNFSLivem(object):
                                                 '/tmp/interfaces'
                                                 %(vmip), shell='/bin/bash')
                             run('cp /tmp/interfaces /etc/network/interfaces');
+                        #Remove the route from the local host
+                        dynroutedone=local('netstat -rn |grep %s|wc -l'
+                                            %(vmip), shell='/bin/bash',
+                                            capture=True)
+                        if dynroutedone == '1':
+                            dynroutedone=local('route del %s gw %s'
+                                                %(vmip, gwentry),
+                                                shell='/bin/bash')
+                        #check and delete static route
+                        staroutedone=local('cat /etc/network/interfaces '
+                                            '|grep %s|wc -l'
+                                            %(vmip), shell='/bin/bash',
+                                            capture=True)
+                        if staroutedone == '1':
+                            staroutedone=local('cat /etc/network/interfaces '
+                                                '|grep -v %s > '
+                                                '/tmp/interfaces'
+                                                %(vmip), shell='/bin/bash')
+                            local('cp /tmp/interfaces /etc/network/interfaces');
 
             # Delete the VM
             vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
@@ -660,11 +683,10 @@ class SetupNFSLivem(object):
         if self._args.storage_setup_mode == 'unconfigure':
             # Remove Storage scope configuration
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-                if entries != self._args.storage_master:
-                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                        #Set autostart vm after node reboot
-                        run('openstack-config --del /etc/nova/nova.conf DEFAULT storage_scope')
-                        run('sudo service nova-compute restart')
+                with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                    #Set autostart vm after node reboot
+                    run('openstack-config --del /etc/nova/nova.conf DEFAULT storage_scope')
+                    run('sudo service nova-compute restart')
 
     #end __init__
 

@@ -33,37 +33,26 @@ class SetupLivem(object):
         LIBVIRTD_TMP_BIN_CONF='/tmp/libvirtd.tmp'
 
         for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-           isos= 0
-           for os_entries in self._args.storage_os_hosts:
-               if os_entries == entries:
-                   isos = 1
-                   break
-           if isos == 1:
-               continue
-           if entries != self._args.storage_master:
-               with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                   if self._args.add_storage_node:
-                       if self._args.add_storage_node != hostname:
-                           continue
-                   run('openstack-config --set %s DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE' %(NOVA_CONF))
-                   run('openstack-config --set %s DEFAULT vncserver_listen 0.0.0.0' %(NOVA_CONF))
-                   run('cat %s | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/\'#auth_tcp = "sasl"\'/\'auth_tcp = "none"\'/ > %s' %(LIBVIRTD_CONF, LIBVIRTD_TMP_CONF), shell='/bin/bash')
-                   run('cp -f %s %s' %(LIBVIRTD_TMP_CONF, LIBVIRTD_CONF))
-                   libvirtd = run('ls %s 2>/dev/null |wc -l' %(LIBVIRTD_CENTOS_BIN_CONF))
-                   if libvirtd != '0':
-                       run('cat %s | sed s/"#LIBVIRTD_ARGS=\"--listen\""/"LIBVIRTD_ARGS=\"--listen\""/ > %s' %(LIBVIRTD_CENTOS_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
-                       run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_CENTOS_BIN_CONF))
-                       run('service openstack-nova-compute restart')
-                       run('service libvirtd restart')
+           with settings(host_string = 'root@%s' %(entries), password = entry_token):
+               run('openstack-config --set %s DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE' %(NOVA_CONF))
+               run('openstack-config --set %s DEFAULT vncserver_listen 0.0.0.0' %(NOVA_CONF))
+               run('cat %s | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/\'#auth_tcp = "sasl"\'/\'auth_tcp = "none"\'/ > %s' %(LIBVIRTD_CONF, LIBVIRTD_TMP_CONF), shell='/bin/bash')
+               run('cp -f %s %s' %(LIBVIRTD_TMP_CONF, LIBVIRTD_CONF))
+               libvirtd = run('ls %s 2>/dev/null |wc -l' %(LIBVIRTD_CENTOS_BIN_CONF))
+               if libvirtd != '0':
+                   run('cat %s | sed s/"#LIBVIRTD_ARGS=\"--listen\""/"LIBVIRTD_ARGS=\"--listen\""/ > %s' %(LIBVIRTD_CENTOS_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
+                   run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_CENTOS_BIN_CONF))
+                   run('service openstack-nova-compute restart')
+                   run('service libvirtd restart')
 
-                   libvirtd = run('ls %s 2>/dev/null |wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
-                   if libvirtd != '0':
-                       libvirt_configured = run('cat %s |grep "\-d \-l"| wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
-                       if libvirt_configured == '0':
-                           run('cat %s | sed s/"-d"/"-d -l"/ > %s' %(LIBVIRTD_UBUNTU_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
-                           run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_UBUNTU_BIN_CONF))
-                           run('service nova-compute restart')
-                           run('service libvirt-bin restart')
+               libvirtd = run('ls %s 2>/dev/null |wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
+               if libvirtd != '0':
+                   libvirt_configured = run('cat %s |grep "\-d \-l"| wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
+                   if libvirt_configured == '0':
+                       run('cat %s | sed s/"-d"/"-d -l"/ > %s' %(LIBVIRTD_UBUNTU_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
+                       run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_UBUNTU_BIN_CONF))
+                       run('service nova-compute restart')
+                       run('service libvirt-bin restart')
 
     def _parse_args(self, args_str):
         '''
@@ -106,8 +95,6 @@ class SetupLivem(object):
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
-        parser.add_argument("--storage-os-hosts", help = "storage openstack host list", nargs='+', type=str)
-        parser.add_argument("--storage-os-host-tokens", help = "storage openstack host pass list", nargs='+', type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
