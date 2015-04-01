@@ -6,6 +6,7 @@
 import os
 import re
 import glob
+import struct
 import socket
 import netifaces
 

@@ -70,10 +70,8 @@ HYPERVISOR=${HYPERVISOR:-"libvirt"}
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --del /etc/nova/nova.conf DEFAULT sql_connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
-    if [ "$HYPERVISOR" == "libvirt" ]; then
-        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
-        openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
-    fi
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
+    openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
@@ -93,10 +91,6 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
             openstack-config --set /etc/nova/nova.conf DEFAULT instaces_path /var/lib/nova/instances
         fi
-    fi
-    if [ "$HYPERVISOR" == "docker" ]; then
-        openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
-        openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
     fi
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
@@ -138,6 +132,10 @@ if [ "$HYPERVISOR" == "libvirt" ]; then
     #use contrail specific vif driver
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
 elif [ "$HYPERVISOR" == "docker" ]; then
+    openstack-config --del /etc/nova/nova.conf DEFAULT libvirt_nonblocking
+    openstack-config --del /etc/nova/nova.conf DEFAULT libvirt_inject_partition
+    openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
+    openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver novadocker.virt.docker.DockerDriver
     openstack-config --set /etc/nova/nova.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
     openstack-config --set /etc/nova/nova-compute.conf docker vif_driver novadocker.virt.docker.opencontrail.OpenContrailVIFDriver
     openstack-config --del /etc/nova/nova.conf DEFAULT libvirt_use_virtio_for_bridges
