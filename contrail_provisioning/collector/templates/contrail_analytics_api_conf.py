@@ -13,6 +13,16 @@ log_level = $__contrail_log_level__
 log_category = $__contrail_log_category__
 log_file = $__contrail_log_file__
 
+# Time-to-live in hours of the various data stored by collector into
+# cassandra
+# analytics_config_audit_ttl, if not set (or set to -1), defaults to analytics_data_ttl
+# analytics_statistics_ttl, if not set (or set to -1), defaults to analytics_data_ttl
+# analytics_flow_ttl, if not set (or set to -1), defaults to analytics_statsdata_ttl
+analytics_data_ttl=$__contrail_analytics_data_ttl__
+analytics_config_audit_ttl=$__contrail_config_audit_ttl__
+analytics_statistics_ttl=$__contrail_statistics_ttl__
+analytics_flow_ttl=$__contrail_flow_ttl__
+
 [DISCOVERY]
 disc_server_ip = $__contrail_discovery_ip__
 disc_server_port = $__contrail_discovery_port__

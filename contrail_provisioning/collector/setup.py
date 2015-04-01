@@ -191,6 +191,10 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_collector__': self._args.self_collector_ip,
                          '__contrail_collector_port__': '8086',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
+                         '__contrail_config_audit_ttl__' : self._args.analytics_config_audit_ttl,
+                         '__contrail_statistics_ttl__' : self._args.analytics_statistics_ttl,
+                         '__contrail_flow_ttl__' : self._args.analytics_flow_ttl,
                          '__contrail_redis_password__' : ''}
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'redis_password = '+ self._args.redis_password
