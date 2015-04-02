@@ -22,6 +22,14 @@ class TorAgentBaseSetup(ContrailSetup):
 
 
     def fixup_tor_agent(self):
+        ssl_cert = ''
+        ssl_privkey = ''
+        ssl_cacert = ''
+        if self._args.tor_ovs_protocol.lower() == 'pssl':
+            ssl_cert = '/etc/contrail/ssl/certs/tor.' + self._args.tor_id + '.cert.pem'
+            ssl_privkey = '/etc/contrail/ssl/private/tor.' + self._args.tor_id + '.privkey.pem'
+            ssl_cacert = '/etc/contrail/ssl/certs/cecert.pem'
+
         template_vals = {'__contrail_control_ip__':self._args.self_ip,
                          '__contrail_agent_name__':self._args.agent_name,
                          '__contrail_http_server_port__':self._args.http_server_port,
@@ -31,6 +39,9 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tsn_ovs_port__':self._args.tor_ovs_port,
                          '__contrail_tsn_ip__':self._args.tsn_ip,
                          '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol,
+                         '__contrail_tor_ssl_cert__':ssl_cert,
+                         '__contrail_tor_ssl_privkey__':ssl_privkey,
+                         '__contrail_tor_ssl_cacert__':ssl_cacert,
                         }
         self._template_substitute_write(tor_agent_conf.template,
                                         template_vals, self._temp_dir_name + '/tor_agent_conf')
