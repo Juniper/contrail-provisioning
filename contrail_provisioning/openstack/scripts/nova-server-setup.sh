@@ -193,9 +193,9 @@ openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOC
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
-openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_workers 40
+openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_workers $OSAPI_COMPUTE_WORKERS
 openstack-config --set /etc/nova/nova.conf DEFAULT $META_DATA_PROXY True
-openstack-config --set /etc/nova/nova.conf conductor workers 40
+openstack-config --set /etc/nova/nova.conf conductor workers $CONDUCTOR_WORKERS
 
 openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver
