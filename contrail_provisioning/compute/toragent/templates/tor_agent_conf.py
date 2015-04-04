@@ -98,8 +98,17 @@ tor_type=ovs
 # OVS server port number on the ToR
 tor_ovs_port=$__contrail_tsn_ovs_port__
 
-# IP-Transport protocol used to connect to tor. Only supported value is "tcp"
+# IP-Transport protocol used to connect to tor. Supported values are "tcp", "pssl"
 tor_ovs_protocol=$__contrail_tor_ovs_protocol__
+
+# Path to ssl certificate for tor-agent, needed for pssl
+ssl_cert=$__contrail_tor_ssl_cert__
+
+# Path to ssl private-key for tor-agent, needed for pssl
+ssl_privkey=$__contrail_tor_ssl_privkey__
+
+# Path to ssl cacert for tor-agent, needed for pssl
+ssl_cacert=$__contrail_tor_ssl_cacert__
 
 tsn_ip=$__contrail_tsn_ip__
 """)
