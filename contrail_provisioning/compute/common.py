@@ -20,6 +20,7 @@ from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.compute.network import ComputeNetworkSetup
 from contrail_provisioning.compute.templates import vrouter_nodemgr_param
 from contrail_provisioning.compute.templates import contrail_vrouter_agent_conf
+from contrail_provisioning.compute.templates import contrail_vrouter_nodemgr_template
 
 
 class ExtList (list):
@@ -43,6 +44,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self.add_dev_tun_in_cgroup_device_acl()
         self.fixup_vrouter_nodemgr_param()
         self.fixup_contrail_vrouter_agent()
+        self.fixup_contrail_vrouter_nodemgr()
 
     def setup_lbaas_prereq(self):
         if self.pdist in ['centos']:
@@ -75,6 +77,14 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self._template_substitute_write(vrouter_nodemgr_param.template,
                                         template_vals, self._temp_dir_name + '/vrouter_nodemgr_param')
         local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(self._temp_dir_name))
+
+    def fixup_contrail_vrouter_nodemgr(self):
+        template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
+                         '__contrail_discovery_port__': '5998'
+                       }
+        self._template_substitute_write(contrail_vrouter_nodemgr_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-vrouter-nodemgr.conf')
+        local("sudo mv %s/contrail-vrouter-nodemgr.conf /etc/contrail/contrail-vrouter-nodemgr.conf" %(self._temp_dir_name))
 
     def fixup_contrail_vrouter_agent(self):
         keystone_ip = self._args.keystone_ip

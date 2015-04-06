@@ -30,6 +30,7 @@ from contrail_provisioning.config.templates import contrail_discovery_ini_centos
 from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_sudoers
+from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 
 
 class ConfigBaseSetup(ContrailSetup):
@@ -55,6 +56,7 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_sudoers()
+        self.fixup_contrail_config_nodemgr()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
 
@@ -291,6 +293,14 @@ class ConfigBaseSetup(ContrailSetup):
                                             template_vals, self._temp_dir_name + '/contrail_sudoers')
             local("sudo mv %s/contrail_sudoers /etc/sudoers.d/" %(self._temp_dir_name))
             local("sudo chmod 440 /etc/sudoers.d/contrail_sudoers")
+
+    def fixup_contrail_config_nodemgr(self):
+        template_vals = {'__contrail_discovery_ip__' : self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_discovery_port__': '5998'
+                       }
+        self._template_substitute_write(contrail_config_nodemgr_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
+        local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
 
     def run_services(self):
         if self._args.internal_vip:

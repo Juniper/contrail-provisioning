@@ -163,6 +163,7 @@ class DatabaseSetup(ContrailSetup):
 
         template_vals = {
                         '__contrail_discovery_ip__': self._args.cfgm_ip,
+                        '__contrail_discovery_port__': '5998',
                         '__minimum_diskGB__': self._args.minimum_diskGB,
                         '__hostip__': self.database_listen_ip,
                         }

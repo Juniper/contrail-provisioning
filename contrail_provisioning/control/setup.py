@@ -13,7 +13,7 @@ from fabric.api import local
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.control.templates import contrail_control_conf
 from contrail_provisioning.control.templates import dns_conf
-
+from contrail_provisioning.control.templates import contrail_control_nodemgr_template
 
 class ControlSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -56,6 +56,7 @@ class ControlSetup(ContrailSetup):
     def fixup_config_files(self): 
         self.fixup_contrail_control()
         self.fixup_dns()
+        self.fixup_contrail_control_nodemgr()
         if self._args.puppet_server:
             local("echo '    server = %s' >> /etc/puppet/puppet.conf" \
                 %(self._args.puppet_server))
@@ -72,6 +73,14 @@ class ControlSetup(ContrailSetup):
         self._template_substitute_write(contrail_control_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-control.conf')
         local("sudo mv %s/contrail-control.conf /etc/contrail/contrail-control.conf" %(self._temp_dir_name))
+
+    def fixup_contrail_control_nodemgr(self):
+        template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
+                         '__contrail_discovery_port__': '5998'
+                       }
+        self._template_substitute_write(contrail_control_nodemgr_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-control-nodemgr.conf')
+        local("sudo mv %s/contrail-control-nodemgr.conf /etc/contrail/contrail-control-nodemgr.conf" %(self._temp_dir_name))
 
     def fixup_dns(self):
         dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(self.control_ip),

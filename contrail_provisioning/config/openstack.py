@@ -13,6 +13,7 @@ from fabric.context_managers import settings
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
+from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 
 class ConfigOpenstackSetup(ConfigBaseSetup):
     def __init__(self, config_args, args_str=None):
@@ -40,6 +41,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_discovery_supervisor_ini()
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
+        self.fixup_contrail_config_nodemgr()
         self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
@@ -103,6 +105,14 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             neutron_def_file = "/etc/default/neutron-server"
             if os.path.exists(neutron_def_file):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
+
+    def fixup_contrail_config_nodemgr(self):
+        template_vals = {'__contrail_discovery_ip__' : self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_discovery_port__': '5998'
+                       }
+        self._template_substitute_write(contrail_config_nodemgr_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
+        local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
 
     def fixup_vnc_api_lib_ini(self):
         # vnc_api_lib.ini
