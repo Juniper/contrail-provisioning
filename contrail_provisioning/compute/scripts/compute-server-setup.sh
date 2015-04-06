@@ -173,7 +173,7 @@ if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_conn_pool_size 40
-    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 30
+    openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 60
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_thread_pool_size 70
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
@@ -182,7 +182,7 @@ if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $SELF_MGMT_IP
     openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_proxyclient_address $SELF_MGMT_IP
-    openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
+    openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 300
     openstack-config --set /etc/nova/nova.conf DEFAULT periodic_fuzzy_delay 30
     openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
     openstack-config --set /etc/nova/nova.conf DEFAULT disable_process_locking True
