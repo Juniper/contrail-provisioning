@@ -30,6 +30,8 @@ class OpenstackSetup(ContrailSetup):
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
             'haproxy': False,
+            'osapi_compute_workers': 40,
+            'conductor_workers': 40,
         }
         self._args = None
         if not args_str:
@@ -55,7 +57,8 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--self_ip", help = "IP Address of this system")
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--openstack_index", help = "The index of this openstack node")
-        parser.add_argument("--openstack_ip_list", help = "List of IP Addresses of openstack servers", nargs='+', type=str)
+        parser.add_argument("--openstack_ip_list", nargs='+', type=str,
+                            help = "List of IP Addresses of openstack servers")
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
@@ -68,6 +71,10 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use")
         parser.add_argument("--quantum_port", help = "Port of neutron service")
         parser.add_argument("--amqp_server_ip", help = "IP of the AMQP server to be used for openstack")
+        parser.add_argument("--osapi_compute_workers", type=int,
+                            help = "Number of worker threads for osapi compute")
+        parser.add_argument("--conductor_workers", type=int,
+                            help = "Number of worker threads for conductor")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -80,6 +87,8 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('API_SERVER=%s' % self._args.cfgm_ip)
+        ctrl_infos.append('OSAPI_COMPUTE_WORKERS=%s' % self._args.osapi_compute_workers)
+        ctrl_infos.append('CONDUCTOR_WORKERS=%s' % self._args.conductor_workers)
         if self._args.mgmt_self_ip:
             ctrl_infos.append('SELF_MGMT_IP=%s' % self._args.mgmt_self_ip)
         if self._args.openstack_ip_list:
