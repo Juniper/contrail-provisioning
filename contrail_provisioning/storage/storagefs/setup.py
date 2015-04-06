@@ -811,6 +811,8 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf \
                                     DEFAULT default_store file')
             local('sudo openstack-config --del /etc/glance/glance-api.conf \
+                                    DEFAULT known_stores')
+            local('sudo openstack-config --del /etc/glance/glance-api.conf \
                                     DEFAULT show_image_direct_url')
             local('sudo openstack-config --del /etc/glance/glance-api.conf \
                                     DEFAULT rbd_store_user')
@@ -829,6 +831,9 @@ class SetupCeph(object):
                         run('sudo openstack-config --set \
                                         /etc/glance/glance-api.conf \
                                         DEFAULT default_store file')
+                        run('sudo openstack-config --del \
+                                        /etc/glance/glance-api.conf \
+                                        DEFAULT known_stores')
                         run('sudo openstack-config --del \
                                         /etc/glance/glance-api.conf \
                                         DEFAULT show_image_direct_url')
@@ -2198,6 +2203,8 @@ class SetupCeph(object):
         #Glance configuration on the storage master
         local('sudo openstack-config --set %s DEFAULT default_store rbd'
                                             %(GLANCE_API_CONF))
+        local('sudo openstack-config --set %s DEFAULT known_stores glance.store.rbd.Store'
+                                            %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT show_image_direct_url True'
                                             %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT rbd_store_user images'
@@ -2219,6 +2226,9 @@ class SetupCeph(object):
                                             password = entry_token):
                     run('sudo openstack-config --set %s DEFAULT \
                                             default_store rbd'
+                                            %(GLANCE_API_CONF))
+                    run('sudo openstack-config --set %s DEFAULT \
+                                            known_stores glance.store.rbd.Store'
                                             %(GLANCE_API_CONF))
                     run('sudo openstack-config --set %s DEFAULT \
                                             show_image_direct_url True'
