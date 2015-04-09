@@ -19,6 +19,7 @@ zk_server_ip=$__contrail_zookeeper_server_ip__
 redis_server_ip=$__contrail_redis_ip__
 rabbit_server=$__rabbit_server_ip__
 rabbit_port=$__rabbit_server_port__
+list_optimization_enabled=True
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
