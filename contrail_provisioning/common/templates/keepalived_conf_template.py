@@ -35,7 +35,6 @@ vrrp_instance $__vip_str__ {
         track_script  {
                 chk_haproxy_$__vip_str__
         }
-
         track_script  {
             chk_ctrldatanet_$__vip_str__
         }
