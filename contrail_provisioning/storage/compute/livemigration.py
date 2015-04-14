@@ -32,8 +32,8 @@ class SetupLivem(object):
         LIBVIRTD_UBUNTU_BIN_CONF='/etc/default/libvirt-bin'
         LIBVIRTD_TMP_BIN_CONF='/tmp/libvirtd.tmp'
 
-        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
-           with settings(host_string = 'root@%s' %(entries), password = entry_token):
+        for hostname, entry, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+           with settings(host_string = 'root@%s' %(entry), password = entry_token):
                run('openstack-config --set %s DEFAULT live_migration_flag VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE' %(NOVA_CONF))
                run('openstack-config --set %s DEFAULT vncserver_listen 0.0.0.0' %(NOVA_CONF))
                run('cat %s | sed s/"#listen_tls = 0"/"listen_tls = 0"/ | sed s/"#listen_tcp = 1"/"listen_tcp = 1"/ | sed s/\'#auth_tcp = "sasl"\'/\'auth_tcp = "none"\'/ > %s' %(LIBVIRTD_CONF, LIBVIRTD_TMP_CONF), shell='/bin/bash')
@@ -53,6 +53,140 @@ class SetupLivem(object):
                        run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_UBUNTU_BIN_CONF))
                        run('service nova-compute restart')
                        run('service libvirt-bin restart')
+
+        # Fix nova uid 
+        if self._args.fix_nova_uid == 'enabled':
+            uid_fix_nodes = []
+            uid_fix_node_tokens = []
+
+            #Form a list of all hosts and host_tokens
+            for entry, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
+                uid_fix_nodes.append(entry)
+                uid_fix_node_tokens.append(entry_token)
+            uid_fix_nodes.append(self._args.storage_master)
+            uid_fix_node_tokens.append(self._args.storage_master_token)
+            if self._args.storage_os_hosts[0] != 'none':
+                for entry, entry_token in zip(self._args.storage_os_hosts,
+                                                self._args.storage_os_host_tokens):
+                    uid_fix_nodes.append(entry)
+                    uid_fix_node_tokens.append(entry_token)
+
+            nova_id = local('sudo id -u nova', capture=True,
+                            shell='/bin/bash')
+            qemu_id = local('sudo id -u libvirt-qemu', capture=True,
+                            shell='/bin/bash')
+            uid_fix_required = 0
+
+            #Check if nova/libvirt uid is different in each node
+            for entry, entry_token in zip(uid_fix_nodes,
+                                                uid_fix_node_tokens):
+                with settings(host_string = 'root@%s' %(entry), password = entry_token):
+                    nova_id_check = run('sudo id -u nova')
+                    qemu_id_check = run('sudo id -u libvirt-qemu')
+                    if nova_id != nova_id_check or \
+                        qemu_id != qemu_id_check:
+                        uid_fix_required = 1
+                        break
+            if uid_fix_required == 0:
+                return
+
+            new_nova_uid = 500
+            new_nova_gid = 500
+
+            new_qemu_uid = 501
+            new_qemu_gid = 501
+
+            # Start from 500 and find the id that is not used in the system
+            while True:
+                recheck = 0
+                for entry, entry_token in zip(uid_fix_nodes,
+                                                uid_fix_node_tokens):
+                    with settings(host_string = 'root@%s' %(entry),
+                                    password = entry_token):
+                        id_check = run('sudo cat /etc/passwd | \
+                                                cut -d \':\' -f 3 | \
+                                                grep -w %d | wc -l'
+                                                %(new_nova_uid))
+                        if id_check != '0':
+                            new_nova_uid += 1
+                            new_qemu_uid += 1
+                            recheck = 1
+                        id_check = run('sudo cat /etc/passwd | \
+                                                cut -d \':\' -f 3 | \
+                                                grep -w %d | wc -l'
+                                                %(new_qemu_uid))
+                        if id_check != '0':
+                            new_nova_uid += 1
+                            new_qemu_uid += 1
+                            recheck = 1
+                        id_check = run('sudo cat /etc/group | \
+                                                cut -d \':\' -f 3 | \
+                                                grep -w %d | wc -l'
+                                                %(new_nova_gid))
+                        if id_check != '0':
+                            new_nova_gid += 1
+                            new_qemu_gid += 1
+                            recheck = 1
+                        id_check = run('sudo cat /etc/group | \
+                                                cut -d \':\' -f 3 | \
+                                                grep -w %d | wc -l'
+                                                %(new_qemu_gid))
+                        if id_check != '0':
+                            new_nova_gid += 1
+                            new_qemu_gid += 1
+                            recheck = 1
+                        if recheck == 1:
+                            break
+                if recheck == 0:
+                    break
+
+            # Stop nova services
+            # Change nova/libvirt uid and gid.
+            # Chown/chgrp on all the files from old uid/gid to new uid/gid
+            # Start nova services back
+            for entry, entry_token in zip(uid_fix_nodes,
+                                                uid_fix_node_tokens):
+                with settings(host_string = 'root@%s' %(entry), password = entry_token):
+                    nova_services = []
+                    services = run('ps -Af | grep nova | grep -v grep | \
+                                    awk \'{print $9}\' | cut -d \'/\' -f 4 | \
+                                    grep nova | uniq -d')
+                    for service in services.split('\r\n'):
+                        if service != '':
+                            nova_services.append(service)
+                    services = run('ps -Af | grep nova | grep -v grep | \
+                                    awk \'{print $9}\' | cut -d \'/\' -f 4 | \
+                                    grep nova | uniq -u')
+                    for service in services.split('\r\n'):
+                        if service != '':
+                            nova_services.append(service)
+
+                    print nova_services
+
+                    for service in nova_services:
+                        if service[0] != '':
+                            run('service %s stop' %(service))
+                    cur_nova_uid = run('sudo id -u nova')
+                    cur_qemu_uid = run('sudo id -u libvirt-qemu')
+                    cur_nova_gid = run('sudo id -g nova')
+                    cur_qemu_gid = run('sudo id -g libvirt-qemu')
+                    run('sudo usermod -u %d nova' %(new_nova_uid))
+                    run('sudo groupmod -g %d nova' %(new_nova_gid))
+                    run('sudo usermod -u %d libvirt-qemu' %(new_qemu_uid))
+                    run('sudo groupmod -g %d kvm' %(new_qemu_gid))
+                    run('sudo find / -uid %s -exec chown nova {} \; 2> /dev/null; echo done'
+                                                        %(cur_nova_uid))
+                    run('sudo find / -gid %s -exec chgrp nova {} \; 2> /dev/null; echo done'
+                                                        %(cur_nova_gid))
+                    run('sudo find / -uid %s -exec chown libvirt-qemu {} \; 2> /dev/null; echo done'
+                                                        %(cur_qemu_uid))
+                    run('sudo find / -gid %s -exec chgrp kvm {} \; 2> /dev/null; echo done'
+                                                        %(cur_qemu_gid))
+                    for service in nova_services:
+                        if service[0] != '':
+                            run('service %s start' %(service))
+
+            return
 
     def _parse_args(self, args_str):
         '''
@@ -90,11 +224,15 @@ class SetupLivem(object):
         parser.set_defaults(**all_defaults)
 
         parser.add_argument("--storage-master", help = "IP Address of storage master node")
+        parser.add_argument("--storage-master-token", help = "password of storage master node")
         parser.add_argument("--storage-hostnames", help = "Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-hosts", help = "IP Addresses of storage nodes", nargs='+', type=str)
         parser.add_argument("--storage-host-tokens", help = "Passwords of storage nodes", nargs='+', type=str)
         parser.add_argument("--add-storage-node", help = "Add a new storage node")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--storage-os-hosts", help = "Host names of openstack nodes other than master", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "passwords of openstack nodes other than master", nargs='+', type=str)
+        parser.add_argument("--fix-nova-uid", help = "Enable/disable uid fix")
 
         self._args = parser.parse_args(remaining_argv)
 
