@@ -53,6 +53,9 @@ class LiveMigrationSetup(ContrailSetup):
         parser.add_argument("--nfs-livem-host", help = "Image for the NFS Live migration VM", nargs="+", type=str)
         parser.add_argument("--nfs-livem-mount", help = "mount point of external NFS server", nargs="+", type=str)
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--storage-os-hosts", help = "Host names of openstack nodes other than master", nargs='+', type=str)
+        parser.add_argument("--storage-os-host-tokens", help = "passwords of openstack nodes other than master", nargs='+', type=str)
+        parser.add_argument("--fix-nova-uid", help = "Enable/disable uid fix")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -94,10 +97,15 @@ class LiveMigrationSetup(ContrailSetup):
         live_migration_enabled = self._args.live_migration
         if live_migration_enabled == 'enabled':
             livem_setup_args = " --storage-master %s" %(self._args.storage_master)
+            livem_setup_args = livem_setup_args + " --storage-master-token %s" %(self._args.storage_master_token)
             livem_setup_args = livem_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
             livem_setup_args = livem_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
             livem_setup_args = livem_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
             livem_setup_args = livem_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
+            livem_setup_args = livem_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
+            livem_setup_args = livem_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
+            livem_setup_args = livem_setup_args + " --fix-nova-uid %s" %(self._args.fix_nova_uid)
+
             with settings(host_string=self._args.storage_master, password=self._args.storage_master_token):
                 run("sudo compute-live-migration-setup %s" %(livem_setup_args))
 
