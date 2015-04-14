@@ -37,11 +37,11 @@ for (( i=0; i<${#status[@]}; i++ ))
   if [[ ${status[i]} == 0 ]]; then
     ret=0
     break
-  else
+  fi
+  if [[ ${status[i]} == 1 ]]; then
     ret=1
   fi
 done
-
 
 if [[ $ret == 0 ]]; then
  exit 0

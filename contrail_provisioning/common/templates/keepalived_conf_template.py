@@ -18,6 +18,14 @@ vrrp_script chk_ctrldatanet_$__vip_str__ {
     fall $__cd_fall__
 }
 
+vrrp_script chk_keepalived_$__vip_str__ {
+    script "killall -0 keepalived"
+    interval 1
+    timeout $__cd_timeout__
+    rise $__cd_rise__
+    fall $__cd_fall__
+}
+
 vrrp_instance $__vip_str__ {
         interface $__device__
         state $__state__
@@ -35,9 +43,11 @@ vrrp_instance $__vip_str__ {
         track_script  {
                 chk_haproxy_$__vip_str__
         }
-
         track_script  {
             chk_ctrldatanet_$__vip_str__
+        }
+        track_script  {
+            chk_keepalived_$__vip_str__
         }
         track_interface {
             $__internal_device__
