@@ -12,6 +12,7 @@ vrrp_script chk_haproxy_$__vip_str__ {
 
 vrrp_script chk_ctrldatanet_$__vip_str__ {
     script "/opt/contrail/bin/chk_ctrldata.sh"
+    script "killall -o keepalived"
     interval 1
     timeout $__cd_timeout__
     rise $__cd_rise__
