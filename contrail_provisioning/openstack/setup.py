@@ -7,6 +7,7 @@ import os
 import sys
 import argparse
 import ConfigParser
+from distutils.version import LooseVersion
 
 from fabric.api import local
 from fabric.context_managers import settings
@@ -119,7 +120,12 @@ class OpenstackSetup(ContrailSetup):
             dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
         else:
             dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
-        if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
+
+        dashboard_version = local("rpm -q --queryformat \"%{VERSION}\" openstack-dashboard", capture=True)
+        is_dashboard_juno_or_above = LooseVersion(dashboard_version) >= LooseVersion('2014.2.2')
+        if self.pdist == 'centos' and is_dashboard_juno_or_above:
+            local("sudo sed -i \"s/ALLOWED_HOSTS =.*$/ALLOWED_HOSTS = [\'*\']/g\" %s" % (dashboard_setting_file))
+        elif self.pdist in ['fedora', 'centos', 'redhat']:
             local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
         if os.path.exists(nova_conf_file):
