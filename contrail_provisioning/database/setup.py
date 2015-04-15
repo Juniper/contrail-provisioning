@@ -140,7 +140,7 @@ class DatabaseSetup(ContrailSetup):
 
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/g' %s" \
               % (env_file))
-        if  (self.pdist == 'centos' and self.pdistversion == '6.5') or self.pdist == 'redhat':
+        if  (self.pdist == 'centos' and self.pdistversion >= '6.5') or self.pdist == 'redhat':
             local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss228k\"/g' %s" \
               % (env_file))
         else:

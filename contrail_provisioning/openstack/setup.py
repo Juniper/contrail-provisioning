@@ -7,6 +7,7 @@ import os
 import sys
 import argparse
 import ConfigParser
+from distutils.version import LooseVersion
 
 from fabric.api import local
 from fabric.context_managers import settings
@@ -110,6 +111,23 @@ class OpenstackSetup(ContrailSetup):
         local("sudo cp %s /etc/contrail/ctrl-details" % ctrl_details)
         local("sudo rm %s/ctrl-details" %(self._temp_dir_name))
 
+    def get_openstack_dashboard_version(self):
+        """Retrieve version of openstack-dashboard package installed in the
+           local machine. Returns None if not installed.
+        """
+        pkg_name = "openstack-dashboard"
+        with settings(warn_only=True):
+            dashboard_version = local("rpm -q --queryformat \"%{VERSION}\" %s" % pkg_name, capture=True)
+        return dashboard_version if dashboard_version.succeeded else None
+
+    def is_dashboard_juno_or_above(self, actual_dashboard_version):
+        """Returns True if installed openstack-dashboard package belongs to
+           Juno or higher sku, False if not.
+        """
+        # override for ubuntu when required
+        juno_version = '2014.2.2'
+        return LooseVersion(actual_dashboard_version) >= LooseVersion(juno_version)
+
     def fixup_config_files(self):
         nova_conf_file = "/etc/nova/nova.conf"
         cinder_conf_file = "/etc/cinder/cinder.conf"
@@ -119,8 +137,14 @@ class OpenstackSetup(ContrailSetup):
             dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
         else:
             dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
-        if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
-            local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
+
+        if self.pdist in ['fedora', 'centos', 'redhat']:
+            dashboard_version = self.get_openstack_dashboard_version()
+            if dashboard_version:
+                if self.is_dashboard_juno_or_above(dashboard_version):
+                    local("sudo sed -i \"s/ALLOWED_HOSTS =.*$/ALLOWED_HOSTS = [\'*\']/g\" %s" % (dashboard_setting_file))
+            else:
+                local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
