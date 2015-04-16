@@ -9,15 +9,15 @@ LOGFILE=/var/log/contrail/ha/cmon-monitor.log
 MYIPS=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 RUN_STATE="isrunning"
 CMON_SVC_CHECK=$(pgrep -xf '/usr/local/cmon/sbin/cmon -r /var/run/cmon')
-CMON_RUN_DIR="/var/run/cmon"
-RUN_CMON="/usr/local/cmon/sbin/cmon -r /var/run/cmon"
-STOP_CMON="killall -e /usr/local/cmon/sbin/cmon"
+RUN_CMON="service cmon start"
+STOP_CMON="service cmon stop"
 mysql_host=$VIP
 mysql_port=33306
 MYSQL_SVC_CHECK="service mysql status"
 HAP_RESTART="service haproxy restart"
 cmon_run=0
 viponme=0
+eviponme=0
 haprestart=0
 RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
 
@@ -25,6 +25,7 @@ NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status n
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
 NOVA_CONSAUTH_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-consoleauth"
 NOVA_COND_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-conductor"
+CIND_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status cinder-scheduler"
 NOVA_SCHED_RST="service nova-scheduler restart"
 NOVA_CONS_RST="service nova-console restart"
 NOVA_CONSAUTH_RST="service nova-consoleauth restart"
@@ -35,17 +36,11 @@ NOVA_COND_STATUS="service nova-conductor status"
 NOVA_SCHED_STOP="service nova-scheduler stop"
 NOVA_SCHED_START="service nova-scheduler start"
 NOVA_SCHED_STATUS="service nova-scheduler status"
+CIND_SCHED_RST="service cinder-scheduler restart"
 NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
 cmon_user_pass="cmon"
-SET_CMON_PURGE="update cmon_configuration set value=1 where param='PURGE';"
-SET_CMON_SCHEMA_PARAM="update cmon_configuration set value=86400 where param='db_schema_stats_collection_interval';"
-SET_CMON_STATS_COLL_PARAM="update cmon_configuration set value=86400 where param='db_stats_collection_interval';"
-SET_CMON_HOST_COLL_PARAM="update cmon_configuration set value=86400 where param='host_stats_collection_interval';"
-SET_CMON_LOG_COLL_PARAM="update cmon_configuration set value=24 where param='log_collection_interval';"
-SET_CMON_STATS_PARAM="update cmon_configuration set value=720 where param='db_hourly_stats_collection_interval';"
-SET_CMON_BACKUP_RETENTION="update cmon_configuration set value=1 where param='BACKUP_RETENTION';"
 
 timestamp() {
     date +"%T"
@@ -71,9 +66,34 @@ for y in $MYIPS
   if [ $y == $VIP ]; then
      viponme=1
      log_info_msg "VIP - $VIP is on this node"
+  fi
+  if [ $y == $EVIP ]; then
+     eviponme=1
+     log_info_msg "EVIP - $EVIP is on this node"
+  fi
+  if [ $viponme == 1 ] && [ $eviponme == 1 ]; then
      break
   fi
  done
+
+# This is to prevent a bug in keepalived
+# that does not remove VRRP IP on it being down
+ka=$(pidof keepalived)
+kps=$(wc -w <<< "$ka")
+if [[ $kps == 0 ]]; then
+   if [ $viponme == 1 ]; then
+      intf=$(ip a | grep $VIP | awk '{print $6}')
+      icmd="ip addr del $VIP dev $intf"
+      log_info_msg "Deleting stale iVIP"
+      (exec $icmd)&
+   fi
+   if [ $eviponme == 1 ]; then
+      entf=$(ip a | grep $EVIP | awk '{print $6}')
+      ecmd="ip addr del $EVIP dev $entf"
+      log_info_msg "Deleting stale eVIP"
+      (exec $ecmd)&
+   fi
+fi
 
 verify_mysql() {
    mysqlsvc=$($MYSQL_SVC_CHECK | awk '{print $3 $4}') 
@@ -156,26 +176,20 @@ verify_nova_sched() {
      log_info_msg "Nova Conductor restarted becuase of the state $state"
   fi
 
+  # CHECK FOR CINDER SCHD
+  state=$($CIND_SCHED_CHK | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $CIND_SCHED_RST)&
+     log_info_msg "Cinder Scheduler restarted becuase of the state $state"
+  fi
+
 cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
    if [ $cmon_run == "n" ]; then
-      (exec mkdir -p $CMON_RUN_DIR)&
       (exec $RUN_CMON)&
       log_info_msg "Started CMON on detecting VIP"
       (exec $RMQ_MONITOR)&
-      # Wait for 3 seconds for cmon to initialize 
-      # these updates are required as cmon.conf does not have purge and backup_retention fields
-      # in addition these params need to be synced across the cluster
-      #sleep 3
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_PURGE}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_SCHEMA_PARAM}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_STATS_COLL_PARAM}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_HOST_COLL_PARAM}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_LOG_COLL_PARAM}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_STATS_PARAM}"
-      #mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "USE cmon; ${SET_CMON_BACKUP_RETENTION}"
-      #log_info_msg "Done setting params for cmon"
     fi
    # Check periodically for RMQ status
    if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
@@ -185,7 +199,6 @@ if [ $viponme -eq 1 ]; then
 else
    if [ $cmon_run == "y" ]; then
       (exec $STOP_CMON)&
-      (exec rm -r $CMON_RUN_DIR)&
       log_info_msg "Stopped CMON on not finding VIP"
 
       #Check if the VIP was on this node and clear all session by restarting haproxy
