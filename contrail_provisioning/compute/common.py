@@ -122,12 +122,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         if self.dev and self.dev != 'vhost0' :
             self.mac = netifaces.ifaddresses (self.dev)[netifaces.AF_LINK][0][
                         'addr']
-            if self.mac:
-                with open ('%s/default_pmac' % self._temp_dir_name, 'w') as f:
-                    f.write (self.mac)
-                with settings(warn_only = True):
-                    local("sudo mv %s/default_pmac /etc/contrail/default_pmac" % (self._temp_dir_name))
-            else:
+            if not self.mac:
                 raise KeyError, 'Interface %s Mac %s' % (str (self.dev), str (self.mac))
             self.netmask = netifaces.ifaddresses(self.dev)[netifaces.AF_INET][0][
                             'netmask']
