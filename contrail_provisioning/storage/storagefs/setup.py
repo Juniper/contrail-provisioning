@@ -1204,11 +1204,27 @@ class SetupCeph(object):
             if ohostname == hostname:
                 with settings(host_string = 'root@%s' %(entry),
                                             password = entry_token):
+
+                    # Wait for disk to be mounted during osd-start
                     osd_disk = ceph_disk_entry.split(':')[1]
+                    retry = 0
+                    while True:
+                        osd_mounted = run('sudo cat /proc/mounts | grep %s | \
+                                            wc -l' %(osd_disk))
+                        if osd_mounted == '0':
+                            retry += 1
+                            if retry > 2:
+                                break
+                            time.sleep(3)
+                        else:
+                            break
+
                     osd_running = run('sudo cat /proc/mounts | grep osd | \
                                             grep %s | wc -l' %(osd_disk))
                     if osd_running != '0':
-                        osddet = run('sudo mount | grep %s | awk \'{ print $3 }\''
+                        osddet = run('sudo mount | grep %s | grep -v grep | \
+                                            grep -v tmp | head -n 1 | \
+                                            awk \'{ print $3 }\''
                                             %(osd_disk), shell='/bin/bash')
                         osdnum = osddet.split('-')[1]
                         pr_running = run('sudo ps -ef | grep ceph-osd | \
@@ -1262,7 +1278,7 @@ class SetupCeph(object):
                         break
                 # For prefirefly use prepare/activate on ubuntu release
                 local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
-                time.sleep(5)
+                time.sleep(10)
                 osd_running = self.do_osd_check(ceph_disk_entry)
                 if osd_running == FALSE:
                     print 'OSD not running for %s' %(ceph_disk_entry)
