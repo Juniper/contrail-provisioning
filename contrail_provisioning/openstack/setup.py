@@ -117,7 +117,7 @@ class OpenstackSetup(ContrailSetup):
         """
         pkg_name = "openstack-dashboard"
         with settings(warn_only=True):
-            dashboard_version = local("rpm -q --queryformat \"%{VERSION}\" %s" % pkg_name, capture=True)
+            dashboard_version = local("rpm -q --queryformat \"%%{VERSION}\" %s" % pkg_name, capture=True)
         return dashboard_version if dashboard_version.succeeded else None
 
     def is_dashboard_juno_or_above(self, actual_dashboard_version):
