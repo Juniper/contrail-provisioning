@@ -35,6 +35,14 @@ setup(
             'setup-vnc-tor-agent = contrail_provisioning.compute.toragent.setup:main',
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
+            # Upgrade scripts
+            'upgrade-vnc-openstack = contrail_provisioning.openstack.upgrade:main',
+            'upgrade-vnc-database = contrail_provisioning.database.upgrade:main',
+            'upgrade-vnc-config = contrail_provisioning.config.upgrade:main',
+            'upgrade-vnc-control = contrail_provisioning.control.upgrade:main',
+            'upgrade-vnc-collector = contrail_provisioning.collector.upgrade:main',
+            'upgrade-vnc-webui = contrail_provisioning.webui.upgrade:main',
+            'upgrade-vnc-compute = contrail_provisioning.compute.upgrade:main',
             # Helper scripts
             'setup-quantum-in-keystone = contrail_provisioning.config.quantum_in_keystone_setup:main',
             'storage-fs-setup = contrail_provisioning.storage.storagefs.setup:main',
