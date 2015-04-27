@@ -63,6 +63,9 @@ syslog_port=$__contrail_analytics_syslog_port__
 # UDP port to listen on for receiving sFlow messages. -1 to disable.
 # sflow_port=6343
 
+# UDP port to listen on for receiving ipfix messages. -1 to disable.
+# ipfix_port=4739
+
 [COLLECTOR]
 # Everything in this section is optional
 
