@@ -90,7 +90,7 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_contrail_api_config_file(self):
         self.rabbit_host = self.cfgm_ip
         self.rabbit_port = 5672
-        if self._args.orch == 'vcenter':
+        if self._args.orchestrator == 'vcenter':
             multi_tenancy_flag = False
         else:
             multi_tenancy_flag = self._args.multi_tenancy
