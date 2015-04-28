@@ -44,6 +44,9 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         # file if the upgrade is from pre releases to 2.1 release.
         if (self._args.from_rel < 2.1 and self._args.to_rel >= 2.1):
             self.config_setup.fixup_device_manager_config_file()
+        # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            self.config_setup.fixup_contrail_config_nodemgr()
 
 
 def main():

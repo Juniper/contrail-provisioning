@@ -45,7 +45,7 @@ class ConfigSetup(ContrailSetup):
             'quantum_port': '9696',
             'quantum_service_protocol': 'http',
             'manage_neutron': 'yes',
-            'orch' : 'openstack',
+            'orchestrator' : 'openstack',
         }
         self.parse_args(args_str)
 
@@ -101,13 +101,13 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
-        parser.add_argument("--orchestrator", dest='orch', help="Orchestrator used by contrail")
+        parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
   
         self._args = parser.parse_args(self.remaining_argv)
 
 def main(args_str = None):
     config_args = ConfigSetup(args_str)._args
-    if config_args.orch == 'openstack':
+    if config_args.orchestrator == 'openstack':
         config = ConfigOpenstackSetup(config_args)
     # For future Orchestrator, inherit ConfigBaseSetup and
     # add functionality specific to Orchestrator.

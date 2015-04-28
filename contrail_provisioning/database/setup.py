@@ -161,15 +161,7 @@ class DatabaseSetup(ContrailSetup):
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
 
-        template_vals = {
-                        '__contrail_discovery_ip__': self._args.cfgm_ip,
-                        '__contrail_discovery_port__': '5998',
-                        '__minimum_diskGB__': self._args.minimum_diskGB,
-                        '__hostip__': self.database_listen_ip,
-                        }
-        self._template_substitute_write(contrail_database_nodemgr_template.template,
-                                        template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
-        local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
+        self.fixup_contrail_database_nodemgr()
 
         # set high session timeout to survive glance led disk activity
         local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
@@ -204,6 +196,17 @@ class DatabaseSetup(ContrailSetup):
         if (len(zk_list)>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
                 local('sudo echo "default.replication.factor=2" >> %s' % (KAFKA_SERVER_PROPERTIES))
+
+    def fixup_contrail_database_nodemgr(self):
+        template_vals = {
+                        '__contrail_discovery_ip__': self._args.cfgm_ip,
+                        '__contrail_discovery_port__': '5998',
+                        '__minimum_diskGB__': self._args.minimum_diskGB,
+                        '__hostip__': self.database_listen_ip,
+                        }
+        self._template_substitute_write(contrail_database_nodemgr_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
+        local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
 
     def run_services(self):
         local("sudo database-server-setup.sh %s" % (self.database_listen_ip))

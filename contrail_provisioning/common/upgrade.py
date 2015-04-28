@@ -7,7 +7,6 @@
 import os
 import shutil
 import argparse
-from distutils.dir_util import copy_tree
 
 from fabric.api import local
 
@@ -70,33 +69,19 @@ class ContrailUpgrade(object):
 
         return parser
     
-    def backup_source_list(self):
-        os.rename('/etc/apt/sources.list', '/etc/apt/sources.list.upgradesave')
-
-    def create_contrail_source_list(self):
-        with open("/etc/apt/sources.list", 'w+') as fd:
-            fd.write("deb file:/opt/contrail/contrail_install_repo ./")
-
-    def restore_source_list(self):
-        os.rename('/etc/apt/sources.list.upgradesave', '/etc/apt/sources.list')
-
     def _upgrade_package(self):
         if not self.upgrade_data['upgrade']:
             return
         pkgs = ' '.join(self.upgrade_data['upgrade'])
         if self.pdist in ['Ubuntu']:
-            self.backup_source_list()
-            self.create_contrail_source_list()
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
             cmd += ' -o Dpkg::Options::="--force-overwrite"'
             cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
-            local(cmd)
-            self.restore_source_list()
         else:
             local('yum clean all')
-            cmd = 'yum -y --disablerepo=* --enablerepo=contrail_install_repo'
+            cmd = 'yum -y --disablerepo=* --enablerepo=contrail*'
             cmd += ' install %s' % pkgs
-            local(cmd)
+        local(cmd)
     
     def _backup_config(self):
         self.backup_dir = "/var/tmp/contrail-%s-upgradesave" % self._args.to_rel
@@ -104,8 +89,14 @@ class ContrailUpgrade(object):
         for backup_elem in self.upgrade_data['backup']:
             backup_config = self.backup_dir + backup_elem
             if not os.path.exists(backup_config):
-                os.makedirs(backup_config)
-                copy_tree(backup_elem, backup_config)
+                print "Backing up %s at: %s" % (backup_elem, backup_config)
+                backup_dir = os.path.dirname(os.path.abspath(backup_config))
+                if not os.path.exists(backup_dir):
+                    os.makedirs(backup_dir)
+                if os.path.isfile(backup_elem):
+                    shutil.copy2(backup_elem, backup_config)
+                else:
+                    local('cp -rfp %s %s' % (backup_elem, backup_config))
             else:
                 print "Already the config dir %s is backed up at %s." %\
                     (backup_elem, backup_config)
@@ -113,10 +104,11 @@ class ContrailUpgrade(object):
     def _restore_config(self):
         for restore_elem in self.upgrade_data['restore']:
             restore_config = self.backup_dir + restore_elem
+            print "Restoring %s to: %s" % (restore_config, restore_elem)
             if os.path.isfile(restore_config):
-                os.rename(restore_config, restore_elem)
+                shutil.copy2(restore_config, restore_elem)
             else:    
-                copy_tree(restore_config, restore_elem)
+                local('cp -rfp %s %s' % (restore_config, restore_elem))
 
     def _downgrade_package(self):
         if not self.upgrade_data['downgrade']:
@@ -129,7 +121,7 @@ class ContrailUpgrade(object):
             cmd += ' install %s' % pkgs
         else:
             cmd = 'yum -y --nogpgcheck --disablerepo=*'
-            cmd += ' --enablerepo=contrail_install_repo install %s' % pkgs
+            cmd += ' --enablerepo=contrail* install %s' % pkgs
         local(cmd)
 
     def _remove_package(self):
@@ -157,7 +149,12 @@ class ContrailUpgrade(object):
 
     def _rename_config(self):
         for src, dst in self.upgrade_data['rename_config']:
-            shutil.move(src, dst)
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+                os.remove(src)
+            else:
+                local('cp -rfp %s %s' % src, dst)
+                shutil.rmtree(src)
 
     def _upgrade(self):
         self._backup_config()

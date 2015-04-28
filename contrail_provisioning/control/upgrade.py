@@ -33,6 +33,9 @@ class ControlUpgrade(ContrailUpgrade, ControlSetup):
     def upgrade(self):
         self._upgrade()
         self.upgrade_python_pkgs()
+        # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            self.fixup_contrail_control_nodemgr()
         self.restart()
 
 
