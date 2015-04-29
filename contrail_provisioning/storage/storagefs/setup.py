@@ -1484,9 +1484,10 @@ class SetupCeph(object):
                                         %(CEPH_CONFIG_FILE, VOLUMES_KEYRING))
         local('sudo openstack-config --set %s client.images keyring %s'
                                         %(CEPH_CONFIG_FILE, IMAGES_KEYRING))
-        local('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
+        # No need for CEPH_ARGS in bashrc for ubuntu.
+        # Remove if already present.
+        local('cat ~/.bashrc |grep -v "CEPH_ARGS=" > /tmp/.bashrc')
         local('mv -f /tmp/.bashrc ~/.bashrc')
-        local('echo export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
         local('ceph-authtool -p -n client.volumes %s > %s' %(VOLUMES_KEYRING,
                                                             CLIENT_VOLUMES))
 
@@ -1905,11 +1906,6 @@ class SetupCeph(object):
 
     # Function for generic cinder configuration
     def do_configure_cinder(self):
-        # Set mysql listen ip to 0.0.0.0, so cinder volume manager from all
-        # nodes can access.
-        if self.is_lvm_config_disabled() == FALSE:
-            local('sudo sed -i "s/^bind-address/#bind-address/" /etc/mysql/my.cnf')
-            local('sudo service mysql restart')
 
         local('sudo openstack-config --set %s DEFAULT sql_connection \
                                         mysql://cinder:cinder@127.0.0.1/cinder'
