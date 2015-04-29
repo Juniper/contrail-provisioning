@@ -159,7 +159,7 @@ class ContrailUpgrade(object):
     def _upgrade(self):
         self._backup_config()
         if self.pdist in ['centos']:
-            self.remove_package()
+            self._remove_package()
         self._ensure_package()
         self._downgrade_package()
         self._upgrade_package()
