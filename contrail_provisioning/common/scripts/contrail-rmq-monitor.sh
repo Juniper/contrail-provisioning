@@ -10,13 +10,14 @@ readonly LOCKFILE_DIR=/tmp/ha-chk
 readonly LOCK_FD=200
 
 LOGFILE=/var/log/contrail/ha/rmq-monitor.log
-RMQ_CHANNEL_OK="...done."
 RMQ_CLUSTER_OK="running_nodes"
 RMQ_RESET="service rabbitmq-server restart"
 RMQ_REST_INPROG="rabbitmq-reset"
 file="/tmp/ha-chk/rmq-chnl-ok"
 cluschk="/tmp/ha-chk/rmq-clst-ok"
+cluspart="/tmp/ha-chk/rmq-clst-part"
 rstinprog="/tmp/ha-chk/rmq-rst-prog"
+rstcnt="/tmp/ha-chk/rmq-rst-cnt"
 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
@@ -34,8 +35,16 @@ if [ ! -f "$rstinprog" ] ; then
          touch "$rstinprog"
 fi
 
+if [ ! -f "$rstcnt" ] ; then
+          touch $rstcnt
+fi
+
+if [ ! -f "$cluspart" ] ; then
+          touch $cluspart
+fi
+
 timestamp() {
-    date +"%T"
+    date
 }
 
 log_error_msg() {
@@ -77,7 +86,7 @@ eexit() {
 verify_chnlstate()
 {
  chnlstate=`cat $file`
- if [[ $chnlstate == $RMQ_CHANNEL_OK ]]; then
+ if [[ $chnlstate -gt 0 ]]; then
    echo "y"
    return 1
  else
@@ -110,7 +119,7 @@ verify_cluststate()
 
 check_partition()
 {
- part=$(rabbitmqctl cluster_status | grep partitions | grep ctrl | wc -l)
+ part=`cat $cluspart`
  if [[ $part -ne 0 ]]; then
         echo "y"
         return 1
@@ -134,24 +143,34 @@ verify_rstinprog()
 
 periodic_check()
 {
-i=1
-while [ $i -lt  12 ]
+hosts=""
+for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+ do
+  substr=${DIPHOSTS[i]}
+  hosts=$hosts$substr"\|"
+ done
+i=0
+while [ $i -lt  5 ]
 do
- (rabbitmqctl list_channels | grep done > "$file") & pid=$!
+ (rabbitmqctl list_channels | grep $hosts | wc -l > "$file") & pid=$!
  (rabbitmqctl cluster_status | grep -A 1 running_nodes > "$cluschk") & pid1=$!
+ (rabbitmqctl cluster_status | grep partitions | grep ctrl | wc -l > "$cluspart") & pid2=$!
  log_info_msg "pidof pending rmq channel $pid and cluster check $pid1"
  sleep 10
- if [ -d "/proc/${pid}" ] || [ -d "/proc/${pid1}" ]; then
-  (exec kill -9 $pid)&
-  (exec kill -9 $pid1)&
-  i=$[$i+1]
- else
-  break
+ if [ -d "/proc/${pid}" ]; then
+  (exec pkill -TERM -P $pid)&
  fi
+ if [ -d "/proc/${pid1}" ]; then
+  (exec pkill -TERM -P $pid1)&
+ fi
+ if [ -d "/proc/${pid2}" ]; then
+  (exec pkill -TERM -P $pid2)&
+ fi
+  i=$[$i+1]
 done
 }
 
-checkfor_rst()
+checkNrst()
 {
 cluststate_run=$(verify_cluststate)
 chnlstate_run=$(verify_chnlstate)
@@ -161,20 +180,46 @@ log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 
 if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state == "y" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
-   (exec $RMQ_RESET)&
-   (echo $RMQ_REST_INPROG > "$rstinprog")&
-   log_info_msg "Resetting RMQ -- Done"
-   (exec rm -rf "$rstinprog")&
+   (exec echo $RMQ_REST_INPROG > "$rstinprog")&
+   cnt=$(cat $rstcnt)
+   if [[ $cnt == '' ]]; then
+      cnt=0
+   fi
+   if [ $cnt == 3 ]; then
+    for (( i=0; i<${DIPS_SIZE}; i++ ))
+     do
+       (ssh -o StrictHostKeyChecking=no ${DIPS[i]} "$RMQ_RESET")&
+     done
+    (exec rm -rf "$rstcnt")&
+    log_info_msg "Resetting all RMQ -- Done"
+   else
+    (exec $RMQ_RESET)&
+    cnt=$(($cnt + 1))
+    (exec echo $cnt > "$rstcnt")&
+    log_info_msg "Resetting RMQ -- Done"
+   fi
  fi
 fi
 (exec rm -rf "$file")&
 (exec rm -rf "$cluschk")&
+(exec rm -rf "$cluspart")&
+(exec rm -rf "$rstinprog")&
 }
 
 stalels=$(ps -ef | grep rabbitmqctl | grep list_channels | awk '{print $2}')
 stalecs=$(ps -ef | grep rabbitmqctl | grep cluster_status | awk '{print $2}')
-(exec kill -9 "$stalels")&
-(exec kill -9 "$stalecs")&
+if [[ $stalels != '' ]]; then
+  for lpid in $stalels
+   do
+    (exec pkill -TERM -P $lpid)&
+   done
+fi
+if [[ $stalecs != '' ]]; then
+  for cpid in $stalecs
+   do
+    (exec pkill -TERM -P $cpid)&
+   done
+fi
 
 main()
 {
@@ -182,7 +227,7 @@ main()
         || eexit "Only one instance of $PROGNAME can run at one time."
 
  periodic_check
- checkfor_rst
+ checkNrst
 }
 main
 
