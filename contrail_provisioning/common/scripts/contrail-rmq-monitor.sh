@@ -10,7 +10,6 @@ readonly LOCKFILE_DIR=/tmp/ha-chk
 readonly LOCK_FD=200
 
 LOGFILE=/var/log/contrail/ha/rmq-monitor.log
-RMQ_CHANNEL_OK="...done."
 RMQ_CLUSTER_OK="running_nodes"
 RMQ_RESET="service rabbitmq-server restart"
 RMQ_REST_INPROG="rabbitmq-reset"
@@ -35,7 +34,7 @@ if [ ! -f "$rstinprog" ] ; then
 fi
 
 timestamp() {
-    date +"%T"
+    date
 }
 
 log_error_msg() {
@@ -77,7 +76,7 @@ eexit() {
 verify_chnlstate()
 {
  chnlstate=`cat $file`
- if [[ $chnlstate == $RMQ_CHANNEL_OK ]]; then
+ if [[ $chnlstate -gt 0 ]]; then
    echo "y"
    return 1
  else
@@ -134,10 +133,16 @@ verify_rstinprog()
 
 periodic_check()
 {
+hosts=""
+for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+ do
+  substr=${DIPHOSTS[i]}
+  hosts=$hosts$substr"\|"
+ done
 i=1
 while [ $i -lt  12 ]
 do
- (rabbitmqctl list_channels | grep done > "$file") & pid=$!
+ (rabbitmqctl list_channels | grep $hosts | wc -l > "$file") & pid=$!
  (rabbitmqctl cluster_status | grep -A 1 running_nodes > "$cluschk") & pid1=$!
  log_info_msg "pidof pending rmq channel $pid and cluster check $pid1"
  sleep 10
@@ -162,13 +167,13 @@ log_info_msg "cluster state $cluststate_run and channel state $chnlstate_run"
 if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state == "y" ]] && [[ $RABBITMQ_RESET == "True" ]]; then
  if [[ $rstinpprog_run == "n" ]]; then
    (exec $RMQ_RESET)&
-   (echo $RMQ_REST_INPROG > "$rstinprog")&
+   (exec echo $RMQ_REST_INPROG > "$rstinprog")&
    log_info_msg "Resetting RMQ -- Done"
-   (exec rm -rf "$rstinprog")&
  fi
 fi
 (exec rm -rf "$file")&
 (exec rm -rf "$cluschk")&
+(exec rm -rf "$rstinprog")&
 }
 
 stalels=$(ps -ef | grep rabbitmqctl | grep list_channels | awk '{print $2}')
