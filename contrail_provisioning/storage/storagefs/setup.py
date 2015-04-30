@@ -2580,6 +2580,9 @@ class SetupCeph(object):
                     if matchfound == 0:
                         with settings(host_string = 'root@%s' %(entries),
                                       password = entry_token):
+                            storage_stats=run('ps -ef|grep -v grep|grep contrail-storage-stats|wc -l')
+                            if storage_stats == '1':
+                                run('service contrail-storage-stats stop')
                             run('sudo rm -rf %s' %(CONTRAIL_STORAGE_STATS_INIT))
                 # all master node match except first master
                 if self._args.storage_os_hosts[0] != 'none':
@@ -2596,6 +2599,9 @@ class SetupCeph(object):
                             if matchfound == 0:
                                 with settings(host_string = 'root@%s' \
                                     %(entries), password = entry_token):
+                                    storage_stats=run('ps -ef|grep -v grep|grep contrail-storage-stats|wc -l')
+                                    if storage_stats == '1':
+                                        run('service contrail-storage-stats stop')
                                     run('sudo rm -rf %s' \
                                         %(CONTRAIL_STORAGE_STATS_INIT))
         return
