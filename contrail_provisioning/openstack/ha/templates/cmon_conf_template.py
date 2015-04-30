@@ -38,7 +38,7 @@ hostname=$__mysql_node_address__
 osuser=root
 
 # location of cmon.pid file. The pidfile is written in /tmp/ by default
-pidfile=/var/run/
+pidfile=/var/run/cmon
 
 # logfile is default to syslog.
 logfile=/var/log/cmon.log
