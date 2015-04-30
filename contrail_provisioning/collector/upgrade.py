@@ -4,10 +4,12 @@
 #
 """Upgrade's Contrail Collector components."""
 
-from setup import CollectorSetup
-from contrail_provisioning.common.upgrade import ContrailUpgrade
+import os
 
 from fabric.api import local
+
+from setup import CollectorSetup
+from contrail_provisioning.common.upgrade import ContrailUpgrade
 
 
 class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
@@ -39,6 +41,22 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
             self.fixup_contrail_analytics_nodemgr()
+            # contrail-snmp-collector support
+            self.fixup_contrail_snmp_collector()
+            # contrail-topology support
+            self.fixup_contrail_topology()
+            # Create contrail-keystone-auth.conf
+            if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
+                self.fixup_keystone_auth_config_file()
+            # Kafka is introduced from release 2.20
+            if self._args.kafka_enabled == 'True':
+                self.fixup_contrail_alarm_gen()
+                kafka_broker_list = [server[0] + ":9092"\
+                                     for server in self.cassandra_server_list]
+                kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+                local('openstack-config --set\
+                      /etc/contrail/contrail-collector.conf\
+                      DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
         self.restart()
 
 
