@@ -54,6 +54,9 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         self.upgrade_python_pkgs()
         if self._args.from_rel == 2.0:
             self.fix_nova_params()
+        # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            self.compute_setup.fixup_contrail_vrouter_nodemgr()
 
 
 def main():

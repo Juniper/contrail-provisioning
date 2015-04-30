@@ -20,10 +20,7 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
         self.upgrade_data['restore'].append(
-            '/etc/contrail/database_nodemgr_param')
-        self.upgrade_data['rename_config'].append(
-            ('/etc/contrail/database_nodemgr_param',
-             '/etc/contrail/contrail-database-nodemgr.conf'))
+             '/etc/contrail/contrail-database-nodemgr.conf')
 
     def restart(self):
         local('service zookeeper restart')
