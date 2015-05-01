@@ -28,7 +28,6 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
                        '/etc/cinder',
                       ]
         if self._args.internal_vip:
-            self.upgrade_data['upgrade'].append('contrail-openstack-ha')
             backup_data += ['/etc/mysql',
                             '/etc/keepalived',
                             '/etc/contrail/ha']
