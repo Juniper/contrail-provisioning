@@ -29,6 +29,14 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
     def upgrade(self):
         self._upgrade()
         self.upgrade_python_pkgs()
+        # Kafka is introduced from release 2.20
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            self.fixup_kafka_server_properties()
+            # Adding hostip in contrail-database-nodemgr.conf
+            self.fixup_contrail_database_nodemgr()
+            local('openstack-config --del\
+                  /etc/contrail/contrail-database-nodemgr.conf\
+                  DEFAULT minimum_diskGB')
         self.restart()
 
 

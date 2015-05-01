@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Config components."""
 
+from fabric.api import local
+
 from setup import ConfigSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 from contrail_provisioning.config.common import ConfigBaseSetup
@@ -47,6 +49,12 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
             self.config_setup.fixup_contrail_config_nodemgr()
+            # Populate RabbitMQ details in contrail-svc-monitor.conf
+            conf_file = '/etc/contrail/contrail-svc-monitor.conf'
+            local('openstack-config --set %s DEFAULTS rabbit_server %s' % \
+                    (conf_file, self.config_setup.rabbit_host))
+            local('openstack-config --set %s DEFAULTS rabbit_port %s' % \
+                    (conf_file, self.config_setup.rabbit_port))
 
 
 def main():

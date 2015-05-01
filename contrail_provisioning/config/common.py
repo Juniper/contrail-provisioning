@@ -43,6 +43,12 @@ class ConfigBaseSetup(ContrailSetup):
         self.zk_servers = ','.join(self._args.zookeeper_ip_list)
         self.zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
 
+        self.rabbit_host = self.cfgm_ip
+        self.rabbit_port = 5672
+        if self._args.internal_vip:
+            self.rabbit_host = self._args.internal_vip
+            self.rabbit_port = 5673
+
     def fixup_config_files(self):
         self.fixup_ifmap_config_files()
         self.fixup_contrail_api_config_file()
@@ -88,15 +94,10 @@ class ConfigBaseSetup(ContrailSetup):
             local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(self._temp_dir_name))
 
     def fixup_contrail_api_config_file(self):
-        self.rabbit_host = self.cfgm_ip
-        self.rabbit_port = 5672
         if self._args.orchestrator == 'vcenter':
             multi_tenancy_flag = False
         else:
             multi_tenancy_flag = self._args.multi_tenancy
-        if self._args.internal_vip:
-            self.rabbit_host = self._args.internal_vip
-            self.rabbit_port = 5673
         # contrail-api.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
@@ -177,11 +178,6 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_device_manager_config_file(self):
         # contrail-device-manager.conf
-        self.rabbit_host = self.cfgm_ip
-        self.rabbit_port = 5672
-        if self._args.internal_vip:
-            self.rabbit_host = self._args.internal_vip
-            self.rabbit_port = 5673
         template_vals = {'__rabbit_server_ip__': self.rabbit_host,
                          '__rabbit_server_port__': self.rabbit_port,
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
@@ -199,11 +195,6 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
-        self.rabbit_host = self.cfgm_ip
-        self.rabbit_port = 5672
-        if self._args.internal_vip:
-            self.rabbit_host = self._args.internal_vip
-            self.rabbit_port = 5673
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'svc-monitor',
