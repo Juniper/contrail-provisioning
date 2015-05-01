@@ -6,6 +6,7 @@
 
 from setup import OpenstackSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
+from fabric.context_managers import settings
 
 from fabric.api import local
 
@@ -37,9 +38,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         self.upgrade_data['restore'] = self.upgrade_data['backup']
 
     def stop(self):
-        if ('running' in
-            local('service supervisor-openstack status', capture=True)):
-            local('service supervisor-openstack stop')
+        with settings(warn_only=True):
+            if ('running' in
+                local('service supervisor-openstack status', capture=True)):
+                local('service supervisor-openstack stop')
 
     def restart(self):
         local('service supervisor-openstack restart')

@@ -24,10 +24,10 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
 
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
-
-        ifmap_dir = '/etc/irond'
-        if self.pdist in ['Ubuntu']:
-            ifmap_dir = '/etc/ifmap-server'
+        ifmap_dir = '/etc/ifmap-server'
+        if self.pdist in ['centos', 'redhat']:
+            if (self._args.from_rel < 2.0 and self._args.to_rel >= 2.2):
+                ifmap_dir = '/etc/irond'
         self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']
 
         self.upgrade_data['restore'] += ['/etc/contrail/vnc_api_lib.ini',
