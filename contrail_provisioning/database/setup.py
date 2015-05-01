@@ -181,6 +181,9 @@ class DatabaseSetup(ContrailSetup):
         #put cluster-unique zookeeper's instance id in myid
         local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
 
+        self.fixup_kafka_server_properties()
+
+    def fixup_kafka_server_properties(self):
         #Update the broker id of the /usr/share/kafka/config/server.properties
         KAFKA_SERVER_PROPERTIES='/usr/share/kafka/config/server.properties'
         cnd = os.path.exists(KAFKA_SERVER_PROPERTIES)
