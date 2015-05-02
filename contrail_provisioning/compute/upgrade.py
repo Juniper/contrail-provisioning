@@ -26,14 +26,24 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
         self.upgrade_data['backup'].append('/etc/nova')
+        self.upgrade_data['backup'].append('/etc/libvirt')
 
         self.upgrade_data['restore'] += ['/etc/contrail/agent_param',
                                  '/etc/contrail/contrail-vrouter-agent.conf',
                                  '/etc/contrail/vrouter_nodemgr_param',
-                                 '/etc/nova/nova.conf']
+                                 '/etc/nova/nova.conf',
+                                 '/etc/libvirt/qemu.conf']
         if self.pdist in ['Ubuntu']:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')
+        if 'tsn' in self._args.roles:
+            self.upgrade_data['restore'].remove('/etc/nova/nova.conf')
+            self.upgrade_data['restore'].remove('/etc/libvirt/qemu.conf')
+            if self.pdist in ['Ubuntu']:
+                self.upgrade_data['restore'].remove('/etc/nova/nova-compute.conf')
+        if 'toragent' in self._args.roles:
+            # TODO :Restore toragent config files if required.
+            pass
 
     def fix_nova_params(self):
         # Upgrade nova parameters in nova.conf of compute host from 2.0 to >2.1
