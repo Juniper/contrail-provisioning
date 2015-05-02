@@ -28,7 +28,7 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         self.upgrade_data['upgrade'] = self._args.packages
         ifmap_dir = '/etc/ifmap-server'
         if self.pdist in ['centos', 'redhat']:
-            if (self._args.from_rel < 2.11 and self._args.to_rel >= 2.2):
+            if (self._args.from_rel < 2.0 and self._args.to_rel >= 2.2):
                 ifmap_dir = '/etc/irond'
         self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']
 

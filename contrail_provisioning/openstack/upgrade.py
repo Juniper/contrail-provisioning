@@ -6,6 +6,7 @@
 
 from setup import OpenstackSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
+from fabric.context_managers import settings
 
 from fabric.api import local
 
