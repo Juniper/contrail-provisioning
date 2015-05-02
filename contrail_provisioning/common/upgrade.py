@@ -41,12 +41,16 @@ class ContrailUpgrade(object):
             help="Release of contrail software to be upgraded in the node")
         conf_parser.add_argument("-P", "--packages", nargs='+', type=str,
             help = "List of packages to be upgraded.")
+        conf_parser.add_argument("-R", "--roles", nargs='+', type=str,
+            help = "List of contrail roles provisioned in this node.")
         args, self.remaining_argv = conf_parser.parse_known_args(args_str.split())
 
         if args.conf_file:
             config = ConfigParser.SafeConfigParser()
             config.read([args.conf_file])
             self.global_defaults.update(dict(config.items("GLOBAL")))
+        if args.roles:
+            self.global_defaults.update({'roles' : args.roles})
         if args.packages:
             self.global_defaults.update({'packages' : args.packages})
         if args.from_rel:

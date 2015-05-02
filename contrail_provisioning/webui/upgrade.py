@@ -22,6 +22,8 @@ class WebuiUpgrade(ContrailUpgrade, WebuiSetup):
 
         self.upgrade_data['restore'].append(
                                 '/etc/contrail/config.global.js')
+        self.upgrade_data['restore'].append(
+                                '/etc/contrail/contrail-webui-userauth.js')
 
     def restart(self):
         local('service supervisor-webui restart')
