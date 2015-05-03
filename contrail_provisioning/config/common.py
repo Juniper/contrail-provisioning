@@ -305,16 +305,22 @@ class ConfigBaseSetup(ContrailSetup):
         for i in range(10):
             services_status = {'contrail-api' : 'down', 'rabbitmq-server' : 'down'}
             for service in services_status.keys():
-                status = local("sudo service %s status" % service, capture=True)
-                if 'running' in status.lower():
+                with settings(warn_only=True):
+                    status = local("sudo service %s status" % service, capture=True)
+                if status.succeeded and 'running' in status.lower():
                     print "[%s] started by supervisor config." % service
                     services_status[service] = 'running'
+                else:
+                    print "Error %s in getting status of [%s]." \
+                           %(status.__dict__, service)
+                    services_status[service] = 'down'
+
             if 'down' in services_status.values():
                 print "[contrail-api and rabbitmq] not yet started by supervisor config, Retrying."
                 sleep(2)
             else:
                 print "[contrail-api and rabbitmq] started by supervisor config, continue to provision."
-                break
+                return
 
     def setup(self):
         self.disable_selinux()
