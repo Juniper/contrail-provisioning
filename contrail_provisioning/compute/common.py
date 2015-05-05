@@ -167,6 +167,8 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if self._args.vmware:
                 vmware_dev = self.get_secondary_device(self.dev)
                 hypervisor_type = "vmware"
+            if self._args.hypervisor == 'docker':
+                hypervisor_type = "docker"
 
             # Set template options for DPDK mode
             pci_dev = ""
