@@ -93,6 +93,8 @@ class CollectorSetup(ContrailSetup):
         cnd = os.path.exists(ALARM_GEN_CONF_FILE)
         if not cnd:
             raise RuntimeError('%s does not exist' % ALARM_GEN_CONF_FILE)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#host_ip',
+                             'host_ip = ' + self._args.self_collector_ip)
         kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
         kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#kafka_broker_list', 'kafka_broker_list = ' + kafka_broker_list_str)
