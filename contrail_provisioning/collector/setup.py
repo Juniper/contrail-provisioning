@@ -87,6 +87,9 @@ class CollectorSetup(ContrailSetup):
             self.fixup_keystone_auth_config_file()
         if self._args.kafka_enabled == 'True':
             self.fixup_contrail_alarm_gen()
+        else:
+            if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
+                os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
 
     def fixup_contrail_alarm_gen(self):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
