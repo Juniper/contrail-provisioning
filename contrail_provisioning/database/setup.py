@@ -191,6 +191,10 @@ class DatabaseSetup(ContrailSetup):
             raise RuntimeError('%s does not appear to be a kafka config directory' % KAFKA_SERVER_PROPERTIES)
 	if self._args.kafka_broker_id is not None:
             self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'broker.id=', 'broker.id='+self._args.kafka_broker_id)
+        else:
+            #kafka not enabled
+            if os.path.exists('/etc/contrail/supervisord_database_files/kafka.ini'):
+                os.remove('/etc/contrail/supervisord_database_files/kafka.ini')
         #Add all the zoo keeper server address to the server.properties file
         zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
         zk_list_str = ','.join(map(str, zk_list))
