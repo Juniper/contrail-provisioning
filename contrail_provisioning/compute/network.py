@@ -4,6 +4,9 @@
 #
 
 import os
+import re
+import struct
+import socket
 import netifaces
 
 from fabric.api import local
