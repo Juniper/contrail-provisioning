@@ -57,6 +57,10 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 local('openstack-config --set\
                       /etc/contrail/contrail-collector.conf\
                       DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
+            else:
+                if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
+                      os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
+
         self.restart()
 
 
