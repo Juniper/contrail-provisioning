@@ -155,6 +155,18 @@ class WebuiSetup(ContrailSetup):
                  local("sudo sed \"/config.multi_tenancy.enable/ a \\\n// staticAuth\\nconfig.staticAuth = [];\\nconfig.staticAuth[0] = {};\\nconfig.staticAuth[0].username = '" + admin_user + "';\\nconfig.staticAuth[0].password = '" + admin_password + "';\\nconfig.staticAuth[0].roles = ['superAdmin'];\" /etc/contrail/config.global.js > config.global.js.new")
                  local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
+        if self._args.orchestrator == 'none':
+           local("sudo sed \"s/config.orchestration.Manager.*/config.orchestration.Manager = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.orchestrator))
+           local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+           with settings(warn_only=True):
+              mt_enable_variable = local('cat /etc/contrail/config.global.js | grep config.multi_tenancy', capture=True);
+           if mt_enable_variable:
+              local("sudo sed \"s/config.multi_tenancy.enabled.*/config.multi_tenancy.enabled = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+           else:
+              local("sudo sed \"/config.orchestration.Manager/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enabled = false;\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+
     def run_services(self):
         local("sudo webui-server-setup.sh")
 
