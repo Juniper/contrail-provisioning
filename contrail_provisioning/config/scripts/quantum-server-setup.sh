@@ -126,6 +126,16 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rpc_thread_pool_size 70
 fi
 
+# Add respawn in nova-compute upstart script
+net_svc_upstart='/etc/init/$net_svc_name-server.conf'
+if [ -f $net_svc_upstart ]; then
+    ret_val=`grep "^respawn" $net_svc_upstart > /dev/null;echo $?`
+    if [ $ret_val == 1 ]; then
+      sed -i 's/pre-start script/respawn\n&/' $net_svc_upstart
+      sed -i 's/pre-start script/respawn limit 10 90\n&/' $net_svc_upstart
+    fi
+fi
+
 echo "======= Enabling the services ======"
 
 for svc in $msg_svc $web_svc memcached; do
