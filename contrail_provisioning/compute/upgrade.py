@@ -25,8 +25,9 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
 
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
-        self.upgrade_data['backup'].append('/etc/nova')
-        self.upgrade_data['backup'].append('/etc/libvirt')
+        if 'tsn' not in self._args.roles:
+            self.upgrade_data['backup'].append('/etc/nova')
+            self.upgrade_data['backup'].append('/etc/libvirt')
 
         self.upgrade_data['restore'] += ['/etc/contrail/agent_param',
                                  '/etc/contrail/contrail-vrouter-agent.conf',
