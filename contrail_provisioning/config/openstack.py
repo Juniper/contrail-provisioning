@@ -84,6 +84,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         # quantum/neutron plugin
         template_vals = {'__contrail_api_server_ip__': self._args.internal_vip or self._args.self_ip,
                          '__contrail_api_server_port__': '8082',
+                         '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.self_ip,
+                         '__contrail_analytics_server_port__': '8081',
                          '__contrail_multi_tenancy__': self._args.multi_tenancy,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
                          '__contrail_admin_token__': self._args.keystone_admin_token,
