@@ -49,6 +49,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         self.stop()
         self._upgrade()
         self.upgrade_python_pkgs()
+
+        # Populate collector configuration to retrieve loadbalancer stats
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            conf_file = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
+            local('openstack-config --set %s COLLECTOR analytics_api_ip %s' % \
+                (conf_file, self._args.internal_vip or self._args.self_ip))
+            local('openstack-config --set %s COLLECTOR analytics_api_port %s' % \
+                (conf_file, '8081'))
+
         self.restart()
 
 
