@@ -62,6 +62,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
 
     def upgrade(self):
         self._upgrade()
+        local("service %s stop" % 'supervisor-vrouter')
         self.upgrade_python_pkgs()
         if self._args.from_rel == 2.0:
             self.fix_nova_params()
