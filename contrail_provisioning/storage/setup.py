@@ -72,6 +72,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+        parser.add_argument("--storage-replica-size", help = "Replica size")
 
 
         self._args = parser.parse_args(self.remaining_argv)
@@ -133,6 +134,7 @@ class StorageSetup(ContrailSetup):
 
         if self._args.hosts_to_remove:
             storage_setup_args = storage_setup_args + " --hosts-to-remove %s" %(' '.join(self._args.hosts_to_remove))
+        storage_setup_args = storage_setup_args + " --storage-replica-size %s" %(self._args.storage_replica_size)
 
         #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
