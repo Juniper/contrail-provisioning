@@ -99,14 +99,6 @@ export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
-for APP in heat; do
-    # Required only in first openstack node, as the mysql db is replicated using galera.
-    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
-        heat-manage db_sync
-    fi
-done
-
 export ADMIN_USER
 export ADMIN_TOKEN
 export ADMIN_TENANT
@@ -114,6 +106,7 @@ export SERVICE_TOKEN
 
 # Update all config files with service username and password
 for svc in heat; do
+    openstack-config --del /etc/$svc/$svc.conf database connection
     openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:heat@127.0.0.1/heat
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:heat@$INTERNAL_VIP:33306/heat
@@ -140,6 +133,14 @@ for svc in heat; do
         openstack-config --set /etc/$svc/$svc.conf clients_contrail api_server $CONTRAIL_INTERNAL_VIP
     fi
     openstack-config --set /etc/$svc/$svc.conf clients_contrail api_base_url /
+done
+
+for APP in heat; do
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        heat-manage db_sync
+    fi
 done
 
 echo "======= Enabling the services ======"
