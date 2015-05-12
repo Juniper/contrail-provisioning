@@ -51,10 +51,17 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
             self.config_setup.fixup_contrail_config_nodemgr()
             # Populate RabbitMQ details in contrail-svc-monitor.conf
             conf_file = '/etc/contrail/contrail-svc-monitor.conf'
-            local('openstack-config --set %s DEFAULTS rabbit_server %s' % \
-                    (conf_file, self.config_setup.rabbit_host))
-            local('openstack-config --set %s DEFAULTS rabbit_port %s' % \
-                    (conf_file, self.config_setup.rabbit_port))
+            self.set_config(conf_file, 'DEFAULTS', 'rabbit_server',
+                            self.config_setup.rabbit_host)
+            self.set_config(conf_file, 'DEFAULTS', 'rabbit_port',
+                            self.config_setup.rabbit_port)
+        # Populate collector configuration to retrieve loadbalancer stats
+        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+            conf_file = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
+            self.set_config(conf_file, 'COLLECTOR', 'analytics_api_ip',
+                            self._args.internal_vip or self._args.self_ip)
+            self.set_config(conf_file, 'COLLECTOR', 'analytics_api_port',
+                            '8081')
 
 
 def main():
