@@ -17,6 +17,7 @@ setup(
     entry_points = {
         'console_scripts' : [
             # Setup scripts
+            'setup-vnc-amqp = contrail_provisioning.common.amqp_setup:main',
             'setup-vnc-keepalived = contrail_provisioning.common.keepalived_setup:main',
             'setup-vnc-openstack = contrail_provisioning.openstack.setup:main',
             'setup-vnc-galera = contrail_provisioning.openstack.ha.galera_setup:main',
