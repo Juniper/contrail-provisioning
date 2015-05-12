@@ -48,10 +48,11 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
 
     def fix_cmon_config(self):
         with settings(warn_only=True):
-            local('service contrail-hamon stop')
-            local('kill -9 $(pidof cmon)')
+            local("service contrail-hamon stop")
+            local("kill -9 $(pidof cmon)")
             local("mysql -uroot -p$(cat /etc/contrail/mysql.token) -e 'drop database cmon'")
             local("sed -i '/pidfile=\/var\/run\//c\pidfile=\/var\/run\/cmon\/' /etc/cmon.cnf")
+            local("sudo chmod 555 /etc/init.d/cmon")
 
     def upgrade(self):
         self.stop()
