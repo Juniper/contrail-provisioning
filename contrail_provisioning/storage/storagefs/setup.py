@@ -602,7 +602,8 @@ class SetupCeph(object):
                                         self._args.storage_hostnames,
                                         self._args.storage_disk_config,
                                         self._args.storage_ssd_disk_config,
-                                        self._args.storage_chassis_config)
+                                        self._args.storage_chassis_config,
+                                        self._args.storage_replica_size)
     #end do_crush_map_pool_config()
 
     # Function for NFS cinder configuration
@@ -1445,6 +1446,16 @@ class SetupCeph(object):
         local('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
 
+        # change default heartbeat based on Replica size
+        if self._args.storage_replica_size != 'None':
+            heartbeat_timeout = int(self._args.storage_replica_size) * 60
+        else:
+            heartbeat_timeout = 120
+        local('ceph tell osd.* injectargs -- --osd_heartbeat_grace=%s'
+                            %(heartbeat_timeout))
+        local('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
+
         # compute ceph.conf configuration done here
         for entries, entry_token in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens):
@@ -1459,6 +1470,8 @@ class SetupCeph(object):
                             %(CEPH_CONFIG_FILE, CEPH_OP_THREADS))
                     run('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
+                    run('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
         return
     #end do_tune_ceph()
 
@@ -3009,6 +3022,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+        parser.add_argument("--storage-replica-size", help = "Replica size")
 
         self._args = parser.parse_args(remaining_argv)
 
