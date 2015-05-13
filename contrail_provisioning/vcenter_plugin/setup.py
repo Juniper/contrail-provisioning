@@ -37,6 +37,7 @@ class VcenterPluginSetup(ContrailSetup):
         parser.add_argument("--vcenter_password", help = "vcenter login password")
         parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
         parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
+        parser.add_argument("--vcenter_ipfabricpg", help = "vcenter ipfabric port group")
         parser.add_argument("--api_hostname", help = "IP Address of the config node")
         parser.add_argument("--api_port", help = "Listen port for api server", type = int)
         parser.add_argument("--zookeeper_serverlist", help = "List of zookeeper ip:port")
@@ -52,6 +53,7 @@ class VcenterPluginSetup(ContrailSetup):
                          '__contrail_vcenter_password__' : self._args.vcenter_password,
                          '__contrail_vcenter_datacenter__' : self._args.vcenter_datacenter,
                          '__contrail_vcenter_dvswitch__' : self._args.vcenter_dvswitch,
+                         '__contrail_vcenter_ipfabricpg__' : self._args.vcenter_ipfabricpg,
                          '__contrail_api_hostname__' : self._args.api_hostname,
                          '__contrail_zookeeper_serverlist__' : self._args.zookeeper_serverlist,
                          '__contrail_api_port__' : self._args.api_port
