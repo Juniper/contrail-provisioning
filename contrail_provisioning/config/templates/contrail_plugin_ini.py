@@ -7,6 +7,10 @@ api_server_port = $__contrail_api_server_port__
 multi_tenancy = $__contrail_multi_tenancy__
 contrail_extensions = ipam:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_ipam.NeutronPluginContrailIpam,policy:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_policy.NeutronPluginContrailPolicy,route-table:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_vpc.NeutronPluginContrailVpc,contrail:None
 
+[COLLECTOR]
+analytics_api_ip = $__contrail_analytics_server_ip__
+analytics_api_port = $__contrail_analytics_server_port__
+
 [KEYSTONE]
 auth_url = $__contrail_ks_auth_protocol__://$__contrail_keystone_ip__:$__contrail_ks_auth_port__/v2.0
 admin_token = $__contrail_admin_token__
