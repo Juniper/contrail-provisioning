@@ -47,7 +47,8 @@ for myip in $MYIPS
 if [ $viponme -eq 1 ]; then
     log_info_msg "keystone-cleaner::Starting token cleanup"
 
-    mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; DELETE FROM token where expires <= convert_tz(now(),@@session.time_zone,'+01:00');"
+    NOW=`date -u +"%Y-%m-%d %T"`
+    mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; DELETE FROM token where expires <= '${NOW}';"
     valid_token=$($mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; SELECT count(*) FROM token;")
     valid_token=$(echo $valid_token | awk '{print $2}')
 
