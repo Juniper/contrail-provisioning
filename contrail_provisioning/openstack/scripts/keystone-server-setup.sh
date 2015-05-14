@@ -28,6 +28,10 @@ function error_exit
     exit ${3:-1}
 }
 
+if [ $is_ubuntu -eq 1 ] ; then
+    keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
+fi
+
 # Exclude port 35357 from the available ephemeral port range
 sysctl -w net.ipv4.ip_local_reserved_ports=35357,35358,$(cat /proc/sys/net/ipv4/ip_local_reserved_ports)
 # Make the exclusion of port 35357 persistent
@@ -187,7 +191,20 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
-    openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+
+    if [ $is_ubuntu -eq 1 ] ; then
+        is_kilo_or_latest=$(python -c "import apt_pkg; \
+                            apt_pkg.init_system(); \
+                            print apt_pkg.version_compare('$keystone_version', '2015.1')")
+        if [ "$is_kilo_or_latest" -ge 0 ]; then
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
+        else
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+        fi
+    else
+        openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+    fi
+
     openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2
     openstack-config --set /etc/$svc/$svc.conf DEFAULT onready keystone.common.systemd
     openstack-config --set /etc/$svc/$svc.conf memcache servers 127.0.0.1:11211
