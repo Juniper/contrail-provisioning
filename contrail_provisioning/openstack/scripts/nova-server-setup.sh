@@ -217,16 +217,28 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 if [ $is_ubuntu -eq 1 ] ; then
-    if [ "$nova_api_version" == "2:2013.1.3-0ubuntu1" ]; then
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.quantumv2.api.API
+    if [[ $nova_api_version == *"2013.2"* ]]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
     else
-        if [[ $nova_api_version == *"2013.2"* ]]; then
+        if [[ $nova_api_version == *"2015.1"* ]]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         else
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
         fi
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
+    is_kilo_or_latest=$(python -c "import apt_pkg; \
+                        apt_pkg.init_system(); \
+                        print apt_pkg.version_compare('$nova_api_version', '2015.1')")
+    if [ "$is_kilo_or_latest" -ge 0 ]; then
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+        openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
+        openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
+        openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
+        openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+        openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
+        openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
+    fi
 else
     is_icehouse_or_latest=$(python -c "from distutils.version import LooseVersion; \
                             print LooseVersion('$nova_api_ver') >= LooseVersion('2014.1.1')")
