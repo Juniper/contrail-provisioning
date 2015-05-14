@@ -83,6 +83,20 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
+        is_kilo_or_latest=$(python -c "import apt_pkg; \
+                            apt_pkg.init_system(); \
+                            print apt_pkg.version_compare('$nova_compute_version', '2015.1')")
+        if [ "$is_kilo_or_latest" -ge 0 ]; then
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+            openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
+            openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
+            openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+            openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
+            openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+            openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
+            openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+        fi
     else
         if [ ${nova_compute_ver%%.*} -ge 2014 ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
