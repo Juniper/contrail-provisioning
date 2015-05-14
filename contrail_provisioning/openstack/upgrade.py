@@ -53,6 +53,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("mysql -uroot -p$(cat /etc/contrail/mysql.token) -e 'drop database cmon'")
             local("sed -i '/pidfile=\/var\/run\//c\pidfile=\/var\/run\/cmon\/' /etc/cmon.cnf")
 
+    def fix_cmon_param_file(self):
+        with settings(warn_only=True):
+            local("sed -i '$ a\EVIP=%s' /etc/contrail/ha/cmon_param" % self._args.external_vip)
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -77,6 +81,8 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             self._args.from_rel < 2.2 and
             self._args.to_rel >= 2.2):
             self.fix_cmon_config()
+            self.fix_cmon_param_file()
+
         self.restart()
 
 
