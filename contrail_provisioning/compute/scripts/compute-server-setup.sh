@@ -213,6 +213,16 @@ if [ "$DPDK_MODE" == "True" ]; then
     openstack-config --set /etc/nova/nova.conf LIBVIRT use_huge_pages true
 fi
 
+# Add respawn in nova-compute upstart script
+nova_compute_upstart='/etc/init/nova-compute.conf'
+if [ -f $nova_compute_upstart ]; then
+    ret_val=`grep "^respawn" $nova_compute_upstart > /dev/null;echo $?`
+    if [ $ret_val == 1 ]; then
+      sed -i 's/pre-start script/respawn\n&/' $nova_compute_upstart
+      sed -i 's/pre-start script/respawn limit 10 90\n&/' $nova_compute_upstart
+    fi
+fi
+
 for svc in openstack-nova-compute supervisor-vrouter; do
     chkconfig $svc on
 done
