@@ -38,6 +38,8 @@ NOVA_SCHED_STOP="service nova-scheduler stop"
 NOVA_SCHED_START="service nova-scheduler start"
 NOVA_SCHED_STATUS="service nova-scheduler status"
 CIND_SCHED_RST="service cinder-scheduler restart"
+RMQ_SRVR_STATUS="supervisorctl -s unix:///tmp/supervisord_support_service.sock status rabbitmq-server"
+RMQ_SRVR_RST="supervisorctl -s unix:///tmp/supervisord_support_service.sock restart rabbitmq-server"
 NOVA_RUN_STATE="RUNNING"
 STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
@@ -179,6 +181,13 @@ verify_cmon() {
   if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
      (exec $CIND_SCHED_RST)&
      log_info_msg "Cinder Scheduler restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR RMQ STATUS
+  state=$($RMQ_SRVR_STATUS | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $RMQ_SRVR_RST)&
+     log_info_msg "RabbitMQ restarted becuase of the state $state"
   fi
 
 #Failure supported
