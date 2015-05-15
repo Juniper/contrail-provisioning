@@ -18,6 +18,7 @@ vcenter.password=$__contrail_vcenter_password__
 
 vcenter.datacenter=$__contrail_vcenter_datacenter__
 vcenter.dvswitch=$__contrail_vcenter_dvswitch__
+vcenter.ipfabricpg=$__contrail_vcenter_ipfabricpg__
 
 # IP address and port to be used to connect to api server.
 api.hostname=$__contrail_api_hostname__
