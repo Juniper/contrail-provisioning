@@ -116,6 +116,7 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs /usr/lib/heat/resources
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT heat_waitcondition_server_url http://$controller_ip:8000/v1/waitcondition
 
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri http://$controller_ip:5000/v2.0
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $controller_ip
@@ -158,7 +159,7 @@ fi
 
 # Start heat services
 echo "======= Starting the services ======"
-for svc in heat-api heat-engine; do
+for svc in heat-api heat-api-cfn heat-engine; do
     service $svc restart
 done
 
