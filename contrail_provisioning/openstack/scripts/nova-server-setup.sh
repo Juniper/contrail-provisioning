@@ -243,7 +243,7 @@ else
     is_juno_or_latest=$(python -c "from distutils.version import LooseVersion; \
                         print LooseVersion('$nova_api_ver') >= LooseVersion('2014.2.1-1')")
     if [ "$is_juno_or_latest" == "True" ]; then
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
     fi
 fi
 
