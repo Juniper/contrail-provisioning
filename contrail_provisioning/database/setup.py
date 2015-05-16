@@ -116,7 +116,10 @@ class DatabaseSetup(ContrailSetup):
             analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
             analytics_dir = os.path.join(analytics_data_dir, 'ContrailAnalytics')
             if not os.path.exists(analytics_dir_link):
-                local("sudo mkdir -p %s" % (analytics_dir))
+                if not os.path.exists(data_dir):
+                    local("sudo mkdir -p %s" % (data_dir))
+                if not os.path.exists(analytics_dir):
+                    local("sudo mkdir -p %s" % (analytics_dir))
                 local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
         else:
             if not data_dir:
