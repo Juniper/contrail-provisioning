@@ -1408,7 +1408,8 @@ class SetupCephUtils(object):
     # Sets PG/PGP count.
     # Sets ruleset based on pool/chassis configuration
     def do_configure_pools(self, storage_hostnames, storage_disk_config,
-                            storage_ssd_disk_config, chassis_config):
+                            storage_ssd_disk_config, chassis_config,
+                            replica_size = None):
         global host_hdd_dict
         global host_ssd_dict
         global hdd_pool_count
@@ -1464,6 +1465,9 @@ class SetupCephUtils(object):
                         if host_hdd_dict[('hostcount', '%s' %(pool_index))] <= 1:
                             self.exec_local('sudo ceph osd pool set volumes_hdd size %s'
                                                             %(REPLICA_ONE))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set volumes_hdd size %s'
+                                                            %(replica_size))
                         else:
                             self.exec_local('sudo ceph osd pool set volumes_hdd size %s'
                                                             %(REPLICA_DEFAULT))
@@ -1491,6 +1495,10 @@ class SetupCephUtils(object):
                             self.exec_local('sudo ceph osd pool set volumes_hdd_%s size %s'
                                         %(host_hdd_dict[('poolname','%s'
                                         %(pool_index))], REPLICA_ONE))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set volumes_hdd_%s size %s'
+                                        %(host_hdd_dict[('poolname','%s'
+                                        %(pool_index))], replica_size))
                         else:
                             self.exec_local('sudo ceph osd pool set volumes_hdd_%s size %s'
                                         %(host_hdd_dict[('poolname','%s'
@@ -1521,6 +1529,11 @@ class SetupCephUtils(object):
                                                     %(REPLICA_ONE))
                     self.exec_local('sudo ceph osd pool set images size %s'
                                                     %(REPLICA_ONE))
+                elif replica_size != 'None':
+                    self.exec_local('sudo ceph osd pool set volumes size %s'
+                                                    %(replica_size))
+                    self.exec_local('sudo ceph osd pool set images size %s'
+                                                    %(replica_size))
                 else:
                     self.exec_local('sudo ceph osd pool set volumes size %s'
                                                     %(REPLICA_DEFAULT))
@@ -1560,6 +1573,9 @@ class SetupCephUtils(object):
                         if host_ssd_dict[('hostcount', '%s' %(pool_index))] <= 1:
                             self.exec_local('sudo ceph osd pool set volumes_ssd size %s'
                                                 %(REPLICA_ONE))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set volumes_ssd size %s'
+                                                %(replica_size))
                         else:
                             self.exec_local('sudo ceph osd pool set volumes_ssd size %s'
                                                 %(REPLICA_DEFAULT))
@@ -1587,6 +1603,10 @@ class SetupCephUtils(object):
                             self.exec_local('sudo ceph osd pool set volumes_ssd_%s size %s'
                                         %(host_ssd_dict[('poolname','%s'
                                         %(pool_index))], REPLICA_DEFAULT))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set volumes_ssd_%s size %s'
+                                        %(host_ssd_dict[('poolname','%s'
+                                        %(pool_index))], replica_size))
                         else:
                             self.exec_local('sudo ceph osd pool set volumes_ssd_%s size %s'
                                         %(host_ssd_dict[('poolname','%s'
@@ -1625,6 +1645,11 @@ class SetupCephUtils(object):
                                     %(REPLICA_TWO))
                 self.exec_local('sudo ceph osd pool set images size %s'
                                     %(REPLICA_TWO))
+            elif replica_size != 'None':
+                self.exec_local('sudo ceph osd pool set volumes size %s'
+                                    %(replica_size))
+                self.exec_local('sudo ceph osd pool set images size %s'
+                                    %(replica_size))
             else:
                 rep_size = self.exec_local('sudo ceph osd pool get volumes size | \
                                     awk \'{print $2}\'')

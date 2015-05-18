@@ -602,7 +602,8 @@ class SetupCeph(object):
                                         self._args.storage_hostnames,
                                         self._args.storage_disk_config,
                                         self._args.storage_ssd_disk_config,
-                                        self._args.storage_chassis_config)
+                                        self._args.storage_chassis_config,
+                                        self._args.storage_replica_size)
     #end do_crush_map_pool_config()
 
     # Function for NFS cinder configuration
@@ -739,31 +740,59 @@ class SetupCeph(object):
         global ceph_mon_count
         global ceph_all_hosts
 
+        # Find existing mons
+        ceph_mon_entries = local('ceph mon stat 2>&1 |grep quorum | \
+                                awk \'{print $11}\'', capture=True)
+        if ceph_mon_entries != '':
+            ceph_mon_list = ceph_mon_entries.split(',')
+            for entry in ceph_mon_list:
+                ceph_mon_count += 1;
+                ceph_mon_hosts_list.append(entry)
+
         # first create master monitor list
-        for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+        for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            self._args.storage_hostnames):
             if entries == self._args.storage_master:
                 ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                ceph_mon_count += 1;
-                ceph_mon_hosts_list.append(hostname)
+                entry = ''
+                for entry in ceph_mon_hosts_list:
+                    if entry == hostname:
+                        break
+                if entry != hostname:
+                    ceph_mon_count += 1;
+                    ceph_mon_hosts_list.append(hostname)
             if self._args.storage_os_hosts[0] != 'none':
                 for osnode in self._args.storage_os_hosts:
                     if entries == osnode:
                         ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                        ceph_mon_count += 1;
-                        ceph_mon_hosts_list.append(hostname)
+                        entry = ''
+                        for entry in ceph_mon_hosts_list:
+                            if entry == hostname:
+                                break
+                        if entry != hostname:
+                            ceph_mon_count += 1;
+                            ceph_mon_hosts_list.append(hostname)
 
         # first try to use configured compute monitor list
         # if configured monitor list is empty then start
         # monitors on first "N" computes
-        # where master monitor list + "N" compute monitors <= MAX_MONS
+        # where master monitor list + "N" compute monitors < MAX_MONS
         if self._args.storage_mon_hosts[0] != 'none':
             for entries in self._args.storage_mon_hosts:
-                ceph_mon_count += 1;
-                if ceph_mon_count <= MAX_MONS:
+                if ceph_mon_count < MAX_MONS:
                     ceph_mon_hosts = ceph_mon_hosts + entries + ' '
-                    ceph_mon_hosts_list.append(entries)
+                    entry = ''
+                    for entry in ceph_mon_hosts_list:
+                        if entry == hostname:
+                            break
+                    if entry != hostname:
+                        ceph_mon_count += 1;
+                        ceph_mon_hosts_list.append(entries)
         else:
-            for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+            for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            self._args.storage_hostnames):
                 if entries == self._args.storage_master:
                     continue
                 entry_hit = 0
@@ -773,13 +802,19 @@ class SetupCeph(object):
                             entry_hit = 1
                             break
                 if entry_hit == 0:
-                    ceph_mon_count += 1;
-                    if ceph_mon_count <= MAX_MONS:
+                    if ceph_mon_count < MAX_MONS:
                         ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                        ceph_mon_hosts_list.append(hostname)
+                        entry = ''
+                        for entry in ceph_mon_hosts_list:
+                            if entry == hostname:
+                                break
+                        if entry != hostname:
+                            ceph_mon_count += 1;
+                            ceph_mon_hosts_list.append(hostname)
 
         for entries in self._args.storage_hostnames:
             ceph_all_hosts = ceph_all_hosts + entries + ' '
+
     # end do_create_monlist
 
 
@@ -1445,6 +1480,16 @@ class SetupCeph(object):
         local('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
 
+        # change default heartbeat based on Replica size
+        if self._args.storage_replica_size != 'None':
+            heartbeat_timeout = int(self._args.storage_replica_size) * 60
+        else:
+            heartbeat_timeout = 120
+        local('ceph tell osd.* injectargs -- --osd_heartbeat_grace=%s'
+                            %(heartbeat_timeout))
+        local('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
+
         # compute ceph.conf configuration done here
         for entries, entry_token in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens):
@@ -1459,6 +1504,8 @@ class SetupCeph(object):
                             %(CEPH_CONFIG_FILE, CEPH_OP_THREADS))
                     run('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
+                    run('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
         return
     #end do_tune_ceph()
 
@@ -2878,6 +2925,16 @@ class SetupCeph(object):
         return
     #end do_storage_setup()
 
+    # Cleanup disk config
+    def do_cleanup_config(self):
+        if self._args.storage_directory_config[0] == 'none' and \
+                self._args.storage_disk_config[0] == 'none' and \
+                self._args.storage_ssd_disk_config[0] != 'none':
+            self._args.storage_disk_config = self._args.storage_ssd_disk_config
+            self._args.storage_ssd_disk_config = ['none']
+    #end do_cleanup_config()
+
+
     # Main function for storage related configurations
     # Note: All the functions are idempotent. Any additions/modifications
     #       should ensure that the behavior stays the same.
@@ -2892,6 +2949,9 @@ class SetupCeph(object):
 
         # Do the ssh key configuration
         self.do_ssh_config()
+
+        # Cleanup configuration
+        self.do_cleanup_config()
 
         # Create monitor list
         self.do_create_monlist()
@@ -3009,6 +3069,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+        parser.add_argument("--storage-replica-size", help = "Replica size")
 
         self._args = parser.parse_args(remaining_argv)
 
