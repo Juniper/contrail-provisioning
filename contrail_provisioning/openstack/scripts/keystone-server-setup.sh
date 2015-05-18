@@ -7,7 +7,12 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   mysql_svc=mysqld
+   rpm -qa | grep mysql
+   if [ $? == 0 ]; then
+       mysql_svc=mysqld
+   else
+       mysql_svc=mariadb
+   fi
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then

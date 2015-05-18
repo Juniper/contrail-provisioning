@@ -228,7 +228,9 @@ if [ $is_ubuntu -eq 1 ] ; then
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 else
-    if [ "$nova_api_ver" == "2014.1.1" ]; then
+    is_icehouse_or_latest=$(python -c "from distutils.version import LooseVersion; \
+                            print LooseVersion('$nova_api_ver') >= LooseVersion('2014.1.1')")
+    if [ "$is_icehouse_or_latest" == "True" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
@@ -237,6 +239,11 @@ else
         openstack-config --set /etc/nova/nova.conf DEFAULT instances_path /var/lib/nova/instances
         openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
         chown -R nova:nova /var/lib/nova
+    fi
+    is_juno_or_latest=$(python -c "from distutils.version import LooseVersion; \
+                        print LooseVersion('$nova_api_ver') >= LooseVersion('2014.2.1-1')")
+    if [ "$is_juno_or_latest" == "True" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
     fi
 fi
 
