@@ -31,6 +31,8 @@ CMON_MON_STOP="service contrail-hamon stop"
 CMON_MON_START="service contrail-hamon start"
 CMON_STOP="service cmon stop"
 STDERR_FILE="/tmp/mysqlerr.txt"
+MY_CNFBAK="/etc/mysql/my.cnfbak"
+MY_CNF="//etc/mysql/my.cnf"
 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
     mkdir -p $LOCKFILE_DIR
@@ -144,6 +146,15 @@ else
 fi
 
 checkNKill
+
+if [ ! -s "$MY_CNF" ] ; then
+   if [ -f "$MY_CNFBAK" ] ; then
+       /bin/cp $MY_CNFBAK $MY_CNF
+   else
+       log_error_msg "/etc/mysql/my.cnfbak does not exist"
+   fi
+fi
+
 log_info_msg "Bootstraping galera cluster."
 
     mysql_pid=$(pidof mysqld)
