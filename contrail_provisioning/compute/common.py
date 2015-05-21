@@ -171,6 +171,10 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if self._args.dpdk:
                 platform_mode = "dpdk"
                 pci_dev = local("/opt/contrail/bin/dpdk_nic_bind.py --status | grep %s | cut -d' ' -f 1" %(self.dev), capture=True)
+                # If there is no PCI address, the device is a bond.
+                # Bond interface in DPDK has zero PCI address.
+                if not pci_dev:
+                    pci_dev = "0000:00:00.0"
 
             vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                 '__contrail_vhost_gateway__': self.gateway,
