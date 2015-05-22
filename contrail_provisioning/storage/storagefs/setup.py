@@ -2262,7 +2262,8 @@ class SetupCeph(object):
         #Glance configuration on the storage master
         local('sudo openstack-config --set %s DEFAULT default_store rbd'
                                             %(GLANCE_API_CONF))
-        local('sudo openstack-config --set %s DEFAULT known_stores glance.store.rbd.Store'
+        local('sudo openstack-config --set %s DEFAULT known_stores \
+                glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
                                             %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT show_image_direct_url True'
                                             %(GLANCE_API_CONF))
@@ -2286,8 +2287,8 @@ class SetupCeph(object):
                     run('sudo openstack-config --set %s DEFAULT \
                                             default_store rbd'
                                             %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT \
-                                            known_stores glance.store.rbd.Store'
+                    run('sudo openstack-config --set %s DEFAULT known_stores \
+                            glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
                                             %(GLANCE_API_CONF))
                     run('sudo openstack-config --set %s DEFAULT \
                                             show_image_direct_url True'
