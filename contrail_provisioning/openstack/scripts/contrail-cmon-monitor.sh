@@ -50,6 +50,8 @@ MYSQL_WSREP_STATE="show status like 'wsrep_local_state';"
 MYSQL_CLUSTER_STATE="show status like 'wsrep_cluster_status';"
 SYNCED=4
 STATUS="Primary"
+RMQ_SRVR_STATUS="supervisorctl -s unix:///tmp/supervisord_support_service.sock status rabbitmq-server"
+RMQ_SRVR_RST="supervisorctl -s unix:///tmp/supervisord_support_service.sock restart rabbitmq-server"
 
 timestamp() {
     date
@@ -179,6 +181,13 @@ verify_cmon() {
   if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
      (exec $CIND_SCHED_RST)&
      log_info_msg "Cinder Scheduler restarted becuase of the state $state"
+  fi
+
+  # CHECK FOR RMQ STATUS
+  state=$($RMQ_SRVR_STATUS | awk '{print $2}')
+  if [ "$state" == "$STATE_EXITED" ] || [ "$state" == "$STATE_FATAL" ]; then
+     (exec $RMQ_SRVR_RST)&
+     log_info_msg "RabbitMQ restarted becuase of the state $state"
   fi
 
 #Failure supported
