@@ -165,7 +165,7 @@ log_info_msg "Bootstraping galera cluster."
             cmd="service mysql start --wsrep_recover"
             log_info_msg "Starting mysql recovery: $cmd"
             setsid $cmd >> $LOGFILE
-            if [ -f $GRA_FILE ]; then
+            if [ -f $GRA_FILE ] && [ ! -s "$GRA_FILE" ]; then
               uuid=$(cat $GRA_FILE | grep uuid | awk '{print $2}')
               gtid=$(grep "Recovered position: $uuid" /var/log/mysql/error.log | awk '{print $7}' | cut -d ":" -f 2 | tail -1)
               echo $gtid > $GTID_FILE
