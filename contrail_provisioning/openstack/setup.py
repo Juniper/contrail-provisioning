@@ -5,15 +5,21 @@
 
 import os
 import sys
+import yaml
 import argparse
 import ConfigParser
+from time import sleep
 from distutils.version import LooseVersion
 
 from fabric.api import local
 from fabric.context_managers import settings
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.base import ContrailSetup
+from haproxy import OpenstackHaproxyConfig
 
+class OpenStackSetupError(Exception):
+    pass
 
 class OpenstackSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -24,6 +30,7 @@ class OpenstackSetup(ContrailSetup):
             'openstack_index': 1,
             'service_token': '',
             'cfgm_ip': '127.0.0.1',
+            'collector_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
             'keystone_auth_protocol':'http',
             'keystone_admin_passwd': 'contrail123',
@@ -33,6 +40,7 @@ class OpenstackSetup(ContrailSetup):
             'haproxy': False,
             'osapi_compute_workers': 40,
             'conductor_workers': 40,
+            'manage_ceilometer' : False,
         }
         self._args = None
         if not args_str:
@@ -42,10 +50,19 @@ class OpenstackSetup(ContrailSetup):
         if self.pdist in ['Ubuntu']:
             self.mysql_conf = '/etc/mysql/my.cnf'
             self.mysql_svc = 'mysql'
-        elif self.pdist in ['centos', 'redhat']:
+        elif self.pdist in RHEL:
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
         self.mysql_redo_log_sz='5242880'
+        self.contrail_horizon = self.is_package_installed(\
+            'contrail-openstack-dashboard')
+
+        # Create haproxy config
+        if self._args.haproxy:
+            self.enable_haproxy()
+            haproxy = OpenstackHaproxyConfig(self._args)
+            haproxy.create()
+            haproxy.start()
 
     def parse_args(self, args_str):
         '''
@@ -61,7 +78,10 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--openstack_ip_list", nargs='+', type=str,
                             help = "List of IP Addresses of openstack servers")
         parser.add_argument("--cfgm_ip", help = "IP Address of quantum node")
+        parser.add_argument("--collector_ip", help = "IP Address of analytics/collector node")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--config_ip_list", help = "List of IP Addresses of config nodes",
+                            nargs='+', type=str)
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_passwd", help = "Passwd of the admin tenant")
         parser.add_argument("--keystone_auth_protocol", help = "Protocol to use while talking to Keystone")
@@ -76,6 +96,7 @@ class OpenstackSetup(ContrailSetup):
                             help = "Number of worker threads for osapi compute")
         parser.add_argument("--conductor_workers", type=int,
                             help = "Number of worker threads for conductor")
+        parser.add_argument("--manage_ceilometer", help = "Provision ceilometer", action="store_true")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -103,6 +124,8 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('QUANTUM_PORT=%s' % self._args.quantum_port)
         if self._args.openstack_index:
             ctrl_infos.append('OPENSTACK_INDEX=%s' % self._args.openstack_index)
+        if self._args.manage_ceilometer:
+            ctrl_infos.append('CEILOMETER_ENABLED=yes')
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
@@ -138,7 +161,7 @@ class OpenstackSetup(ContrailSetup):
         else:
             dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
 
-        if self.pdist in ['fedora', 'centos', 'redhat']:
+        if self.pdist in RHEL:
             dashboard_version = self.get_openstack_dashboard_version()
             if dashboard_version:
                 if self.is_dashboard_juno_or_above(dashboard_version):
@@ -175,22 +198,146 @@ class OpenstackSetup(ContrailSetup):
             local("sudo sed -i 's/admin_user = /;admin_user = /' /etc/cinder/api-paste.ini")
             local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
 
+        if self.contrail_horizon:
+            self.fixup_dashboard_settings()
+
+        if self._args.manage_ceilometer:
+            self.fixup_ceilometer_pipeline_conf()
+
     def run_services(self):
         local("sudo keystone-server-setup.sh")
+        if self.pdist in DEBIAN:
+            # Rerun keystone server setup two times in Ubuntu
+            # TODO: Need to debug and fix this
+            local("sudo keystone-server-setup.sh")
         local("sudo glance-server-setup.sh")
         local("sudo cinder-server-setup.sh")
         local("sudo nova-server-setup.sh")
-        with settings(warn_only=True):
-            if (self.pdist in ['centos'] and
-                local("rpm -qa | grep contrail-heat").succeeded):
-                local("sudo heat-server-setup.sh")
-            elif (self.pdist in ['Ubuntu'] and
-                local("dpkg -l | grep contrail-heat").succeeded):
-                local("sudo heat-server-setup.sh")
+        if self._args.manage_ceilometer:
+            local("sudo ceilometer-server-setup.sh")
+        if self.is_package_installed('contrail-heat'):
+            local("sudo heat-server-setup.sh")
         local("service %s restart" % self.mysql_svc)
         local("service supervisor-openstack restart")
+        if self.contrail_horizon:
+            self.restart_dashboard()
+
+    def restart_dashboard(self):
+        if self.pdist in DEBIAN:
+            local("sudo service apache2 restart")
+        elif self.pdist in RHEL:
+            local("sudo service httpd restart")
+
+    def increase_ulimits(self):
+        """
+        Increase ulimit in /etc/init.d/mysqld /etc/init/mysql.conf
+        /etc/init.d/rabbitmq-server files
+        """
+        with settings(warn_only = True):
+            if self.pdist in DEBIAN:
+                local("sudo sed -i '/start|stop)/ a\    ulimit -n 10240' /etc/init.d/mysql")
+                local("sudo sed -i '/start_rabbitmq () {/a\    ulimit -n 10240' /etc/init.d/rabbitmq-server")
+                local("sudo sed -i '/umask 007/ a\limit nofile 10240 10240' /etc/init/mysql.conf")
+                local("sudo sed -i '/\[mysqld\]/a\max_connections = 10000' /etc/mysql/my.cnf")
+                local("sudo echo 'ulimit -n 10240' >> /etc/default/rabbitmq-server")
+            else:
+                local("sudo sed -i '/start(){/ a\    ulimit -n 10240' /etc/init.d/mysqld")
+                local("sudo sed -i '/start_rabbitmq () {/a\    ulimit -n 10240' /etc/init.d/rabbitmq-server")
+                local("sudo sed -i '/\[mysqld\]/a\max_connections = 2048' /etc/my.cnf")
+
+    def fixup_dashboard_settings(self):
+        """
+        Configure horizon to pick up contrail customization
+        Based on OS and SKU type pick conf file in following order:
+        1. /etc/openstack-dashboard/local_settings.py
+        2. /etc/openstack-dashboard/local_settings
+        3. /usr/lib/python2.6/site-packages/openstack_dashboard/local/local_settings.py
+        """
+        file_name = '/etc/openstack-dashboard/local_settings.py'
+        if not os.path.exists(file_name):
+            file_name = '/etc/openstack-dashboard/local_settings'
+        if not os.path.exists(file_name):
+            file_name = '/usr/lib/python2.6/site-packages/openstack_dashboard/local/local_settings.py'
+        if not os.path.exists(file_name):
+            return
+
+        pattern='^HORIZON_CONFIG.*customization_module.*'
+        line = '''HORIZON_CONFIG[\'customization_module\'] = \'contrail_openstack_dashboard.overrides\' '''
+        self.insert_line_to_file(file_name, line, pattern)
+
+        pattern = 'LOGOUT_URL.*'
+        if self.pdist in DEBIAN:
+            line = '''LOGOUT_URL='/horizon/auth/logout/' '''
+        elif self.pdist in RHEL:
+            line = '''LOGOUT_URL='/dashboard/auth/logout/' '''
+        self.insert_line_to_file(file_name, line, pattern)
+
+        #HA settings
+        if self._args.internal_vip:
+            with settings(warn_only=True):
+                hash_key = local("sudo grep 'def hash_key' %s" % file_name).succeeded
+            if not hash_key:
+                # Add a hash generating function
+                local('sudo sed -i "/^SECRET_KEY.*/a\    return new_key" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\        new_key = m.hexdigest()" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\        m.update(new_key)" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\        m = hashlib.md5()" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\    if len(new_key) > 250:" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\    new_key = \':\'.join([key_prefix, str(version), key])" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\def hash_key(key, key_prefix, version):" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\import hashlib" %s' % file_name)
+                local('sudo sed -i "/^SECRET_KEY.*/a\# To ensure key size of 250" %s' % file_name)
+            local("sudo sed  -i \"s/'LOCATION' : '127.0.0.1:11211',/'LOCATION' : '%s:11211',/\" %s" % (self._args.mgmt_self_ip, file_name))
+            with settings(warn_only=True):
+                if local("sudo grep '\'KEY_FUNCTION\': hash_key,' %s" % file_name).failed:
+                    local('sudo sed -i "/\'LOCATION\'.*/a\       \'KEY_FUNCTION\': hash_key," %s' % file_name)
+            local("sudo sed -i -e 's/OPENSTACK_HOST = \"127.0.0.1\"/OPENSTACK_HOST = \"%s\"/' %s" % (self._args.internal_vip,file_name))
+
+    def fixup_ceilometer_pipeline_conf(self):
+        conf_file = '/etc/ceilometer/pipeline.yaml'
+        with open(conf_file, 'r') as fap:
+            data = fap.read()
+        pipeline_dict = yaml.safe_load(data)
+        # If already configured with 'contrail_source' and/or 'contrail_sink' exit
+        for source in pipeline_dict['sources']:
+            if source['name'] == 'contrail_source':
+                return
+        for sink in pipeline_dict['sinks']:
+            if sink['name'] == 'contrail_sink':
+                return
+        # Edit meters in sources to exclude floating IP meters if '*' is
+        # configured
+        for source in pipeline_dict['sources']:
+            for mname in source['meters']:
+                if mname == '*':
+                    source['meters'].append('!ip.floating.*')
+                    print('Excluding floating IP meters from source %s' % (source['name']))
+                    break
+        # Add contrail source and sinks to the pipeline
+        contrail_source = {'interval': 600,
+                           'meters': ['ip.floating.receive.bytes',
+                                      'ip.floating.receive.packets',
+                                      'ip.floating.transmit.bytes',
+                                      'ip.floating.transmit.packets'],
+                           'name': 'contrail_source',
+                           'sinks': ['contrail_sink']}
+        contrail_source['resources'] = ['contrail://%s:8081/' % (self._args.collector_ip)]
+        contrail_sink = {'publishers': ['rpc://'],
+                         'transformers': None,
+                         'name': 'contrail_sink'}
+        pipeline_dict['sources'].append(contrail_source)
+        pipeline_dict['sinks'].append(contrail_sink)
+        with open(conf_file, 'w') as fap:
+            yaml.safe_dump(pipeline_dict, fap, explicit_start=True,
+                       default_flow_style=False, indent=4)
+
+    def add_openstack_reserved_ports(self):
+        ports = '35357,35358,33306'
+        self.add_reserved_ports(ports)
 
     def setup(self):
+        self.increase_ulimits()
+        self.add_openstack_reserved_ports()
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
@@ -198,9 +345,24 @@ class OpenstackSetup(ContrailSetup):
         self.build_ctrl_details()
         self.run_services()
 
-def main(args_str = None):
+    def verify(self):
+        self.verify_service("supervisor-openstack")
+        self.verify_service('keystone')
+        for x in xrange(10):
+            with settings(warn_only=True):
+                cmd = 'source /etc/contrail/openstackrc;'
+                cmd += 'keystone tenant-list'
+                output = local(cmd, shell='bash')
+            if output.failed:
+                sleep(10)
+            else:
+                return
+        raise OpenStackSetupError(output)
+
+def main(args_str=None):
     openstack = OpenstackSetup(args_str)
     openstack.setup()
+    openstack.verify()
 
 if __name__ == "__main__":
     main() 

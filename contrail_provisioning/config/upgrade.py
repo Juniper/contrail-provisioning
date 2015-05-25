@@ -7,6 +7,7 @@
 from fabric.api import local
 
 from setup import ConfigSetup
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.openstack import ConfigOpenstackSetup
@@ -27,7 +28,7 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
         ifmap_dir = '/etc/ifmap-server'
-        if self.pdist in ['centos', 'redhat']:
+        if self.pdist in RHEL:
             if (self._args.from_rel < 2.0 and self._args.to_rel >= 2.2):
                 ifmap_dir = '/etc/irond'
         self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']

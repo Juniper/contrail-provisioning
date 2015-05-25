@@ -39,7 +39,24 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
         parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA nodes"),
         parser.add_argument("--self_index", help = "The index of this HA node", type=int)
         parser.add_argument("--num_nodes", help = "Number of available HA node")
+        parser.add_argument("--master_ip", help = "IP Address of the keepalived master system")
+        parser.add_argument("--master_user", help = "User of the keepalived master system")
+        parser.add_argument("--master_password", help = "Password of the keepalived master system")
         self._args = parser.parse_args(self.remaining_argv)
+
+    def wait_till_vip_up(self):
+        """ Wait for VIP to be assiciated to MASTER"""
+        if self._args.self_index >= 1:
+            host_string = '%s@%s' % (self._args.master_user,
+                                     self._args.master_ip)
+            password = self._args.master_password
+            with settings(host_string=host_string, password=password,
+                          warn_only=True):
+                 while local("sudo ip addr | grep %s"\
+                             % self._args.internal_vip).failed:
+                     sleep(2)
+                     print "Waiting for VIP to be associated to MASTER VRRP."
+                     continue
 
     def fixup_config_files(self):
         vip_for_ips = [(self._args.internal_vip, self._args.self_ip, 'INTERNAL')]
@@ -115,6 +132,10 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
 
     def run_services(self):
         local("service keepalived restart")
+
+    def setup(self):
+        self.wait_till_vip_up()
+        super(KeepalivedSetup, self).setup()
 
 def main(args_str = None):
     keepalived = KeepalivedSetup(args_str)

@@ -10,6 +10,7 @@ from fabric.state import env
 from fabric.api import local
 from fabric.context_managers import settings
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
@@ -103,7 +104,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         else:
             local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(self._temp_dir_name))
 
-        if self.pdist == 'Ubuntu':
+        if self.pdist in DEBIAN:
             neutron_def_file = "/etc/default/neutron-server"
             if os.path.exists(neutron_def_file):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
