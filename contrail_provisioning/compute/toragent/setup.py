@@ -19,19 +19,31 @@ class TorAgentBaseSetup(ContrailSetup):
     def __init__(self, tor_agent_args, args_str=None):
         super(TorAgentBaseSetup, self).__init__()
         self._args = tor_agent_args
+        if self._args.tor_agent_name:
+            self.agent_name = self._args.tor_agent_name
+        else:
+            self.agent_name = local("hostname", capture=True) +\
+                              '-' + sel._args.tor_id
 
+    def create_ssl_certs(self):
+        self.ssl_cert = ''
+        self.ssl_privkey = ''
+        if self._args.tor_ovs_protocol.lower() == 'pssl':
+            domain_name = local("domainname -f", capture=True)
+            self.ssl_cert = '/etc/contrail/ssl/certs/tor.' + self._args.tor_id + '.cert.pem'
+            self.ssl_privkey = '/etc/contrail/ssl/private/tor.' + self._args.tor_id + '.privkey.pem'
+            #ssl_cmd = "openssl req -new -x509 -sha256 -newkey rsa:4096 -nodes -subj \"/C=US/ST=Global/L="
+            #ssl_cmd += self._args.tor_name + "/O=" + self._args.tor_vendor_name + "/CN=" + domain_name + "\""
+            #ssl_cmd += " -keyout " + self.ssl_privkey + " -out " + self.ssl_cert
+            #local(ssl_cmd)
 
     def fixup_tor_agent(self):
-        ssl_cert = ''
-        ssl_privkey = ''
         ssl_cacert = ''
         if self._args.tor_ovs_protocol.lower() == 'pssl':
-            ssl_cert = '/etc/contrail/ssl/certs/tor.' + self._args.tor_id + '.cert.pem'
-            ssl_privkey = '/etc/contrail/ssl/private/tor.' + self._args.tor_id + '.privkey.pem'
             ssl_cacert = '/etc/contrail/ssl/certs/cacert.pem'
 
         template_vals = {'__contrail_control_ip__':self._args.self_ip,
-                         '__contrail_agent_name__':self._args.agent_name,
+                         '__contrail_agent_name__':self.agent_name,
                          '__contrail_http_server_port__':self._args.http_server_port,
                          '__contrail_discovery_ip__':self._args.discovery_server_ip,
                          '__contrail_tor_ip__':self._args.tor_ip,
@@ -40,8 +52,8 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tsn_ip__':self._args.tsn_ip,
                          '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol,
                          '__contrail_tor_ssl_cert__':ssl_cert,
-                         '__contrail_tor_ssl_privkey__':ssl_privkey,
-                         '__contrail_tor_ssl_cacert__':ssl_cacert,
+                         '__contrail_tor_ssl_privkey__':self.ssl_privkey,
+                         '__contrail_tor_ssl_cacert__':self.ssl_cacert,
                         }
         self._template_substitute_write(tor_agent_conf.template,
                                         template_vals, self._temp_dir_name + '/tor_agent_conf')
@@ -64,10 +76,45 @@ class TorAgentBaseSetup(ContrailSetup):
     def create_init_file(self):
         local("sudo cp /etc/init.d/contrail-vrouter-agent /etc/init.d/%s" %(self.tor_process_name))
 
+    def add_vnc_config(self):
+        cmd = "sudo python /opt/contrail/utils/provision_vrouter.py"
+        cmd += " --host_name %s" % agent_name
+        cmd += " --host_ip %s" % self._args.self_ip
+        cmd += " --api_server_ip %s" % self._args.cfgm_ip
+        cmd += " --admin_user %s" % self._args.admin_user
+        cmd += " --admin_password %s"  % self._args.admin_password
+        cmd += " --admin_tenant_name %s" % self._args.admin_tenant
+        cmd += " --openstack_ip %s" % self._args.authserver_ip
+        cmd += " --router_type tor-agent"
+        cmd += " --oper add "
+        with settings(warn_only=True):
+            local(cmd)
+
+    def add_tor_vendor(self):
+        cmd = "sudo python /opt/contrail/utils/provision_physical_device.py"
+        cmd += " --device_name %s" % self._args.tor_name
+        cmd += " --vendor_name %s" % self._args.tor_vendor_name
+        cmd += " --device_mgmt_ip %s" % self._args.tor_mgmt_ip
+        cmd += " --device_tunnel_ip %s" % self._args.tor_tunnel_ip
+        cmd += " --device_tor_agent %s" % self.args.agent_name
+        cmd += " --device_tsn %s" % self._args.tsn_name
+        cmd += " --api_server_ip %s" % self._args.cfgm_ip
+        cmd += " --admin_user %s"  % self._args.admin_user
+        cmd += " --admin_password %s" % self._args.admin_password
+        cmd += " --admin_tenant_name %s" % self._args.admin_tenant
+        cmd += " --openstack_ip %s" % self._args.authserver_ip
+        cmd += " --oper add"
+        with settings(warn_only=True):
+            local(cmd)
+
     def setup(self):
+        self.create_ssl_certs()
         self.fixup_tor_agent()
         self.fixup_tor_ini()
         self.create_init_file()
+        self.add_vnc_config()
+        self.add_tor_vendor()
+
 
 class TorAgentSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -77,20 +124,35 @@ class TorAgentSetup(ContrailSetup):
             args_str = ' '.join(sys.argv[1:])
 
         self.global_defaults = {
+            'cfgm_ip': '127.0.0.1',
+            'authserver_ip': '127.0.0.1',
+            'admin_user':None,
+            'admin_passwd':None,
+            'admin_tenant_name':'admin',
         }
 
         self.parse_args(args_str)
 
     def parse_args(self, args_str):
         '''
-        Eg. setup-vnc-tor-agent --agent_name contrail-tor-1 --http_server_port 9090
+        Eg. setup-vnc-tor-agent --tor_name contrail-tor-1 --http_server_port 9090
             --discovery_server_ip 10.204.217.39 --tor_id 1 --tor_ip 10.204.221.35
             --tor_ovs_port 9999 --tsn_ip 10.204.221.33 --tor_ovs_protocol tcp
         '''
         parser = self._parse_args(args_str)
 
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
-        parser.add_argument("--agent_name", help = "Name of the TOR agent")
+        parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
+        parser.add_argument("--authserver_ip", help = "IP Address of the authserver(keystone) node")
+        parser.add_argument("--admin_user", help = "Authserver admin tenants user name")
+        parser.add_argument("--admin_password", help = "AuthServer admin user's password")
+        parser.add_argument("--admin_tenant_name", help = "AuthServer admin tenant name")
+        parser.add_argument("--tor_name", help = "Name of the TOR")
+        parser.add_argument("--tor_agent_name", help = "Name of the TOR")
+        parser.add_argument("--tor_vendor_name", help = "Name of the TOR vendor")
+        parser.add_argument("--tor_tunnel_ip", help = "Tor device tunnel Ipaddress")
+        parser.add_argument("--tsn_name", help = "Tsn name")
+        parser.add_argument("--tor_mgmt_ip" , help = "Tor device management ipaddress")
         parser.add_argument("--http_server_port", help = "Port number for the HTTP server.")
         parser.add_argument("--discovery_server_ip", help = "IP Address of the config node")
         parser.add_argument("--tor_ip", help = "TOR Switch IP")

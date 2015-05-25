@@ -10,6 +10,7 @@ from fabric.state import env
 from fabric.api import local
 from fabric.context_managers import settings
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
@@ -21,33 +22,20 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self._args = config_args
 
     def fixup_config_files(self):
+        self.remove_override('neutron-server.override')
         self.fixup_keystone_auth_config_file()
-        self.fixup_ifmap_config_files()
-        self.fixup_contrail_api_config_file()
+        self.fixup_contrail_plugin_ini()
+        self.fixup_auth_in_contrail_api()
+        self.fixup_contrail_schema_supervisor_ini()
+        #self.fixup_contrail_device_manager_supervisor_ini()
+        self.fixup_contrail_svc_monitor_supervisor_ini()
         config_files = [
                         '/etc/contrail/contrail-api.conf',
                         '/etc/contrail/contrail-keystone-auth.conf',
                        ]
-        self.fixup_contrail_api_supervisor_ini(config_files)
-        self.fixup_contrail_api_initd()
-        self.fixup_contrail_plugin_ini()
-        self.fixup_schema_transformer_config_file()
-        self.fixup_contrail_schema_supervisor_ini()
-        self.fixup_device_manager_config_file()
-        #self.fixup_contrail_device_manager_supervisor_ini()
-        self.fixup_svc_monitor_config_file()
-        self.fixup_contrail_svc_monitor_supervisor_ini()
-        self.fixup_discovery_config_file()
-        self.fixup_discovery_supervisor_ini()
-        self.fixup_discovery_initd()
-        self.fixup_vnc_api_lib_ini()
-        self.fixup_contrail_config_nodemgr()
-        self.fixup_contrail_sudoers()
-        if self._args.use_certs:
-            local("sudo setup-pki.sh /etc/contrail/ssl")
+        super(ConfigOpenstackSetup, self).fixup_config_files(config_files)
 
-    def fixup_contrail_api_config_file(self):
-        super(ConfigOpenstackSetup, self).fixup_contrail_api_config_file()
+    def fixup_auth_in_contrail_api(self):
         local('sudo openstack-config --set /etc/contrail/contrail-api.conf DEFAULTS auth keystone')
 
     def fixup_contrail_schema_supervisor_ini(self):
@@ -103,7 +91,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         else:
             local("sudo mv %s/contrail_plugin.ini /etc/quantum/plugins/contrail/contrail_plugin.ini" %(self._temp_dir_name))
 
-        if self.pdist == 'Ubuntu':
+        if self.pdist in DEBIAN:
             neutron_def_file = "/etc/default/neutron-server"
             if os.path.exists(neutron_def_file):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
@@ -159,9 +147,5 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         local("sudo quantum-server-setup.sh")
 
     def setup(self):
-        self.disable_selinux()
-        self.disable_iptables()
-        self.setup_coredump()
-        self.fixup_config_files()
         self.build_ctrl_details()
-        self.run_services()
+        super(ConfigOpenstackSetup, self).setup()

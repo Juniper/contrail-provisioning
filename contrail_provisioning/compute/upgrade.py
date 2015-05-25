@@ -4,11 +4,12 @@
 #
 """Upgrade's Contrail Compute components."""
 
+from fabric.api import local
+
 from setup import ComputeSetup
 from openstack import ComputeOpenstackSetup
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.upgrade import ContrailUpgrade
-
-from fabric.api import local
 
 
 class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
@@ -34,13 +35,13 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
                                  '/etc/contrail/vrouter_nodemgr_param',
                                  '/etc/nova/nova.conf',
                                  '/etc/libvirt/qemu.conf']
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')
         if 'tsn' in self._args.roles:
             self.upgrade_data['restore'].remove('/etc/nova/nova.conf')
             self.upgrade_data['restore'].remove('/etc/libvirt/qemu.conf')
-            if self.pdist in ['Ubuntu']:
+            if self.pdist in DEBIAN:
                 self.upgrade_data['restore'].remove('/etc/nova/nova-compute.conf')
         if 'toragent' in self._args.roles:
             # TODO :Restore toragent config files if required.
@@ -51,7 +52,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if self._args.internal_vip:
             nova_conf_file = '/etc/nova/nova.conf'
             openstack_compute_service = 'openstack-nova-compute'
-            if self.pdist in ['Ubuntu']:
+            if self.pdist in DEBIAN:
                 openstack_compute_service = 'nova-compute'
             local("service %s stop" % openstack_compute_service)
             local("openstack-config --set %s DEFAULT rpc_response_timeout 30" %
