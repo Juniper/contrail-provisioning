@@ -31,6 +31,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
+   glance_ver=`dpkg -l | grep 'ii' | grep glance | awk '{print $3}'`
 fi
 
 function error_exit
@@ -163,6 +164,23 @@ fi
 
 if [ "$OPENSTACK_INDEX" -eq 1 ]; then
     glance-manage db_sync
+fi
+
+# Image services for ceilometer
+CEILOMETER_ENABLED=${CEILOMETER_ENABLED:-no}
+if [ "$CEILOMETER_ENABLED" == "yes" ]; then
+    # Get openstack SKU
+    is_havana_or_older=$(python -c "from distutils.version import LooseVersion; \
+                            print LooseVersion('$glance_ver') < LooseVersion('2014.1.1')")
+    CONFIG_CMD="openstack-config --set /etc/glance/glance-api.conf"
+    $CONFIG_CMD DEFAULT notification_driver messaging
+    $CONFIG_CMD DEFAULT rpc_backend rabbit
+    $CONFIG_CMD DEFAULT rabbit_host $AMQP_SERVER
+    $CONFIG_CMD DEFAULT rabbit_password guest
+    if [ "$is_havana_or_older" == "True" ]; then
+        $CONFIG_CMD DEFAULT notifier_strategy rabbit
+        $CONFIG_CMD DEFAULT rabbit_userid guest
+    fi
 fi
 
 echo "======= Enabling the services ======"

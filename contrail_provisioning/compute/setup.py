@@ -57,13 +57,14 @@ class ComputeSetup(ContrailSetup):
             'cpu_model': None,
             'dpdk': False,
             'hypervisor' : 'libvirt',
+            'manage_ceilometer' : False,
         }
 
         self.parse_args(args_str)
 
     def parse_args(self, args_str):
         '''
-        Eg. setup-vnc-vrouter --cfgm_ip 10.1.5.11 --keystone_ip 10.1.5.12
+        Eg. setup-vnc-compute --cfgm_ip 10.1.5.11 --keystone_ip 10.1.5.12
                    --self_ip 10.1.5.12 --service_token 'c0ntrail123' --ncontrols 1
                    --haproxy --internal_vip 10.1.5.200
         '''
@@ -91,6 +92,10 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--public_vn_name", help = "Fully-qualified domain name (FQDN) of the routing-instance that needs public access")
         parser.add_argument("--gateway_routes", help = "List of route need to be added in agent configuration for virtual gateway")
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--config_ip_list", help = "List of IP Addresses of config nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--openstack_ip_list", help = "List of IP Addresses of openstack nodes",
+                            nargs='+', type=str)
         parser.add_argument("--keystone_auth_protocol", help = "Auth protocol used to talk to keystone")
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenants user name")
@@ -115,12 +120,13 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--cpu_mode", help = "VM cpu_mode, can be one of 'none', 'host-model', 'host-passthrough', 'custom'")
         parser.add_argument("--cpu_model", help = "VM cpu_model, required if cpu_mode is 'custom'. eg. 'Nehalem'")
         parser.add_argument("--dpdk", help = "vRouter/DPDK mode.", action="store_true")
+        parser.add_argument("--manage_ceilometer", help = "Provision ceilometer", action="store_true")
 
         self._args = parser.parse_args(self.remaining_argv)
 
 
 
-def main(args_str = None):
+def main(args_str=None):
     compute_args = ComputeSetup(args_str)._args
     if compute_args.orchestrator == 'openstack':
         compute = ComputeOpenstackSetup(compute_args)

@@ -4,10 +4,11 @@
 #
 """Upgrade's Contrail Database components."""
 
-from setup import DatabaseSetup
-from contrail_provisioning.common.upgrade import ContrailUpgrade
-
 from fabric.api import local
+
+from setup import DatabaseSetup
+from contrail_provisioning.common import DEBIAN, RHEL
+from contrail_provisioning.common.upgrade import ContrailUpgrade
 
 
 class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):

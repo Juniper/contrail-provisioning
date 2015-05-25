@@ -10,6 +10,7 @@
 import os
 import sys
 import argparse
+import platform
 import ConfigParser
 
 from fabric.api import run
@@ -18,7 +19,8 @@ from fabric.context_managers import settings
 from keystoneclient.v2_0 import client
 from keystoneclient import utils as ksutils
 from keystoneclient import exceptions
-import platform
+
+from contrail_provisioning.common import DEBIAN, RHEL
 
 class QuantumSetup(object):
     def __init__(self, args_str = None):
@@ -288,7 +290,7 @@ class QuantumSetup(object):
             #Fix the quantum url safely as openstack node may have been setup independently
             with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
                 run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
-                if pdist == 'Ubuntu': 
+                if pdist in DEBIAN: 
                     run('service keystone restart')
                     run('service nova-api restart')
                 else:

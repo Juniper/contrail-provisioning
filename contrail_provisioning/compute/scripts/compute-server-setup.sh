@@ -231,6 +231,17 @@ if [ "$DPDK_MODE" == "True" ]; then
     openstack-config --set /etc/nova/nova.conf LIBVIRT use_huge_pages true
 fi
 
+# Ceilometer configs
+CEILOMETER_ENABLED=${CEILOMETER_ENABLED:-no}
+if [ "$CEILOMETER_ENABLED" == "yes" ]; then
+    CONFIG_CMD="openstack-config --set /etc/nova/nova.conf DEFAULT"
+    $CONFIG_CMD notification_driver ceilometer.compute.nova_notifier 
+    $CONFIG_CMD notification_driver nova.openstack.common.notifier.rpc_notifier
+    $CONFIG_CMD notify_on_state_change vm_and_task_state
+    $CONFIG_CMD instance_usage_audit_period hour
+    $CONFIG_CMD instance_usage_audit True
+fi
+
 # Add respawn in nova-compute upstart script
 nova_compute_upstart='/etc/init/nova-compute.conf'
 if [ -f $nova_compute_upstart ]; then

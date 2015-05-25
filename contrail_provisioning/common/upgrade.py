@@ -10,6 +10,8 @@ import argparse
 
 from fabric.api import local
 
+from common import  DEBIAN, RHEL
+
 class ContrailUpgrade(object):
     def __init__(self):
         self.upgrade_data = {
@@ -77,7 +79,7 @@ class ContrailUpgrade(object):
         if not self.upgrade_data['upgrade']:
             return
         pkgs = ' '.join(self.upgrade_data['upgrade'])
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
             cmd += ' -o Dpkg::Options::="--force-overwrite"'
             cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
@@ -118,7 +120,7 @@ class ContrailUpgrade(object):
         if not self.upgrade_data['downgrade']:
             return
         pkgs = ' '.join(self.upgrade_data['downgrade'])
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
             cmd += ' -o Dpkg::Options::="--force-overwrite"'
             cmd += ' -o Dpkg::Options::="--force-confnew"'
@@ -132,7 +134,7 @@ class ContrailUpgrade(object):
         if not self.upgrade_data['remove']:
             return
         pkgs = ' '.join(self.upgrade_data['remove'])
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             local('DEBIAN_FRONTEND=noninteractive apt-get -y remove --purge\
                    %s' % pkgs)
         else:
@@ -162,12 +164,12 @@ class ContrailUpgrade(object):
 
     def _upgrade(self):
         self._backup_config()
-        if self.pdist in ['centos']:
+        if self.pdist in RHEL:
             self._remove_package()
         self._ensure_package()
         self._downgrade_package()
         self._upgrade_package()
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             self._remove_package()
         self._restore_config()
         self._rename_config()
@@ -184,5 +186,5 @@ class ContrailUpgrade(object):
               /opt/contrail/python_packages/pycrypto-2.6.tar.gz;\
               sudo easy_install \
               /opt/contrail/python_packages/paramiko-1.11.0.tar.gz"
-        if self.pdist not in ['Ubuntu']:
+        if self.pdist not in DEBIAN:
             local(cmd)

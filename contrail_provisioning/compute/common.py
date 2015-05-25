@@ -16,6 +16,8 @@ from fabric.api import local, run
 from fabric.state import env
 from fabric.context_managers import settings, lcd
 
+from contrail_provisioning.common import DEBIAN, RHEL
+from haproxy import ComputeHaproxyConfig
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.compute.network import ComputeNetworkSetup
 from contrail_provisioning.compute.templates import vrouter_nodemgr_param
@@ -35,12 +37,18 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
     def __init__(self, compute_args, args_str=None):
         super(ComputeBaseSetup, self).__init__()
         self._args = compute_args
+        self.enable_haproxy()
+        if self._args.haproxy:
+            haproxy = ComputeHaproxyConfig(self._args)
+            haproxy.create()
+            haproxy.start()
 
     def enable_kernel_core(self): 
         self.enable_kernel_core()
         local ('for s in abrt-vmcore abrtd kdump; do chkconfig ${s} on; done')
 
     def fixup_config_files(self):
+        self.remove_override("supervisor-vrouter.override")
         self.add_dev_tun_in_cgroup_device_acl()
         self.fixup_vrouter_nodemgr_param()
         self.fixup_contrail_vrouter_agent()
@@ -56,7 +64,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         with settings(warn_only = True):
             ret = local("sudo grep -q '^cgroup_device_acl' /etc/libvirt/qemu.conf")
             if ret.return_code == 1:
-                if  self.pdist in ['centos', 'redhat']:
+                if  self.pdist in RHEL:
                     local('sudo echo "clear_emulator_capabilities = 1" >> /etc/libvirt/qemu.conf')
                     local('sudo echo \'user = "root"\' >> /etc/libvirt/qemu.conf')
                     local('sudo echo \'group = "root"\' >> /etc/libvirt/qemu.conf')
@@ -68,7 +76,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 local('sudo echo \']\' >> /etc/libvirt/qemu.conf')
                 self._fixed_qemu_conf = True
             # add "alias bridge off" in /etc/modprobe.conf for Centos
-            if  self.pdist in ['centos', 'redhat']:
+            if  self.pdist in RHEL:
                 local('sudo echo "alias bridge off" > /etc/modprobe.conf')
 
     def fixup_vrouter_nodemgr_param(self):
@@ -237,7 +245,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             self.fixup_vhost0_interface_configs()
 
     def fixup_vhost0_interface_configs(self):
-        if self.pdist in ['centos', 'fedora', 'redhat']:
+        if self.pdist in RHEL:
             ## make ifcfg-vhost0
             with open ('%s/ifcfg-vhost0' % self._temp_dir_name, 'w') as f:
                 f.write ('''#Contrail vhost0
@@ -293,7 +301,7 @@ SUBCHANNELS=1,2,3
         # setup lbaas prereqs
         self.setup_lbaas_prereq()
 
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             self._rewrite_net_interfaces_file(self.dev, self.mac, self.vhost_ip, self.netmask, self.gateway,
                         self._args.vmware, self._args.vmware_vmpg_vswitch_mtu,
                         self._args.vmware_datanic_mtu)
