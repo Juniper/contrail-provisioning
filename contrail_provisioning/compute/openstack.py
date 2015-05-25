@@ -11,6 +11,7 @@ import ConfigParser
 from fabric.api import local
 from fabric.context_managers import settings
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.compute.common import ComputeBaseSetup
 
 
@@ -21,7 +22,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
 
     def fixup_nova_conf(self):
         with settings(warn_only = True):
-            if self.pdist in ['Ubuntu']:
+            if self.pdist in DEBIAN:
                 cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
                 nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                 if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
@@ -61,6 +62,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         if self._args.dpdk:
             ctrl_infos.append('DPDK_MODE=True')
         self.update_vips_in_ctrl_details(ctrl_infos)
+        if self._args.manage_ceilometer:
+            ctrl_infos.append('CEILOMETER_ENABLED=yes')
 
         for ctrl_info in ctrl_infos:
             local ("sudo echo %s >> %s" % (ctrl_info, ctrl_details))
@@ -72,21 +75,21 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         super(ComputeOpenstackSetup, self).fixup_config_files()
 
     def run_services(self):
-        contrail_openstack = not(getattr(self._args, 'no_contrail_openstack', False))
-        config_nova = not(getattr(self._args, 'no_nova_config', False))
-        if contrail_openstack:
+        if self.contrail_openstack:
             if self._fixed_qemu_conf:
-                if self.pdist in ['centos', 'fedora', 'redhat']:
+                if self.pdist in RHEL:
                     local("sudo service libvirtd restart")
-                if self.pdist in ['Ubuntu']:
+                if self.pdist in DEBIAN:
                     local("sudo service libvirt-bin restart")
 
             # running compute-server-setup.sh on cfgm sets nova.conf's
             # sql access from ip instead of localhost, causing privilege
             # degradation for nova tables
             local("sudo compute-server-setup.sh")
+            if self._args.manage_ceilometer:
+                local("sudo ceilometer-agent-server-setup.sh")
         else:
-            if config_nova:
+            if self.config_nova:
                 #use contrail specific vif driver
                 local('openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_vif_driver nova_contrail_vif.contrailvif.VRouterVIFDriver')
                 # Use noopdriver for firewall
@@ -109,10 +112,10 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
                 local("openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_cpu_model %s" % cpu_model)
 
         nova_compute = 'openstack-nova-compute'
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             nova_compute = 'nova-compute'
         local('chkconfig %s on' % nova_compute)
-        if config_nova:
+        if self.config_nova:
             local('service %s restart' % nova_compute)
         super(ComputeOpenstackSetup, self).run_services()
 

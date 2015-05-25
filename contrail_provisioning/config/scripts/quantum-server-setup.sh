@@ -128,6 +128,13 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rpc_thread_pool_size 70
 fi
 
+# Network services for ceilometer
+CEILOMETER_ENABLED=${CEILOMETER_ENABLED:-no}
+if [ "$CEILOMETER_ENABLED" == "yes" ]; then
+    CONFIG_CMD="openstack-config --set /etc/$net_svc_name/$net_svc_name.conf"
+    $CONFIG_CMD DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
+fi
+
 # Add respawn in nova-compute upstart script
 net_svc_upstart='/etc/init/$net_svc_name-server.conf'
 if [ -f $net_svc_upstart ]; then

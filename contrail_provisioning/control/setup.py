@@ -10,6 +10,7 @@ import ConfigParser
 
 from fabric.api import local
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.control.templates import contrail_control_conf
 from contrail_provisioning.control.templates import dns_conf
@@ -54,6 +55,8 @@ class ControlSetup(ContrailSetup):
 
 
     def fixup_config_files(self): 
+        self.remove_override('supervisor-control.override')
+        self.remove_override('supervisor-dns.override')
         self.fixup_contrail_control()
         self.fixup_dns()
         self.fixup_contrail_control_nodemgr()
@@ -100,10 +103,23 @@ class ControlSetup(ContrailSetup):
 
     def run_services(self):
         local("sudo control-server-setup.sh")
+        if self.pdist in RHEL:
+            local("service contrail-control restart")
+
+    def setup(self):
+        self.increase_limits()
+        super(ControlSetup, self).setup()
+
+    def verify(self):
+        self.verify_service("supervisor-control")
+        self.verify_service("contrail-control")
+        self.verify_service("contrail-dns")
+        self.verify_service("contrail-named")
 
 def main(args_str = None):
     control = ControlSetup(args_str)
     control.setup()
+    control.verify()
 
 if __name__ == "__main__":
     main()

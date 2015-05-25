@@ -47,6 +47,7 @@ class ConfigSetup(ContrailSetup):
             'quantum_service_protocol': 'http',
             'manage_neutron': 'yes',
             'orchestrator' : 'openstack',
+            'manage_ceilometer': False,
         }
         self.parse_args(args_str)
 
@@ -73,9 +74,13 @@ class ConfigSetup(ContrailSetup):
             action="store_true")
         parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
             action="store_true")
+        parser.add_argument("--config_ip_list", help = "List of IP Addresses of config nodes",
+                            nargs='+', type=str)
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
+                            nargs='+', type=str)
+        parser.add_argument("--control_ip_list", help = "List of IP Addresses of control nodes",
                             nargs='+', type=str)
         parser.add_argument("--quantum_port", help = "Quantum Server port")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ")
@@ -104,6 +109,7 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
         parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
+        parser.add_argument("--manage_ceilometer", help="Provision ceilometer", action="store_true")
   
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
@@ -120,6 +126,7 @@ def main(args_str = None):
         # Defaults to provision only contrail config without Orchestrator.
         config = ConfigBaseSetup(config_args)
     config.setup()
+    config.verify()
 
 if __name__ == "__main__":
     main() 

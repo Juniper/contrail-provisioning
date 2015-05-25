@@ -13,15 +13,18 @@ import argparse
 import tempfile
 import platform
 import ConfigParser
+from time import sleep
 
 from fabric.api import *
+
+from contrail_provisioning.common import  DEBIAN, RHEL
 from contrail_provisioning.common.templates import contrail_keystone_auth_conf
 
 class ContrailSetup(object):
     def __init__(self):
         (self.pdist, self.pdistversion, self.pdistrelease) = platform.dist()
         self.hostname = socket.gethostname()
-        if self.pdist == 'Ubuntu':
+        if self.pdist in DEBIAN:
             local("ln -sf /bin/true /sbin/chkconfig")
 
         self._temp_dir_name = tempfile.mkdtemp()
@@ -187,7 +190,7 @@ class ContrailSetup(object):
             local("sudo sed '/DAEMON_COREFILE_LIMIT=.*/d' %s > %s.new" %(initf, initf))
             local("sudo mv %s.new %s" %(initf, initf))
 
-        if self.pdist in ['centos', 'fedora', 'redhat']:
+        if self.pdist in RHEL:
             core_unlim = "echo DAEMON_COREFILE_LIMIT=\"'unlimited'\""
             local("%s >> %s" %(core_unlim, initf))
 
@@ -206,15 +209,15 @@ class ContrailSetup(object):
             local('chmod 777 /var/crashes')
 
         try:
-            if self.pdist in ['fedora', 'centos', 'redhat']:
+            if self.pdist in RHEL:
                 self.enable_kernel_core ()
-            if self.pdist == 'Ubuntu':
+            if self.pdist in DEBIAN:
                 self.setup_crashkernel_params()
         except Exception as e:
             print "Ignoring failure kernel core dump"
 
         try:
-            if self.pdist in ['fedora', 'centos', 'redhat']:
+            if self.pdist in RHEL:
                 self.enable_kdump()
         except Exception as e:
             print "Ignoring failure when enabling kdump"
@@ -246,6 +249,122 @@ class ContrailSetup(object):
         with settings(warn_only=True):
             local("openstack-config --del %s %s %s" % (
                         fl, sec, var))
+
+    def insert_line_to_file(self, file_name, line, pattern=None):
+        with settings(warn_only = True):
+            if pattern:
+                local('sed -i \'/%s/d\' %s' % (pattern,file_name))
+            local('printf "%s\n" >> %s' % (line, file_name))
+
+    def increase_limits(self):
+        """Increase limits in /etc/security/limits.conf, sysctl.conf and
+           /etc/contrail/supervisor*.conf files
+        """
+        if self.pdist in DEBIAN:
+            line = 'root soft nofile 65535\nroot hard nofile 65535'
+        else:
+            line = 'root soft nproc 65535'
+
+        increase_limits_data = {
+            '/etc/security/limits.conf' :
+                [('^root\s*soft\s*nproc\s*.*', line),
+                 ('^*\s*hard\s*nofile\s*.*', '* hard nofile 65535'),
+                 ('^*\s*soft\s*nofile\s*.*', '* soft nofile 65535'),
+                 ('^*\s*hard\s*nproc\s*.*', '* hard nproc 65535'),
+                 ('^*\s*soft\s*nproc\s*.*', '* soft nofile 65535'),
+                ],
+            '/etc/sysctl.conf' : [('^fs.file-max.*', 'fs.file-max = 65535')],
+        }
+        for conf_file, data in increase_limits_data.items():
+            for pattern, line in data:
+                self.insert_line_to_file(pattern=pattern, line=line, file_name=conf_file)
+
+        with settings(warn_only=True):
+            local('sysctl -p')
+        local('sed -i \'s/^minfds.*/minfds=10240/\' /etc/contrail/supervisor*.conf')
+
+    def remove_override(self, file_name):
+        if self.pdist in DEBIAN:
+            with settings(warn_only=True):
+                local('rm /etc/init/%s' % file_name)
+
+    def verify_service(self, service):
+        for x in xrange(10):
+            output = local("service %s status" % service, capture=True)
+            if 'running' in output.lower():
+                return
+            else:
+                print output
+                sleep(20)
+        raise SystemExit("Service %s not running." % service)
+
+    def is_package_installed(self, pkg_name):
+        if self.pdist in DEBIAN:
+            cmd = 'dpkg-query -l "%s" | grep -q ^.i'
+        elif self.pdist in RHEL:
+            cmd = 'rpm -qi %s '
+        cmd = cmd % (pkg_name)
+        with settings(warn_only=True):
+            result = local("sudo %s" % cmd)
+        return result.succeeded
+
+    def add_reserved_ports(self, ports):
+        # Exclude ports from the available ephemeral port range
+        existing_ports = local("sudo cat /proc/sys/net/ipv4/ip_local_reserved_ports", capture=True)
+        local("sudo sysctl -w net.ipv4.ip_local_reserved_ports=%s,%s" % (ports, existing_ports))
+        # Make the exclusion of ports persistent
+        with settings(warn_only=True):
+            not_set = local("sudo grep '^net.ipv4.ip_local_reserved_ports' /etc/sysctl.conf > /dev/null 2>&1").failed
+        if not_set:
+            local('sudo echo "net.ipv4.ip_local_reserved_ports = %s" >> /etc/sysctl.conf' % ports)
+        else:
+            local("sudo sed -i 's/net.ipv4.ip_local_reserved_ports\s*=\s*/net.ipv4.ip_local_reserved_ports=%s,/' /etc/sysctl.conf" % ports)
+
+        # Centos returns non zero return code for "sysctl -p".
+        # However the ports are reserved properly.
+        with settings(warn_only=True):
+            local("sudo sysctl -p")
+
+    def enable_haproxy(self):
+        """For Ubuntu. Set ENABLE=1 in /etc/default/haproxy."""
+        if self.pdist in DEBIAN:
+            with settings(warn_only=True):
+                local("sudo sed -i 's/ENABLED=.*/ENABLED=1/g' /etc/default/haproxy")
+
+    def fixup_redis_conf(self, bind=True):
+        if self.pdist in DEBIAN:
+            conf_file = "/etc/redis/redis.conf"
+            svc_name = "redis-server"
+        elif self.pdist in RHEL:
+            conf_file = "/etc/redis.conf"
+            svc_name = "redis"
+        # we need the redis to be listening on *, comment bind line
+        local("sudo service %s stop" % svc_name)
+        if bind:
+            local("sudo sed -i -e '/^[ ]*bind/s/^/#/' %s" % conf_file)
+        # If redis passwd sepcified add that to the conf file
+        if self._args.redis_password:
+            local("sudo sed -i '/^# requirepass/ c\ requirepass %s' %s"
+                  % (self._args.redis_password, conf_file))
+        # Disable persistence
+        dbfilename = local("sudo grep '^dbfilename' %s | awk '{print $2}'" % (conf_file))
+        if dbfilename:
+            dbdir = local("sudo grep '^dir' %s | awk '{print $2}'" % (conf_file))
+            if dbdir:
+                local("sudo rm -f %s/%s" % (dbdir, dbfilename))
+        local("sudo sed -i -e '/^[ ]*save/s/^/#/' %s" % (conf_file))
+        local("sudo sed -i -e '/^[ ]*dbfilename/s/^/#/' %s" % (conf_file))
+        local("sudo chkconfig %s on" % svc_name)
+        local("sudo service %s start" % svc_name)
+        if self.pdist in DEBIAN:
+            #check if the redis-server is running, if not, issue start again
+            retries = 10
+            with settings(warn_only=True):
+                while (local("sudo service %s status | grep not" % svc_name).succeeded
+                       and retries):
+                    retries -= 1
+                    sleep(1)
+                    local("sudo service %s restart" % svc_name)
 
     def setup(self):
         self.disable_selinux()

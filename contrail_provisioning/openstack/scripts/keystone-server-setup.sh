@@ -236,6 +236,14 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/keystone/keystone.conf database pool_timeout 120
 fi
 
+# Identity services for ceilometer
+CEILOMETER_ENABLED=${CEILOMETER_ENABLED:-no}
+if [ "$CEILOMETER_ENABLED" == "yes" ]; then
+    CONFIG_CMD="openstack-config --set /etc/keystone/keystone.conf"
+    $CONFIG_CMD DEFAULT notification_driver messaging
+    $CONFIG_CMD DEFAULT rabbit_host $AMQP_SERVER
+fi
+
 # Increase memcached 'item_size_max' to 10MB, default is 1MB
 # Work around for bug https://bugs.launchpad.net/keystone/+bug/1242620
 item_size_max="10m"

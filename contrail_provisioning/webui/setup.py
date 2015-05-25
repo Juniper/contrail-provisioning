@@ -68,6 +68,7 @@ class WebuiSetup(ContrailSetup):
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
+        self.fixup_redis_conf()
         self.fixup_config_global_js()
 
     def fixup_config_global_js(self):
@@ -170,9 +171,15 @@ class WebuiSetup(ContrailSetup):
     def run_services(self):
         local("sudo webui-server-setup.sh")
 
+    def verify(self):
+        self.verify_service("supervisor-webui")
+        self.verify_service("contrail-webui")
+        self.verify_service("contrail-webui-middleware")
+
 def main(args_str = None):
     webui = WebuiSetup(args_str)
     webui.setup()
+    webui.verify()
 
 if __name__ == "__main__":
     main()

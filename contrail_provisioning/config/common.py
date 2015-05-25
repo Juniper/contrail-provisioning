@@ -11,6 +11,7 @@ from fabric.state import env
 from fabric.api import local
 from fabric.context_managers import settings
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.config.templates import ifmap_log4j
 from contrail_provisioning.config.templates import ifmap_authorization
@@ -31,6 +32,7 @@ from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_sudoers
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
+from contrail_provisioning.config.templates import config_haproxy
 
 
 class ConfigBaseSetup(ContrailSetup):
@@ -49,10 +51,15 @@ class ConfigBaseSetup(ContrailSetup):
             self.rabbit_host = self._args.internal_vip
             self.rabbit_port = 5673
 
-    def fixup_config_files(self):
+    def fixup_config_files(self,
+                           config_files=['/etc/contrail/contrail-api.conf']):
+        self.remove_override('supervisor-config.override')
+        self.enable_haproxy()
+        self.fixup_haproxy_config()
         self.fixup_ifmap_config_files()
+        self.fixup_irond_config()
         self.fixup_contrail_api_config_file()
-        self.fixup_contrail_api_supervisor_ini()
+        self.fixup_contrail_api_supervisor_ini(config_files)
         self.fixup_contrail_api_initd()
         self.fixup_schema_transformer_config_file()
         self.fixup_device_manager_config_file()
@@ -61,37 +68,36 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_discovery_supervisor_ini()
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
-        self.fixup_contrail_sudoers()
         self.fixup_contrail_config_nodemgr()
+        self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
 
     def fixup_ifmap_config_files(self):
-        if self.pdist == 'Ubuntu' or self.pdist == 'centos' or self.pdist == 'redhat':
-            # log4j.properties
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_log4j.template,
-                                            template_vals, self._temp_dir_name + '/log4j.properties')
-            local("sudo mv %s/log4j.properties /etc/ifmap-server/" %(self._temp_dir_name))
-            # authorization.properties
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_authorization.template,
-                                            template_vals, self._temp_dir_name + '/authorization.properties')
-            local("sudo mv %s/authorization.properties /etc/ifmap-server/" %(self._temp_dir_name))
-            # basicauthusers.properties
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_basicauthusers.template,
-                                            template_vals, self._temp_dir_name + '/basicauthusers.properties')
-            local("sudo mv %s/basicauthusers.properties /etc/ifmap-server/" %(self._temp_dir_name))
-            # publisher.properties
-            template_vals = {
-                            }
-            self._template_substitute_write(ifmap_publisher.template,
-                                            template_vals, self._temp_dir_name + '/publisher.properties')
-            local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(self._temp_dir_name))
+        # log4j.properties
+        template_vals = {
+                        }
+        self._template_substitute_write(ifmap_log4j.template,
+                                        template_vals, self._temp_dir_name + '/log4j.properties')
+        local("sudo mv %s/log4j.properties /etc/ifmap-server/" %(self._temp_dir_name))
+        # authorization.properties
+        template_vals = {
+                        }
+        self._template_substitute_write(ifmap_authorization.template,
+                                        template_vals, self._temp_dir_name + '/authorization.properties')
+        local("sudo mv %s/authorization.properties /etc/ifmap-server/" %(self._temp_dir_name))
+        # basicauthusers.properties
+        template_vals = {
+                        }
+        self._template_substitute_write(ifmap_basicauthusers.template,
+                                        template_vals, self._temp_dir_name + '/basicauthusers.properties')
+        local("sudo mv %s/basicauthusers.properties /etc/ifmap-server/" %(self._temp_dir_name))
+        # publisher.properties
+        template_vals = {
+                        }
+        self._template_substitute_write(ifmap_publisher.template,
+                                        template_vals, self._temp_dir_name + '/publisher.properties')
+        local("sudo mv %s/publisher.properties /etc/ifmap-server/" %(self._temp_dir_name))
 
     def fixup_contrail_api_config_file(self):
         if self._args.orchestrator == 'vcenter':
@@ -129,7 +135,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_api_nworkers__': self._args.nworkers,
                          '__contrail_config_file_args__' : config_file_args,
                         }
-        if self.pdist == 'Ubuntu':
+        if self.pdist in DEBIAN:
             tmpl = contrail_api_ini.template
         else:
             tmpl = contrail_api_ini_centos.template
@@ -191,7 +197,7 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_device_manager_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
         local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
-        #local("sudo chmod a+x /etc/init.d/contrail-device-manager")
+        local("sudo chmod a+x /etc/init.d/contrail-device-manager")
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
@@ -240,7 +246,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {'__contrail_disc_port_base__': '911', # 911x
                          '__contrail_disc_nworkers__': '1'
                         }
-        if self.pdist == 'Ubuntu':
+        if self.pdist in DEBIAN:
             tmpl = contrail_discovery_ini.template
         else:
             tmpl = contrail_discovery_ini_centos.template
@@ -293,6 +299,83 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
         local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
 
+    def fixup_haproxy_config(self):
+        nworkers = 1
+        q_listen_port = 9697
+        q_server_lines = ''
+        api_listen_port = 9100
+        api_server_lines = ''
+        disc_listen_port = 9110
+        disc_server_lines = ''
+        tor_agent_ha_config = ''
+        rabbitmq_config = """
+        listen  rabbitmq 0.0.0.0:5673
+        mode tcp
+        maxconn 10000
+        balance roundrobin
+        option tcpka
+        option redispatch
+        timeout client 48h
+        timeout server 48h\n"""
+        space = ' ' * 3
+
+        for host_ip in self._args.config_ip_list:
+            server_index = self._args.config_ip_list.index(host_ip) + 1
+            q_server_lines = q_server_lines + \
+            '    server %s %s:%s check inter 2000 rise 2 fall 3\n' \
+                        %(host_ip, host_ip, str(q_listen_port))
+            for i in range(nworkers):
+                api_server_lines = api_server_lines + \
+                '    server %s %s:%s check inter 2000 rise 2 fall 3\n' \
+                            %(host_ip, host_ip, str(api_listen_port + i))
+                disc_server_lines = disc_server_lines + \
+                '    server %s %s:%s check inter 2000 rise 2 fall 3\n' \
+                            %(host_ip, host_ip, str(disc_listen_port + i))
+            rabbitmq_config +=\
+                '%s server rabbit%s %s:5672 check inter 2000 rise 2 fall 3 weight 1 maxconn 500\n'\
+                 % (space, server_index, host_ip)
+
+        if self._args.internal_vip == self._args.contrail_internal_vip:
+            # Openstack and cfgm are same nodes.
+            # Dont add rabbitmq confing twice in haproxy,
+            # setup-vnc-ha would have added already.
+            rabbitmq_config = ''
+
+        haproxy_config = config_haproxy.template.safe_substitute({
+            '__contrail_quantum_servers__': q_server_lines,
+            '__contrail_api_backend_servers__': api_server_lines,
+            '__contrail_disc_backend_servers__': disc_server_lines,
+            '__contrail_hap_user__': 'haproxy',
+            '__contrail_hap_passwd__': 'contrail123',
+            '__rabbitmq_config__': rabbitmq_config,
+        })
+
+        haproxy_conf = "/etc/haproxy/haproxy.cfg"
+        with settings(warn_only=True):
+            local("sudo sed -i -e '/^#contrail-config-marker-start/,/^#contrail-config-marker-end/d' %s" % haproxy_conf)
+            local("sudo sed -i -e 's/frontend\s*main\s*\*:5000/frontend  main *:5001/' %s" % haproxy_conf)
+            local("sudo sed -i -e 's/ssl-relay 0.0.0.0:8443/ssl-relay 0.0.0.0:5002/' %s" % haproxy_conf)
+            local("sudo sed -i '/^global/a\\        tune.bufsize 16384' %s" % haproxy_conf)
+            local("sed -i '/^global/a\\        tune.maxrewrite 1024' %s" % haproxy_conf)
+        # ...generate new ones
+        with open(haproxy_conf, 'a') as cfg_file:
+            cfg_file.write(haproxy_config)
+
+        # haproxy enable
+        local("sudo chkconfig haproxy on")
+        local("sudo service haproxy restart")
+
+    def fixup_irond_config(self):
+        for control_ip in self._args.control_ip_list:
+            pfl = "/etc/ifmap-server/basicauthusers.properties"
+            # replace control-node and dns proc creds
+            local("sudo sed -i -e '/%s:/d' -e '/%s.dns:/d' %s" \
+                  %(control_ip, control_ip, pfl))
+            local("sudo echo '%s:%s' >> %s" \
+                  %(control_ip, control_ip, pfl))
+            local("sudo echo '%s.dns:%s.dns' >> %s" \
+                  %(control_ip, control_ip, pfl))
+
     def run_services(self):
         if self._args.internal_vip:
             # Assumption cfgm and openstack in same node.
@@ -323,8 +406,18 @@ class ConfigBaseSetup(ContrailSetup):
                 return
 
     def setup(self):
+        self.increase_limits()
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
         self.run_services()
+
+    def verify(self):
+        self.verify_service("supervisor-config")
+        self.verify_service("contrail-api")
+        self.verify_service("contrail-device-manager")
+        self.verify_service("contrail-schema")
+        self.verify_service("contrail-svc-monitor")
+        self.verify_service("contrail-discovery")
+        self.verify_service("ifmap")

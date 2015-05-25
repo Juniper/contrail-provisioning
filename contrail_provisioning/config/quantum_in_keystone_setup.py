@@ -10,6 +10,7 @@
 import os
 import sys
 import argparse
+import platform
 import ConfigParser
 
 from fabric.api import run
@@ -18,7 +19,8 @@ from fabric.context_managers import settings
 from keystoneclient.v2_0 import client
 from keystoneclient import utils as ksutils
 from keystoneclient import exceptions
-import platform
+
+from contrail_provisioning.common import DEBIAN, RHEL
 
 class QuantumSetup(object):
     def __init__(self, args_str = None):
@@ -41,7 +43,7 @@ class QuantumSetup(object):
 
         self._args_ks_ip = self._args.ks_server_ip
         self._auth_url = "http://%s:35357/v2.0" % (self._args_ks_ip)
-     
+
 
         # Flag to enable/disable quantum if needed
         # self._enable_quantum = True
@@ -69,7 +71,7 @@ class QuantumSetup(object):
 
     def _parse_quant_args(self, args_str):
         '''
-        Eg. quantum_server_setup -- ks_server_ip <ip-address> 
+        Eg. quantum_server_setup -- ks_server_ip <ip-address>
                  --quant_server_ip <ip-address> --tenant <id> --user <user>
                  --password <passwd> --svc_password <passwd>
         '''
@@ -77,7 +79,7 @@ class QuantumSetup(object):
         # Source any specified config/ini file
         # Turn off help, so we print all options in response to -h
         conf_parser = argparse.ArgumentParser(add_help = False)
-        
+
         conf_parser.add_argument("-c", "--conf_file",
                                  help="Specify config file", metavar="FILE")
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
@@ -122,7 +124,7 @@ class QuantumSetup(object):
         parser.add_argument("--svc_tenant_name", help = "Quantum/Neutron service tenant name on keystone server")
         parser.add_argument("--root_password", help = "Root password for keystone server")
         parser.add_argument("--region_name", help = "Region Name for quantum endpoint")
-    
+
         self._args = parser.parse_args(remaining_argv)
 
     # end _parse_quant_args
@@ -290,7 +292,7 @@ class QuantumSetup(object):
             #Fix the quantum url safely as openstack node may have been setup independently
             with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
                 run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
-                if pdist == 'Ubuntu': 
+                if pdist in DEBIAN:
                     run('service keystone restart')
                     run('service nova-api restart')
                 else:

@@ -17,6 +17,7 @@ setup(
     entry_points = {
         'console_scripts' : [
             # Setup scripts
+            'setup-vnc-common = contrail_provisioning.common.setup:main',
             'setup-vnc-amqp = contrail_provisioning.common.amqp_setup:main',
             'setup-vnc-keepalived = contrail_provisioning.common.keepalived_setup:main',
             'setup-vnc-openstack = contrail_provisioning.openstack.setup:main',
@@ -33,9 +34,12 @@ setup(
             'setup-vnc-livemigration = contrail_provisioning.storage.livemigration_setup:main',
             'setup-vnc-storage-webui = contrail_provisioning.storage.webui_setup:main',
             'setup-vcenter-plugin = contrail_provisioning.vcenter_plugin.setup:main',
+            'setup-vnc-tsn = contrail_provisioning.compute.tsn.setup:main',
             'setup-vnc-tor-agent = contrail_provisioning.compute.toragent.setup:main',
+            'setup-vnc-toragent-haproxy = contrail_provisioning.compute.toragent.haproxy.main',
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
+            'cleanup-vnc-tor-agent = contrail_provisioning.compute.toragent.cleanup:main',
             # Upgrade scripts
             'upgrade-vnc-openstack = contrail_provisioning.openstack.upgrade:main',
             'upgrade-vnc-database = contrail_provisioning.database.upgrade:main',
@@ -50,6 +54,8 @@ setup(
             'compute-live-migration-setup = contrail_provisioning.storage.compute.livemigration:main',
             'livemnfs-setup = contrail_provisioning.storage.storagefs.livemnfs_setup:main',
             'storage-webui-setup = contrail_provisioning.storage.webui.setup:main',
+            # Contrail Provisioning RPC server
+            'contrail-provision-rpcserver = contrail_provisioning.rpc.server:main',
         ],
     },
     scripts = [
@@ -72,6 +78,7 @@ setup(
                # Compute executables
                'contrail_provisioning/compute/scripts/compute-server-setup.sh',
                'contrail_provisioning/compute/scripts/compute-server-cleanup.sh',
+               'contrail_provisioning/compute/scripts/ceilometer-agent-server-setup.sh',
                # Webui executables
                'contrail_provisioning/webui/scripts/webui-server-setup.sh',
                'contrail_provisioning/webui/scripts/webui-server-cleanup.sh',
@@ -90,6 +97,7 @@ setup(
                'contrail_provisioning/openstack/scripts/contrail-token-clean.sh',
                'contrail_provisioning/openstack/scripts/contrail-keystone-setup.sh',
                'contrail_provisioning/openstack/scripts/chk_ctrldata.sh',
+               'contrail_provisioning/openstack/scripts/ceilometer-server-setup.sh',
                # Openstack HA executables
                'contrail_provisioning/openstack/ha/scripts/contrail-ha-keystone-setup.sh',
                'contrail_provisioning/openstack/scripts/contrail-galera-check.sh',
@@ -99,5 +107,4 @@ setup(
                'tools/openstack-db',
                'tools/openstack-config',
               ]
-
 )
