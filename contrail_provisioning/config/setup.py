@@ -72,9 +72,13 @@ class ConfigSetup(ContrailSetup):
             action="store_true")
         parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
             action="store_true")
+        parser.add_argument("--config_ip_list", help = "List of IP Addresses of config nodes",
+                            nargs='+', type=str)
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
+                            nargs='+', type=str)
+        parser.add_argument("--control_ip_list", help = "List of IP Addresses of control nodes",
                             nargs='+', type=str)
         parser.add_argument("--quantum_port", help = "Quantum Server port")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ")
@@ -115,6 +119,7 @@ def main(args_str = None):
         # Defaults to provision only contrail config without Orchestrator.
         config = ConfigBaseSetup(config_args)
     config.setup()
+    config.verify()
 
 if __name__ == "__main__":
     main() 

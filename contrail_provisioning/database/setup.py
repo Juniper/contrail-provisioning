@@ -11,6 +11,7 @@ import re
 
 from fabric.api import *
 
+from contrail_provisioning.common import DEBIAN, RHEL
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.database.templates import contrail_database_nodemgr_template
 from contrail_provisioning.database.templates import database_nodemgr_param_template
@@ -51,7 +52,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         if self.pdist in ['fedora', 'centos', 'redhat']:
             parser.add_argument("--dir", help = "Directory where database binary exists", default = '/usr/share/cassandra')
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in DEBIAN:
             parser.add_argument("--dir", help = "Directory where database binary exists", default = '/etc/cassandra')
         parser.add_argument("--initial_token", help = "Initial token for database node")
         parser.add_argument("--seed_list", help = "List of seed nodes for database", nargs='+')
@@ -227,9 +228,20 @@ class DatabaseSetup(ContrailSetup):
                     return True
         return False
 
+    def verify(self):
+        self.verify_service('zookeeper')
+        self.verify_service("supervisor-database")
+        self.verify_service("contrail-database")
+
+    def setup(self):
+        self.increase_limits()
+        self.remove_override('supervisor-database.override')
+        super(DatabaseSetup, self).setup()
+
 def main(args_str = None):
     database = DatabaseSetup(args_str)
     database.setup()
+    database.verify()
 
 if __name__ == "__main__":
     main()

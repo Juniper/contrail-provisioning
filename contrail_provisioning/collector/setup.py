@@ -77,6 +77,8 @@ class CollectorSetup(ContrailSetup):
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
+        self.remove_override('supervisor-analytics.override')
+        self.fixup_redis_conf()
         self.fixup_contrail_collector()
         self.fixup_contrail_query_engine()
         self.fixup_contrail_analytics_api()
@@ -220,11 +222,24 @@ class CollectorSetup(ContrailSetup):
             local("sudo collector-server-setup.sh multinode")
         else:
             local("sudo collector-server-setup.sh")
+
+    def setup(self):
+        self.increase_limits()
+        super(CollectorSetup, self).setup()
+
+    def verify(self):
+	self.verify_service("supervisor-analytics")
+	self.verify_service("contrail-analytics-api")
+	self.verify_service("contrail-collector")
+	self.verify_service("contrail-query-engine")
+	self.verify_service("contrail-snmp-collector")
+	self.verify_service("contrail-topology")
 #end class SetupVncCollector
 
 def main(args_str = None):
     collector = CollectorSetup(args_str)
     collector.setup()
+    collector.verify()
 
 if __name__ == "__main__":
     main()
