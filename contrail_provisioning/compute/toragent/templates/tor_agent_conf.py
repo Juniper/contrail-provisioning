@@ -111,4 +111,7 @@ ssl_privkey=$__contrail_tor_ssl_privkey__
 ssl_cacert=$__contrail_tor_ssl_cacert__
 
 tsn_ip=$__contrail_tsn_ip__
+
+# OVS keep alive timer interval in milliseconds
+# tor_keepalive_interval=10000
 """)
