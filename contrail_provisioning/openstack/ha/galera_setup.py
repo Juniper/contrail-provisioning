@@ -30,6 +30,7 @@ class GaleraSetup(ContrailSetup):
             'keystone_ip': '127.0.0.1',
             'openstack0_user': 'root',
             'openstack0_password': 'c0ntrail123',
+            'external_vip': 'None',
         }
         self._args = None
         if not args_str:
@@ -51,7 +52,8 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--openstack0_user", help = "Sudo user of this openstack node")
         parser.add_argument("--openstack0_passwd", help = "Sudo user password  of this openstack node")
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
-        parser.add_argument("--internal_vip", help = "Virtual IPP Addresses of HA Openstack nodes"),
+        parser.add_argument("--internal_vip", help = "Internal Virtual IP Address of HA Openstack nodes")
+        parser.add_argument("--external_vip", help = "External Virtual IP Address of HA Openstack nodes"),
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -75,7 +77,8 @@ class GaleraSetup(ContrailSetup):
         # fix cmon_param
         template_vals = {'__internal_vip__' : self._args.internal_vip,
                          '__haproxy_dips__' :
-                         '"' + '" "'.join(self._args.galera_ip_list) + '"'}
+                         '"' + '" "'.join(self._args.galera_ip_list) + '"',
+                         '__external_vip__' : self._args.external_vip}
         self._template_substitute_write(cmon_param_template.template,
                                         template_vals,
                                         self._temp_dir_name + '/cmon_param')
