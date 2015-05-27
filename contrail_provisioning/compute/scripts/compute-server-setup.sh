@@ -109,6 +109,13 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
             openstack-config --set /etc/nova/nova.conf DEFAULT instaces_path /var/lib/nova/instances
         fi
+
+        # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        is_juno=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$nova_compute_ver') == LooseVersion('2014.2.2')")
+        if [ "$is_juno" == "True" ]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        fi
     fi
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
