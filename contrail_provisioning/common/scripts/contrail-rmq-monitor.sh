@@ -18,6 +18,11 @@ cluschk="/tmp/ha-chk/rmq-clst-ok"
 cluspart="/tmp/ha-chk/rmq-clst-part"
 rstinprog="/tmp/ha-chk/rmq-rst-prog"
 rstcnt="/tmp/ha-chk/rmq-rst-cnt"
+numrst="/tmp/ha-chk/rmq-num-rst"
+rmqstop="supervisorctl -s unix:///tmp/supervisord_support_service.sock stop rabbitmq-server"
+killbeam="pkill -9  beam"
+killepmd="pkill -9 epmd"
+rmmnesia="rm -rf /var/lib/rabbitmq/mnesia"
 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
@@ -37,6 +42,10 @@ fi
 
 if [ ! -f "$rstcnt" ] ; then
           touch $rstcnt
+fi
+
+if [ ! -f "$numrst" ] ; then
+          touch $numrst
 fi
 
 if [ ! -f "$cluspart" ] ; then
@@ -185,18 +194,35 @@ if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state
    if [[ $cnt == '' ]]; then
       cnt=0
    fi
-   if [ $cnt == 3 ]; then
+   totalrst=$(cat $numrst)
+   if [[ $totalrst == '' ]]; then
+       totalrst=0
+   fi
+   if [ $totalrst == 2 ]; then
     for (( i=0; i<${DIPS_SIZE}; i++ ))
+     do
+       (ssh -o StrictHostKeyChecking=no ${DIPS[i]} "$rmqstop"; "$killbeam"; "$killepmd")&
+       (ssh -o StrictHostKeyChecking=no ${DIPS[i]} "$rmmnesia")&
+       (ssh -o StrictHostKeyChecking=no ${DIPS[i]} "$RMQ_RESET")&
+       log_info_msg "Cleaned up mnesia and reset all RMQ -- Done"
+     done
+     (exec rm -rf "$numrst")&
+   else
+    if [ $cnt == 3 ]; then
+     for (( i=0; i<${DIPS_SIZE}; i++ ))
      do
        (ssh -o StrictHostKeyChecking=no ${DIPS[i]} "$RMQ_RESET")&
      done
-    (exec rm -rf "$rstcnt")&
-    log_info_msg "Resetting all RMQ -- Done"
-   else
-    (exec $RMQ_RESET)&
-    cnt=$(($cnt + 1))
-    (exec echo $cnt > "$rstcnt")&
-    log_info_msg "Resetting RMQ -- Done"
+     totalrst=$(($totalrst + 1))
+     (exec echo $totalrst > "$numrst")&
+     (exec rm -rf "$rstcnt")&
+     log_info_msg "Resetting all RMQ -- Done"
+    else
+     (exec $RMQ_RESET)&
+     cnt=$(($cnt + 1))
+     (exec echo $cnt > "$rstcnt")&
+     log_info_msg "Resetting RMQ -- Done"
+    fi
    fi
  fi
 fi
