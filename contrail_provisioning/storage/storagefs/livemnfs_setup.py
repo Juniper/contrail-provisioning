@@ -308,7 +308,8 @@ class SetupNFSLivem(object):
                 avail_gb = int(avail)/1024/1024/2/3
                 print avail_gb
                 # update quota if available is > 1T
-                quota_gb = (avail_gb * 3)
+                total=local('rados df | grep "total space" | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
+                quota_gb = int(total)/1024/1024/2
                 admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
 
