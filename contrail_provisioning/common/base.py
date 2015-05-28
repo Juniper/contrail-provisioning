@@ -154,7 +154,8 @@ class ContrailSetup(object):
         with settings(warn_only = True):
             local("sudo chkconfig iptables off")
             local("sudo iptables --flush")
-            if self.pdist == 'redhat':
+            if self.pdist == 'redhat' or \
+               self.pdist == 'centos' and self.pdistversion.startswith('7'):
                 local("sudo service iptables stop")
                 local("sudo service ip6tables stop")
                 local("sudo systemctl stop firewalld")
