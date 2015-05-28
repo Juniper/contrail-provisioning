@@ -34,9 +34,6 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
             self.fixup_kafka_server_properties()
             # Adding hostip in contrail-database-nodemgr.conf
             self.fixup_contrail_database_nodemgr()
-            local('openstack-config --del\
-                  /etc/contrail/contrail-database-nodemgr.conf\
-                  DEFAULT minimum_diskGB')
         self.restart()
 
 
