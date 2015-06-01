@@ -2672,7 +2672,12 @@ class SetupCeph(object):
                                                 shell='/bin/bash')
                             if osd_det != '':
                                 osd_num = osd_det.split('-')[1]
-                                run('sudo stop ceph-osd id=%s' %(osd_num))
+                                osd_running = run('ps -ef | grep ceph-osd | \
+                                                   grep -v grep | \
+                                                   grep -w "\\-i %s" | wc -l'
+                                                   %(osd_num))
+                                if osd_running != '0':
+                                    run('sudo stop ceph-osd id=%s' %(osd_num))
                                 run('sudo ceph -k %s osd out %s'
                                             %(CEPH_ADMIN_KEYRING, osd_num))
                                 run('sudo ceph osd crush remove osd.%s'
