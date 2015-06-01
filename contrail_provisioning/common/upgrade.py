@@ -88,7 +88,8 @@ class ContrailUpgrade(object):
         local(cmd)
     
     def _backup_config(self):
-        self.backup_dir = "/var/tmp/contrail-%s-upgradesave" % self._args.to_rel
+        self.backup_dir = "/var/tmp/contrail-%s-%s-upgradesave" % \
+                           (self._args.to_rel, get_build().split('~')[0])
 
         for backup_elem in self.upgrade_data['backup']:
             backup_config = self.backup_dir + backup_elem
@@ -159,6 +160,19 @@ class ContrailUpgrade(object):
             else:
                 local('cp -rfp %s %s' % src, dst)
                 shutil.rmtree(src)
+
+    def get_build(pkg='contrail-install-packages'):
+        pkg_rel = None
+        dist = detect_ostype()
+        if dist in ['centos', 'fedora', 'redhat', 'centoslinux']:
+            cmd = "rpm -q --queryformat '%%{RELEASE}' %s" %pkg
+        elif dist in ['ubuntu']:
+            cmd = "dpkg -s %s | grep Version: | cut -d' ' -f2 | cut -d'-' -f2" %pkg
+        pkg_rel = sudo(cmd)
+        if 'is not installed' in pkg_rel or 'is not available' in pkg_rel:
+            print "Package %s not installed." % pkg
+            return None
+        return pkg_rel
 
     def _upgrade(self):
         self._backup_config()
