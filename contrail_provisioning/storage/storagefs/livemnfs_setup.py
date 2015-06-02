@@ -27,6 +27,24 @@ class SetupNFSLivem(object):
     TMP_FSTAB='/tmp/fstab'
     global NOVA_INST_GLOBAL
     NOVA_INST_GLOBAL='/var/lib/nova/instances/global'
+    global MAX_RETRY_WAIT
+    MAX_RETRY_WAIT = 10
+
+    def check_vm(self, vmip):
+        retry = 0
+        time.sleep(10)
+        while True:
+            vmnavail=local('ping -c 5 %s | grep \" 100%% packet loss\" |wc -l' %(vmip) , capture=True, shell='/bin/bash')
+            if vmnavail == '0':
+                break
+            retry += 1
+            if retry > MAX_RETRY_WAIT:
+                vm_running=local('source /etc/contrail/openstackrc && nova list | grep -w " livemnfs " |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
+                if vm_running != '0':
+                    local('source /etc/contrail/openstackrc && nova reboot --hard livemnfs')
+            print 'Waiting for VM to come up'
+            time.sleep(10)
+    #end check_vm
 
     def __init__(self, args_str = None):
         print sys.argv[1:]
@@ -104,7 +122,7 @@ class SetupNFSLivem(object):
                     local('source /etc/contrail/openstackrc && nova boot --image livemnfs --flavor 100 --availability-zone nova:%s --nic net-id=%s livemnfs --meta storage_scope=local' %(nfs_livem_host, net_id), shell='/bin/bash')
                 else:
                     local('source /etc/contrail/openstackrc && nova start livemnfs', shell='/bin/bash')
-                wait_loop = 10
+                wait_loop = 100
                 while True:
                     vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
                     if vm_running == '1':
@@ -135,9 +153,12 @@ class SetupNFSLivem(object):
                 # The vmip is the actual ip assigned to the VM. Use this for the rest of the configurations
                 vmip = local('source /etc/contrail/openstackrc && nova show livemnfs |grep \"livemnfs network\"|awk \'{print $5}\'', capture=True, shell='/bin/bash')
 
+                gwnetaddr = ''
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                     if hostname == vmhost:
                         with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                            gwaddr = run('ip addr show  |grep -w %s | awk \'{print $2}\'' %(entries))
+                            gwnetaddr = netaddr.IPNetwork('%s' %(gwaddr)).cidr
                             #Set autostart vm after node reboot
                             run('openstack-config --set /etc/nova/nova.conf DEFAULT resume_guests_state_on_host_boot True')
                             #check for vgw interface
@@ -230,12 +251,26 @@ class SetupNFSLivem(object):
                                                 '/tmp/interfaces'
                                                 %(vmip), shell='/bin/bash')
                                 run('cp /tmp/interfaces /etc/network/interfaces');
+                            cur_gw = gwentry
+                            # Check if the system is in the same network as the
+                            # host running the livemnfs vm. If not, use the real
+                            # Gateway as gw for the VM ip instead of using the
+                            # compute node.
+                            if gwnetaddr != '':
+                                diff_net = run('ip route show | grep -w %s | \
+                                                grep via | wc -l' %(gwnetaddr))
+                                if diff_net == '0':
+                                    cur_gw = gwentry
+                                else:
+                                    cur_gw = run('ip route show | grep -w %s | \
+                                                grep via | awk \'{print $3}\''
+                                                %(gwnetaddr))
 
                             #check for dynamic route on the vm host
                             dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                             if dynroutedone == '0':
                                 dynroutedone=run('route add %s gw %s'
-                                                    %(vmip, gwentry),
+                                                    %(vmip, cur_gw),
                                                     shell='/bin/bash')
                             #check and add static route on master
                             staroutedone=run('cat /etc/network/interfaces '
@@ -246,13 +281,13 @@ class SetupNFSLivem(object):
                                             '/etc/network/interfaces');
                                     run('echo \"up route add %s gw %s\" >> '
                                             '/etc/network/interfaces'
-                                            %(vmip, gwentry));
+                                            %(vmip, cur_gw));
                             # Add route to the local master node.
                             dynroutedone=local('netstat -rn |grep %s|wc -l'
                                                 %(vmip), shell='/bin/bash',
                                                 capture=True)
                             if dynroutedone == '0':
-                                local('route add %s gw %s' %(vmip, gwentry),
+                                local('route add %s gw %s' %(vmip, cur_gw),
                                                     shell='/bin/bash')
                             #check and add static route on master
                             staroutedone=local('cat /etc/network/interfaces '
@@ -264,7 +299,7 @@ class SetupNFSLivem(object):
                                             '/etc/network/interfaces');
                                     local('echo \"up route add %s gw %s\" >> '
                                             '/etc/network/interfaces'
-                                            %(vmip, gwentry));
+                                            %(vmip, cur_gw));
 
                 #cinder volume creation and attaching to VM
                 avail=local('rados df | grep avail | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
@@ -272,8 +307,9 @@ class SetupNFSLivem(object):
                 # TODO need to check if this needs to be configurable
                 avail_gb = int(avail)/1024/1024/2/3
                 print avail_gb
-                # update quota if available is > 1T
-                quota_gb = (avail_gb * 3)
+                # update quota based on Total size
+                total=local('rados df | grep "total space" | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
+                quota_gb = int(total)/1024/1024/2
                 admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
 
@@ -302,12 +338,7 @@ class SetupNFSLivem(object):
                 if volvmattached == '0':
                     return
 
-                while True:
-                    vmnavail=local('ping -c 5 %s | grep \" 100%% packet loss\" |wc -l' %(vmip) , capture=True, shell='/bin/bash')
-                    if vmnavail == '0':
-                        break
-                    print 'Waiting for VM to come up'
-                    time.sleep(10)
+                self.check_vm(vmip)
                 with settings(host_string = 'livemnfs@%s' %(vmip), password = 'livemnfs'):
                     mounted=run('sudo cat /proc/mounts|grep livemnfs|wc -l')
                     if mounted == '0':
@@ -316,15 +347,7 @@ class SetupNFSLivem(object):
                             if vdbavail == '0':
                                 print 'Disk not available yet. Need to reboot VM'
                                 vdbavail=run('sudo reboot')
-                                time.sleep(10)
-                                while True:
-                                    print 'Waiting for VM to come up'
-                                    time.sleep(10)
-                                    vmnavail=local('ping -c 5 %s | grep \" 100%% packet loss\" |wc -l' %(vmip),
-                                                   capture=True, shell='/bin/bash')
-                                    if vmnavail == '0':
-                                        time.sleep(10)
-                                        break
+                                self.check_vm(vmip)
                             else:
                                 break
                         vdbavail=run('sudo parted /dev/vdb print |grep ext4|wc -l')
@@ -387,14 +410,7 @@ class SetupNFSLivem(object):
                         run('sudo  service nfs-kernel-server restart > /tmp/nfssrv.out', shell='/bin/bash')
                         time.sleep(2)
                         vdbavail=run('sudo reboot')
-                        time.sleep(10)
-                        while True:
-                            print 'Waiting for VM to come up'
-                            time.sleep(10)
-                            vmnavail=local('ping -c 5 %s | grep \" 100%% packet loss\" |wc -l' %(vmip) , capture=True, shell='/bin/bash')
-                            if vmnavail == '0':
-                                time.sleep(10)
-                                break
+                        self.check_vm(vmip)
 
                 for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -567,6 +583,7 @@ class SetupNFSLivem(object):
                                 print 'Cannot find vm ip. Cannot continue unconfigure'
                                 return
 
+            gwnetaddr = ''
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 if hostname == vmhost:
                     with settings(host_string = 'root@%s' %(entries), password = entry_token):
@@ -590,6 +607,8 @@ class SetupNFSLivem(object):
                                             break
                                     gateway_id = gateway_id + 1
 
+                        gwaddr = run('ip addr show  |grep -w %s | awk \'{print $2}\'' %(entries))
+                        gwnetaddr = netaddr.IPNetwork('%s' %(gwaddr)).cidr
                         #check for dynamic route on the vm host
                         dynroutedone=run('netstat -rn |grep %s|wc -l' %(vmip), shell='/bin/bash')
                         if dynroutedone == '1':
@@ -612,12 +631,22 @@ class SetupNFSLivem(object):
                                 self._args.storage_host_tokens):
                             if gwhostname == vmhost:
                                 gwentry = gwentries
+                        cur_gw = gwentry
+                        if gwnetaddr != '':
+                            diff_net = run('ip route show | grep -w %s | \
+                                            grep via | wc -l' %(gwnetaddr))
+                            if diff_net == '0':
+                                cur_gw = gwentry
+                            else:
+                                cur_gw = run('ip route show | grep -w %s | \
+                                            grep via | awk \'{print $3}\''
+                                            %(gwnetaddr))
                         #check for dynamic route on the vm host
                         dynroutedone=run('netstat -rn |grep %s|wc -l'
                                             %(vmip), shell='/bin/bash')
                         if dynroutedone == '1':
                             dynroutedone=run('route del %s gw %s'
-                                                %(vmip, gwentry),
+                                                %(vmip, cur_gw),
                                                 shell='/bin/bash')
                         #check and delete static route
                         staroutedone=run('cat /etc/network/interfaces '
@@ -635,7 +664,7 @@ class SetupNFSLivem(object):
                                             capture=True)
                         if dynroutedone == '1':
                             dynroutedone=local('route del %s gw %s'
-                                                %(vmip, gwentry),
+                                                %(vmip, cur_gw),
                                                 shell='/bin/bash')
                         #check and delete static route
                         staroutedone=local('cat /etc/network/interfaces '
