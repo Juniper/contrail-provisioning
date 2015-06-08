@@ -56,6 +56,12 @@ lock() {
         || return 1
 }
 
+unlock() {
+     local prefix=$1
+     local lock_file=$LOCKFILE_DIR/$prefix.lock
+     (exec rm -rf "$lock_file")&
+}
+
 eexit() {
     local error_str="$@"
     echo $error_str
@@ -83,7 +89,7 @@ log_info_msg() {
     
 galera_check()
 {
-  $MYSQL_BIN -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -e "$MYSQL_WSREP_STATE" 2> >( cat <() > $STDERR_FILE )
+  $MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -e "$MYSQL_WSREP_STATE" 2> >( cat <() > $STDERR_FILE )
   error=`cat ${STDERR_FILE} | awk '{print $1}'`
   if [[ $error == "ERROR" ]]; then
     checkNKill
@@ -91,21 +97,24 @@ galera_check()
  (exec rm -rf $STDERR_FILE)&
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
-     wval=$($MYSQL_BIN -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_WSREP_STATE" | awk '{print $2}' | sed '1d')
-     cval=$($MYSQL_BIN -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_CLUSTER_STATE" | awk '{print $2}' | sed '1d')
-     if [[ $wval == $SYNCED ]] & [[ $cval == $STATUS ]]; then
+    status=$(ping -c 1 -w 1 -W 1 -n ${DIPS[i]} | grep packet | awk '{print $6}' | cut -c1)
+    if [[ $status == 0 ]]; then
+     wval=$($MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_WSREP_STATE" | awk '{print $2}' | sed '1d')
+     cval=$($MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_CLUSTER_STATE" | awk '{print $2}' | sed '1d')
+    fi
+    if [[ $wval == $SYNCED ]] & [[ $cval == $STATUS ]]; then
         ret="y"
         break
      else
         ret="n"
-     fi
+    fi
    done
    echo $ret
 }
 
 checkNKill()
 {
-$CMON_MON_STOP
+#$CMON_MON_STOP
 
 cmonpid=$(pidof cmon)
 if [ -n "$cmonpid" ]; then
@@ -165,15 +174,9 @@ log_info_msg "Bootstraping galera cluster."
             cmd="service mysql start --wsrep_recover"
             log_info_msg "Starting mysql recovery: $cmd"
             setsid $cmd >> $LOGFILE
-            if [ -f $GRA_FILE ] && [ ! -s "$GRA_FILE" ]; then
-              uuid=$(cat $GRA_FILE | grep uuid | awk '{print $2}')
-              gtid=$(grep "Recovered position: $uuid" /var/log/mysql/error.log | awk '{print $7}' | cut -d ":" -f 2 | tail -1)
-              echo $gtid > $GTID_FILE
-            else
-              log_info_msg "$GRA_FILE not found. Recover mysql without grastate"
-              gtid=$(grep "Recovered position: " /var/log/mysql/error.log | awk '{print $7}' | cut -d ":" -f 2 | tail -1)
-              echo $gtid > $GTID_FILE
-            fi
+            log_info_msg "Recover mysql GTID"
+            gtid=$(grep "Recovered position: " /var/log/mysql/error.log | awk '{print $7}' | cut -d ":" -f 2 | tail -1)
+            echo $gtid > $GTID_FILE
         fi
         if [[ $galchk == "y" ]]; then
            log_info_msg "One of the galera cluster node is up. Cluster monitor will initialize the galera cluster."
@@ -192,10 +195,10 @@ if [[ $boot == $DONOR ]]; then
     log_info_msg "bootstrapping this instance of mysql as DONOR based on the GTID"
     cmd="service mysql start --wsrep_cluster_address=gcomm://"
     setsid $cmd >> $LOGFILE
-    (ssh -o StrictHostKeyChecking=no $VIP "$CMON_STOP")&
+    (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $VIP "$CMON_STOP")&
 else
     bootstrap
-    $CMON_MON_START
+    #(exec $CMON_MON_START)&
 fi
 
 if [ -f $SST_FILE ]; then
@@ -205,6 +208,7 @@ fi
 if [ -f $GRA_FILE ]; then
     (exec rm -rf "$GRA_FILE")&
 fi
+unlock $PROGNAME
 }
 
 main
