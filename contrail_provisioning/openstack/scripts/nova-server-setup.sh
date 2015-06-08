@@ -268,8 +268,9 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen_port 9774
     openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 9775
     openstack-config --set /etc/nova/nova.conf DEFAULT metadata_port 9775
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 10
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 5
+    openstack-config --set /etc/nova/nova.conf DEFAULT kombu_reconnect_delay 10
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT report_interval 15
