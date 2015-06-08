@@ -20,7 +20,13 @@ cmon_run=0
 viponme=0
 eviponme=0
 haprestart=0
+galerastate=0
+recluster=false
 RMQ_MONITOR="/opt/contrail/bin/contrail-rmq-monitor.sh"
+RMQ_MONITOR_STOP="/opt/contrail/bin/contrail-rmq-monitor.sh STOP"
+rstcnt="/tmp/ha-chk/rmq-rst-cnt"
+numrst="/tmp/ha-chk/rmq-num-rst"
+cleanuppending="/tmp/ha-chk/rmq_mnesia_cleanup_pending"
 
 NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
@@ -52,6 +58,12 @@ SYNCED=4
 STATUS="Primary"
 RMQ_SRVR_STATUS="supervisorctl -s unix:///tmp/supervisord_support_service.sock status rabbitmq-server"
 RMQ_SRVR_RST="supervisorctl -s unix:///tmp/supervisord_support_service.sock restart rabbitmq-server"
+RECLUSTER="/opt/contrail/bin/contrail-bootstrap-galera.sh"
+ERROR2002="Can't connect to local MySQL server"
+ERROR1205="Lock wait timeout exceeded"
+STDERR="/tmp/galera-chk/stderr"
+RECLUSTRUN="/tmp/galera/recluster"
+RMQSTOP="/tmp/ha-chk/rmqstopped"
 
 timestamp() {
     date
@@ -72,6 +84,11 @@ log_info_msg() {
     echo "$(timestamp): INFO: $msg" >> $LOGFILE
 }
 
+#Failure supported
+cSize=$((${DIPS_SIZE} - 1))
+nFailures=$(($cSize / 2))
+
+vip_info() {
 for y in $MYIPS
  do
   for (( i=0; i<${DIPS_SIZE}; i++ ))
@@ -96,7 +113,9 @@ for y in $MYIPS
      break
   fi
  done
+}
 
+ka_vip_del() {
 # This is to prevent a bug in keepalived
 # that does not remove VRRP IP on it being down
 ka=$(pidof keepalived)
@@ -115,13 +134,14 @@ if [[ $kps == 0 ]]; then
       (exec $ecmd)&
    fi
 fi
+}
 
 galera_check()
 {
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
-     wval=$($MYSQL_BIN -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_WSREP_STATE" | awk '{print $2}' | sed '1d')
-     cval=$($MYSQL_BIN -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_CLUSTER_STATE" | awk '{print $2}' | sed '1d')
+       wval=$($MYSQL_BIN --connect_timeout 10 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_WSREP_STATE" | awk '{print $2}' | sed '1d')
+       cval=$($MYSQL_BIN --connect_timeout 10 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h ${DIPS[i]} -e "$MYSQL_CLUSTER_STATE" | awk '{print $2}' | sed '1d')
      if [[ $wval == $SYNCED ]] & [[ $cval == $STATUS ]]; then
         ret="y"
         break
@@ -146,6 +166,7 @@ verify_cmon() {
    fi
 }
 
+procs_check() {
   # These checks will eventually be replaced when we have nodemgr plugged in
   # for openstack services
   # CHECK FOR NOVA SCHD
@@ -189,26 +210,34 @@ verify_cmon() {
      (exec $RMQ_SRVR_RST)&
      log_info_msg "RabbitMQ restarted becuase of the state $state"
   fi
+}
 
-#Failure supported
-cSize=$((${DIPS_SIZE} - 1))
-nFailures=$(($cSize / 2))
-
+bootstrap() {
 # Check for the state of mysql and remove any
 # stale gtid files
 galerastate=$(galera_check)
-if [ $galerastate == "y" ] && [ -f $GTID_FILE ]; then
+if [ $galerastate == "y" ]; then
+     if [ -f $GTID_FILE ]; then
       (exec rm -rf $GTID_FILE)&
-      log_info_msg "Removed GTID File"
+      log_info_msg "Removed GTID file"
+     fi
+     if [ -f $RECLUSTRUN ]; then
+       (exec rm -rf $RECLUSTRUN)&
+       log_info_msg "Removed recluster file"
+     fi
+else
+  if [ ! -f $GTID_FILE ] && [ -z "$mypid" ]; then
+      recluster=true
+  fi
 fi
 
 if [ -f $GTID_FILE ]; then
    for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
-      gtidfile=$(ssh -o StrictHostKeyChecking=no ${DIPS[i]} "ls $GTID_FILE | cut -d "/" -f 4")
-      if [[ $gtidfile != "" ]]; then
-          gtid[i]=$(ssh -o StrictHostKeyChecking=no ${DIPS[i]} "cat $GTID_FILE")
-      fi
+        gtidfile=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${DIPS[i]} "ls $GTID_FILE | cut -d "/" -f 4")
+        if [[ $gtidfile != "" ]]; then
+          gtid[i]=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${DIPS[i]} "cat $GTID_FILE")
+        fi
    done
 
  gtids=${#gtid[@]}
@@ -231,7 +260,9 @@ if [ -f $GTID_FILE ]; then
    fi
  fi
 fi
+}
 
+chkNRun_cluster_mon() {
 cmon_run=$(verify_cmon)
 # Check for cmon and if its the VIP node let cmon run or start it
 if [ $viponme -eq 1 ]; then
@@ -274,8 +305,19 @@ else
        log_info_msg "Restarted HAP becuase of stale dips"
       fi
    fi
+   if [ -f $cleanuppending ]; then
+     (exec rm -rf $cleanuppending)&
+   fi
+   if [ -f $rstcnt]; then
+     (exec rm -rf $rstcnt)&
+   fi
+   if [ -f $numrst]; then
+     (exec rm -rf $numrst)&
+   fi
 fi
+}
       
+cleanup() {
 #Cleanup if there exists sockets in CLOSE_WAIT
 clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
 if [[ $clssoc -ne 0 ]]; then
@@ -288,5 +330,67 @@ if [[ $clssoc -ne 0 ]]; then
    xargs kill -9
    log_info_msg "Cleaned connections to mysql that were in CLOSE_WAIT"
 fi
+}
 
-exit 0
+reCluster() {
+# RE-CLUSTER
+noconn=0
+for (( i=0; i<${DIPS_SIZE}; i++ ))
+ do
+   status[i]=$(ping -c 1 -w 1 -W 1 -n ${DIPS[i]} | grep packet | awk '{print $6}' | cut -c1)
+ done
+
+for (( i=0; i<${#status[@]}; i++ ))
+ do
+  if [[ ${status[i]} == 1 ]]; then
+    ((noconn++))
+  fi
+ done
+
+mypid=$(pidof mysqld)
+if [ -n "$mypid" ] && [ $galerastate == "n" ]; then
+   $MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -e "$MYSQL_WSREP_STATE" 2> >( cat <() > $STDERR)
+   err1=$(cat $STDERR | grep "$ERROR2002" | awk '{print $2}')
+   err2=$(cat $STDERR | grep "$ERROR1205" | awk '{print $2}')
+   if [[ $err1 == 2002 ]] || [[ $err2 == 1205 ]]; then
+      recluster=true
+   fi
+   (exec rm -rf "$STDERR")&
+fi
+
+if [ ! -f $RECLUSTRUN ]; then
+  if [ $noconn -ge $cSize ] || [[ "$recluster" == true ]]; then
+    log_info_msg "Connectivity lost with $noconn peers"
+    log_info_msg "Mysql Galera Error $err1 $err2 requires reclustering"
+    log_info_msg "Reclustering MySql Galera"
+    (exec $RECLUSTER)&
+    touch $RECLUSTRUN
+  fi
+fi
+
+epmd=$(pidof epmd)
+if [ $noconn -ge $cSize ] && [ -n "$epmd" ]; then
+   log_info_msg "Stop RMQ"
+   (exec $RMQ_MONITOR_STOP)&
+   touch $RMQSTOP
+else
+   if [ -f $RMQSTOP ]; then
+     (exec $RMQ_SRVR_RST)&
+     (exec rm -rf $RMQSTOP)&
+   fi
+fi
+}
+
+main()
+{
+  vip_info
+  bootstrap
+  chkNRun_cluster_mon
+  ka_vip_del
+  procs_check
+  cleanup
+  reCluster
+  exit 0
+}
+main
+
