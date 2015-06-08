@@ -174,8 +174,9 @@ if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 2
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 10
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 5
+    openstack-config --set /etc/nova/nova.conf DEFAULT kombu_reconnect_delay 10
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_max_retries 0
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_ha_queues True
     openstack-config --set /etc/nova/nova.conf DEFAULT rpc_cast_timeout 30
