@@ -42,6 +42,9 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
         ctrl_infos.append('HYPERVISOR=%s' % self._args.hypervisor)
+        ctrl_infos.append('NOVA_PASSWORD=%s' % self._args.nova_password)
+        ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
+        ctrl_infos.append('SERVICE_TENANT_NAME=%s' % self._args.service_tenant_name)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:

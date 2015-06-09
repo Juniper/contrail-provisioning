@@ -40,6 +40,9 @@ class ComputeSetup(ContrailSetup):
             'keystone_auth_port':'35357',
             'keystone_admin_user':None,
             'keystone_admin_passwd':None,
+            'service_tenant_name': 'service',
+            'nova_password':None,
+            'neutron_password':None,
             'keystone_admin_tenant_name':'admin',
             'amqp_server_ip':'127.0.0.1',
             'quantum_service_protocol':'http',
@@ -96,6 +99,9 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenants user name")
         parser.add_argument("--keystone_admin_password", help = "Keystone admin user's password")
         parser.add_argument("--keystone_admin_tenant_name", help = "Keystone admin tenant name")
+        parser.add_argument("--service_tenant_name", help="Tenant name of the services tenant")
+        parser.add_argument("--nova_password", help = "Password of Nova user")
+        parser.add_argument("--neutron_password", help = "Password of Neutron user")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use")
         parser.add_argument("--quantum_port", help = "Quantum server port")
         parser.add_argument("--amqp_server_ip", help = "IP of the AMQP server to be used for openstack")
@@ -117,7 +123,11 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--dpdk", help = "vRouter/DPDK mode.", action="store_true")
 
         self._args = parser.parse_args(self.remaining_argv)
-
+        # Using keystone admin password for nova/neutron if not supplied
+        if not self._args.nova_password:
+            self._args.nova_password = self._args.keystone_admin_password
+        if not self._args.neutron_password:
+            self._args.neutron_password = self._args.keystone_admin_password
 
 
 def main(args_str = None):
