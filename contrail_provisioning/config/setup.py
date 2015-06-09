@@ -33,6 +33,7 @@ class ConfigSetup(ContrailSetup):
             'keystone_admin_passwd': 'contrail123',
             'keystone_admin_tenant_name': 'admin',
             'keystone_service_tenant_name' : 'service',
+            'neutron_password': None,
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': True,
@@ -82,6 +83,7 @@ class ConfigSetup(ContrailSetup):
             help = "Auth protocol used to talk to keystone")
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",
             default = '35357')
+        parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of the networking service user - neutron/quantum")
         parser.add_argument("--keystone_admin_token", 
@@ -104,6 +106,9 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
   
         self._args = parser.parse_args(self.remaining_argv)
+        # Using keystone admin password for nova/neutron if not supplied
+        if not self._args.neutron_password:
+            self._args.neutron_password = self._args.keystone_admin_passwd
 
 def main(args_str = None):
     config_args = ConfigSetup(args_str)._args

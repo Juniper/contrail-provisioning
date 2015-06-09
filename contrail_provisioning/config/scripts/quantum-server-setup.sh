@@ -82,7 +82,7 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $NEUTRON_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL

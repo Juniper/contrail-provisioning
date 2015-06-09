@@ -127,6 +127,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
+        ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:
@@ -147,9 +148,14 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             quantum_ip = self._args.internal_vip
         else:
             quantum_ip = self.cfgm_ip
-        quant_args = "--ks_server_ip %s --quant_server_ip %s --tenant %s --user %s --password %s --svc_password %s --root_password %s" \
-                      %(self._args.keystone_ip, quantum_ip, self._args.keystone_admin_tenant_name, self._args.keystone_admin_user, self._args.keystone_admin_passwd, self._args.keystone_admin_passwd,
-                        env.password)
+        quant_args = '--ks_server_ip     %s ' % self._args.keystone_ip + \
+                     '--quant_server_ip  %s ' % quantum_ip + \
+                     '--tenant           %s ' % self._args.keystone_admin_tenant_name + \
+                     '--user             %s ' % self._args.keystone_admin_user + \
+                     '--password         %s ' % self._args.keystone_admin_passwd + \
+                     '--svc_password     %s ' % self._args.neutron_password + \
+                     '--svc_tenant_name  %s ' % self._args.keystone_service_tenant_name + \
+                     '--root_password    %s' % env.password
         if self._args.region_name:
             quant_args += " --region_name %s" %(self._args.region_name)
         if self._args.manage_neutron == 'yes':
