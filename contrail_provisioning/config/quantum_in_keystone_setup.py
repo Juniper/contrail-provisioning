@@ -31,6 +31,7 @@ class QuantumSetup(object):
 
         self._args_user = self._args.user
         self._args_passwd = self._args.password
+        self._args_quant_tenant_name = self._args.svc_tenant_name
         self._args_svc_passwd = self._args.svc_password
         self._args_region_name = self._args.region_name
         self._args_tenant_id = self._args.tenant
@@ -46,7 +47,6 @@ class QuantumSetup(object):
         # self._enable_quantum = True
 
         # some constants
-        self._quant_tenant_name = "service"
         self._quant_svc_type = "network"
         if os.path.exists("/etc/neutron"):
             self._quant_svc_name = "neutron"
@@ -89,6 +89,7 @@ class QuantumSetup(object):
             'user': 'admin',
             'password': 'contrail123',
             'svc_password': 'contrail123',
+            'svc_tenant_name': 'service',
             'root_password': 'c0ntrail123',
             'region_name': 'RegionOne',
         }
@@ -117,7 +118,8 @@ class QuantumSetup(object):
         parser.add_argument("--tenant", help = "Tenant ID on keystone server")
         parser.add_argument("--user", help = "User ID to access keystone server")
         parser.add_argument("--password", help = "Password to access keystone server")
-        parser.add_argument("--svc_password", help = "Quantum service password on keystone server")
+        parser.add_argument("--svc_password", help = "Quantum/Neutron service password on keystone server")
+        parser.add_argument("--svc_tenant_name", help = "Quantum/Neutron service tenant name on keystone server")
         parser.add_argument("--root_password", help = "Root password for keystone server")
         parser.add_argument("--region_name", help = "Region Name for quantum endpoint")
     
@@ -128,18 +130,18 @@ class QuantumSetup(object):
     def quant_set_tenant_id(self):
         # check if quantum tenant exists
         try:
-            quant_tenant = self.kshandle.tenants.find(name=self._quant_tenant_name)
+            quant_tenant = self.kshandle.tenants.find(name=self._args_quant_tenant_name)
             if quant_tenant:
             # service tenant exists! return
-                print "tenant %s exists!" % (self._quant_tenant_name)
+                print "tenant %s exists!" % (self._args_quant_tenant_name)
                 return quant_tenant.id
         except exceptions.NotFound as e:
             pass
 
         # tenant does not exist, create one
         try:
-            quant_tenant = self.kshandle.tenants.create(tenant_name=self._quant_tenant_name,
-                                                        description=self._quant_tenant_name,
+            quant_tenant = self.kshandle.tenants.create(tenant_name=self._args_quant_tenant_name,
+                                                        description=self._args_quant_tenant_name,
                                                         enabled=True)
         except Exception as e:
             print e
