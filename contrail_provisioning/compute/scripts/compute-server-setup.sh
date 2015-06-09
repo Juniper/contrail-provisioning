@@ -74,9 +74,9 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
-    openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
+    openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME $SERVICE_TENANT_NAME
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $ADMIN_TOKEN
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $NEUTRON_PASSWORD
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$CONTROLLER:35357/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
@@ -117,9 +117,9 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
     fi
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name service
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT_NAME
     openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_user nova
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password $ADMIN_TOKEN
+    openstack-config --set /etc/nova/nova.conf keystone_authtoken admin_password $NOVA_PASSWORD
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
