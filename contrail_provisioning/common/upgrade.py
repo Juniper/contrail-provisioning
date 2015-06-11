@@ -172,6 +172,14 @@ class ContrailUpgrade(object):
             return None
         return pkg_rel
 
+    def fix_redis(self):
+       if os.path.exists('/var/lib/redis/dump.rdb'):
+           os.remove('/var/lib/redis/dump.rdb')
+       conf_file = '/etc/redis/redis.conf'
+       local("sudo sed -i 's/^save 900 1/#save 900 1/g' %s" % conf_file)
+       local("sudo sed -i 's/^save 300 10/#save 300 10/g' %s" % conf_file)
+       local("sudo sed -i 's/^save 60 10000/#save 60 10000/g' %s" % conf_file)
+
     def _upgrade(self):
         self._backup_config()
         if self.pdist in ['centos']:

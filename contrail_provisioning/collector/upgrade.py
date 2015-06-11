@@ -61,6 +61,11 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
                       os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
 
+        #Disable redis server persistence since that is not used by analytics in r2.20
+        #bug-1463749
+        if self._args.to_rel >= 2.2:
+            self.fix_redis()
+
         self.restart()
 
 
