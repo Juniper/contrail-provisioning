@@ -33,6 +33,13 @@ setup(
             'setup-vnc-storage-webui = contrail_provisioning.storage.webui_setup:main',
             'setup-vcenter-plugin = contrail_provisioning.vcenter_plugin.setup:main',
             'setup-vnc-tor-agent = contrail_provisioning.compute.toragent.setup:main',
+            'add-mysql-perm = contrail_provisioning.openstack.ha.galera_setup:add_mysql_perm',
+            'add-galera-config = contrail_provisioning.openstack.ha.galera_setup:add_galera_cluster_config',
+            'update-zoo-servers = contrail_provisioning.database.setup:update_zookeeper_servers',
+            'restart-zoo-server = contrail_provisioning.database.setup:restart_zookeeper_server',
+            'update-cfgm-config = contrail_provisioning.config.setup:fix_cfgm_config_files',
+            'update-collector-config = contrail_provisioning.collector.setup:fix_collector_config',
+            'update-webui-config = contrail_provisioning.webui.setup:fix_webui_config',
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
             # Upgrade scripts

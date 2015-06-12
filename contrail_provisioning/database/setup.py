@@ -34,7 +34,7 @@ class DatabaseSetup(ContrailSetup):
         self.database_listen_ip = self._args.self_ip
         self.database_seed_list = self._args.seed_list
         self.database_dir = self._args.dir
-        
+
     def parse_args(self, args_str):
         '''
         Eg. setup-vnc-database
@@ -176,14 +176,7 @@ class DatabaseSetup(ContrailSetup):
         if self.pdist == 'Ubuntu':
             local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
 
-        zk_index = 1
-        for zk_ip in self._args.zookeeper_ip_list:
-            local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
-            zk_index = zk_index + 1
-
-        #put cluster-unique zookeeper's instance id in myid
-        local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
-
+        self.fix_zookeeper_servers_config()
         self.fixup_kafka_server_properties()
 
     def fixup_kafka_server_properties(self):
@@ -192,7 +185,7 @@ class DatabaseSetup(ContrailSetup):
         cnd = os.path.exists(KAFKA_SERVER_PROPERTIES)
         if not cnd:
             raise RuntimeError('%s does not appear to be a kafka config directory' % KAFKA_SERVER_PROPERTIES)
-	if self._args.kafka_broker_id is not None:
+        if self._args.kafka_broker_id is not None:
             self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'broker.id=', 'broker.id='+self._args.kafka_broker_id)
         else:
             #kafka not enabled
@@ -201,7 +194,7 @@ class DatabaseSetup(ContrailSetup):
         #Add all the zoo keeper server address to the server.properties file
         zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
         zk_list_str = ','.join(map(str, zk_list))
-        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=', 'zookeeper.connect='+zk_list_str)
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=*', 'zookeeper.connect='+zk_list_str)
         #Set replication factor to 2 if more than one kafka broker is available
         if (len(zk_list)>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
@@ -231,9 +224,34 @@ class DatabaseSetup(ContrailSetup):
                     return True
         return False
 
+    def fix_zookeeper_servers_config(self):
+        zk_index = 1
+        # Instead of inserting/deleting config, remove all the zoo keeper servers
+        # and re-generate.
+        local("sudo sed -i '/server.[1-9]=/d' /etc/zookeeper/conf/zoo.cfg")
+
+        for zk_ip in self._args.zookeeper_ip_list:
+            local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
+            zk_index = zk_index + 1
+
+        self.fixup_kafka_server_properties()
+        #put cluster-unique zookeeper's instance id in myid
+        local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
+
+    def restart_zookeeper(self):
+        local('sudo service zookeeper restart')
+
 def main(args_str = None):
     database = DatabaseSetup(args_str)
     database.setup()
+
+def update_zookeeper_servers(args_str = None):
+    database = DatabaseSetup(args_str)
+    database.fix_zookeeper_servers_config()
+
+def restart_zookeeper_server(args_str = None):
+    database = DatabaseSetup(args_str)
+    database.restart_zookeeper()
 
 if __name__ == "__main__":
     main()

@@ -216,6 +216,9 @@ class CollectorSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-analytics-api.conf')
         local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(self._temp_dir_name))
 
+    def restart_collector(self):
+        local("sudo service supervisor-analytics restart")
+
     def run_services(self):
         if self._args.num_nodes:
             local("sudo collector-server-setup.sh multinode")
@@ -226,6 +229,11 @@ class CollectorSetup(ContrailSetup):
 def main(args_str = None):
     collector = CollectorSetup(args_str)
     collector.setup()
+
+def fix_collector_config(args_str = None):
+    collector = CollectorSetup(args_str)
+    collector.fixup_config_files()
+    collector.restart_collector()
 
 if __name__ == "__main__":
     main()
