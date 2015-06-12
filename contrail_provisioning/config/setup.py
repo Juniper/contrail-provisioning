@@ -121,5 +121,14 @@ def main(args_str = None):
         config = ConfigBaseSetup(config_args)
     config.setup()
 
+def fix_cfgm_config_files(args_str = None):
+    config_args = ConfigSetup(args_str)._args
+    if config_args.orchestrator == 'openstack':
+        config = ConfigOpenstackSetup(config_args)
+    else:
+        config = ConfigBaseSetup(config_args)
+    config.fixup_config_files()
+    config.restart_config()
+
 if __name__ == "__main__":
     main() 
