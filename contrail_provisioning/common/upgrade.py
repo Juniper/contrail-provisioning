@@ -9,7 +9,7 @@ import shutil
 import argparse
 from time import sleep
 
-from fabric.api import local
+from fabric.api import local, settings
 
 class ContrailUpgrade(object):
     def __init__(self):
@@ -183,27 +183,29 @@ class ContrailUpgrade(object):
             redis_conf_file = '/etc/redis.conf'
             check_svc_started = False
 
-        local("sudo service %s stop" % (redis_svc_name))
-        # Set the lua-time-limit to 15000 milliseconds
-        local("sudo sed -i -e 's/lua-time-limit.*/lua-time-limit 15000/' %s" % (redis_conf_file))
-        # Disable persistence
-        dbfilename = local("sudo grep '^dbfilename' %s | awk '{print $2}'" % (redis_conf_file))
-        if dbfilename:
-            dbdir = local("sudo grep '^dir' %s | awk '{print $2}'" % (redis_conf_file))
-            if dbdir:
-                local("sudo rm -f %s/%s" % (dbdir, dbfilename))
-        local("sudo sed -i -e '/^[ ]*save/s/^/#/' %s" % (redis_conf_file))
-        local("sudo sed -i -e '/^[ ]*dbfilename/s/^/#/' %s" % (redis_conf_file))
-        local("sudo service %s start" % (redis_svc_name))
-        if check_svc_started:
-            # Check if the redis-server is running, if not, issue start again
-            count = 1
-            while local("sudo service %s status | grep not" % (redis_svc_name)).succeeded:
-                count += 1
-                if count > 10:
-                    break
+        with settings(warn_only=True):
+            local("sudo service %s stop" % (redis_svc_name))
+            # Set the lua-time-limit to 15000 milliseconds
+            local("sudo sed -i -e 's/lua-time-limit.*/lua-time-limit 15000/' %s" % (redis_conf_file))
+            # Disable persistence
+            dbfilename = local("sudo grep '^dbfilename' %s | awk '{print $2}'" % (redis_conf_file))
+            if dbfilename:
+                dbdir = local("sudo grep '^dir' %s | awk '{print $2}'" % (redis_conf_file))
+                if dbdir:
+                    local("sudo rm -f %s/%s" % (dbdir, dbfilename))
+            local("sudo sed -i -e '/^[ ]*save/s/^/#/' %s" % (redis_conf_file))
+            local("sudo sed -i -e '/^[ ]*dbfilename/s/^/#/' %s" % (redis_conf_file))
+            local("sudo service %s start" % (redis_svc_name))
+            if check_svc_started:
                 sleep(1)
-                local("sudo service %s restart" % (redis_svc_name))
+                # Check if the redis-server is running, if not, issue start again
+                count = 1
+                while local("sudo service %s status | grep not" % (redis_svc_name)).succeeded:
+                    count += 1
+                    if count > 10:
+                        break
+                    sleep(1)
+                    local("sudo service %s restart" % (redis_svc_name))
     # end fix_redis
 
     def _upgrade(self):
