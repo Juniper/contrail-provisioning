@@ -55,7 +55,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
 
     def fix_cmon_param_file(self):
         with settings(warn_only=True):
-            local("sed -i '$ a\EVIP=%s' /etc/contrail/ha/cmon_param" % self._args.external_vip)
+            cmon_param='/etc/contrail/ha/cmon_param'
+            local("grep -q '# New Param in 2.1 #' %s || echo '# New Param in 2.1 #' >> %s" % (cmon_param, cmon_param))
+            local("sed -i '/EVIP/d' %s" % cmon_param)
+            local("sed -i '$ a\EVIP=%s' %s" % (self._args.external_vip, cmon_param))
+            local("grep -q '# Modified Params in 2.2 #' %s || echo '# Modified Params in 2.2 #' >> %s" % (cmon_param, cmon_param))
+            local("sed -i '/PERIODIC_RMQ_CHK_INTER/d' %s" % cmon_param)
+            local("sed -i '$ a\PERIODIC_RMQ_CHK_INTER=60' %s" % cmon_param)
+            local("sed -i '/RABBITMQ_RESET/d' %s" % cmon_param)
+            local("sed -i '$ a\RABBITMQ_RESET=False' %s" % cmon_param)
 
     def upgrade(self):
         self.stop()
