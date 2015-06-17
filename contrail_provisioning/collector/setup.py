@@ -10,6 +10,7 @@ from contrail_provisioning.collector.templates import contrail_query_engine_conf
 from contrail_provisioning.collector.templates import contrail_collector_conf
 from contrail_provisioning.collector.templates import contrail_analytics_api_conf
 from contrail_provisioning.collector.templates import contrail_analytics_nodemgr_template
+from contrail_provisioning.collector.templates import redis_server_conf_template
 
 class CollectorSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -215,7 +216,21 @@ class CollectorSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-analytics-api.conf')
         local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(self._temp_dir_name))
 
+    def load_redis_upstart_file(self):
+        #copy the redis-server conf to init
+        template_vals = {
+                        }
+        self._template_substitute_write(redis_server_conf_template.template,
+                                        template_vals, self._temp_dir_name + '/redis-server.conf')
+        local("sudo mv %s/redis-server.conf /etc/init/" %(self._temp_dir_name))
+ 
+        local("sudo update-rc.d redis-server disable")
+
     def run_services(self):
+        #disable redis from init.d since upstart has been added
+        if self.pdist == 'Ubuntu':
+            self.load_redis_upstart_file()
+
         if self._args.num_nodes:
             local("sudo collector-server-setup.sh multinode")
         else:
