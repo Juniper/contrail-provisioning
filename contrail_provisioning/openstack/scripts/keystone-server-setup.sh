@@ -46,7 +46,7 @@ chkconfig $mysql_svc 2>/dev/null
 ret=$?
 if [ $ret -ne 0 ]; then
     echo "MySQL is not enabled, enabling ..."
-    chkconfig mysqld on 2>/dev/null
+    chkconfig $mysql_svc on 2>/dev/null
 fi
 
 mysql_status=`service $mysql_svc status 2>/dev/null`
