@@ -291,10 +291,8 @@ class QuantumSetup(object):
             with settings(host_string='root@%s' %(self._args_ks_ip), password = self._args_root_password):
                 run('openstack-config --set /etc/nova/nova.conf DEFAULT quantum_url %s' % self._args_quant_url)
                 if pdist == 'Ubuntu': 
-                    run('service keystone restart')
                     run('service nova-api restart')
                 else:
-                    run('service openstack-keystone restart')
                     run('service openstack-nova-api restart')
 
     # end do_quant_setup
