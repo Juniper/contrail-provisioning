@@ -167,12 +167,21 @@ class WebuiSetup(ContrailSetup):
               local("sudo sed \"/config.orchestration.Manager/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enabled = false;\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
+    def restart_webui(self):
+        local("sudo service supervisor-webui restart")
+
     def run_services(self):
         local("sudo webui-server-setup.sh")
 
 def main(args_str = None):
     webui = WebuiSetup(args_str)
     webui.setup()
+
+def fix_webui_config(args_str = None):
+    webui = WebuiSetup(args_str)
+    webui.fixup_config_files()
+    webui.restart_webui()
+
 
 if __name__ == "__main__":
     main()

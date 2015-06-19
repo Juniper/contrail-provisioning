@@ -293,6 +293,9 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
         local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
 
+    def restart_config(self):
+        local('sudo service supervisor-config restart')
+
     def run_services(self):
         if self._args.internal_vip:
             # Assumption cfgm and openstack in same node.
