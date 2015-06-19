@@ -7,6 +7,7 @@ from fabric.api import local
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.vcenter_plugin.templates import contrail_vcenter_plugin_conf
+from fabric.contrib.files import exists
 
 
 class VcenterPluginSetup(ContrailSetup):
@@ -62,7 +63,8 @@ class VcenterPluginSetup(ContrailSetup):
                                    template_vals, self._temp_dir_name + '/contrail-vcenter-plugin.conf')
         local("sudo mv %s/contrail-vcenter-plugin.conf /etc/contrail/contrail-vcenter-plugin.conf" %(self._temp_dir_name))
         #disable contrail-svc-monitor for vcenter as orchestrator based provisioning
-        local("sudo rm /etc/contrail/supervisord_config_files/contrail-svc-monitor.ini")
+        if (os.path.isfile('/etc/contrail/supervisord_config_files/contrail-svc-monitor.ini')):
+           local("sudo rm /etc/contrail/supervisord_config_files/contrail-svc-monitor.ini")
 
     def run_services(self):
         local("sudo vcenter-plugin-setup.sh")
