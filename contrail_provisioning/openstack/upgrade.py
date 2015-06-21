@@ -66,6 +66,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("mysql -uroot -p$(cat /etc/contrail/mysql.token) -e 'drop database cmon'")
             local("sed -i '/pidfile=\/var\/run\//c\pidfile=\/var\/run\/cmon\/' /etc/cmon.cnf")
 
+    def fix_haproxy_config(self):
+        with settings(warn_only=True):
+             hap_cfg='/etc/haproxy/haproxy.cfg'
+             local("sed -i -e 's/timeout client 48h/timeout client 0/g' %s" % hap_cfg)
+             local("sed -i -e 's/timeout server 48h/timeout server 0/g' %s" % hap_cfg)
+             local("sed -i -e 's/timeout client 24h/timeout client 0/g' %s" % hap_cfg)
+             local("sed -i -e 's/timeout server 24h/timeout server 0/g' %s" % hap_cfg)
+
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -82,6 +91,7 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             self._args.to_rel >= 2.2):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
+            self.fix_haproxy_config()
         self.restart()
 
 
