@@ -318,7 +318,7 @@ HWADDR=%s
         if esxi_vm and vmpg_mtu:
             local("sed -i '/auto eth1/,/down/d' %s" % temp_intf_file)
             local("echo 'auto eth1' >> %s" % temp_intf_file)
-            local("echo 'iface eth1 inet manual' >> %s" % temp_intf_file)
+            local("echo 'iface eth1 inet dhcp' >> %s" % temp_intf_file)
             local("echo '    pre-up ifconfig eth1 up mtu %s' >> %s" % (vmpg_mtu, temp_intf_file))
             local("echo '    post-down ifconfig eth1 down' >> %s" % temp_intf_file)
             local("echo '    pre-up ethtool --offload eth1 lro off' >> %s" % temp_intf_file)
