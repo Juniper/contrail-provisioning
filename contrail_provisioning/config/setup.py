@@ -17,7 +17,6 @@ from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.openstack import ConfigOpenstackSetup
 
-
 class ConfigSetup(ContrailSetup):
     def __init__(self, args_str = None):
         super(ConfigSetup, self).__init__()
@@ -104,7 +103,10 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
         parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
-  
+        parser.add_argument("--cassandra_name", help = "Cassandra user name",
+            default= None)
+        parser.add_argument("--cassandra_password", help = "Cassandra password",
+            default= None)
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:
