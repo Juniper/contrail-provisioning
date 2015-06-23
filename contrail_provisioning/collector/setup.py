@@ -11,6 +11,10 @@ from contrail_provisioning.collector.templates import contrail_collector_conf
 from contrail_provisioning.collector.templates import contrail_analytics_api_conf
 from contrail_provisioning.collector.templates import contrail_analytics_nodemgr_template
 from contrail_provisioning.collector.templates import redis_server_conf_template
+from contrail_provisioning.common.templates import contrail_database_template
+from contrail_provisioning.collector.templates import contrail_collector_ini
+from contrail_provisioning.collector.templates import contrail_query_engine_ini
+from contrail_provisioning.collector.templates import contrail_analytics_api_ini
 
 class CollectorSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -75,6 +79,10 @@ class CollectorSetup(ContrailSetup):
             default = 'False')
         parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
             action="store_true")
+        parser.add_argument("--cassandra_user", help="Cassandra user name",
+            default= None)
+        parser.add_argument("--cassandra_password", help="Cassandra password",
+            default= None)
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -88,6 +96,39 @@ class CollectorSetup(ContrailSetup):
             self.fixup_keystone_auth_config_file()
         if self._args.kafka_enabled == 'True':
             self.fixup_contrail_alarm_gen()
+        if self._args.cassandra_user is not None:
+            self.fixup_cassandra_config()
+            self.fixup_ini_files()
+
+    def fixup_ini_files(self):
+        collector_conf_files = ['/etc/contrail/contrail-collector.conf','/etc/contrail/contrail-database.conf']
+        query_engine_conf_files = ['/etc/contrail/contrail-query-engine.conf','/etc/contrail/contrail-database.conf']
+        analytics_api_conf_files = ['/etc/contrail/contrail-analytics-api.conf','/etc/contrail/contrail-database.conf']
+        collector_template_vals = {'__contrail_collector_conf__': ' --conf_file '.join(collector_conf_files)}
+        query_engine_template_vals = {'__contrail_query_engine_conf__': ' --conf_file '.join(query_engine_conf_files)}
+        analytics_api_template_vals = {'__contrail_analytics_api_conf__': ' --conf_file '.join(analytics_api_conf_files)}
+        self._template_substitute_write(contrail_collector_ini.template,
+                                        collector_template_vals, self._temp_dir_name + '/contrail-collector.ini')
+        local("sudo mv %s/contrail-collector.ini /etc/contrail/supervisord_analytics_files/contrail-collector.ini" %(self._temp_dir_name))
+        self._template_substitute_write(contrail_query_engine_ini.template,
+                                        query_engine_template_vals, self._temp_dir_name + '/contrail-query-engine.ini')
+        local("sudo mv %s/contrail-query-engine.ini /etc/contrail/supervisord_analytics_files/contrail-query-engine.ini" %(self._temp_dir_name))
+        self._template_substitute_write(contrail_analytics_api_ini.template,
+                                        analytics_api_template_vals, self._temp_dir_name + '/contrail-analytics-api.ini')
+        local("sudo mv %s/contrail-analytics-api.ini /etc/contrail/supervisord_analytics_files/contrail-analytics-api.ini" %(self._temp_dir_name))
+
+
+    def fixup_cassandra_config(self):
+        if self._args.cassandra_user:
+            if os.path.isfile('/etc/contrail/contrail-database.conf') is not True:
+                 # Create conf file
+                 template_vals = {'__cassandra_user__': self._args.cassandra_user,
+                                  '__cassandra_password__': self._args.cassandra_password
+                                 }
+                 self._template_substitute_write(contrail_database_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-collector-database.conf')
+                 local("sudo mv %s/contrail-collector-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
+ 
 
     def fixup_contrail_alarm_gen(self):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'

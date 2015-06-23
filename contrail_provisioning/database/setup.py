@@ -8,14 +8,16 @@ import sys
 import argparse
 import ConfigParser
 import re
+import time
+import subprocess
 
 from fabric.api import *
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.database.templates import contrail_database_nodemgr_template
 from contrail_provisioning.database.templates import database_nodemgr_param_template
-
-
+from contrail_provisioning.database.templates import cassandra_create_user_template
+ 
 class DatabaseSetup(ContrailSetup):
     def __init__(self, args_str = None):
         super(DatabaseSetup, self).__init__()
@@ -63,6 +65,8 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--database_index", help = "The index of this databse node")
         parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for contrail database")
         parser.add_argument("--kafka_broker_id", help = "The broker id of the database node")
+        parser.add_argument("--cassandra_user", help = "Cassandra user name if provided")
+        parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -100,6 +104,13 @@ class DatabaseSetup(ContrailSetup):
         self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
         self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
         self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
+        if self.pdist == 'centos':
+            if self.pdistversion > '6.5':
+                if self._args.cassandra_user is not None:
+                    self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator') 
+        else:
+            if self._args.cassandra_user is not None:
+                self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator')
         if data_dir:
             saved_cache_dir = os.path.join(data_dir, 'saved_caches')
             self.replace_in_file(conf_file, 'saved_caches_directory:', 'saved_caches_directory: ' + saved_cache_dir)
@@ -214,8 +225,35 @@ class DatabaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
         local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
 
+    def create_cassandra_user(self):
+        template_vals = {
+                        '__cassandra_user__': self._args.cassandra_user,
+                        '__cassandra_password__': self._args.cassandra_password,
+                        }
+        self._template_substitute_write(cassandra_create_user_template.template,
+                                        template_vals, self._temp_dir_name + '/cassandra_create_user')
+        local("sudo mv %s/cassandra_create_user /etc/contrail/cassandra_create_user" %(self._temp_dir_name))
+
+        connected=False
+        retry_threshold = 10
+        retry = 1
+        while connected == False and retry < retry_threshold:
+            #create account using cql
+            status = subprocess.Popen('sudo cqlsh %s  -u cassandra -p cassandra -f /etc/contrail/cassandra_create_user' % self.database_listen_ip, shell=True,stderr = subprocess.PIPE,stdout=subprocess.PIPE).stderr.read()
+            if 'already exists' in status or not status:
+                print 'connection made'
+                connected = True
+            else:
+                print status
+                retry = retry + 1
+                time.sleep(5)
+        return connected
+
     def run_services(self):
         local("sudo database-server-setup.sh %s" % (self.database_listen_ip))
+        #If user name and passwd provided setit up in cassandra before starting the database service
+        if self._args.cassandra_user is not None:
+            assert(self.create_cassandra_user())
 
     #Checks if a pattern is present in the file or not
     def file_pattern_check(self, file_name, regexp):
