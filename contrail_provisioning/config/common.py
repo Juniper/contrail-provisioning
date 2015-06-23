@@ -31,7 +31,8 @@ from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_sudoers
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
-
+from contrail_provisioning.config.templates import contrail_config_database_template
+from contrail_provisioning.config.templates import contrail_device_manager_ini
 
 class ConfigBaseSetup(ContrailSetup):
     def __init__(self, config_args, args_str=None):
@@ -55,6 +56,7 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_contrail_api_supervisor_ini()
         self.fixup_contrail_api_initd()
         self.fixup_schema_transformer_config_file()
+        self.fixup_device_manager_ini()
         self.fixup_device_manager_config_file()
         self.fixup_svc_monitor_config_file()
         self.fixup_discovery_config_file()
@@ -63,6 +65,7 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_sudoers()
         self.fixup_contrail_config_nodemgr()
+        self.fixup_cassandra_config()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
 
@@ -122,7 +125,7 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
         local("sudo mv %s/contrail-api.conf /etc/contrail/" %(self._temp_dir_name))
 
-    def fixup_contrail_api_supervisor_ini(self, config_files=['/etc/contrail/contrail-api.conf']):
+    def fixup_contrail_api_supervisor_ini(self, config_files=['/etc/contrail/contrail-api.conf', '/etc/contrail/contrail-database.conf']):
         # supervisor contrail-api.ini
         config_file_args = ' --conf_file '.join(config_files)
         template_vals = {'__contrail_api_port_base__': '910', # 910x
@@ -175,6 +178,16 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
         local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-schema")
+
+    def fixup_device_manager_ini(self):
+        # If cassandra user name provided add the cassandra_database.conf file
+        # to the ini
+        template_vals = {'__contrail_config_database__':''}
+        if self._args.cassandra_name is not None:
+            template_vals['__contrail_config_database__']='--conf_file /etc/contrail/contrail-database.conf'
+        self._template_substitute_write(contrail_device_manager_ini.template,
+                                        template_vals, self._temp_dir_name + '/contrail-device-manager.ini')
+        local("sudo mv %s/contrail-device-manager.ini /etc/contrail/supervisord_config_files/" %(self._temp_dir_name))
 
     def fixup_device_manager_config_file(self):
         # contrail-device-manager.conf
@@ -238,8 +251,11 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_discovery_supervisor_ini(self):
         # supervisor contrail-discovery.ini
         template_vals = {'__contrail_disc_port_base__': '911', # 911x
-                         '__contrail_disc_nworkers__': '1'
+                         '__contrail_disc_nworkers__': '1',
+                         '__contrail_config_database__':''
                         }
+        if self._args.cassandra_name is not None:
+             template_vals['__contrail_config_database__']='--conf_file /etc/contrail/contrail-database.conf'
         if self.pdist == 'Ubuntu':
             tmpl = contrail_discovery_ini.template
         else:
@@ -293,6 +309,17 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
         local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
 
+    def fixup_cassandra_config(self):
+        if self._args.cassandra_name is not None:
+            if os.path.isfile('/etc/contrail/contrail-database.conf') is not True:
+                 # Create conf file
+                 template_vals = {'__cassandra_name__': self._args.cassandra_name,
+                                  '__cassandra_password__': self._args.cassandra_password
+                                 }
+                 self._template_substitute_write(contrail_config_database_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-config-database.conf')
+                 local("sudo mv %s/contrail-config-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
+ 
     def run_services(self):
         if self._args.internal_vip:
             # Assumption cfgm and openstack in same node.

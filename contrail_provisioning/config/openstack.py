@@ -14,6 +14,7 @@ from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
+from contrail_provisioning.config.templates import contrail_config_database_template
 
 class ConfigOpenstackSetup(ConfigBaseSetup):
     def __init__(self, config_args, args_str=None):
@@ -27,6 +28,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         config_files = [
                         '/etc/contrail/contrail-api.conf',
                         '/etc/contrail/contrail-keystone-auth.conf',
+                        '/etc/contrail/contrail-database.conf',
                        ]
         self.fixup_contrail_api_supervisor_ini(config_files)
         self.fixup_contrail_api_initd()
@@ -34,7 +36,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_schema_transformer_config_file()
         self.fixup_contrail_schema_supervisor_ini()
         self.fixup_device_manager_config_file()
-        #self.fixup_contrail_device_manager_supervisor_ini()
+        self.fixup_contrail_device_manager_supervisor_ini()
         self.fixup_svc_monitor_config_file()
         self.fixup_contrail_svc_monitor_supervisor_ini()
         self.fixup_discovery_config_file()
@@ -42,6 +44,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_config_nodemgr()
+        self.fixup_cassandra_config()
         self.fixup_contrail_sudoers()
         if self._args.use_certs:
             local("sudo setup-pki.sh /etc/contrail/ssl")
@@ -55,6 +58,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         config_files = [
                 '/etc/contrail/contrail-schema.conf',
                 '/etc/contrail/contrail-keystone-auth.conf',
+                '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
         local('sudo openstack-config --set %s program:contrail-schema command "/usr/bin/contrail-schema --conf_file %s"'
@@ -65,6 +69,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         config_files = [
                 '/etc/contrail/contrail-device-manager.conf',
                 '/etc/contrail/contrail-keystone-auth.conf',
+                '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
         local('sudo openstack-config --set %s program:contrail-device-manager command "/usr/bin/contrail-device-manager --conf_file %s"'
@@ -75,6 +80,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         config_files = [
                 '/etc/contrail/contrail-svc-monitor.conf',
                 '/etc/contrail/contrail-keystone-auth.conf',
+                '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
         local('sudo openstack-config --set %s program:contrail-svc-monitor command "/usr/bin/contrail-svc-monitor --conf_file %s"'
@@ -140,6 +146,17 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             local ("sudo echo %s >> %s" % (ctrl_info, ctrl_details))
         local("sudo cp %s /etc/contrail/ctrl-details" % ctrl_details)
         local("sudo rm %s/ctrl-details" %(self._temp_dir_name))
+
+    def fixup_cassandra_config(self):
+        if self._args.cassandra_name:
+            if os.path.isfile('/etc/contrail/contrail-database.conf') is not True:
+                 # Create conf file
+                 template_vals = {'__cassandra_name__': self._args.cassandra_name,
+                                  '__cassandra_password__': self._args.cassandra_password
+                                 }
+                 self._template_substitute_write(contrail_config_database_template.template,
+                                        template_vals, self._temp_dir_name + '/contrail-config-database.conf')
+                 local("sudo mv %s/contrail-config-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
 
     def run_services(self):
         if self._args.internal_vip:
