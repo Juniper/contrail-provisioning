@@ -31,7 +31,7 @@ CMON_MON_STOP="service contrail-hamon stop"
 CMON_MON_START="service contrail-hamon start"
 CMON_STOP="service cmon stop"
 STDERR_FILE="/tmp/mysqlerr.txt"
-MY_CNFBAK="/etc/mysql/my.cnfbak"
+MY_CNFBAK="/etc/mysql/my.cnf.bak"
 MY_CNF="//etc/mysql/my.cnf"
 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
