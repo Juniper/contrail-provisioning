@@ -63,7 +63,7 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("sed -i '/PERIODIC_RMQ_CHK_INTER/d' %s" % cmon_param)
             local("sed -i '$ a\PERIODIC_RMQ_CHK_INTER=60' %s" % cmon_param)
             local("sed -i '/RABBITMQ_RESET/d' %s" % cmon_param)
-            local("sed -i '$ a\RABBITMQ_RESET=False' %s" % cmon_param)
+            local("sed -i '$ a\RABBITMQ_RESET=True' %s" % cmon_param)
 
     def fix_haproxy_config(self):
         with settings(warn_only=True):
