@@ -39,6 +39,7 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tsn_ovs_port__':self._args.tor_ovs_port,
                          '__contrail_tsn_ip__':self._args.tsn_ip,
                          '__contrail_tor_ovs_protocol__':self._args.tor_ovs_protocol,
+                         '__contrail_tor_agent_ovs_ka__':self._args.tor_agent_ovs_ka,
                          '__contrail_tor_ssl_cert__':ssl_cert,
                          '__contrail_tor_ssl_privkey__':ssl_privkey,
                          '__contrail_tor_ssl_cacert__':ssl_cacert,
@@ -86,6 +87,7 @@ class TorAgentSetup(ContrailSetup):
         Eg. setup-vnc-tor-agent --agent_name contrail-tor-1 --http_server_port 9090
             --discovery_server_ip 10.204.217.39 --tor_id 1 --tor_ip 10.204.221.35
             --tor_ovs_port 9999 --tsn_ip 10.204.221.33 --tor_ovs_protocol tcp
+            --tor_agent_ovs_ka 10000
         '''
         parser = self._parse_args(args_str)
 
@@ -98,6 +100,7 @@ class TorAgentSetup(ContrailSetup):
         parser.add_argument("--tor_ovs_port", help = "OVS Port Number")
         parser.add_argument("--tsn_ip", help = "TSN Node IP")
         parser.add_argument("--tor_ovs_protocol", help = "TOR OVS Protocol. Currently Only TCP supported")
+        parser.add_argument("--tor_agent_ovs_ka", help = "TOR Agent OVS Keepalive timer value in millisecs")
 
         self._args = parser.parse_args(self.remaining_argv)
 
