@@ -1954,7 +1954,13 @@ class SetupCeph(object):
     # Function for generic cinder configuration
     def do_configure_cinder(self):
 
-        local('sudo openstack-config --set %s DEFAULT sql_connection \
+        if self._args.cinder_vip != 'none':
+            local('sudo openstack-config --set %s DEFAULT sql_connection \
+                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        %(CINDER_CONFIG_FILE,
+                                        self._args.cinder_vip))
+        else:
+            local('sudo openstack-config --set %s DEFAULT sql_connection \
                                         mysql://cinder:cinder@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE))
         # recently contrail changed listen address from 0.0.0.0 to mgmt address
@@ -1983,7 +1989,13 @@ class SetupCeph(object):
                                         self._args.storage_os_host_tokens):
                 with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                    run('sudo openstack-config --set %s DEFAULT sql_connection \
+                    if self._args.cinder_vip != 'none':
+                        run('sudo openstack-config --set %s DEFAULT sql_connection \
+                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        %(CINDER_CONFIG_FILE,
+                                        self._args.cinder_vip))
+                    else:
+                        run('sudo openstack-config --set %s DEFAULT sql_connection \
                                         mysql://cinder:cinder@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE))
                     # recently contrail changed listen address from 0.0.0.0 to
@@ -2001,7 +2013,9 @@ class SetupCeph(object):
                                         rabbit_host %s' %(CINDER_CONFIG_FILE,
                                         self._args.cfg_host))
                     # After doing the mysql change, do a db sync
-                    run('sudo cinder-manage db sync')
+                    # No need to run db sync on all the nodes in case of HA
+                    # running on master node is enough
+                    #run('sudo cinder-manage db sync')
 
         # configure cinder db retries
         local('sudo openstack-config --set %s database db_max_retries -1' \
