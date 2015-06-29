@@ -472,6 +472,14 @@ class SetupCeph(object):
                         run('service contrail-collector restart')
     #end unconfigure_syslog()
 
+    def do_patch_cinder(self):
+
+        cinder_patch_utils = SetupCephUtils()
+
+        cinder_patch_utils.create_and_apply_cinder_patch()
+        return
+    #end do_patch_cinder()
+
     # Function to check if multipool is disabled or not
     # Returns False if enabled
     # Returns True if disabled
@@ -2972,6 +2980,9 @@ class SetupCeph(object):
 
         # Cleanup configuration
         self.do_cleanup_config()
+
+        # Patch cinder if required
+        self.do_patch_cinder()
 
         # Create monitor list
         self.do_create_monlist()

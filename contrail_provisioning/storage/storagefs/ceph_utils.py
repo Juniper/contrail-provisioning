@@ -33,33 +33,12 @@ class SetupCephUtils(object):
     CS_CRUSH_MAP_MOD_TXT = '/tmp/ma-crush-map-cs-mod.txt'
     global CS_CRUSH_MAP_MOD_TMP_TXT
     CS_CRUSH_MAP_MOD_TMP_TXT = '/tmp/ma-crush-map-cs-mod-tmp.txt'
-    POOL_CRUSH_MAP = '/tmp/ma-crush-map-pool'
-    global POOL_CRUSH_MAP_TXT
-    POOL_CRUSH_MAP_TXT = '/tmp/ma-crush-map-pool.txt'
-    global POOL_CRUSH_MAP_MOD
-    POOL_CRUSH_MAP_MOD = '/tmp/ma-crush-map-pool-mod'
-    global POOL_CRUSH_MAP_MOD_TXT
-    POOL_CRUSH_MAP_MOD_TXT = '/tmp/ma-crush-map-pool-mod.txt'
-    global INIT_CRUSH_MAP
-    INIT_CRUSH_MAP = '/tmp/ma-crush-map-init'
-    global INIT_CRUSH_MAP_MOD
-    INIT_CRUSH_MAP_MOD = '/tmp/ma-crush-map-init-mod'
-    global INIT_CRUSH_MAP_TXT
-    INIT_CRUSH_MAP_TXT = '/tmp/ma-crush-map-init.txt'
-    global INIT_CRUSH_MAP_MOD_TXT
-    INIT_CRUSH_MAP_MOD_TXT = '/tmp/ma-crush-map-init-mod.txt'
-    global CS_CRUSH_MAP
-    CS_CRUSH_MAP = '/tmp/ma-crush-map-cs'
-    global CS_CRUSH_MAP_MOD
-    CS_CRUSH_MAP_MOD = '/tmp/ma-crush-map-cs-mod'
-    global CS_CRUSH_MAP_TXT
-    CS_CRUSH_MAP_TXT = '/tmp/ma-crush-map-cs.txt'
-    global CS_CRUSH_MAP_MOD_TXT
-    CS_CRUSH_MAP_MOD_TXT = '/tmp/ma-crush-map-cs-mod.txt'
-    global CS_CRUSH_MAP_MOD_TMP_TXT
-    CS_CRUSH_MAP_MOD_TMP_TXT = '/tmp/ma-crush-map-cs-mod-tmp.txt'
     global CEPH_ADMIN_KEYRING
     CEPH_ADMIN_KEYRING = '/etc/ceph/ceph.client.admin.keyring'
+    global CINDER_PATCH_FILE
+    CINDER_PATCH_FILE = '/tmp/manager.patch'
+    global CINDER_VOLUME_MGR_PY
+    CINDER_VOLUME_MGR_PY = '/usr/lib/python2.7/dist-packages/cinder/volume/manager.py'
     global TRUE
     TRUE = 1
     global FALSE
@@ -147,6 +126,13 @@ class SetupCephUtils(object):
             return FALSE
     #end is_ssd_pool_disabled()
 
+    def exec_locals(self, arg):
+        ret = subprocess.Popen('%s' %(arg), shell=True,
+                                stdout=subprocess.PIPE).stdout.read()
+        ret = ret[:-1]
+        return ret
+    #end exec_locals()
+
     def exec_local(self, arg):
         ret = subprocess.Popen('echo \"[localhost] local: %s\" 1>&2' %(arg), shell=True,
                                 stdout=subprocess.PIPE).stdout.read()
@@ -154,6 +140,7 @@ class SetupCephUtils(object):
                                 stdout=subprocess.PIPE).stdout.read()
         ret = ret[:-1]
         return ret
+    #end exec_local()
 
     # Function to set the PG count
     # Verify whether the PGs are in creating state,
@@ -1682,3 +1669,33 @@ class SetupCephUtils(object):
                 self.exec_local('sudo ceph osd pool set volumes crush_ruleset 0')
         return ceph_pool_list
     #end do_configure_pools()
+
+    def create_and_apply_cinder_patch(self):
+        self.exec_locals('echo \"--- a/manager.py   2015-06-24 00:08:23.871395783 -0700\" \
+                > %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"+++ b/manager.py   2015-06-24 00:11:46.856401389 -0700\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"@@ -636,7 +636,8 @@\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"             volume = self.db.volume_get(context, volume_id)\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"             volume_metadata = self.db.volume_admin_metadata_get(\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"                 context.elevated(), volume_id)\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"-            if volume[\'status\'] == \'attaching\':\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"+            if (volume[\'status\'] == \'attaching\' or\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"+                volume[\'status\'] == \'in-use\'):\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"                 if (volume[\'instance_uuid\'] and volume[\'instance_uuid\'] !=\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"                         instance_uuid):" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_locals('echo \"                     msg = _(\\"being attached by another instance\\")\" \
+                >> %s' %(CINDER_PATCH_FILE))
+        self.exec_local('patch -N %s %s'
+                %(CINDER_VOLUME_MGR_PY, CINDER_PATCH_FILE))
+        return
+    #end create_and_apply_cinder_patch
