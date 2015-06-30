@@ -72,6 +72,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-setup-mode", help = "Configuration mode")
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+        parser.add_argument("--storage-replica-size", help = "Replica size")
 
 
         self._args = parser.parse_args(self.remaining_argv)
@@ -133,27 +134,11 @@ class StorageSetup(ContrailSetup):
 
         if self._args.hosts_to_remove:
             storage_setup_args = storage_setup_args + " --hosts-to-remove %s" %(' '.join(self._args.hosts_to_remove))
+        storage_setup_args = storage_setup_args + " --storage-replica-size %s" %(self._args.storage_replica_size)
 
         #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
             run("sudo storage-fs-setup %s" %(storage_setup_args))
-
-        # Generic live-migration configurations
-        live_migration_enabled = self._args.live_migration
-        if live_migration_enabled == 'enabled':
-            livem_setup_args = " --storage-master %s" %(self._args.storage_master)
-            livem_setup_args = livem_setup_args + " --storage-setup-mode %s" % (self._args.storage_setup_mode)
-            if self._args.add_storage_node:
-                livem_setup_args = livem_setup_args + " --add-storage-node %s" % (self._args.add_storage_node)
-            livem_setup_args = livem_setup_args + " --storage-hostnames %s" %(' '.join(self._args.storage_hostnames))
-            livem_setup_args = livem_setup_args + " --storage-hosts %s" %(' '.join(self._args.storage_hosts))
-            livem_setup_args = livem_setup_args + " --storage-host-tokens %s" %(' '.join(self._args.storage_host_tokens))
-            if self._args.storage_os_hosts:
-                livem_setup_args = livem_setup_args + " --storage-os-hosts %s" %(' '.join(self._args.storage_os_hosts))
-                livem_setup_args = livem_setup_args + " --storage-os-host-tokens %s" %(' '.join(self._args.storage_os_host_tokens))
-            with settings(host_string=self._args.storage_master, password=storage_master_passwd):
-                run("sudo compute-live-migration-setup %s" %(livem_setup_args))
-
 
 def main(args_str = None):
     storage = StorageSetup(args_str)

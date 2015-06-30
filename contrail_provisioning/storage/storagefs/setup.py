@@ -602,7 +602,8 @@ class SetupCeph(object):
                                         self._args.storage_hostnames,
                                         self._args.storage_disk_config,
                                         self._args.storage_ssd_disk_config,
-                                        self._args.storage_chassis_config)
+                                        self._args.storage_chassis_config,
+                                        self._args.storage_replica_size)
     #end do_crush_map_pool_config()
 
     # Function for NFS cinder configuration
@@ -739,31 +740,59 @@ class SetupCeph(object):
         global ceph_mon_count
         global ceph_all_hosts
 
+        # Find existing mons
+        ceph_mon_entries = local('ceph mon stat 2>&1 |grep quorum | \
+                                awk \'{print $11}\'', capture=True)
+        if ceph_mon_entries != '':
+            ceph_mon_list = ceph_mon_entries.split(',')
+            for entry in ceph_mon_list:
+                ceph_mon_count += 1;
+                ceph_mon_hosts_list.append(entry)
+
         # first create master monitor list
-        for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+        for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            self._args.storage_hostnames):
             if entries == self._args.storage_master:
                 ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                ceph_mon_count += 1;
-                ceph_mon_hosts_list.append(hostname)
+                entry = ''
+                for entry in ceph_mon_hosts_list:
+                    if entry == hostname:
+                        break
+                if entry != hostname:
+                    ceph_mon_count += 1;
+                    ceph_mon_hosts_list.append(hostname)
             if self._args.storage_os_hosts[0] != 'none':
                 for osnode in self._args.storage_os_hosts:
                     if entries == osnode:
                         ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                        ceph_mon_count += 1;
-                        ceph_mon_hosts_list.append(hostname)
+                        entry = ''
+                        for entry in ceph_mon_hosts_list:
+                            if entry == hostname:
+                                break
+                        if entry != hostname:
+                            ceph_mon_count += 1;
+                            ceph_mon_hosts_list.append(hostname)
 
         # first try to use configured compute monitor list
         # if configured monitor list is empty then start
         # monitors on first "N" computes
-        # where master monitor list + "N" compute monitors <= MAX_MONS
+        # where master monitor list + "N" compute monitors < MAX_MONS
         if self._args.storage_mon_hosts[0] != 'none':
             for entries in self._args.storage_mon_hosts:
-                ceph_mon_count += 1;
-                if ceph_mon_count <= MAX_MONS:
+                if ceph_mon_count < MAX_MONS:
                     ceph_mon_hosts = ceph_mon_hosts + entries + ' '
-                    ceph_mon_hosts_list.append(entries)
+                    entry = ''
+                    for entry in ceph_mon_hosts_list:
+                        if entry == hostname:
+                            break
+                    if entry != hostname:
+                        ceph_mon_count += 1;
+                        ceph_mon_hosts_list.append(entries)
         else:
-            for entries, entry_token, hostname in zip(self._args.storage_hosts, self._args.storage_host_tokens, self._args.storage_hostnames):
+            for entries, entry_token, hostname in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            self._args.storage_hostnames):
                 if entries == self._args.storage_master:
                     continue
                 entry_hit = 0
@@ -773,13 +802,19 @@ class SetupCeph(object):
                             entry_hit = 1
                             break
                 if entry_hit == 0:
-                    ceph_mon_count += 1;
-                    if ceph_mon_count <= MAX_MONS:
+                    if ceph_mon_count < MAX_MONS:
                         ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
-                        ceph_mon_hosts_list.append(hostname)
+                        entry = ''
+                        for entry in ceph_mon_hosts_list:
+                            if entry == hostname:
+                                break
+                        if entry != hostname:
+                            ceph_mon_count += 1;
+                            ceph_mon_hosts_list.append(hostname)
 
         for entries in self._args.storage_hostnames:
             ceph_all_hosts = ceph_all_hosts + entries + ' '
+
     # end do_create_monlist
 
 
@@ -811,6 +846,8 @@ class SetupCeph(object):
             local('sudo openstack-config --set /etc/glance/glance-api.conf \
                                     DEFAULT default_store file')
             local('sudo openstack-config --del /etc/glance/glance-api.conf \
+                                    DEFAULT known_stores')
+            local('sudo openstack-config --del /etc/glance/glance-api.conf \
                                     DEFAULT show_image_direct_url')
             local('sudo openstack-config --del /etc/glance/glance-api.conf \
                                     DEFAULT rbd_store_user')
@@ -829,6 +866,9 @@ class SetupCeph(object):
                         run('sudo openstack-config --set \
                                         /etc/glance/glance-api.conf \
                                         DEFAULT default_store file')
+                        run('sudo openstack-config --del \
+                                        /etc/glance/glance-api.conf \
+                                        DEFAULT known_stores')
                         run('sudo openstack-config --del \
                                         /etc/glance/glance-api.conf \
                                         DEFAULT show_image_direct_url')
@@ -1199,11 +1239,27 @@ class SetupCeph(object):
             if ohostname == hostname:
                 with settings(host_string = 'root@%s' %(entry),
                                             password = entry_token):
+
+                    # Wait for disk to be mounted during osd-start
                     osd_disk = ceph_disk_entry.split(':')[1]
+                    retry = 0
+                    while True:
+                        osd_mounted = run('sudo cat /proc/mounts | grep %s | \
+                                            wc -l' %(osd_disk))
+                        if osd_mounted == '0':
+                            retry += 1
+                            if retry > 2:
+                                break
+                            time.sleep(3)
+                        else:
+                            break
+
                     osd_running = run('sudo cat /proc/mounts | grep osd | \
                                             grep %s | wc -l' %(osd_disk))
                     if osd_running != '0':
-                        osddet = run('sudo mount | grep %s | awk \'{ print $3 }\''
+                        osddet = run('sudo mount | grep %s | grep -v grep | \
+                                            grep -v tmp | head -n 1 | \
+                                            awk \'{ print $3 }\''
                                             %(osd_disk), shell='/bin/bash')
                         osdnum = osddet.split('-')[1]
                         pr_running = run('sudo ps -ef | grep ceph-osd | \
@@ -1257,7 +1313,7 @@ class SetupCeph(object):
                         break
                 # For prefirefly use prepare/activate on ubuntu release
                 local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
-                time.sleep(5)
+                time.sleep(10)
                 osd_running = self.do_osd_check(ceph_disk_entry)
                 if osd_running == FALSE:
                     print 'OSD not running for %s' %(ceph_disk_entry)
@@ -1424,6 +1480,16 @@ class SetupCeph(object):
         local('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
 
+        # change default heartbeat based on Replica size
+        if self._args.storage_replica_size != 'None':
+            heartbeat_timeout = int(self._args.storage_replica_size) * 60
+        else:
+            heartbeat_timeout = 120
+        local('ceph tell osd.* injectargs -- --osd_heartbeat_grace=%s'
+                            %(heartbeat_timeout))
+        local('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
+
         # compute ceph.conf configuration done here
         for entries, entry_token in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens):
@@ -1438,6 +1504,8 @@ class SetupCeph(object):
                             %(CEPH_CONFIG_FILE, CEPH_OP_THREADS))
                     run('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
+                    run('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
         return
     #end do_tune_ceph()
 
@@ -1463,9 +1531,10 @@ class SetupCeph(object):
                                         %(CEPH_CONFIG_FILE, VOLUMES_KEYRING))
         local('sudo openstack-config --set %s client.images keyring %s'
                                         %(CEPH_CONFIG_FILE, IMAGES_KEYRING))
-        local('cat ~/.bashrc |grep -v CEPH_ARGS > /tmp/.bashrc')
+        # No need for CEPH_ARGS in bashrc for ubuntu.
+        # Remove if already present.
+        local('cat ~/.bashrc |grep -v "CEPH_ARGS=" > /tmp/.bashrc')
         local('mv -f /tmp/.bashrc ~/.bashrc')
-        local('echo export CEPH_ARGS=\\"--id volumes\\" >> ~/.bashrc')
         local('ceph-authtool -p -n client.volumes %s > %s' %(VOLUMES_KEYRING,
                                                             CLIENT_VOLUMES))
 
@@ -1884,13 +1953,14 @@ class SetupCeph(object):
 
     # Function for generic cinder configuration
     def do_configure_cinder(self):
-        # Set mysql listen ip to 0.0.0.0, so cinder volume manager from all
-        # nodes can access.
-        if self.is_lvm_config_disabled() == FALSE:
-            local('sudo sed -i "s/^bind-address/#bind-address/" /etc/mysql/my.cnf')
-            local('sudo service mysql restart')
 
-        local('sudo openstack-config --set %s DEFAULT sql_connection \
+        if self._args.cinder_vip != 'none':
+            local('sudo openstack-config --set %s DEFAULT sql_connection \
+                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        %(CINDER_CONFIG_FILE,
+                                        self._args.cinder_vip))
+        else:
+            local('sudo openstack-config --set %s DEFAULT sql_connection \
                                         mysql://cinder:cinder@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE))
         # recently contrail changed listen address from 0.0.0.0 to mgmt address
@@ -1919,7 +1989,13 @@ class SetupCeph(object):
                                         self._args.storage_os_host_tokens):
                 with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                    run('sudo openstack-config --set %s DEFAULT sql_connection \
+                    if self._args.cinder_vip != 'none':
+                        run('sudo openstack-config --set %s DEFAULT sql_connection \
+                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        %(CINDER_CONFIG_FILE,
+                                        self._args.cinder_vip))
+                    else:
+                        run('sudo openstack-config --set %s DEFAULT sql_connection \
                                         mysql://cinder:cinder@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE))
                     # recently contrail changed listen address from 0.0.0.0 to
@@ -1937,7 +2013,9 @@ class SetupCeph(object):
                                         rabbit_host %s' %(CINDER_CONFIG_FILE,
                                         self._args.cfg_host))
                     # After doing the mysql change, do a db sync
-                    run('sudo cinder-manage db sync')
+                    # No need to run db sync on all the nodes in case of HA
+                    # running on master node is enough
+                    #run('sudo cinder-manage db sync')
 
         # configure cinder db retries
         local('sudo openstack-config --set %s database db_max_retries -1' \
@@ -2198,6 +2276,9 @@ class SetupCeph(object):
         #Glance configuration on the storage master
         local('sudo openstack-config --set %s DEFAULT default_store rbd'
                                             %(GLANCE_API_CONF))
+        local('sudo openstack-config --set %s DEFAULT known_stores \
+                glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
+                                            %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT show_image_direct_url True'
                                             %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT rbd_store_user images'
@@ -2219,6 +2300,9 @@ class SetupCeph(object):
                                             password = entry_token):
                     run('sudo openstack-config --set %s DEFAULT \
                                             default_store rbd'
+                                            %(GLANCE_API_CONF))
+                    run('sudo openstack-config --set %s DEFAULT known_stores \
+                            glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
                                             %(GLANCE_API_CONF))
                     run('sudo openstack-config --set %s DEFAULT \
                                             show_image_direct_url True'
@@ -2554,6 +2638,9 @@ class SetupCeph(object):
                     if matchfound == 0:
                         with settings(host_string = 'root@%s' %(entries),
                                       password = entry_token):
+                            storage_stats=run('ps -ef|grep -v grep|grep contrail-storage-stats|wc -l')
+                            if storage_stats == '1':
+                                run('service contrail-storage-stats stop')
                             run('sudo rm -rf %s' %(CONTRAIL_STORAGE_STATS_INIT))
                 # all master node match except first master
                 if self._args.storage_os_hosts[0] != 'none':
@@ -2570,6 +2657,9 @@ class SetupCeph(object):
                             if matchfound == 0:
                                 with settings(host_string = 'root@%s' \
                                     %(entries), password = entry_token):
+                                    storage_stats=run('ps -ef|grep -v grep|grep contrail-storage-stats|wc -l')
+                                    if storage_stats == '1':
+                                        run('service contrail-storage-stats stop')
                                     run('sudo rm -rf %s' \
                                         %(CONTRAIL_STORAGE_STATS_INIT))
         return
@@ -2596,7 +2686,12 @@ class SetupCeph(object):
                                                 shell='/bin/bash')
                             if osd_det != '':
                                 osd_num = osd_det.split('-')[1]
-                                run('sudo stop ceph-osd id=%s' %(osd_num))
+                                osd_running = run('ps -ef | grep ceph-osd | \
+                                                   grep -v grep | \
+                                                   grep -w "\\-i %s" | wc -l'
+                                                   %(osd_num))
+                                if osd_running != '0':
+                                    run('sudo stop ceph-osd id=%s' %(osd_num))
                                 run('sudo ceph -k %s osd out %s'
                                             %(CEPH_ADMIN_KEYRING, osd_num))
                                 run('sudo ceph osd crush remove osd.%s'
@@ -2850,6 +2945,16 @@ class SetupCeph(object):
         return
     #end do_storage_setup()
 
+    # Cleanup disk config
+    def do_cleanup_config(self):
+        if self._args.storage_directory_config[0] == 'none' and \
+                self._args.storage_disk_config[0] == 'none' and \
+                self._args.storage_ssd_disk_config[0] != 'none':
+            self._args.storage_disk_config = self._args.storage_ssd_disk_config
+            self._args.storage_ssd_disk_config = ['none']
+    #end do_cleanup_config()
+
+
     # Main function for storage related configurations
     # Note: All the functions are idempotent. Any additions/modifications
     #       should ensure that the behavior stays the same.
@@ -2864,6 +2969,9 @@ class SetupCeph(object):
 
         # Do the ssh key configuration
         self.do_ssh_config()
+
+        # Cleanup configuration
+        self.do_cleanup_config()
 
         # Create monitor list
         self.do_create_monlist()
@@ -2981,6 +3089,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
+        parser.add_argument("--storage-replica-size", help = "Replica size")
 
         self._args = parser.parse_args(remaining_argv)
 
