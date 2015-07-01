@@ -23,7 +23,7 @@ import commonport
 import StringIO
 
 import tempfile
-from fabric.api import local, env, run, settings
+from fabric.api import local, env, sudo, run, settings
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
 from fabric.api import local, env, run
@@ -82,6 +82,10 @@ class SetupCeph(object):
     CONTRAIL_STORAGE_STATS_CONF = '/etc/contrail/contrail-storage-nodemgr.conf'
     global CINDER_VOLUME_INIT_CONFIG
     CINDER_VOLUME_INIT_CONFIG = '/etc/init/cinder-volume.conf'
+    global CINDER_PATCH_FILE
+    CINDER_PATCH_FILE = '/tmp/manager.patch'
+    global CINDER_VOLUME_MGR_PY
+    CINDER_VOLUME_MGR_PY = '/usr/lib/python2.7/dist-packages/cinder/volume/manager.py'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -477,6 +481,19 @@ class SetupCeph(object):
         cinder_patch_utils = SetupCephUtils()
 
         cinder_patch_utils.create_and_apply_cinder_patch()
+
+        if self._args.storage_os_hosts[0] != 'none':
+            for entry, entry_token in zip(self._args.storage_os_hosts,
+                                            self._args.storage_os_host_tokens):
+                with settings(host_string = 'root@%s' %(entry),
+                                            password = entry_token):
+                    if entry != self._args.storage_master:
+                        put('%s' %(CINDER_PATCH_FILE), '%s' %(CINDER_PATCH_FILE),
+                                use_sudo=True)
+                        sudo('patch -N %s %s'
+                                %(CINDER_VOLUME_MGR_PY, CINDER_PATCH_FILE),
+                                    warn_only=True)
+
         return
     #end do_patch_cinder()
 
