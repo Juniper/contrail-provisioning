@@ -69,7 +69,6 @@ ERROR1205="Lock wait timeout exceeded"
 STDERR="/tmp/galera-chk/stderr"
 RECLUSTRUN="/tmp/galera/recluster"
 RMQSTOP="/tmp/ha-chk/rmqstopped"
-cmondisco="/etc/mysql/.cmondiscoinit"
 
 timestamp() {
     date
@@ -270,39 +269,40 @@ fi
 
 chkNRun_cluster_mon() {
 cmon_run=$(verify_cmon)
-# Check for cmon and if its the VIP node let cmon run or start it
-if [ $viponme -eq 1 ]; then
-   if [ $cmon_run == "n" ]; then
+# change >= R2.21 cmon will run on every node
+if [ $cmon_run == "n" ]; then
       (exec $RUN_CMON)&
-      log_info_msg "Started CMON on detecting VIP"
-    fi
-   # Check periodically for RMQ status
-   if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
-      sleep $PERIODIC_RMQ_CHK_INTER
-      (exec $RMQ_MONITOR)&
-   fi
-   cerr=$(grep "$cmonerror" "$cmonlog" | wc -l)
+      log_info_msg "Started MySql galera Cluster Monitor"
+fi
+
+cerr=$(grep "$cmonerror" "$cmonlog" | wc -l)
    if [[ $cerr != 0 ]]; then
      (exec rm -rf "$cmonlog")&
+     log_info_msg "Restarting cmon on detecting a connection error that could happen if CMON is trying to connect before mysql is ready"
      (exec $RESTART_CMON)&
    fi
-else
-   if [ $cmon_run == "y" ]; then
-      (exec $STOP_CMON)&
-      log_info_msg "Stopped CMON on not finding VIP"
 
-      #Check if the VIP was on this node and clear all session by restarting haproxy
-      hapid=$(pidof haproxy)
-      for (( i=0; i<${DIPS_SIZE}; i++ ))
-      do
-        dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
-        if [[ -n "$dipsonnonvip" ]]; then
+# Check periodically for RMQ status
+if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
+      sleep $PERIODIC_RMQ_CHK_INTER
+      (exec $RMQ_MONITOR)&
+fi
+
+# Below change will only be applied if keepalived and HAP are run on the controller
+# It will not be applied to deployments that is not based on KA and HAP
+if [ $viponme == 0 ]; then
+     #Check if the VIP was on this node and clear all session by restarting haproxy
+     hapid=$(pidof haproxy)
+     for (( i=0; i<${DIPS_SIZE}; i++ ))
+     do
+       dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
+       if [[ -n "$dipsonnonvip" ]]; then
          haprestart=1
          break
-        fi
-      done
+       fi
+     done
 
-      for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+     for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
       do
         dipsonnonvip=$(lsof -p $hapid | grep ${DIPHOSTS[i]} | awk '{print $9}')
         if [[ -n "$dipsonnonvip" ]]; then
@@ -315,17 +315,17 @@ else
        (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
       fi
-   fi
+fi
+
    if [ -f $cleanuppending ]; then
      (exec rm -rf $cleanuppending)&
    fi
-   if [ -f $rstcnt]; then
+   if [ -f $rstcnt ]; then
      (exec rm -rf $rstcnt)&
    fi
-   if [ -f $numrst]; then
+   if [ -f $numrst ]; then
      (exec rm -rf $numrst)&
    fi
-fi
 }
       
 cleanup() {
@@ -392,23 +392,6 @@ else
 fi
 }
 
-cmonFailDomainDiscovery() {
-if [ -f $MYID ]; then
-    myid=$(cat $MYID)
-fi
-if [[ $myid == 1 ]] && [ $galerastate == "y" ]; then
- if [ ! -f $cmondisco ]; then
-   for (( i=0; i<${DIPS_SIZE}; i++ ))
-     do
-      if [ $MYIP != ${DIPS[i]} ]; then
-         (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "$MYSQL_SVC_STOP")
-      fi
-     done
-   touch "$cmondisco"
- fi
-fi
-}
-
 main()
 {
   vip_info
@@ -418,8 +401,7 @@ main()
   procs_check
   cleanup
   reCluster
-  cmonFailDomainDiscovery
   exit 0
 }
-main
 
+main
