@@ -7,4 +7,7 @@ DIPS_SIZE=${#DIPS[@]}
 EVIP="$__external_vip__"
 PERIODIC_RMQ_CHK_INTER=60
 RABBITMQ_RESET=True
+RABBITMQ_MNESIA_CLEAN=False
+RMQ_CLIENTS=("nova-conductor" "nova-scheduler")
+ZK_SERVER_IP="$__zooipports__"
 """)
