@@ -64,6 +64,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("sed -i '$ a\PERIODIC_RMQ_CHK_INTER=60' %s" % cmon_param)
             local("sed -i '/RABBITMQ_RESET/d' %s" % cmon_param)
             local("sed -i '$ a\RABBITMQ_RESET=True' %s" % cmon_param)
+            local("sed -i '/RABBITMQ_MNESIA_CLEAN/d' %s" % cmon_param)
+            local("sed -i '$ a\RABBITMQ_MNESIA_CLEAN=False' %s" % cmon_param)
+            local("sed -i '/RMQ_CLIENTS/d' %s" % cmon_param)
+            local("sed -i '$ a\RMQ_CLIENTS=(\"nova-conductor\" \"nova-scheduler\")' %s" % cmon_param)
 
     def fix_haproxy_config(self):
         with settings(warn_only=True):
