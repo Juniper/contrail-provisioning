@@ -23,7 +23,7 @@ type=galera
 mysql_basedir=/usr
 
 ## CMON DB config  - mysql_password is for the 'cmon' user
-mysql_port=33306
+mysql_port=3306
 mysql_hostname=$__mysql_node_address__
 mysql_password=cmon
 
