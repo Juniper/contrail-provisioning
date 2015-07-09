@@ -42,7 +42,7 @@ class GaleraSetup(ContrailSetup):
         '''
         Eg. setup-vnc-galera --openstack0_user root --openstack0_password c0ntrail123 --self_ip 10.1.5.11
                    --keystone_ip 10.1.5.11 --galera_ip_list 10.1.5.11 10.1.5.12 --openstack_index 1
-                   --internal_vip 10.1.5.13
+                   --internal_vip 10.1.5.13 --zoo_ip_list 10.1.5.11 10.1.5.12
         '''
         parser = self._parse_args(args_str)
 
@@ -54,6 +54,7 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
         parser.add_argument("--internal_vip", help = "Internal Virtual IP Address of HA Openstack nodes")
         parser.add_argument("--external_vip", help = "External Virtual IP Address of HA Openstack nodes"),
+        parser.add_argument("--zoo_ip_list", help = "List of IP Addresses of zookeeper servers", nargs='+', type=str)
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -74,11 +75,15 @@ class GaleraSetup(ContrailSetup):
                                         self._temp_dir_name + '/galera_param')
         local("sudo mv %s/galera_param /etc/contrail/ha/" % (self._temp_dir_name))
 
+        zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
+
         # fix cmon_param
         template_vals = {'__internal_vip__' : self._args.internal_vip,
                          '__haproxy_dips__' :
                          '"' + '" "'.join(self._args.galera_ip_list) + '"',
-                         '__external_vip__' : self._args.external_vip}
+                         '__external_vip__' : self._args.external_vip,
+                         '__zooipports__' : zk_servers_ports
+                        }
         self._template_substitute_write(cmon_param_template.template,
                                         template_vals,
                                         self._temp_dir_name + '/cmon_param')
@@ -147,7 +152,7 @@ class GaleraSetup(ContrailSetup):
 
         # fixup cmon config
         template_vals = {'__mysql_nodes__' : ','.join(self._args.galera_ip_list),
-                         '__mysql_node_address__' : self._args.internal_vip,
+                         '__mysql_node_address__' : self._args.self_ip,
                         }
         self._template_substitute_write(cmon_conf_template.template, template_vals,
                                         self._temp_dir_name + '/cmon.cnf')
