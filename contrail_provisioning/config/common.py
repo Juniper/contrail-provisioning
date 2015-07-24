@@ -174,6 +174,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
+                         '__rabbit_server_ip__': self.rabbit_host,
+                         '__rabbit_server_port__': self.rabbit_port,
                         }
         self._template_substitute_write(contrail_schema_transformer_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
