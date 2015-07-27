@@ -23,16 +23,15 @@ rstcnt="/tmp/ha-chk/rmq-rst-cnt"
 numrst="/tmp/ha-chk/rmq-num-rst"
 rmqstop="supervisorctl -s unix:///tmp/supervisord_support_service.sock stop rabbitmq-server"
 killbeam="pkill -9  beam"
-killepmd="pkll -9 epmd"
+killepmd="pkill -9 epmd"
 rmmnesia="rm -rf /var/lib/rabbitmq/mnesia"
 cleanuppending="/tmp/ha-chk/rmq_mnesia_cleanup_pending"
-#sethapolicy="rabbitmqctl set_policy HA-all \"\" {\"ha-mode\":\"all\",\"ha-sync-mode\":\"automatic\",\"ha-promote-on-shutdown\":\"always\"}"
 sethapolicy="rabbitmqctl set_policy HA-all \"\" {\"ha-mode\":\"all\",\"ha-sync-mode\":\"automatic\"}"
 STOP="STOP"
 MYIPS=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 MYIP=0
-novacondstop="supervisorctl -s unix:///tmp/supervisord_openstack.sock stop nova-conductor"
-novacondrestart="supervisorctl -s unix:///tmp/supervisord_openstack.sock restart nova-conductor"
+MONITOR="MONITOR"
+RMQ_CLNTS=${#RMQ_CLIENTS[@]}
 
 for y in $MYIPS
  do
@@ -184,7 +183,7 @@ do
  (rabbitmqctl list_channels | grep $hosts | wc -l > "$file") & pid=$!
  (rabbitmqctl cluster_status | grep -A 1 running_nodes > "$cluschk") & pid1=$!
  (rabbitmqctl cluster_status | grep partitions | grep ctrl | wc -l > "$cluspart") & pid2=$!
- log_info_msg "pidof pending rmq channel $pid and cluster check $pid1"
+ log_info_msg "Checking for stable state of rmq channel (monitored by pid $pid) and cluster (monitored by pid $pid1)"
  sleep 10
  if [ -d "/proc/${pid}" ]; then
   (exec pkill -TERM -P $pid)&
@@ -219,33 +218,39 @@ cleanup()
  fi
 }
 
-novasvcstop()
+rmqclientsstop()
 {
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
-    (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "$novacondstop")
-    log_info_msg "nova conductor stopped on ${DIPS[i]}"
+    for (( j=0; j<${RMQ_CLNTS}; j++ ))
+     do
+      (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "service ${RMQ_CLIENTS[j]} stop")
+      log_info_msg "${RMQ_CLIENTS[j]} stopped on ${DIPS[i]}"
+     done
    done
 }
 
-novasvcrestart()
+rmqclientsrestart()
 {
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
-    (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "$novacondrestart")
-    log_info_msg "nova conductor started ${DIPS[i]}"
+    for (( j=0; j<${RMQ_CLNTS}; j++ ))
+     do
+      (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "service ${RMQ_CLIENTS[j]} restart")
+      log_info_msg "${RMQ_CLIENTS[j]} started on ${DIPS[i]}"
+     done
    done
 }
 
 cleanpending() {
-if [ -f "$cleanuppending" ] && [ -s "$cleanuppending" ]; then
+if [ -f "$cleanuppending" ] && [ -s "$cleanuppending" ] && [[ $RABBITMQ_MNESIA_CLEAN == "True" ]]; then
   readarray ips < $cleanuppending
   ipsz=${#ips[@]}
   for (( i=0; i<${ipsz}; i++ ))
    do
     status=$(ping -c 1 -w 1 -W 1 -n ${ips[i]} | grep packet | awk '{print $6}' | cut -c1)
     if [[ $status == 0 ]]; then
-      novasvcstop
+      rmqclientsstop
       isClean=$(cleanup "${ips[i]}")
       if [[ $isClean == "y" ]];  then
         var=$(grep -F -ve "${ips[i]}" $cleanuppending)
@@ -258,7 +263,7 @@ else
   if [ -f "$cleanuppending" ] && [ ! -s "$cleanuppending" ]; then
     pol=$($sethapolicy)
     log_info_msg "HA Policy set - $pol"
-    novasvcrestart
+    rmqclientsrestart
     (exec rm -rf "$cleanuppending")&
   fi
 fi
@@ -283,8 +288,8 @@ if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state
    if [[ $totalrst == '' ]]; then
        totalrst=0
    fi
-   if [ $totalrst == 2 ]; then
-    novasvcstop
+   if [ $totalrst == 2 ] && [[ $RABBITMQ_MNESIA_CLEAN == "True" ]]; then
+    rmqclientsstop
     cleanup "$MYIP"
     for (( i=0; i<${DIPS_SIZE}; i++ ))
      do
@@ -309,7 +314,7 @@ if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state
      done
      pol=$($sethapolicy)
      log_info_msg "HA Policy set - $pol"
-     novasvcrestart
+     rmqclientsrestart
      (exec rm -rf "$numrst")&
    else
     if [ $cnt == 3 ]; then
@@ -322,7 +327,7 @@ if [[ $chnlstate_run == "n" ]] || [[ $cluststate_run == "n" ]] || [[ $part_state
      done
      totalrst=$(($totalrst + 1))
      (exec echo $totalrst > "$numrst")&
-     log_info_msg "Resetting all RMQ -- Done"
+     log_info_msg "Tried resetting all available and connected RMQ -- Done"
      (exec rm -rf "$rstcnt")&
     else
      (exec $RMQ_RESET)&
@@ -358,20 +363,47 @@ if [[ $stalecs != '' ]]; then
 fi
 }
 
+function run_rmq_monitor()
+{
+ periodic_check
+ cleanpending
+ checkNrst
+ killstale
+}
+
+function run_onzk_lock_acquire {
+ZK_IPPORTS="$ZK_SERVER_IP" python - <<END
+import os
+import socket
+import subprocess
+import sys, getopt
+from kazoo.client import KazooClient
+zk_ip_ports=os.environ['ZK_IPPORTS']
+zk=KazooClient(zk_ip_ports)
+zk.start()
+lock=zk.Lock('/rmq-monitor','%s-%d' % (socket.gethostname(),os.getpid()))
+with lock:
+   subprocess.call("/opt/contrail/bin/contrail-rmq-monitor.sh MONITOR", shell=True)
+   lock.release()
+END
+}
+
 main()
 {
- lock $PROGNAME \
-        || eexit "Only one instance of $PROGNAME can run at one time."
- if [[ $command == $STOP ]]; then
-   $rmqstop
-   $killbeam
-   $killepmd
+ if [[ $command == $MONITOR ]]; then
+    run_rmq_monitor
  else
-   periodic_check
-   cleanpending
-   checkNrst
-   killstale
+  lock $PROGNAME \
+        || eexit "Only one instance of $PROGNAME can run at one time."
+  if [[ $command == $STOP ]]; then
+    $rmqstop
+    $killbeam
+    $killepmd
+  else
+    run_onzk_lock_acquire
+  fi
  fi
  exit 0
 }
+
 main
