@@ -7,15 +7,16 @@
 source /etc/contrail/ha/cmon_param
 
 LOGFILE=/var/log/contrail/ha/token-cleanup.log
-MYIPS=$(ip addr show | sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
-viponme=0
-mysql_user=keystone
-mysql_password=keystone
-mysql_host=$VIP
-mysql_port=33306
+mysql_user=$OS_KS_USER
+mysql_password=$OS_KS_PASS
+mysql_host="localhost"
+mysql_port=3306
 mysql=$(which mysql)
-cmon_user_pass=cmon
+cmon_user_pass=$CMON_PASS
 cmon_stats_purge="call sp_cmon_purge_history;"
+token_removed="/tmp/ks_token_remove"
+token_clean="keystone-manage -v -d token_flush"
+MYIPS=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
 timestamp() {
     date +"%T"
@@ -36,24 +37,30 @@ log_info_msg() {
     echo "$(timestamp): INFO: $msg" >> $LOGFILE
 }
 
-for myip in $MYIPS
+if [ ! -f "$token_removed" ] ; then
+         touch "$token_removed"
+fi
+
+get_my_ip() {
+flag=false
+for ip in $MYIPS
  do
-  if [ $myip == $VIP ]; then
-     viponme=1
+  for (( i=0; i<${DIPS_SIZE}; i++ ))
+   do
+     if [ $ip == ${DIPS[i]} ]; then
+        mysql_host=$ip
+        flag=true
+        break
+     fi
+   done
+   if [[ "$flag" == true ]]; then
      break
-  fi
- done
+   fi
+done
+}
 
-if [ $viponme -eq 1 ]; then
-    log_info_msg "keystone-cleaner::Starting token cleanup"
-
-    NOW=`date -u +"%Y-%m-%d %T"`
-    mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; DELETE FROM token where expires <= '${NOW}';"
-    valid_token=$($mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; SELECT count(*) FROM token;")
-    valid_token=$(echo $valid_token | awk '{print $2}')
-
-    log_info_msg "keystone-cleaner::Finishing token cleanup, there are $valid_token valid tokens..."
-
+cmon_data_purge() {
+    log_info_msg "Starting to purged cmon stats history"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table cmon_log;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table memory_usage_history;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table cpu_stats_history;"
@@ -79,11 +86,35 @@ if [ $viponme -eq 1 ]; then
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; truncate table mysql_slow_queries;"
     mysql -u${cmon_user_pass} -p${cmon_user_pass} -h${mysql_host} -P${mysql_port} -e "use cmon; ${cmon_stats_purge}"
     log_info_msg "Purged cmon stats history"
-else
-    log_info_msg "VIP is not in this node and hence not running the Keystone and CMON DB purge"
-fi
+}
 
+keystone_token_cleanup() {
+    delay=$(cat /etc/contrail/galeraid)
+    delay=$(($delay*120))
+    sleep $delay
+
+    log_info_msg "keystone-cleaner::Starting token cleanup"
+
+    `$token_clean 2> >( cat <() > $token_removed)`
+    tokens_purged=$(cat $token_removed | grep "Total expired tokens" | awk '{print $11}')
+    log_info_msg "Number of expired tokens purged in this job: $tokens_purged"
+
+    valid_token=$($mysql -u${mysql_user} -p${mysql_password} -h${mysql_host} -P${mysql_port} -e "USE keystone ; SELECT count(*) FROM token;")
+    valid_token=$(echo $valid_token | awk '{print $2}')
+
+    log_info_msg "keystone-cleaner::Finishing token cleanup, there are $valid_token valid tokens..."
+}
+
+log_purge() {
 find /var/log/contrail/ha/ -size +10240k -exec rm -f {} \;
 find /var/log/cmon.log -size +10240k -exec rm -f {} \;
+}
 
-exit 0
+main() {
+ cmon_data_purge
+ keystone_token_cleanup
+ log_purge
+ exit 0
+}
+
+main
