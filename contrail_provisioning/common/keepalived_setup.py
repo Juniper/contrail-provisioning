@@ -39,6 +39,8 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
         parser.add_argument("--external_vip", help = "External(public) Virtual IP Addresses of HA nodes"),
         parser.add_argument("--self_index", help = "The index of this HA node", type=int)
         parser.add_argument("--num_nodes", help = "Number of available HA node")
+        parser.add_argument("--internal_virtual_router_id", help = "Internal Virtual router ID", type=int)
+        parser.add_argument("--external_virtual_router_id", help = "External Virtual router ID", type=int)
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -74,16 +76,12 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
                 rise = 2
                 fall = 2
             if vip_name == 'INTERNAL':
-                router_id = 101
-                if 'openstack' in self._args.role:
-                    router_id = 100
-                external_device = internal_device
+                 router_id = self._args.internal_virtual_router_id
+                 external_device = internal_device
             else:
-                router_id = 201
-                if 'openstack' in self._args.role:
-                    router_id = 200
-                external_device = ext_device
-            priority = router_id - (self._args.self_index - 1)
+                 router_id = self._args.external_virtual_router_id
+                 external_device = ext_device
+            priority = (100 - self._args.self_index)
             if self._args.num_nodes > 2 and self._args.self_index == 2:
                 state = 'MASTER'
             vip_str = '_'.join([vip_name] + vip.split('.'))
