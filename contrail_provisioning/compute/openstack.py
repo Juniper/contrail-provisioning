@@ -58,6 +58,12 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             ctrl_infos.append('VMWARE_USERNAME=%s' % self._args.vmware_username)
             ctrl_infos.append('VMWARE_PASSWD=%s' % self._args.vmware_passwd)
             ctrl_infos.append('VMWARE_VMPG_VSWITCH=%s' % self._args.vmware_vmpg_vswitch)
+        if self._args.vcenter_server:
+            ctrl_infos.append('VCENTER_IP=%s' % self._args.vcenter_server)
+            ctrl_infos.append('VCENTER_USERNAME=%s' % self._args.vcenter_username)
+            ctrl_infos.append('VCENTER_PASSWORD=%s' % self._args.vcenter_password)
+            ctrl_infos.append('VCENTER_CLUSTER=%s' % self._args.vcenter_cluster)
+            ctrl_infos.append('VCENTER_DVSWITCH=%s' % self._args.vcenter_dvswitch)
         if self._args.dpdk:
             ctrl_infos.append('DPDK_MODE=True')
         self.update_vips_in_ctrl_details(ctrl_infos)
@@ -120,7 +126,10 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
-        self.fixup_config_files()
         self.build_ctrl_details()
+        if self._args.vcenter_server:
+            self.fixup_nova_conf()
+        else:
+            self.fixup_config_files()
+            self.add_vnc_config()
         self.run_services()
-        self.add_vnc_config()

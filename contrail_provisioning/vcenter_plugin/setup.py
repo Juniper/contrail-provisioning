@@ -38,6 +38,7 @@ class VcenterPluginSetup(ContrailSetup):
         parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
         parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
         parser.add_argument("--vcenter_ipfabricpg", help = "vcenter ipfabric port group")
+        parser.add_argument("--vcenter_compute", help = "vcenter as compute mode value")
         parser.add_argument("--api_hostname", help = "IP Address of the config node")
         parser.add_argument("--api_port", help = "Listen port for api server", type = int)
         parser.add_argument("--zookeeper_serverlist", help = "List of zookeeper ip:port")
@@ -54,6 +55,7 @@ class VcenterPluginSetup(ContrailSetup):
                          '__contrail_vcenter_datacenter__' : self._args.vcenter_datacenter,
                          '__contrail_vcenter_dvswitch__' : self._args.vcenter_dvswitch,
                          '__contrail_vcenter_ipfabricpg__' : self._args.vcenter_ipfabricpg,
+                         '__contrail_vcenter_compute__' : self._args.vcenter_compute,
                          '__contrail_api_hostname__' : self._args.api_hostname,
                          '__contrail_zookeeper_serverlist__' : self._args.zookeeper_serverlist,
                          '__contrail_api_port__' : self._args.api_port
@@ -61,9 +63,6 @@ class VcenterPluginSetup(ContrailSetup):
         self._template_substitute_write(contrail_vcenter_plugin_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-vcenter-plugin.conf')
         local("sudo mv %s/contrail-vcenter-plugin.conf /etc/contrail/contrail-vcenter-plugin.conf" %(self._temp_dir_name))
-        #disable contrail-svc-monitor for vcenter as orchestrator based provisioning
-        if (os.path.isfile('/etc/contrail/supervisord_config_files/contrail-svc-monitor.ini')):
-           local("sudo rm /etc/contrail/supervisord_config_files/contrail-svc-monitor.ini")
 
     def run_services(self):
         local("sudo vcenter-plugin-setup.sh")

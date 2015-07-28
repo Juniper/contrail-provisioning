@@ -117,6 +117,20 @@ if [ $VMWARE_IP ]; then
     fi
 fi
 
+if [ $VCENTER_IP ]; then
+    openstack-config --set /etc/nova/nova.conf vmware host_ip $VCENTER_IP 
+    openstack-config --set /etc/nova/nova.conf vmware host_username $VCENTER_USERNAME 
+    openstack-config --set /etc/nova/nova.conf vmware host_password $VCENTER_PASSWORD 
+    openstack-config --set /etc/nova/nova.conf vmware cluster_name $VCENTER_CLUSTER 
+    openstack-config --set /etc/nova/nova.conf vmware vcenter_dvswitch $VCENTER_DVSWITCH 
+    openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
+    openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver vmwareapi.contrailVCDriver
+    if [ -f /etc/nova/nova-compute.conf ]; then
+        openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver vmwareapi.contrailVCDriver
+        openstack-config --set /etc/nova/nova-compute.conf libvirt virt_type vmwareapi
+    fi
+fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
 openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
