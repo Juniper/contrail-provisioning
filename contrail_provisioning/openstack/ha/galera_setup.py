@@ -87,7 +87,6 @@ class GaleraSetup(ContrailSetup):
                                         self._temp_dir_name + '/galera_param')
         local("sudo mv %s/galera_param /etc/contrail/ha/" % (self._temp_dir_name))
 
-        zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
 
         if self.pdist in ['Ubuntu']:
             local("ln -sf /bin/true /sbin/chkconfig")
@@ -134,6 +133,7 @@ class GaleraSetup(ContrailSetup):
                 local('sed -i "/\[mysqld\]/a\collation-server = utf8_general_ci" %s' % self.mysql_conf)
 
     def fix_cmon_config(self):
+        zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
         template_vals = {'__internal_vip__' : self._args.internal_vip,
                          '__haproxy_dips__' : '"' + '" "'.join(self._args.galera_ip_list) + '"',
                          '__external_vip__' : self._args.external_vip,
