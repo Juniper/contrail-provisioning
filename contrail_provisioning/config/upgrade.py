@@ -32,6 +32,9 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                 ifmap_dir = '/etc/irond'
         self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']
 
+        if self._args.orchestrator == 'vcenter':
+            self.upgrade_data['backup'].remove('/etc/neutron')
+
         self.upgrade_data['restore'] += ['/etc/contrail/vnc_api_lib.ini',
                                      '/etc/contrail/contrail-svc-monitor.conf',
                                      '/etc/contrail/contrail-schema.conf',
