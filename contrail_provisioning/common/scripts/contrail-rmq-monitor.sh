@@ -55,6 +55,7 @@ if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
 fi
 
+init_files() {
 if [ ! -f "$file" ] ; then
          touch "$file"
 fi
@@ -78,6 +79,7 @@ fi
 if [ ! -f "$numrst" ] ; then
         touch $numrst
 fi
+}
 
 timestamp() {
     date
@@ -374,6 +376,7 @@ fi
 function run_rmq_monitor()
 {
  get_my_ip
+ init_files
  periodic_check
  cleanpending
  checkNrst
@@ -383,17 +386,52 @@ function run_rmq_monitor()
 function run_onzk_lock_acquire {
 ZK_IPPORTS="$ZK_SERVER_IP" python - "rmq_lock" <<END
 import os
+import psutil
 import socket
 import subprocess
 import sys, getopt
 from kazoo.client import KazooClient
-zk_ip_ports=os.environ['ZK_IPPORTS']
-zk=KazooClient(zk_ip_ports)
-zk.start()
-lock=zk.Lock('/rmq-monitor','%s-%d' % (socket.gethostname(),os.getpid()))
-with lock:
-   subprocess.call("/opt/contrail/bin/contrail-rmq-monitor.sh MONITOR", shell=True)
-   lock.release()
+from kazoo.client import KazooState
+class RmqmonElection:
+    zk_state = KazooState.CONNECTED
+    def __init__(self):
+       pass
+    def electRmqmon(self):
+       zk_ip_ports=os.environ['ZK_IPPORTS']
+       zk=KazooClient(zk_ip_ports, max_retries=10)
+       zk.start()
+       zk.add_listener(self.my_listener)
+       while True:
+           elect=zk.Election('/rmq-monitor','%s-%d' % (socket.gethostname(),os.getpid()))
+           elect.run(self.start_rmqmon)
+
+    def my_listener(self, state):
+      if state == KazooState.LOST:
+         RmqmonElection.zk_state=KazooState.LOST
+         self.stop_rmqmon()
+      elif state == KazooState.SUSPENDED:
+         RmqmonElection.zk_state=KazooState.SUSPENDED
+         self.stop_rmqmon()
+      elif state == KazooState.CONNECTED:
+         RmqmonElection.zk_state=KazooState.CONNECTED
+
+    def start_rmqmon(self):
+        subprocess.call("/opt/contrail/bin/contrail-rmq-monitor.sh MONITOR", shell=True)
+
+    def stop_rmqmon(self):
+        if (RmqmonElection.zk_state == KazooState.LOST or
+            RmqmonElection.zk_state == KazooState.SUSPENDED):
+            for process in psutil.process_iter():
+                if process.cmdline == ['python', '-', 'rmq_lock']:
+                   process.terminate()
+                   os._exit(0)
+
+def main():
+    rel=RmqmonElection()
+    rel.stop_rmqmon()
+    rel.electRmqmon()
+
+if  __name__ =='__main__':main()
 END
 }
 
