@@ -55,6 +55,7 @@ if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
 fi
 
+init_files() {
 if [ ! -f "$file" ] ; then
          touch "$file"
 fi
@@ -78,6 +79,7 @@ fi
 if [ ! -f "$numrst" ] ; then
         touch $numrst
 fi
+}
 
 timestamp() {
     date
@@ -374,6 +376,7 @@ fi
 function run_rmq_monitor()
 {
  get_my_ip
+ init_files
  periodic_check
  cleanpending
  checkNrst
