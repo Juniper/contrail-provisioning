@@ -26,7 +26,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             '/etc/contrail/contrail-analytics-api.conf',
             '/etc/contrail/contrail-collector.conf',
             '/etc/contrail/contrail-query-engine.conf',
-                                              ]
+            '/etc/contrail/contrail-analytics-nodemgr.conf',
+                                        ]
     def update_config(self):
         # DEvlop
         pass
