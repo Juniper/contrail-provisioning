@@ -14,6 +14,7 @@ mysql_host=$VIP
 mysql_port=33306
 MYSQL_SVC_CHECK="service mysql status"
 MYSQL_SVC_STOP="service mysql stop"
+MYSQL_SVC_START="service mysql start"
 HAP_RESTART="service haproxy restart"
 cmon_run=0
 viponme=0
@@ -31,6 +32,9 @@ cmonerror="CmonCron could not initialize"
 cmonlog="/var/log/cmon.log"
 ZKLOCK="/tmp/cmon-lock"
 ZKLOCK_PPID="/tmp/cmon-lock-ppid"
+MY_CNFBAK="/etc/mysql/.my.cnf.BK"
+MY_CNFBAK_CMON="/etc/mysql/my.cnf.bak"
+MY_CNF="/etc/mysql/my.cnf"
 
 NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
@@ -223,6 +227,23 @@ procs_check() {
 }
 
 bootstrap() {
+#Check for the conf file
+if [ ! -f "$MY_CNFBAK" ]; then
+   if [ -s "$MY_CNF" ];  then
+      /bin/cp $MY_CNF $MY_CNFBAK
+      log_info_msg "backed up my.cnf file"
+   fi
+fi
+
+if [ ! -s "$MY_CNF" ]; then
+   if [ -f "$MY_CNFBAK" ]; then
+       /bin/cp $MY_CNFBAK $MY_CNF
+       /bin/cp $MY_CNFBAK $MY_CNFBAK_CMON
+   else
+       log_error_msg "$MY_CNFBAK does not exist"
+   fi
+fi
+
 # Check for the state of mysql and remove any
 # stale gtid files
 galerastate=$(galera_check)
@@ -276,6 +297,7 @@ chkNRun_cluster_mon() {
 # Check periodically for RMQ status
 if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
       sleep $PERIODIC_RMQ_CHK_INTER
+      log_info_msg "Starting Periodic RMQ Monitor"
       (exec $RMQ_MONITOR)&
 fi
 
@@ -381,6 +403,25 @@ else
    if [ -f $RMQSTOP ]; then
      (exec $RMQ_SRVR_RST)&
      (exec rm -rf $RMQSTOP)&
+   fi
+fi
+}
+
+recoverMysqlOnCmonFail() {
+# In case where cmon marks a node in the glaera cluster as out of service
+# after 3 cycles of recovery failure, there needs to be a way to re-instate
+# the service for cmon to know that this node in the cluster can be managed
+galerastate=$(galera_check)
+if [ $galerastate == "y" ]; then
+   cmonpid=$(pidof cmon)
+   if [ ! -z "$cmonpid" ]; then
+           mysqlnode=$($MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h $mysql_host -P $mysql_port -e "use cmon;select hostname from mysql_server where connected=0;" | cut -d "/" -f 1 | sed -n 2p)
+           if [ ! -z "$mysqlnode" ]; then
+                `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $mysqlnode "(exec $MYSQL_SVC_START)&"`
+                 log_info_msg "Starting Mysql on $mysqlnode on detecting cmon marked mysql as out of service due to inactivitiy timeout"
+                 sleep 3
+                 `kill -9 $cmonpid`
+           fi
    fi
 fi
 }
@@ -508,6 +549,7 @@ main()
   procs_check
   cleanup
   reCluster
+  recoverMysqlOnCmonFail
   exit 0
 }
 
