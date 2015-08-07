@@ -326,7 +326,7 @@ SUBCHANNELS=1,2,3
         local("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
 
     def setup(self):
-        self.disable_selinux()
+        self.manage_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
