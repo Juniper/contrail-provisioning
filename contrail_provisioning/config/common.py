@@ -359,8 +359,13 @@ class ConfigBaseSetup(ContrailSetup):
                 print "[contrail-api and rabbitmq] started by supervisor config, continue to provision."
                 return
 
+    def manage_selinux(self):
+        if self.pdist == 'redhat':
+            self.enable_selinux_neutron_bool()
+        super(ConfigBaseSetup, self).manage_selinux()
+
     def setup(self):
-        self.disable_selinux()
+        self.manage_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
