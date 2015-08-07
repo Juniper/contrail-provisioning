@@ -3,6 +3,12 @@
 # Purpose of the script is to check the state of galera cluster
 # Author - Sanju Abraham
 
+# This script manages and checks for:
+#  1 - Cluster monitor (Galera Cluster monitor)
+#  2 - Openstack processes, esp when mysql takes time to start and process fails to connect at startup
+#  3 - Keepalived VIP clearing. Addressing a bug in keepalived where VIP are not removed from the attached interface
+#  4 - TCP TIME-WAIT and CLOSE-WAIT handling
+
 source /etc/contrail/ha/cmon_param
 
 LOGFILE=/var/log/contrail/ha/cmon-monitor.log
@@ -14,6 +20,7 @@ mysql_host=$VIP
 mysql_port=33306
 MYSQL_SVC_CHECK="service mysql status"
 MYSQL_SVC_STOP="service mysql stop"
+MYSQL_SVC_START="service mysql start"
 HAP_RESTART="service haproxy restart"
 cmon_run=0
 viponme=0
@@ -31,6 +38,9 @@ cmonerror="CmonCron could not initialize"
 cmonlog="/var/log/cmon.log"
 ZKLOCK="/tmp/cmon-lock"
 ZKLOCK_PPID="/tmp/cmon-lock-ppid"
+MY_CNFBAK="/etc/mysql/.my.cnf.BK"
+MY_CNFBAK_CMON="/etc/mysql/my.cnf.bak"
+MY_CNF="/etc/mysql/my.cnf"
 
 NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
@@ -176,7 +186,7 @@ verify_cmon() {
    fi
 }
 
-procs_check() {
+openstack_procs_check() {
   # These checks will eventually be replaced when we have nodemgr plugged in
   # for openstack services
   # CHECK FOR NOVA SCHD
@@ -222,7 +232,24 @@ procs_check() {
   fi
 }
 
-bootstrap() {
+chk_galera_cluster() {
+#Check for the conf file
+if [ ! -f "$MY_CNFBAK" ]; then
+   if [ -s "$MY_CNF" ];  then
+      /bin/cp $MY_CNF $MY_CNFBAK
+      log_info_msg "backed up my.cnf file"
+   fi
+fi
+
+if [ ! -s "$MY_CNF" ]; then
+   if [ -f "$MY_CNFBAK" ]; then
+       /bin/cp $MY_CNFBAK $MY_CNF
+       /bin/cp $MY_CNFBAK $MY_CNFBAK_CMON
+   else
+       log_error_msg "$MY_CNFBAK does not exist"
+   fi
+fi
+
 # Check for the state of mysql and remove any
 # stale gtid files
 galerastate=$(galera_check)
@@ -272,10 +299,11 @@ if [ -f $GTID_FILE ]; then
 fi
 }
 
-chkNRun_cluster_mon() {
+chkNRun_rmq_mon() {
 # Check periodically for RMQ status
 if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
       sleep $PERIODIC_RMQ_CHK_INTER
+      log_info_msg "Starting Periodic RMQ Monitor"
       (exec $RMQ_MONITOR)&
 fi
 
@@ -319,7 +347,7 @@ fi
    fi
 }
       
-cleanup() {
+tcpcleanup() {
 #Cleanup if there exists sockets in CLOSE_WAIT
 clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
 if [[ $clssoc -ne 0 ]]; then
@@ -381,6 +409,25 @@ else
    if [ -f $RMQSTOP ]; then
      (exec $RMQ_SRVR_RST)&
      (exec rm -rf $RMQSTOP)&
+   fi
+fi
+}
+
+recoverMysqlOnCmonFail() {
+# In case where cmon marks a node in the glaera cluster as out of service
+# after 3 cycles of recovery failure, there needs to be a way to re-instate
+# the service for cmon to know that this node in the cluster can be managed
+galerastate=$(galera_check)
+if [ $galerastate == "y" ]; then
+   cmonpid=$(pidof cmon)
+   if [ ! -z "$cmonpid" ]; then
+           mysqlnode=$($MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -h $mysql_host -P $mysql_port -e "use cmon;select hostname from mysql_server where connected=0;" | cut -d "/" -f 1 | sed -n 2p)
+           if [ ! -z "$mysqlnode" ]; then
+                `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $mysqlnode "(exec $MYSQL_SVC_START)&"`
+                 log_info_msg "Starting Mysql on $mysqlnode on detecting cmon marked mysql as out of service due to inactivitiy timeout"
+                 sleep 3
+                 `kill -9 $cmonpid`
+           fi
    fi
 fi
 }
@@ -500,14 +547,15 @@ main()
 {
   vip_info
   if [[ $MONITOR_GALERA == "True" ]]; then
-    bootstrap
+    chk_galera_cluster
     manage_cmon
+    reCluster
+    recoverMysqlOnCmonFail
+    tcpcleanup
   fi
-  chkNRun_cluster_mon
+  chkNRun_rmq_mon
   ka_vip_del
-  procs_check
-  cleanup
-  reCluster
+  openstack_procs_check
   exit 0
 }
 
