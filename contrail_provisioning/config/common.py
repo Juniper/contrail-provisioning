@@ -326,7 +326,7 @@ class ConfigBaseSetup(ContrailSetup):
                 return
 
     def setup(self):
-        self.disable_selinux()
+        self.manage_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
