@@ -149,6 +149,20 @@ class ContrailSetup(object):
                 # cleanup in case move had error
                 local("rm config.new")
 
+    def enable_selinux_haproxy_bool(self):
+        # Turn on the haproxy_connect_any boolean
+        local("setsebool -PV haproxy_connect_any on")
+
+    def enable_selinux_neutron_bool(self):
+        # Turn on the neutron_can_network boolean
+        local("setsebool -PV neutron_can_network on")
+
+    def manage_selinux(self):
+        if self.pdist == 'redhat':
+            self.enable_selinux_haproxy_bool()
+        else:
+            self.disable_selinux()
+
     def disable_iptables(self):
         # Disable iptables
         with settings(warn_only = True):
@@ -248,7 +262,7 @@ class ContrailSetup(object):
                         fl, sec, var))
 
     def setup(self):
-        self.disable_selinux()
+        self.manage_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
