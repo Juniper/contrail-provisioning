@@ -165,7 +165,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         local("sudo quantum-server-setup.sh")
 
     def setup(self):
-        self.disable_selinux()
+        self.manage_selinux()
         self.disable_iptables()
         self.setup_coredump()
         self.fixup_config_files()
