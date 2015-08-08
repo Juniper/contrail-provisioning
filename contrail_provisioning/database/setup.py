@@ -208,6 +208,12 @@ class DatabaseSetup(ContrailSetup):
         if (len(zk_list)>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
                 local('sudo echo "default.replication.factor=2" >> %s' % (KAFKA_SERVER_PROPERTIES))
+        KAFKA_LOG4J_PROPERTIES='/usr/share/kafka/config/log4j.properties'
+        cnd = os.path.exists(KAFKA_LOG4J_PROPERTIES)
+        if not cnd:
+            raise RuntimeError('%s does not appear to be a kafka logs config' % KAFKA_LOG4J_PROPERTIES)
+        self.replace_in_file(KAFKA_LOG4J_PROPERTIES, 'DailyRollingFileAppender','RollingFileAppender')
+        self.replace_in_file(KAFKA_LOG4J_PROPERTIES, "DatePattern='.'yyyy-MM-dd-HH", "MaxBackupIndex=10")
 
     def fixup_contrail_database_nodemgr(self):
         template_vals = {
