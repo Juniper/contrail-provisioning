@@ -139,6 +139,7 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     if [ "$INTERNAL_VIP" != "none" ]; then
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri http://$INTERNAL_VIP:5000
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 5000
         openstack-config --set /etc/glance/glance-$cfg.conf database idle_timeout 180
