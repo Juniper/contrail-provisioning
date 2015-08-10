@@ -30,10 +30,12 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             self.upgrade_data['backup'].append('/etc/libvirt')
 
         self.upgrade_data['restore'] += ['/etc/contrail/agent_param',
-                                 '/etc/contrail/contrail-vrouter-agent.conf',
-                                 '/etc/contrail/vrouter_nodemgr_param',
-                                 '/etc/nova/nova.conf',
-                                 '/etc/libvirt/qemu.conf']
+                                     '/etc/contrail/contrail-vrouter-agent.conf',
+                                     '/etc/contrail/vrouter_nodemgr_param',
+                                     '/etc/nova/nova.conf',
+                                     '/etc/libvirt/qemu.conf',
+                                     '/etc/contrail/contrail-vrouter-nodemgr.conf',
+                                        ]
         if self.pdist in ['Ubuntu']:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')

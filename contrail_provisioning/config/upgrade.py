@@ -30,14 +30,25 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         if self.pdist in ['centos', 'redhat']:
             if (self._args.from_rel < 2.0 and self._args.to_rel >= 2.2):
                 ifmap_dir = '/etc/irond'
-        self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']
+        self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron',
+                                    '/etc/init.d/contrail-api',
+                                    '/etc/init.d/contrail-discovery',
+                                    '/etc/sudoers.d/contrail_sudoers',
+                                       ]
 
         self.upgrade_data['restore'] += ['/etc/contrail/vnc_api_lib.ini',
-                                     '/etc/contrail/contrail-svc-monitor.conf',
-                                     '/etc/contrail/contrail-schema.conf',
-                                     '/etc/contrail/contrail-api.conf',
-                                     '/etc/contrail/contrail-discovery.conf',
-                                             ]
+                                   '/etc/contrail/contrail-svc-monitor.conf',
+                                   '/etc/contrail/contrail-schema.conf',
+                                   '/etc/contrail/contrail-api.conf',
+                                   '/etc/contrail/contrail-discovery.conf',
+                                   '/etc/contrail/supervisord_config_files/contrail-api.ini',
+                                   '/etc/contrail/supervisord_config_files/contrail-discovery.ini',
+                                   '/etc/contrail/contrail-device-manager.conf',
+                                   '/etc/contrail/contrail-config-nodemgr.conf',
+                                   '/etc/sudoers.d/contrail_sudoers',
+                                   '/etc/init.d/contrail-api',
+                                   '/etc/init.d/contrail-discovery',
+                                        ]
 
     def upgrade(self):
         self._upgrade()
