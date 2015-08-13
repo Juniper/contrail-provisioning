@@ -53,6 +53,12 @@ class ComputeSetup(ContrailSetup):
             'vmware_vmpg_vswitch': 'c0ntrail123',
             'vmware_vmpg_vswitch_mtu': None,
             'vmware_datanic_mtu': None,
+            'mode': None,
+            'vcenter_server': None,
+            'vcenter_username': None,
+            'vcenter_password': None,
+            'vcenter_cluster': None,
+            'vcenter_dvswitch': None,
             'no_contrail_openstack': False,
             'no_nova_config': False,
             'orchestrator': 'openstack',
@@ -111,6 +117,12 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--vmware_vmpg_vswitch", help = "The Vmware VMPG vswitch name")
         parser.add_argument("--vmware_vmpg_vswitch_mtu", help = "The Vmware VMPG vswitch MTU")
         parser.add_argument("--vmware_datanic_mtu", help = "The Vmware data interface MTU")
+        parser.add_argument("--mode", help = "mode - openstack or vcenter")
+        parser.add_argument("--vcenter_server", help = "The vcenter server IP")
+        parser.add_argument("--vcenter_username", help = "The vcenter server username")
+        parser.add_argument("--vcenter_password", help = "The vcenter server password")
+        parser.add_argument("--vcenter_cluster", help = "The cluster on vcenter")
+        parser.add_argument("--vcenter_dvswitch", help = "The dvswitch on vcenter")
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "VIP Address of config  nodes")
