@@ -169,6 +169,7 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
+        local("sudo sed -i 's/MaxTenuringThreshold=1/MaxTenuringThreshold=30/g' %s" % (env_file))
 
         self.fixup_contrail_database_nodemgr()
 
