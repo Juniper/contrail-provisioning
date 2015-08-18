@@ -46,12 +46,15 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                    '/etc/contrail/contrail-discovery.conf',
                                    '/etc/contrail/supervisord_config_files/contrail-api.ini',
                                    '/etc/contrail/supervisord_config_files/contrail-discovery.ini',
-                                   '/etc/contrail/contrail-device-manager.conf',
-                                   '/etc/contrail/contrail-config-nodemgr.conf',
                                    '/etc/sudoers.d/contrail_sudoers',
                                    '/etc/init.d/contrail-api',
                                    '/etc/init.d/contrail-discovery',
                                         ]
+
+        if (self._args.from_rel >= 2.2):
+            self.upgrade_data['restore'].append('/etc/contrail/contrail-config-nodemgr.conf')
+        if (self._args.from_rel >= 2.1):
+            self.upgrade_data['restore'].append('/etc/contrail/contrail-device-manager.conf')
 
     def upgrade(self):
         self._upgrade()
