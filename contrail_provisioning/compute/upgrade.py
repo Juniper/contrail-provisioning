@@ -39,8 +39,11 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
                                      '/etc/contrail/vrouter_nodemgr_param',
                                      '/etc/nova/nova.conf',
                                      '/etc/libvirt/qemu.conf',
-                                     '/etc/contrail/contrail-vrouter-nodemgr.conf',
                                         ]
+
+        if (self._args.from_rel >= 2.2):
+            self.upgrade_data['restore'].append('/etc/contrail/contrail-vrouter-nodemgr.conf')
+
         if self.pdist in ['Ubuntu']:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')
