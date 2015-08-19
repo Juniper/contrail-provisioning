@@ -220,7 +220,7 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [[ $nova_api_version == *"2013.2"* ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
     else
-        if [[ $nova_api_version == *"2015.1"* ]]; then
+        if [[ $nova_api_version == *"2015"* ]]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         else
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
