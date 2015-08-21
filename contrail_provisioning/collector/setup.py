@@ -50,9 +50,9 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
         parser.add_argument("--num_nodes", help = "Number of collector nodes", type = int)
         parser.add_argument("--analytics_data_ttl", help = "TTL in hours of data stored in cassandra database", type = int)
-        parser.add_argument("--analytics_config_audit_ttl", help = "TTL in hours of config audit data stored in cassandra database", type = int, default = -1)
-        parser.add_argument("--analytics_statistics_ttl", help = "TTL in hours of stats data stored in cassandra database", type = int, default = -1)
-        parser.add_argument("--analytics_flow_ttl", help = "TTL in hours of flow data stored in cassandra database", type = int, default = -1)
+        parser.add_argument("--analytics_config_audit_ttl", help = "TTL in hours of config audit data stored in cassandra database", type = int)
+        parser.add_argument("--analytics_statistics_ttl", help = "TTL in hours of stats data stored in cassandra database", type = int)
+        parser.add_argument("--analytics_flow_ttl", help = "TTL in hours of flow data stored in cassandra database", type = int)
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--redis_password", help = "Redis password")
@@ -154,14 +154,22 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_listen_port__' : '8086',
                          '__contrail_http_server_port__' : '8089',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
-                         '__contrail_config_audit_ttl__' : self._args.analytics_config_audit_ttl,
-                         '__contrail_statistics_ttl__' : self._args.analytics_statistics_ttl,
-                         '__contrail_flow_ttl__' : self._args.analytics_flow_ttl,
+                         '__contrail_analytics_data_ttl__' : '#analytics_data_ttl=48',
+                         '__contrail_config_audit_ttl__' : '#analytics_config_audit_ttl=2160',
+                         '__contrail_statistics_ttl__' : '#analytics_statistics_ttl=168',
+                         '__contrail_flow_ttl__' : '#analytics_flow_ttl=2',
                          '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port),
                          '__contrail_redis_password__' : '',
                          '__contrail_kafka_broker_list__':''
                        }
+        if self._args.analytics_data_ttl:
+            template_vals['__contrail_analytics_data_ttl__'] = 'analytics_data_ttl=%d' % self._args.analytics_data_ttl
+        if self._args.analytics_config_audit_ttl:
+            template_vals['__contrail_config_audit_ttl__'] = 'analytics_config_audit_ttl=%d' % self._args.analytics_config_audit_ttl
+        if self._args.analytics_statistics_ttl:
+            template_vals['__contrail_statistics_ttl__'] = 'analytics_statistics_ttl=%d' % self._args.analytics_statistics_ttl
+        if self._args.analytics_flow_ttl:
+            template_vals['__contrail_flow_ttl__'] = 'analytics_flow_ttl=%d' % self._args.analytics_flow_ttl
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
         if self._args.kafka_enabled == 'True':
