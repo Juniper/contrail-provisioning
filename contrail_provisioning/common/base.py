@@ -227,7 +227,6 @@ class ContrailSetup(object):
                          '__contrail_admin_user__': self._args.keystone_admin_user,
                          '__contrail_admin_password__': self._args.keystone_admin_passwd,
                          '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
-                         '__contrail_admin_token__': self._args.keystone_admin_token,
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
                          '__keystone_insecure_flag__': self._args.keystone_insecure,

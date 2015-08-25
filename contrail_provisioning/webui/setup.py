@@ -78,7 +78,6 @@ class WebuiSetup(ContrailSetup):
         admin_user = self._args.admin_user
         admin_password = self._args.admin_password
         admin_tenant_name = self._args.admin_tenant_name
-        admin_token = self._args.admin_token
 
         local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
@@ -97,9 +96,6 @@ class WebuiSetup(ContrailSetup):
             local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
         if admin_password:
             local("sudo sed \"s/auth.admin_password.*/auth.admin_password = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(admin_password))
-            local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
-        if admin_token:
-            local("sudo sed \"s/auth.admin_token.*/auth.admin_token = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(admin_token))
             local("sudo mv contrail-webui-userauth.js.new /etc/contrail/contrail-webui-userauth.js")
         if admin_tenant_name:
             local("sudo sed \"s/auth.admin_tenant_name.*/auth.admin_tenant_name = '%s';/g\" /etc/contrail/contrail-webui-userauth.js > contrail-webui-userauth.js.new" %(admin_tenant_name))
