@@ -13,7 +13,6 @@ analytics_api_port = $__contrail_analytics_server_port__
 
 [KEYSTONE]
 auth_url = $__contrail_ks_auth_protocol__://$__contrail_keystone_ip__:$__contrail_ks_auth_port__/v2.0
-admin_token = $__contrail_admin_token__
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
 admin_tenant_name=$__contrail_admin_tenant_name__

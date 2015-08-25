@@ -94,7 +94,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                          '__contrail_analytics_server_port__': '8081',
                          '__contrail_multi_tenancy__': self._args.multi_tenancy,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
-                         '__contrail_admin_token__': self._args.keystone_admin_token,
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
                          '__contrail_admin_user__': self._args.keystone_admin_user,
