@@ -48,15 +48,14 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             # Create contrail-keystone-auth.conf
             if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
                 self.fixup_keystone_auth_config_file()
-            # Kafka is introduced from release 2.20
-            if self._args.kafka_enabled == 'True':
-                self.fixup_contrail_alarm_gen()
-                kafka_broker_list = [server[0] + ":9092"\
-                                     for server in self.cassandra_server_list]
-                kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
-                local('openstack-config --set\
-                      /etc/contrail/contrail-collector.conf\
-                      DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
+            # Kafka is introduced from release 2.30
+            self.fixup_contrail_alarm_gen()
+            kafka_broker_list = [server[0] + ":9092"\
+                                 for server in self.cassandra_server_list]
+            kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+            local('openstack-config --set\
+                  /etc/contrail/contrail-collector.conf\
+                  DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
         self.restart()
 
 

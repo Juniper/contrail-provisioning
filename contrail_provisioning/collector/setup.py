@@ -61,6 +61,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--analytics_syslog_port", help = "Listen port for analytics syslog server", type = int)
         parser.add_argument("--internal_vip", help = "Internal VIP Address of openstack nodes")
         parser.add_argument("--redis_password", help = "Redis password")
+        # TODO : remove this option : kafka will now stay enabled
         parser.add_argument("--kafka_enabled", help = "kafka enabled flag")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
@@ -94,8 +95,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_analytics_nodemgr()
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
             self.fixup_keystone_auth_config_file()
-        if self._args.kafka_enabled == 'True':
-            self.fixup_contrail_alarm_gen()
+        self.fixup_contrail_alarm_gen()
         if self._args.cassandra_user is not None:
             self.fixup_cassandra_config()
             self.fixup_ini_files()
@@ -213,10 +213,9 @@ class CollectorSetup(ContrailSetup):
             template_vals['__contrail_flow_ttl__'] = 'analytics_flow_ttl=%d' % self._args.analytics_flow_ttl
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
-        if self._args.kafka_enabled == 'True':
-            kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
-            kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
-            template_vals['__contrail_kafka_broker_list__'] = kafka_broker_list_str
+        kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
+        kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+        template_vals['__contrail_kafka_broker_list__'] = kafka_broker_list_str
         self._template_substitute_write(contrail_collector_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-collector.conf')
         local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(self._temp_dir_name))
