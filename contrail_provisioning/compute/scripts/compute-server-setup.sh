@@ -110,10 +110,10 @@ else
     # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
     # if controller node is compute node so the VIF_TYPE=vrouter is available
     if [ $is_redhat -eq 1 ]; then
-        # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI
-        is_juno=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$nova_compute_ver') == LooseVersion('2014.2.2')")
-        if [ "$is_juno" == "True" ]; then
+        # For Juno or above openstack releases, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        is_juno_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$nova_compute_ver') >= LooseVersion('2014.2.2')")
+        if [ "$is_juno_or_above" == "True" ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
     fi
