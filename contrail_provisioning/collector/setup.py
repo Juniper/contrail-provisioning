@@ -66,8 +66,6 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
         parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
         parser.add_argument("--keystone_admin_tenant_name", help = "Keystone admin tenant name.")
-        parser.add_argument("--keystone_admin_token",
-            help = "admin_token value in keystone.conf")
         parser.add_argument("--keystone_auth_protocol",
             help = "Auth protocol used to talk to keystone")
         parser.add_argument("--keystone_auth_port",
