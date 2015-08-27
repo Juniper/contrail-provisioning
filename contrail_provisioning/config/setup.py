@@ -88,8 +88,6 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of the networking service user - neutron/quantum")
-        parser.add_argument("--keystone_admin_token", 
-            help = "admin_token value in keystone.conf")
         parser.add_argument("--keystone_insecure", 
             help = "Connect to keystone in secure or insecure mode if in https mode",
             default = 'False')
