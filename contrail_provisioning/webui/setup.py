@@ -28,7 +28,6 @@ class WebuiSetup(ContrailSetup):
             'admin_user': 'admin',
             'admin_password': 'contrail123',
             'admin_tenant_name': 'admin',
-            'admin_token': '',
         }
         self.parse_args(args_str)
 
@@ -62,8 +61,6 @@ class WebuiSetup(ContrailSetup):
                             help = "Identity Manager admin user's password.")
         parser.add_argument("--admin_tenant_name",
                             help = "Identity Manager admin tenant name.")
-        parser.add_argument("--admin_token",
-                            help = "admin_token value in Identity Manager's config file")
         parser.add_argument("--redis_password", help = "Redis password")
         self._args = parser.parse_args(self.remaining_argv)
 
