@@ -112,21 +112,40 @@ class DatabaseSetup(ContrailSetup):
             self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
         if analytics_data_dir:
             if not data_dir:
-                data_dir = '/var/lib/cassandra/data'
-            analytics_dir_link = os.path.join(data_dir, 'ContrailAnalytics')
+                data_dir = '/var/lib/cassandra'
+                cass_data_dir = os.path.join(data_dir, 'data')
+            else:
+                cass_data_dir = data_dir
+            analytics_dir_link = os.path.join(cass_data_dir, 'ContrailAnalytics')
             analytics_dir = os.path.join(analytics_data_dir, 'ContrailAnalytics')
             if not os.path.exists(analytics_dir_link):
                 if not os.path.exists(data_dir):
                     local("sudo mkdir -p %s" % (data_dir))
+                    local("sudo chown -R cassandra: %s" % (data_dir))
+                if not os.path.exists(cass_data_dir):
+                    local("sudo mkdir -p %s" % (cass_data_dir))
+                    local("sudo chown -R cassandra: %s" % (cass_data_dir))
                 if not os.path.exists(analytics_dir):
                     local("sudo mkdir -p %s" % (analytics_dir))
+                    local("sudo chown -R cassandra: %s" % (analytics_dir))
                 local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
+                local("sudo chown -h cassandra: %s" % (analytics_dir_link))
         else:
             if not data_dir:
-                data_dir = '/var/lib/cassandra/data'
-            analytics_dir = os.path.join(data_dir, 'ContrailAnalytics')
+                data_dir = '/var/lib/cassandra'
+                cass_data_dir = os.path.join(data_dir, 'data')
+            else:
+                cass_data_dir = data_dir
+            analytics_dir = os.path.join(cass_data_dir, 'ContrailAnalytics')
             if not os.path.exists(analytics_dir):
+                if not os.path.exists(data_dir):
+                    local("sudo mkdir -p %s" % (data_dir))
+                    local("sudo chown -R cassandra: %s" % (data_dir))
+                if not os.path.exists(cass_data_dir):
+                    local("sudo mkdir -p %s" % (cass_data_dir))
+                    local("sudo chown -R cassandra: %s" % (cass_data_dir))
                 local("sudo mkdir -p %s" % (analytics_dir))
+                local("sudo chown -R cassandra: %s" % (analytics_dir))
 
         disk_cmd = "df -Pk " + analytics_dir + " | grep % | awk '{print $2}'"
         total_disk = local(disk_cmd, capture = True).strip()
