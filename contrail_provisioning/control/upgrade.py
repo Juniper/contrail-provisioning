@@ -25,7 +25,11 @@ class ControlUpgrade(ContrailUpgrade, ControlSetup):
                             '/etc/contrail/contrail-dns.conf',
                             '/etc/contrail/dns/contrail-named.conf',
                             '/etc/contrail/dns/contrail-rndc.conf',
-                            '/etc/contrail/dns/contrail-named.pid'] 
+                            '/etc/contrail/dns/contrail-named.pid',
+                                        ]
+
+        if (self._args.from_rel >= 2.2):
+            self.upgrade_data['restore'].append('/etc/contrail/contrail-control-nodemgr.conf')
 
     def restart(self):
         local('service supervisor-control restart')
