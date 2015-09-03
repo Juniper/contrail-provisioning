@@ -42,6 +42,8 @@ class ConfigBaseSetup(ContrailSetup):
         self.cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
         self.zk_servers = ','.join(self._args.zookeeper_ip_list)
         self.zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+        self.control_node_users = '\n'.join(['%s:%s' %(s, s) for s in self._args.control_ip_list])
+        self.control_node_dns_users = '\n'.join(['%s.dns:%s.dns' %(s, s) for s in self._args.control_ip_list])
 
         self.rabbit_host = self.cfgm_ip
         self.rabbit_port = 5672
@@ -81,7 +83,9 @@ class ConfigBaseSetup(ContrailSetup):
                                             template_vals, self._temp_dir_name + '/authorization.properties')
             local("sudo mv %s/authorization.properties /etc/ifmap-server/" %(self._temp_dir_name))
             # basicauthusers.properties
-            template_vals = {
+
+            template_vals = {'__contrail_control_node_users__' : self.control_node_users,
+                             '__contrail_control_node_dns_users__' : self.control_node_dns_users,
                             }
             self._template_substitute_write(ifmap_basicauthusers.template,
                                             template_vals, self._temp_dir_name + '/basicauthusers.properties')
