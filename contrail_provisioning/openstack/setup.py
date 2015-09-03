@@ -56,6 +56,7 @@ class OpenstackSetup(ContrailSetup):
         parser = self._parse_args(args_str)
 
         parser.add_argument("--self_ip", help = "IP Address of this system")
+        parser.add_argument("--node_to_unregister", help = "IP Address of the node whose services needs to be removed")
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
         parser.add_argument("--openstack_index", help = "The index of this openstack node")
         parser.add_argument("--openstack_ip_list", nargs='+', type=str,
@@ -127,6 +128,14 @@ class OpenstackSetup(ContrailSetup):
         # override for ubuntu when required
         juno_version = '2014.2.2'
         return LooseVersion(actual_dashboard_version) >= LooseVersion(juno_version)
+
+    def unregister_all_services(self):
+        hostname = local('getent hosts %s | awk \'{print $2}\'' % self._args.node_to_unregister, capture = True)
+        service_list = local("source /etc/contrail/openstackrc; nova service-list |\
+                              grep %s | awk '{print $2}'" % hostname, capture = True, shell='/bin/bash').split()
+
+        for service in service_list:
+            local('source /etc/contrail/openstackrc; nova service-delete %s' % service, shell='/bin/bash')
 
     def fixup_config_files(self):
         nova_conf_file = "/etc/nova/nova.conf"
@@ -201,6 +210,10 @@ class OpenstackSetup(ContrailSetup):
 def main(args_str = None):
     openstack = OpenstackSetup(args_str)
     openstack.setup()
+
+def service_unregister(args_str = None):
+    openstack = OpenstackSetup(args_str)
+    openstack.unregister_all_services()
 
 if __name__ == "__main__":
     main() 
