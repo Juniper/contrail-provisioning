@@ -82,10 +82,16 @@ class SetupCeph(object):
     CONTRAIL_STORAGE_STATS_CONF = '/etc/contrail/contrail-storage-nodemgr.conf'
     global CINDER_VOLUME_INIT_CONFIG
     CINDER_VOLUME_INIT_CONFIG = '/etc/init/cinder-volume.conf'
+    global LIBVIRT_BIN_INIT_CONFIG
+    LIBVIRT_BIN_INIT_CONFIG = '/etc/init/libvirt-bin.conf'
+    global LIBVIRT_BIN_INIT_CFG_BAK
+    LIBVIRT_BIN_INIT_CFG_BAK = '/tmp/libvirt-bin.conf.bak'
     global CINDER_PATCH_FILE
     CINDER_PATCH_FILE = '/tmp/manager.patch'
     global CINDER_VOLUME_MGR_PY
     CINDER_VOLUME_MGR_PY = '/usr/lib/python2.7/dist-packages/cinder/volume/manager.py'
+    global SYSFS_CONF
+    SYSFS_CONF = '/etc/sysfs.conf'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -94,12 +100,20 @@ class SetupCeph(object):
     TRUE = 1
     global FALSE
     FALSE = 0
+    global MAX_SECTORS_KB
+    MAX_SECTORS_KB = 4096
+    global MAX_NR_REQS
+    MAX_NR_REQS = 512
+    global MAX_READ_AHEAD
+    MAX_READ_AHEAD = 4096
+    global IO_NOOP_SCHED
+    IO_NOOP_SCHED = 'noop'
     # Denotes the OS type whether Ubuntu or Centos.
     global pdist
     pdist = platform.dist()[0]
     # Maximum monitors to be created
     global MAX_MONS
-    MAX_MONS = 10
+    MAX_MONS = 5
     # RBD cache size
     global RBD_CACHE_SIZE
     RBD_CACHE_SIZE = 536870912
@@ -1483,27 +1497,20 @@ class SetupCeph(object):
     # Set number of disk threads
     def do_tune_ceph(self):
 
-        # rbd cache enabled and rbd cache size set to 512MB
+        # rbd cache enabled
         local('ceph tell osd.* injectargs -- --rbd_cache=true')
-        local('sudo openstack-config --set %s global "rbd cache" true'
-                            %(CEPH_CONFIG_FILE))
-
-        local('ceph tell osd.* injectargs -- --rbd_cache_size=%s'
-                            %(RBD_CACHE_SIZE))
-        local('sudo openstack-config --set %s global "rbd cache size" %s'
-                            %(CEPH_CONFIG_FILE, RBD_CACHE_SIZE))
+        #local('ceph tell osd.* injectargs -- --rbd_cache_size=%s'
+        #                    %(RBD_CACHE_SIZE))
+        #local('sudo openstack-config --set %s global "rbd cache size" %s'
+        #                    %(CEPH_CONFIG_FILE, RBD_CACHE_SIZE))
 
         # change default osd op threads 2 to 4
         local('ceph tell osd.* injectargs -- --osd_op_threads=%s'
                             %(CEPH_OP_THREADS))
-        local('sudo openstack-config --set %s osd "osd op threads" %s'
-                            %(CEPH_CONFIG_FILE, CEPH_OP_THREADS))
 
         # change default disk threads 1 to 2
         local('ceph tell osd.* injectargs -- --osd_disk_threads=%s'
                             %(CEPH_DISK_THREADS))
-        local('sudo openstack-config --set %s osd "osd disk threads" %s'
-                            %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
 
         # change default heartbeat based on Replica size
         if self._args.storage_replica_size != 'None':
@@ -1512,25 +1519,153 @@ class SetupCeph(object):
             heartbeat_timeout = 120
         local('ceph tell osd.* injectargs -- --osd_heartbeat_grace=%s'
                             %(heartbeat_timeout))
-        local('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
-                            %(CEPH_CONFIG_FILE, heartbeat_timeout))
+        local('ceph tell osd.* injectargs -- --throttler_perf_counter=false')
+        local('ceph tell osd.* injectargs -- --osd_enable_op_tracker=false')
+        local('ceph tell osd.* injectargs -- --filestore_merge_threshold=40')
+        local('ceph tell osd.* injectargs -- --filestore_split_multiple=8')
 
         # compute ceph.conf configuration done here
         for entries, entry_token in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens):
-            if entries != self._args.storage_master:
-                with settings(host_string = 'root@%s' %(entries),
+            with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
-                    run('sudo openstack-config --set %s global "rbd cache" true'
+                nofilecheck = run('sudo cat %s | grep -w \
+                                    "limit nofile 102400 102400" | wc -l' \
+                                    %(LIBVIRT_BIN_INIT_CONFIG))
+
+                if nofilecheck == '0':
+                    run('awk \'/pre-start/{print \"limit nofile 102400 102400\"}1\' \
+                            %s > %s' %(LIBVIRT_BIN_INIT_CONFIG,
+                                        LIBVIRT_BIN_INIT_CFG_BAK))
+                    run('mv %s %s' %(LIBVIRT_BIN_INIT_CFG_BAK,
+                                        LIBVIRT_BIN_INIT_CONFIG))
+
+                run('sudo openstack-config --set %s global "rbd cache" true'
                             %(CEPH_CONFIG_FILE))
-                    run('sudo openstack-config --set %s global "rbd cache size" %s'
-                            %(CEPH_CONFIG_FILE, RBD_CACHE_SIZE))
-                    run('sudo openstack-config --set %s osd "osd op threads" %s'
+                #run('sudo openstack-config --set %s global "rbd cache size" %s'
+                #            %(CEPH_CONFIG_FILE, RBD_CACHE_SIZE))
+                run('sudo openstack-config --set %s osd "osd op threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_OP_THREADS))
-                    run('sudo openstack-config --set %s osd "osd disk threads" %s'
+                run('sudo openstack-config --set %s osd "osd disk threads" %s'
                             %(CEPH_CONFIG_FILE, CEPH_DISK_THREADS))
-                    run('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
+                run('sudo openstack-config --set %s osd "osd heartbeat grace" %s'
                             %(CEPH_CONFIG_FILE, heartbeat_timeout))
+                run('sudo openstack-config --set %s global "debug_lockdep" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_context" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_crush" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_buffer" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_timer" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_filer" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_objecter" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_rados" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_rbd" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_journaler" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_objectcatcher" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_client" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_osd" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_optracker" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_objclass" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_filestore" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_journal" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_ms" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_monc" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_tp" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_auth" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_finisher" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_heartbeatmap" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_perfcounter" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_asok" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_throttle" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_mon" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_paxos" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global "debug_rgw" 0/0'
+                            %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global \
+                            throttler_perf_counter false' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s osd \
+                            osd_enable_op_tracker false' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s osd \
+                            filestore_merge_threshold 40' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s osd \
+                            filestore_split_multiple 8' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s client \
+                            rbd_cache true' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s DEFAULT \
+                            disk_cachemodes \\\'network=writeback\\\''
+                                %(NOVA_CONFIG_FILE))
+                run('sudo openstack-config --set %s libvirt \
+                            disk_cachemodes \\\'network=writeback\\\''
+                                %(NOVA_CONFIG_FILE))
+                ceph_disks=run('cat /proc/mounts | grep ceph | grep osd | \
+                                awk \'{print $1}\'|cut -d \'/\' -f3')
+                disks = ceph_disks.split('\r\n') 
+                for disk in disks:
+                    disk = disk[:-1]
+                    if disk == '':
+                        continue
+                    run('echo %s > /sys/block/%s/queue/max_sectors_kb'
+                                %(MAX_SECTORS_KB, disk),
+                                warn_only=True)
+                    sect_kb=run('grep max_sectors_kb %s 2>/dev/null \
+                                | grep %s | wc -l' %(SYSFS_CONF, disk))
+                    if sect_kb == '0':
+                        run('echo block/%s/queue/max_sectors_kb = %s >> %s'
+                                %(disk, MAX_SECTORS_KB, SYSFS_CONF))
+                    run('echo %s > /sys/block/%s/queue/nr_requests'
+                                %(MAX_NR_REQS, disk),
+                                warn_only=True)
+                    nr_reqs=run('grep nr_requests %s 2>/dev/null | \
+                                grep %s | wc -l' %(SYSFS_CONF, disk))
+                    if nr_reqs == '0':
+                        run('echo block/%s/queue/nr_requests = %s >> %s'
+                                %(disk, MAX_NR_REQS, SYSFS_CONF))
+                    run('echo %s > /sys/block/%s/queue/read_ahead_kb'
+                                %(MAX_READ_AHEAD, disk),
+                                warn_only=True)
+                    read_ahead=run('grep read_ahead_kb %s 2>/dev/null | \
+                                grep %s | wc -l' %(SYSFS_CONF, disk))
+                    if read_ahead == '0':
+                        run('echo block/%s/queue/read_ahead_kb = %s >> %s'
+                                %(disk, MAX_READ_AHEAD, SYSFS_CONF))
+                    rot=run('cat /sys/block/%s/queue/rotational'
+                                %(disk))
+                    if rot == '0':
+                        run('echo %s > /sys/block/%s/queue/scheduler'
+                                    %(IO_NOOP_SCHED, disk),
+                                    warn_only=True)
+                        io_sched=run('grep noop %s 2>/dev/null | \
+                                    grep %s | wc -l' %(SYSFS_CONF, disk))
+                        if io_sched == '0':
+                            run('echo block/%s/queue/scheduler = %s >> %s'
+                                    %(disk, IO_NOOP_SCHED, SYSFS_CONF))
         return
     #end do_tune_ceph()
 
@@ -2061,6 +2196,7 @@ class SetupCeph(object):
             local('awk \'/exec/{print \"limit nofile 102400 102400\"}1\' %s > \
                    /tmp/cinder_volume_init' %(CINDER_VOLUME_INIT_CONFIG))
             local('mv /tmp/cinder_volume_init %s' %(CINDER_VOLUME_INIT_CONFIG))
+
         if self._args.storage_os_hosts[0] != 'none':
             for entries, entry_token in zip(self._args.storage_os_hosts,
                                             self._args.storage_os_host_tokens):
