@@ -130,9 +130,9 @@ class OpenstackSetup(ContrailSetup):
         return LooseVersion(actual_dashboard_version) >= LooseVersion(juno_version)
 
     def unregister_all_services(self):
-        hostname = local('sudo getent hosts %s | awk \'{print $2}\'' % self._args.node_to_unregister)
+        hostname = local('sudo getent hosts %s | awk \'{print $2}\'' % self._args.node_to_unregister, capture=True)
         service_list = local("source /etc/contrail/openstackrc && nova service-list | \
-                              grep %s | awk '{print $2}'" % hostname, capture = True, shell = '/bin/bash').split()
+                              grep %s | awk '{print $2}'" % hostname, capture=True, shell='/bin/bash').split()
 
         for service in service_list:
             local('source /etc/contrail/openstackrc && nova service-delete %s' % service, shell = '/bin/bash')
