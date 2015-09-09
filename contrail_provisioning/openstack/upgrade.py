@@ -91,7 +91,7 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         # removed from Galera clustering. Hence, the following change
         # will drop CMON DB and re-provision CMON.
         if (self._args.internal_vip and
-            self._args.from_rel < 2.2 and
+            self._args.from_rel <= 2.2 and
             self._args.to_rel >= 2.2):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
