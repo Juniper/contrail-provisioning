@@ -20,6 +20,9 @@ redis_server_ip=$__contrail_redis_ip__
 rabbit_server=$__rabbit_server_ip__
 rabbit_port=$__rabbit_server_port__
 list_optimization_enabled=True
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
