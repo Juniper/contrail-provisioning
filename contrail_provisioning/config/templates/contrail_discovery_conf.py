@@ -27,9 +27,14 @@ hc_max_miss=3
 # use short TTL for agressive rescheduling if all services are not up
 ttl_short=1
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 # for DNS service, we use fixed policy
 # even when the cluster has more than two control nodes, only two of these
 # should provide the DNS service
+
 [DNS-SERVER]
 policy = fixed
 
