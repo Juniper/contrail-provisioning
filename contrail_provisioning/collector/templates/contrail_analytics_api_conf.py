@@ -23,6 +23,10 @@ analytics_config_audit_ttl=$__contrail_config_audit_ttl__
 analytics_statistics_ttl=$__contrail_statistics_ttl__
 analytics_flow_ttl=$__contrail_flow_ttl__
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 [DISCOVERY]
 disc_server_ip = $__contrail_discovery_ip__
 disc_server_port = $__contrail_discovery_port__
