@@ -11,4 +11,7 @@ admin_token=$__contrail_admin_token__
 admin_tenant_name=$__contrail_admin_tenant_name__
 insecure=$__keystone_insecure_flag__
 $__contrail_memcached_opt__
+certfile=
+keyfile=
+cafile=
 """)

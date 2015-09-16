@@ -5,6 +5,11 @@ template = string.Template("""
 api_server_ip = $__contrail_api_server_ip__
 api_server_port = $__contrail_api_server_port__
 multi_tenancy = $__contrail_multi_tenancy__
+use_ssl = False
+insecure = False
+certfile=
+keyfile=
+cafile=
 contrail_extensions = ipam:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_ipam.NeutronPluginContrailIpam,policy:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_policy.NeutronPluginContrailPolicy,route-table:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_vpc.NeutronPluginContrailVpc,contrail:None
 
 [COLLECTOR]
