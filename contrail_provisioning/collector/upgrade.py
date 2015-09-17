@@ -52,7 +52,51 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             # Create contrail-keystone-auth.conf
             if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
                 self.fixup_keystone_auth_config_file()
-            # Kafka is introduced from release 2.30
+
+        # Kafka is introduced from release 2.30
+        if (self._args.from_rel <= 2.2 and self._args.to_rel > 2.2):
+            # regenerate alarm-gen INI file
+            ALARM_GEN_INI_FILE = \
+                '/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'
+            cnd = os.path.exists(ALARM_GEN_INI_FILE)
+            if cnd:
+                local('rm -rf %s' % ALARM_GEN_INI_FILE)
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'command',
+                '/usr/bin/contrail-alarm-gen -c /etc/contrail/contrail-alarm-gen.conf')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'priority',
+                '440')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'autostart',
+                'true')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'killasgroup',
+                'true')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'stopsignal',
+                'KILL')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'stdout_capture_maxbytes','1MB')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'redirect_stderr','true')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'stdout_logfile','/var/log/contrail/contrail-alarm-gen-stdout.log')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'stderr_logfile','/var/log/contrail/contrail-alarm-gen-stderr.log')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'startsecs','5')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'exitcodes','0')
+            self.set_config(\
+                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
+                'user','contrail')
             self.fixup_contrail_alarm_gen()
             kafka_broker_list = [server[0] + ":9092"\
                                  for server in self.cassandra_server_list]
