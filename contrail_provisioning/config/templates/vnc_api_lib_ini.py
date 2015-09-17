@@ -9,6 +9,10 @@ WEB_SERVER = 127.0.0.1
 WEB_PORT = 8082 ; connection to api-server directly
 BASE_URL = /
 ;BASE_URL = /tenants/infra ; common-prefix for all URLs
+insecure=False
+certfile=
+keyfile=
+cafile=
 
 ; Authentication settings (optional)
 [auth]

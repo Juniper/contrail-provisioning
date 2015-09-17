@@ -6,6 +6,7 @@ rabbit_server=$__rabbit_server_ip__
 rabbit_port=$__rabbit_server_port__
 api_server_ip=$__contrail_api_server_ip__
 api_server_port=$__contrail_api_server_port__
+api_server_use_ssl=False
 zk_server_ip=$__contrail_zookeeper_server_ip__
 log_file=$__contrail_log_file__
 cassandra_server_list=$__contrail_cassandra_server_list__
