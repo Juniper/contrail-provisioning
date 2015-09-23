@@ -2361,7 +2361,7 @@ class SetupCeph(object):
             self._args.storage_host_tokens, self._args.storage_hostnames):
                 with settings(host_string = 'root@%s' %(entries),
                               password = entry_token):
-                    osdlist = run('sudo ps -ef | grep ceph-osd | \
+                    osdlist = run('sudo ps -ef | grep ceph-osd | grep -v asok | \
                                   grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
                     osdl = StringIO.StringIO(osdlist)
                     osd = osdl.readline()
