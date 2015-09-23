@@ -232,8 +232,8 @@ class DatabaseSetup(ContrailSetup):
         cnd = os.path.exists(KAFKA_LOG4J_PROPERTIES)
         if not cnd:
             raise RuntimeError('%s does not appear to be a kafka logs config' % KAFKA_LOG4J_PROPERTIES)
-        self.replace_in_file(KAFKA_LOG4J_PROPERTIES, 'DailyRollingFileAppender','RollingFileAppender')
-        self.replace_in_file(KAFKA_LOG4J_PROPERTIES, "DatePattern='.'yyyy-MM-dd-HH", "MaxBackupIndex=10")
+        local("sudo sed -i 's/DailyRollingFileAppender/RollingFileAppender/g' %s" % KAFKA_LOG4J_PROPERTIES)
+        local("sudo sed -i \"s/DatePattern='.'yyyy-MM-dd-HH/MaxBackupIndex=10/g\" %s" % KAFKA_LOG4J_PROPERTIES)
 
     def fixup_contrail_database_nodemgr(self):
         template_vals = {
