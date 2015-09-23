@@ -69,6 +69,10 @@ physical_interface_address=$__pci_dev__
 # MAC address of device used by dpdk
 physical_interface_mac=$__physical_interface_mac__
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional

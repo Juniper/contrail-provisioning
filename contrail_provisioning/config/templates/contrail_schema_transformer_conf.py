@@ -18,6 +18,9 @@ rabbit_server=$__rabbit_server_ip__
 rabbit_port=$__rabbit_server_port__
 log_local=1
 log_level=SYS_NOTICE
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
 
 [SECURITY]
 use_certs=$__contrail_use_certs__
