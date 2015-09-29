@@ -210,9 +210,9 @@ class DatabaseSetup(ContrailSetup):
         #put cluster-unique zookeeper's instance id in myid
         local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
 
-        self.fixup_kafka_server_properties()
+        self.fixup_kafka_server_properties(listen_ip)
 
-    def fixup_kafka_server_properties(self):
+    def fixup_kafka_server_properties(self, listen_ip):
         #Update the broker id of the /usr/share/kafka/config/server.properties
         KAFKA_SERVER_PROPERTIES='/usr/share/kafka/config/server.properties'
         cnd = os.path.exists(KAFKA_SERVER_PROPERTIES)
@@ -220,10 +220,18 @@ class DatabaseSetup(ContrailSetup):
             raise RuntimeError('%s does not appear to be a kafka config directory' % KAFKA_SERVER_PROPERTIES)
 	if self._args.kafka_broker_id is not None:
             self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'broker.id=', 'broker.id='+self._args.kafka_broker_id)
+
+        #Handling for Kafka-0.8.3
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, '#port=9092', 'port=9092')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, \
+                'listeners=PLAINTEXT://:9092','#listeners=PLAINTEXT://:9092')
+
         #Add all the zoo keeper server address to the server.properties file
         zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
         zk_list_str = ','.join(map(str, zk_list))
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=', 'zookeeper.connect='+zk_list_str)
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, '#advertised.host.name=<hostname routable by clients>',\
+                'advertised.host.name='+listen_ip)
         #Set replication factor to 2 if more than one kafka broker is available
         if (len(zk_list)>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
