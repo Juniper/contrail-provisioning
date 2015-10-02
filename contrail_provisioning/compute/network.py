@@ -80,6 +80,22 @@ class ComputeNetworkSetup(object):
         raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
     #end get_secondary_device
 
+    @staticmethod
+    def is_interface_vlan(interface):
+        with settings(warn_only=True):
+            iface = local("ip link show %s | head -1" % interface +
+                    "| cut -f2 -d':' | grep '@'", capture=True)
+        if iface is "":
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def get_physical_interface_of_vlan(interface):
+        iface = local("ip link show %s | head -1 | cut -f2 -d':'" % interface +
+                "| cut -f2 -d'@'", capture=True)
+        return iface
+
     def _is_string_in_file(self, string, filename):
         f_lines=[]
         if os.path.isfile( filename ):
