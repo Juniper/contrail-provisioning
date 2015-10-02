@@ -116,6 +116,9 @@ class DatabaseSetup(ContrailSetup):
         if ssd_data_dir:
             commit_log_dir = os.path.join(ssd_data_dir, 'commitlog')
             self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
+            if not os.path.exists(ssd_data_dir):
+                local("sudo mkdir -p %s" % (ssd_data_dir))
+                local("sudo chown -R cassandra: %s" % (ssd_data_dir))
         if analytics_data_dir:
             if not data_dir:
                 data_dir = '/var/lib/cassandra'
