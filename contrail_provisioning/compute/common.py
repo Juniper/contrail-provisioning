@@ -155,7 +155,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             vmware_dev = ""
             hypervisor_type = "kvm"
             mode=""
-            if self._args.orchestrator == 'vcenter' or self._args.vcenter_server:
+            if self._args.mode == 'vcenter':
                 mode="vcenter"
                 vmware_dev = "eth1"
                 hypervisor_type = "vmware"
