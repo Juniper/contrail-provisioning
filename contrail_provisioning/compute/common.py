@@ -160,7 +160,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             vmware_dev = ""
             hypervisor_type = "kvm"
             mode=""
-            if self._args.orchestrator == 'vcenter':
+            if self._args.mode == 'vcenter':
                 mode="vcenter"
                 vmware_dev = "eth1"
                 hypervisor_type = "vmware"
@@ -329,6 +329,8 @@ SUBCHANNELS=1,2,3
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
-        self.fixup_config_files()
-        self.run_services()
-        self.add_vnc_config()
+        if not self._args.vcenter_server:
+           self.fixup_config_files()
+           self.run_services()
+           self.add_vnc_config()
+
