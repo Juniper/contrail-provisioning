@@ -132,7 +132,12 @@ if [ $VCENTER_IP ]; then
     openstack-config --set /etc/nova/nova.conf vmware host_ip $VCENTER_IP 
     openstack-config --set /etc/nova/nova.conf vmware host_username $VCENTER_USERNAME 
     openstack-config --set /etc/nova/nova.conf vmware host_password $VCENTER_PASSWORD 
-    openstack-config --set /etc/nova/nova.conf vmware cluster_name $VCENTER_CLUSTER 
+    openstack-config --del /etc/nova/nova.conf vmware cluster_name
+    cluster_list=$(echo $VCENTER_CLUSTER | tr "," "\n")
+    for cluster in $cluster_list
+    do
+        echo "cluster_name = " $cluster >> /etc/nova/nova.conf
+    done
     openstack-config --set /etc/nova/nova.conf vmware vcenter_dvswitch $VCENTER_DVSWITCH 
     openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
     openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
