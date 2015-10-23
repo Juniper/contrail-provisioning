@@ -38,10 +38,10 @@ class VcenterPluginSetup(ContrailSetup):
         parser.add_argument("--vcenter_datacenter", help = "vcenter datacenter name")
         parser.add_argument("--vcenter_dvswitch", help = "vcenter dvswitch name")
         parser.add_argument("--vcenter_ipfabricpg", help = "vcenter ipfabric port group")
-        parser.add_argument("--vcenter_compute", help = "vcenter as compute mode value")
         parser.add_argument("--api_hostname", help = "IP Address of the config node")
         parser.add_argument("--api_port", help = "Listen port for api server", type = int)
         parser.add_argument("--zookeeper_serverlist", help = "List of zookeeper ip:port")
+        parser.add_argument("--vcenter_mode", help = "vcenter as compute mode value")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
         parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
@@ -56,23 +56,40 @@ class VcenterPluginSetup(ContrailSetup):
 
     def fixup_contrail_vcenter_plugin(self):
         vcenter_full_url = "https://"+self._args.vcenter_url+"/sdk"
+        mode = ""
+        keystone_ip = ""
+        ks_auth_protocol = ""
+        ks_auth_port = ""
+        ks_admin_user = ""
+        ks_admin_passwd = ""
+        ks_admin_tenant_name = ""
+        ks_auth_url = ""
+
+        if self._args.vcenter_mode:
+           mode = self._args.vcenter_mode
+           keystone_ip = self._args.keystone_ip
+           ks_auth_protocol = self._args.keystone_auth_protocol
+           ks_auth_port =  self._args.keystone_auth_port
+           ks_admin_user = self._args.keystone_admin_user
+           ks_admin_passwd = self._args.keystone_admin_passwd
+           ks_admin_tenant_name = self._args.keystone_admin_tenant_name
+           ks_auth_url = ks_auth_protocol+"://"+keystone_ip+ks_auth_port+"/v2.0"
+
         template_vals = {'__contrail_vcenter_url__' : vcenter_full_url,
                          '__contrail_vcenter_username__' : self._args.vcenter_username,
                          '__contrail_vcenter_password__' : self._args.vcenter_password,
                          '__contrail_vcenter_datacenter__' : self._args.vcenter_datacenter,
                          '__contrail_vcenter_dvswitch__' : self._args.vcenter_dvswitch,
                          '__contrail_vcenter_ipfabricpg__' : self._args.vcenter_ipfabricpg,
-                         '__contrail_vcenter_compute__' : self._args.vcenter_compute,
                          '__contrail_api_hostname__' : self._args.api_hostname,
                          '__contrail_zookeeper_serverlist__' : self._args.zookeeper_serverlist,
                          '__contrail_api_port__' : self._args.api_port,
-                         '__contrail_keystone_ip__': self._args.keystone_ip,
-                         '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
-                         '__contrail_ks_auth_port__': self._args.keystone_auth_port,
-                         '__contrail_admin_user__': self._args.keystone_admin_user,
-                         '__contrail_admin_password__': self._args.keystone_admin_passwd,
-                         '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
-                         }
+                         '__contrail_vcenter_mode__' : mode,
+                         '__contrail_ks_auth_url__': ks_auth_url,
+                         '__contrail_admin_user__': ks_admin_user,
+                         '__contrail_admin_password__': ks_admin_passwd,
+                         '__contrail_admin_tenant_name__': ks_admin_tenant_name,
+        }
         self._template_substitute_write(contrail_vcenter_plugin_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-vcenter-plugin.conf')
         local("sudo mv %s/contrail-vcenter-plugin.conf /etc/contrail/contrail-vcenter-plugin.conf" %(self._temp_dir_name))
