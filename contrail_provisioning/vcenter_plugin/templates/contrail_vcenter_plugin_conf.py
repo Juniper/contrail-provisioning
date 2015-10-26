@@ -20,9 +20,9 @@ vcenter.datacenter=$__contrail_vcenter_datacenter__
 vcenter.dvswitch=$__contrail_vcenter_dvswitch__
 vcenter.ipfabricpg=$__contrail_vcenter_ipfabricpg__
 
-mode=$__contrail_vcenter_compute__
+mode=$__contrail_vcenter_mode__
 
-auth_url = $__contrail_ks_auth_protocol__://$__contrail_keystone_ip__:$__contrail_ks_auth_port__/v2.0
+auth_url = $__contrail_ks_auth_url__
 admin_user=$__contrail_admin_user__
 admin_password=$__contrail_admin_password__
 admin_tenant_name=$__contrail_admin_tenant_name__
