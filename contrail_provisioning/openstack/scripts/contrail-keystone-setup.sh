@@ -31,6 +31,8 @@
 # demo                 demo      Member,sysadmin,netadmin
 # invisible_to_admin   demo      Member
 
+set -x
+
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
 if [ -f /etc/redhat-release ]; then
@@ -241,8 +243,31 @@ if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     fi
 fi
 
-CINDER_SERVICE=$(get_service "cinder" volume "Cinder Service")
-CINDER_USER=$(get_service_user cinder)
+
+CINDER_SERVICE=""
+CINDER_USER=""
+CINDER_SERVICE_TYPE=v1
+# If cinder is Kilo based in centos7/rhel7, volumev2 services are required
+if [ -f /etc/redhat-release ]; then
+    os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
+    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
+    if [ "$is_kilo_or_above" == "True" ]; then
+        CINDER_SERVICE=$(get_service "cinderv2" volumev2 "Cinder V2 Service")
+        CINDER_USER=$(get_service_user cinderv2)
+        CINDER_SERVICE_TYPE=v2
+    fi
+fi
+
+# Create cinder service if not created in above steps
+if [[ -z "CINDER_SERVICE" ]]; then
+    CINDER_SERVICE=$(get_service "cinder" volume "Cinder Service")
+fi
+
+# Create CINDER USER if not created in above steps
+if [[ -z "$CINDER_USER" ]]; then
+    CINDER_USER=$(get_service_user cinder)
+fi
 
 if [ -z $(user_role_lookup $CINDER_USER $SERVICE_TENANT admin) ]; then
 keystone user-role-add --tenant-id $SERVICE_TENANT \
@@ -253,9 +278,9 @@ fi
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $CINDER_SERVICE) ]; then
     keystone endpoint-create --region RegionOne --service-id $CINDER_SERVICE \
-        --publicurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s' \
-        --adminurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s' \
-        --internalurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s'
+        --publicurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s' \
+        --adminurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s' \
+        --internalurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s'
     fi
 fi
 

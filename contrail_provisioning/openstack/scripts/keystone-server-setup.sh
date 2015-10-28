@@ -30,6 +30,8 @@ function error_exit
 
 if [ $is_ubuntu -eq 1 ] ; then
     keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
+else
+   keystone_version=$(rpm -q --queryformat="%{VERSION}" openstack-keystone)
 fi
 
 # Exclude port 35357 from the available ephemeral port range
@@ -206,7 +208,15 @@ for svc in keystone; do
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
         fi
     else
-        openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+
+        # For Kilo openstack release, set keystone.token.persistence.backends.memcache.Token
+        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
+        if [ "$is_kilo_or_above" == "True" ]; then
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
+        else
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+        fi
     fi
 
     openstack-config --set /etc/$svc/$svc.conf ec2 driver keystone.contrib.ec2.backends.sql.Ec2

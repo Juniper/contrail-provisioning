@@ -257,9 +257,30 @@ else
         openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
         chown -R nova:nova /var/lib/nova
     fi
+
+    is_kilo_or_latest=$(python -c "from distutils.version import LooseVersion; \
+              print LooseVersion('$nova_api_ver') >= LooseVersion('2015.1.1')")
     is_juno_or_latest=$(python -c "from distutils.version import LooseVersion; \
-                        print LooseVersion('$nova_api_ver') >= LooseVersion('2014.2.1-1')")
-    if [ "$is_juno_or_latest" == "True" ]; then
+                        print LooseVersion('$nova_api_ver') >= LooseVersion('2014.2.1')")
+
+    # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
+    if [ "$is_kilo_or_latest" == "True" ]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+
+        # Neutron section in nova.conf
+        openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+        openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
+        openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+        openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
+        openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
+        openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+        openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
+
+        # New configs in keystone section
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
+        openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
+    elif [ "$is_juno_or_latest" == "True" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
     fi
 fi
