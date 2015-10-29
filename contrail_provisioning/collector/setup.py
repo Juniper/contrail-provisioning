@@ -272,6 +272,9 @@ class CollectorSetup(ContrailSetup):
  
         local("sudo update-rc.d redis-server disable")
 
+    def restart_collector(self):
+        local("sudo service supervisor-analytics restart")
+
     def run_services(self):
         #disable redis from init.d since upstart has been added
         if self.pdist == 'Ubuntu':
@@ -286,6 +289,11 @@ class CollectorSetup(ContrailSetup):
 def main(args_str = None):
     collector = CollectorSetup(args_str)
     collector.setup()
+
+def fix_collector_config(args_str = None):
+    collector = CollectorSetup(args_str)
+    collector.fixup_config_files()
+    collector.restart_collector()
 
 if __name__ == "__main__":
     main()
