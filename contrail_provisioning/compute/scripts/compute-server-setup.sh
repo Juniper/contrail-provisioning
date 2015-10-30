@@ -125,13 +125,18 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 else
-    # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
-    # if controller node is compute node so the VIF_TYPE=vrouter is available
     if [ $is_redhat -eq 1 ]; then
-        # For Juno or above openstack releases, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
+        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$nova_compute_ver') >= LooseVersion('2015.1.1')")
+
+        # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
+        # if controller node is compute node so the VIF_TYPE=vrouter is available
         is_juno_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$nova_compute_ver') >= LooseVersion('2014.2.2')")
-        if [ "$is_juno_or_above" == "True" ]; then
+        if [ "$is_kilo_or_above" == "True" ]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        elif [ "$is_juno_or_above" == "True" ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
     fi
