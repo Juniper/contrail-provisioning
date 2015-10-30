@@ -30,6 +30,8 @@ function error_exit
 
 if [ $is_ubuntu -eq 1 ] ; then
     keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
+else
+   keystone_version=$(rpm -q --queryformat="%{VERSION}" openstack-keystone)
 fi
 
 # Exclude port 35357 from the available ephemeral port range
