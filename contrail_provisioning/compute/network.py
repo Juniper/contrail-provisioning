@@ -296,44 +296,54 @@ HWADDR=%s
         with open(dev_cfgfile, 'r') as fd:
             cfg_file = fd.read()
 
-        if esxi_vm:
-            if not vmpg_mtu:
-                vmpg_mtu = 1500
-            local("sed -i 's/eth1 up mtu .*/eth1 up mtu %s/' %s" %(vmpg_mtu, temp_intf_file))
-            local("sed -i 's/iface %s inet .*/iface %s inet manual/' %s" %(dev, dev, temp_intf_file))
+        if not self._args.non_mgmt_ip:
+            # remove entry from auto <dev> to auto excluding these pattern
+            # then delete specifically auto <dev> 
+            local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
+            local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
+            # add manual entry for dev
+            local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ethtool --offload %s rx off' >> %s" %(dev, temp_intf_file))
+            local("echo '    pre-up ethtool --offload %s tx off' >> %s" %(dev, temp_intf_file))
+            if vlan:
+                local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
+            if 'bond' in dev.lower():
+                iters = re.finditer('^\s*auto\s', cfg_file, re.M)
+                indices = [match.start() for match in iters]
+                matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
+                for each in matches:
+                    each = each.strip()
+                    if re.match('^auto\s+%s'%dev, each):
+                        string = ''
+                        for lines in each.splitlines():
+                            if 'bond-' in lines:
+                                string += lines+os.linesep
+                        local("echo '%s' >> %s" %(string, temp_intf_file))
+                    else:
+                        continue
+            local("echo '' >> %s" %(temp_intf_file))
         else:
-            if not self._args.non_mgmt_ip:
-                # remove entry from auto <dev> to auto excluding these pattern
-                # then delete specifically auto <dev> 
-                local("sed -i '/auto %s/,/auto/{/auto/!d}' %s" %(dev, temp_intf_file))
-                local("sed -i '/auto %s/d' %s" %(dev, temp_intf_file))
-                # add manual entry for dev
-                local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
-                local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-                local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-                local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
-                if vlan:
-                    local("echo '    vlan-raw-device %s' >> %s" %(phydev, temp_intf_file))
-                if 'bond' in dev.lower():
-                    iters = re.finditer('^\s*auto\s', cfg_file, re.M)
-                    indices = [match.start() for match in iters]
-                    matches = map(cfg_file.__getslice__, indices, indices[1:] + [len(cfg_file)])
-                    for each in matches:
-                        each = each.strip()
-                        if re.match('^auto\s+%s'%dev, each):
-                            string = ''
-                            for lines in each.splitlines():
-                                if 'bond-' in lines:
-                                    string += lines+os.linesep
-                            local("echo '%s' >> %s" %(string, temp_intf_file))
-                        else:
-                            continue
-                local("echo '' >> %s" %(temp_intf_file))
-            else:
-                #remove ip address and gateway
-                with settings(warn_only = True):
+            #remove ip address and gateway
+            with settings(warn_only = True):
+                if esxi_vm:
+                    local("sed -i '/iface %s inet */, +1d' %s" % (dev, temp_intf_file))
+                else:
                     local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
-                    local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+                local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+                local("echo '    pre-up ethtool --offload %s rx off' >> %s" %(dev, temp_intf_file))
+                local("echo '    pre-up ethtool --offload %s tx off' >> %s" %(dev, temp_intf_file))
+
+        if esxi_vm and vmpg_mtu:
+            intf = self.get_secondary_device(self.dev)
+            local("sed -i '/auto %s/,/down/d' %s" %(intf, temp_intf_file))
+            local("echo 'auto %s' >> %s" %(intf, temp_intf_file))
+            local("echo 'iface %s inet manual' >> %s" %(intf, temp_intf_file))
+            local("echo '    pre-up ifconfig %s up mtu %s' >> %s" % (intf, vmpg_mtu, temp_intf_file))
+            local("echo '    post-down ifconfig %s down' >> %s" %(intf, temp_intf_file))
+            local("echo '    pre-up ethtool --offload %s lro off' >> %s" %(intf, temp_intf_file))
 
         # populte vhost0 as static
         local("echo '' >> %s" %(temp_intf_file))
