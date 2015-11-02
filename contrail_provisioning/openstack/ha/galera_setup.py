@@ -55,6 +55,7 @@ class GaleraSetup(ContrailSetup):
         Eg. setup-vnc-galera --openstack0_user root --openstack0_password c0ntrail123 --self_ip 10.1.5.11
                    --keystone_ip 10.1.5.11 --galera_ip_list 10.1.5.11 10.1.5.12 --openstack_index 1
                    --internal_vip 10.1.5.13 --zoo_ip_list 10.1.5.11 10.1.5.12
+                   --node_to_add 10.1.5.14 --node_to_del 10.1.5.12
         '''
         parser = self._parse_args(args_str)
 
@@ -64,9 +65,10 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--openstack0_user", help = "Sudo user of this openstack node")
         parser.add_argument("--openstack0_passwd", help = "Sudo user password  of this openstack node")
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
-        parser.add_argument("--internal_vip", help = "Internal Virtual IP Address of HA Openstack nodes"),
-        parser.add_argument("--external_vip", help = "External Virtual IP Address of HA Openstack nodes"),
-        parser.add_argument("--node_to_add", help = "IP address of the new node to add into the Galera cluster", type=str),
+        parser.add_argument("--internal_vip", help = "Internal Virtual IP Address of HA Openstack nodes")
+        parser.add_argument("--external_vip", help = "External Virtual IP Address of HA Openstack nodes")
+        parser.add_argument("--node_to_add", help = "IP address of the new node to add into the Galera cluster", type=str)
+        parser.add_argument("--node_to_del", help = "IP address of the existing node to remove from the Galera cluster", type=str)
         parser.add_argument("--zoo_ip_list", help = "List of IP Addresses of zookeeper servers", nargs='+', type=str)
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -241,6 +243,27 @@ class GaleraSetup(ContrailSetup):
         self.get_mysql_token_file()
         self.setup_grants(self._args.node_to_add.split())
 
+    def remove_mysql_perm(self):
+        mysql_cmd =  "mysql --defaults-file=%s -uroot -p%s -e" % (self.mysql_conf, self.mysql_token)
+        with settings(warn_only=True):
+            local('%s "DROP USER \'root\'@\'%s\'"' % (mysql_cmd, self._args.node_to_del))
+            local('%s "DROP USER \'cmon\'@\'%s\'"' % (mysql_cmd, self._args.node_to_del))
+            local('%s "FLUSH PRIVILEGES"' % mysql_cmd)
+
+    def remove_node_from_galera_cluster(self):
+        if len(self._args.galera_ip_list) < 3:
+            raise RuntimeError("Galera needs a quorum to operate. \
+                                Too less nodes %s to form a quorum" % self._args.galera_ip_list)
+
+        self.get_mysql_token_file()
+        self.remove_mysql_perm()
+        with settings(warn_only=True):
+            local("service contrail-hamon stop")
+            local("service cmon stop")
+        self.fix_cmon_config()
+        self.fix_galera_config(bootstrap=False)
+        local("service contrail-hamon start")
+
     def verify_mysql_server_status(self, ip, mysql_token):
         cmd = "mysql -h%s -uroot -p%s " % (ip, mysql_token)
         cmd += "-e \"show global status where variable_name='wsrep_local_state'\" | awk '{print $2}' | sed '1d'"
@@ -305,13 +328,17 @@ def main(args_str = None):
     galera = GaleraSetup(args_str)
     galera.setup()
 
-def add_mysql_perm(args_str=None):
+def add_mysql_perm(args_str = None):
     galera = GaleraSetup(args_str)
     galera.add_new_mysql_perm()
 
-def add_galera_cluster_config(args_str=None):
+def add_galera_cluster_config(args_str = None):
     galera = GaleraSetup(args_str)
     galera.add_new_cluster_config()
+
+def remove_galera_node(args_str = None):
+    galera = GaleraSetup(args_str)
+    galera.remove_node_from_galera_cluster()
 
 if __name__ == "__main__":
     main() 
