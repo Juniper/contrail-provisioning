@@ -5,6 +5,7 @@
 """Upgrade's Contrail Collector components."""
 
 import os
+from distutils.version import LooseVersion
 
 from fabric.api import local
 
@@ -28,7 +29,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             '/etc/contrail/contrail-query-engine.conf',
                                         ]
 
-        if (self._args.from_rel >= 2.2):
+        if (self._args.from_rel >= LooseVersion('2.2')):
             self.upgrade_data['restore'].append('/etc/contrail/contrail-analytics-nodemgr.conf')
 
     def update_config(self):
@@ -43,7 +44,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         self.upgrade_python_pkgs()
         self.update_config()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.fixup_contrail_analytics_nodemgr()
             # contrail-snmp-collector support
             self.fixup_contrail_snmp_collector()
@@ -54,7 +56,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 self.fixup_keystone_auth_config_file()
 
         # Kafka is introduced from release 2.30
-        if (self._args.from_rel <= 2.2 and self._args.to_rel > 2.2):
+        if (self._args.from_rel <= LooseVersion('2.20') and
+            self._args.to_rel > LooseVersion('2.20')):
             # regenerate alarm-gen INI file
             ALARM_GEN_INI_FILE = \
                 '/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'
