@@ -7,8 +7,21 @@
 import os
 import shutil
 import argparse
+from distutils.version import LooseVersion
 
 from fabric.api import local
+
+class FormatRelease(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        rel_list = values.split('.')
+        normalized_rel_list = [rel_list[0]]
+        for sub_rel in rel_list[1:]:
+            if len(sub_rel) == 1:
+                normalized_sub_rel = sub_rel + '0'
+                normalized_rel_list.append(normalized_sub_rel)
+            else:
+                normalized_rel_list.append(sub_rel)
+        setattr(namespace, self.dest, '.'.join(normalized_rel_list))
 
 class ContrailUpgrade(object):
     def __init__(self):
@@ -35,9 +48,11 @@ class ContrailUpgrade(object):
 
         conf_parser.add_argument("-c", "--conf_file",
                                  help="Specify config file", metavar="FILE")
-        conf_parser.add_argument("-F", "--from_rel", type=float, default=0.0,
+        conf_parser.add_argument("-F", "--from_rel",
+            type=LooseVersion, action=FormatRelease,
             help="Release of contrail software installed in the node")
-        conf_parser.add_argument("-T", "--to_rel", type=float, default=0.0,
+        conf_parser.add_argument("-T", "--to_rel",
+            type=LooseVersion, action=FormatRelease,
             help="Release of contrail software to be upgraded in the node")
         conf_parser.add_argument("-P", "--packages", nargs='+', type=str,
             help = "List of packages to be upgraded.")
