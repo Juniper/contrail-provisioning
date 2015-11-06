@@ -27,6 +27,9 @@ class OpenstackSetup(ContrailSetup):
             'keystone_ip': '127.0.0.1',
             'keystone_auth_protocol':'http',
             'keystone_admin_passwd': 'contrail123',
+            'nova_password': None,
+            'neutron_password': None,
+            'keystone_service_tenant_name': 'service',
             'amqp_server_ip':'127.0.0.1',
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
@@ -64,6 +67,10 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_passwd", help = "Passwd of the admin tenant")
+        parser.add_argument("--neutron_password", help="Password of neutron user")
+        parser.add_argument("--nova_password", help="Password of nova user")
+        parser.add_argument("--keystone_service_tenant_name",
+            help="Tenant name of services like nova, neutron...etc")
         parser.add_argument("--keystone_auth_protocol", help = "Protocol to use while talking to Keystone")
         parser.add_argument("--internal_vip", help = "Control network VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "Management network VIP Address of openstack nodes")
@@ -78,6 +85,11 @@ class OpenstackSetup(ContrailSetup):
                             help = "Number of worker threads for conductor")
 
         self._args = parser.parse_args(self.remaining_argv)
+        # Using keystone admin password for nova/neutron if not supplied by user
+        if not self._args.neutron_password:
+            self._args.neutron_password = self._args.keystone_admin_passwd
+        if not self._args.nova_password:
+            self._args.nova_password = self._args.keystone_admin_passwd
 
     def build_ctrl_details(self):
         ctrl_infos = []
@@ -87,6 +99,9 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
+        ctrl_infos.append('NEUTRON_PASSWORD=%s' % self_args.neutron_password)
+        ctrl_infos.append('NOVA_PASSWORD=%s' % self_args.nova_password)
+        ctrl_infos.append('SERVICE_TENANT_NAME=%s' % self_args.keystone_service_tenant_name)
         ctrl_infos.append('API_SERVER=%s' % self._args.cfgm_ip)
         ctrl_infos.append('OSAPI_COMPUTE_WORKERS=%s' % self._args.osapi_compute_workers)
         ctrl_infos.append('CONDUCTOR_WORKERS=%s' % self._args.conductor_workers)
