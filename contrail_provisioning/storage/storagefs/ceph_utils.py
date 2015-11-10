@@ -39,6 +39,8 @@ class SetupCephUtils(object):
     CINDER_PATCH_FILE = '/tmp/manager.patch'
     global CINDER_VOLUME_MGR_PY
     CINDER_VOLUME_MGR_PY = '/usr/lib/python2.7/dist-packages/cinder/volume/manager.py'
+    global CEPH_DEPLOY_PATCH_FILE
+    CEPH_DEPLOY_PATCH_FILE = '/tmp/ceph_deploy.patch'
     global TRUE
     TRUE = 1
     global FALSE
@@ -1699,3 +1701,60 @@ class SetupCephUtils(object):
                 %(CINDER_VOLUME_MGR_PY, CINDER_PATCH_FILE))
         return
     #end create_and_apply_cinder_patch
+
+    def create_and_apply_ceph_deploy_patch(self):
+        self.exec_locals('echo \"diff -Naur ceph_deploy/hosts/debian/mon/create.py ceph_deploy.new/hosts/debian/mon/create.py" \
+                > %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"--- ceph_deploy/hosts/debian/mon/create.py      2013-10-07 11:50:13.000000000 -0700" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"+++ ceph_deploy.new/hosts/debian/mon/create.py  2015-11-10 17:17:02.784241000 -0800" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"@@ -4,8 +4,8 @@" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \" from ceph_deploy.connection import get_connection" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"-def create(distro, logger, args, monitor_keyring):" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"-    hostname = remote_shortname(distro.sudo_conn.modules.socket)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"+def create(distro, logger, args, monitor_keyring, hostname):" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"+    #hostname = remote_shortname(distro.sudo_conn.modules.socket)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"     common.mon_create(distro, logger, args, monitor_keyring, hostname)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"     service = common.which_service(distro.sudo_conn, logger)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"diff -Naur ceph_deploy/mon.py ceph_deploy.new/mon.py" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"--- ceph_deploy/mon.py  2013-10-07 11:50:13.000000000 -0700" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"+++ ceph_deploy.new/mon.py      2015-11-10 17:16:22.524241000 -0800" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"@@ -147,7 +148,7 @@" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"             # ensure remote hostname is good to go" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"             hostname_is_compatible(distro.sudo_conn, rlogger, name)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"             rlogger.debug(\'deploying mon to %%s\', name)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"-            distro.mon.create(distro, rlogger, args, monitor_keyring)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"+            distro.mon.create(distro, rlogger, args, monitor_keyring, name)" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"             # tell me the status of the deployed mon" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_locals('echo \"             time.sleep(2)  # give some room to start" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        self.exec_local('cd /usr/share/pyshared && patch -N -p0 <%s'
+                %(CEPH_DEPLOY_PATCH_FILE))
+    #end create_and_apply_ceph_deploy_patch

@@ -157,6 +157,9 @@ class SetupCeph(object):
     # global all host list
     global ceph_all_hosts
     ceph_all_hosts = ''
+    global storage_only_node
+    storage_only_node = []
+
     # The function create a script which runs and lists the mons
     # running on the local node
     def reset_mon_local_list(self):
@@ -511,6 +514,14 @@ class SetupCeph(object):
         return
     #end do_patch_cinder()
 
+    def do_patch_ceph_deploy(self):
+
+        ceph_deploy_patch_utils = SetupCephUtils()
+
+        ceph_deploy_patch_utils.create_and_apply_ceph_deploy_patch()
+        return
+    #end do_patch_ceph_deploy()
+
     # Function to check if multipool is disabled or not
     # Returns False if enabled
     # Returns True if disabled
@@ -712,18 +723,32 @@ class SetupCeph(object):
     # This is done so that ceph-deploy doesn't ask user to input 'yes' and
     # the password during the ssh login.
     def do_ssh_config(self):
+        storage_master_hostname = ''
         # Add all the storage-compute hostnames/ip to the /etc/host of master
         for entries, entry_token in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens):
             with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
-                for hostname, host_ip in zip(self._args.storage_hostnames,
-                                            self._args.storage_hosts):
-                    run('cat /etc/hosts | grep -v -w %s$ > /tmp/hosts; \
-                            a=`cat /tmp/hosts | grep -w "%s[ ]*%s" | wc -l`; \
-                            if [ "$a" == "0" ]; then echo %s %s >> /tmp/hosts; fi ; \
-                            cp -f /tmp/hosts /etc/hosts' \
-                            % (hostname, host_ip, hostname, host_ip, hostname))
+                for hostname, host_ip, orig_hostname in zip(
+                                            self._args.storage_hostnames,
+                                            self._args.storage_hosts,
+                                            self._args.orig_hostnames):
+                    if host_ip == self._args.storage_master:
+                        storage_master_hostname = hostname
+                    run('cat /etc/hosts | grep -v -w %s > /tmp/hosts'
+                                %(host_ip))
+                    match = run('cat /etc/hosts | grep -w "%s"'
+                                %(host_ip), warn_only=True)
+                    if match == '':
+                        match = '%s %s'%(host_ip, hostname)
+                    if run('echo "%s" | grep -e %s[[:blank:]] -e %s$ | wc -l '
+                                %(match, hostname, hostname)) == '0':
+                        match = '%s %s' %(match, hostname)
+                    if run('echo "%s" | grep -e %s[[:blank:]] -e %s$ | wc -l '
+                                %(match, orig_hostname, orig_hostname)) == '0':
+                        match = '%s %s' %(match, orig_hostname)
+                    run('echo %s >> /tmp/hosts' %(match))
+                    run('cp -f /tmp/hosts /etc/hosts')
 
         # Generate public id using ssh-keygen and first add the key to the
         # authorized keys file and the known_hosts file in the master itself.
@@ -734,10 +759,13 @@ class SetupCeph(object):
             local('sudo ssh-keygen -t rsa -N ""  -f ~/.ssh/id_rsa')
         sshkey = local('cat ~/.ssh/id_rsa.pub', capture=True)
         local('sudo mkdir -p ~/.ssh')
+        known_host_key = local('ssh-keyscan -t rsa %s,%s'
+                                %(storage_master_hostname,
+                                    self._args.storage_master), capture=True)
         already_present = local('grep "%s" ~/.ssh/known_hosts 2> /dev/null | \
-                                wc -l' % (sshkey), capture=True)
+                                wc -l' % (known_host_key), capture=True)
         if already_present == '0':
-            local('sudo echo "%s" >> ~/.ssh/known_hosts' % (sshkey))
+            local('sudo echo "%s" >> ~/.ssh/known_hosts' % (known_host_key))
         already_present = local('grep "%s" ~/.ssh/authorized_keys 2>/dev/null |\
                                  wc -l' % (sshkey), capture=True)
         if already_present == '0':
@@ -753,20 +781,21 @@ class SetupCeph(object):
                     run('sudo mkdir -p ~/.ssh')
                     already_present = run('grep "%s" ~/.ssh/known_hosts \
                                             2> /dev/null | wc -l'
-                                            % (sshkey))
+                                            %(known_host_key))
                     if already_present == '0':
-                        run('sudo echo %s >> ~/.ssh/known_hosts' % (sshkey))
+                        run('sudo echo "%s" >> ~/.ssh/known_hosts'
+                            %(known_host_key), shell='/bin/bash')
                     already_present = run('grep "%s" ~/.ssh/authorized_keys \
                                             2> /dev/null | wc -l'
-                                            % (sshkey))
+                                            %(sshkey))
                     if already_present == '0':
-                        run('sudo echo %s >> ~/.ssh/authorized_keys' % (sshkey))
+                        run('sudo echo "%s" >> ~/.ssh/authorized_keys' % (sshkey))
                     hostfound = local('sudo grep %s,%s ~/.ssh/known_hosts | \
                                             wc -l' %(hostname,entries),
                                             capture=True)
                     if hostfound == "0":
-                         out = run('sudo ssh-keyscan -t rsa %s,%s' %(hostname,
-                                            entries))
+                         out = run('sudo ssh-keyscan -t rsa %s,%s 2>/dev/null'
+                                     %(hostname, entries))
                          local('sudo echo "%s" >> ~/.ssh/known_hosts' % (out))
         return
     #end do_ssh_config()
@@ -818,16 +847,16 @@ class SetupCeph(object):
         # monitors on first "N" computes
         # where master monitor list + "N" compute monitors < MAX_MONS
         if self._args.storage_mon_hosts[0] != 'none':
-            for entries in self._args.storage_mon_hosts:
+            for hostname in self._args.storage_mon_hosts:
                 if ceph_mon_count < MAX_MONS:
-                    ceph_mon_hosts = ceph_mon_hosts + entries + ' '
+                    ceph_mon_hosts = ceph_mon_hosts + hostname + ' '
                     entry = ''
                     for entry in ceph_mon_hosts_list:
                         if entry == hostname:
                             break
                     if entry != hostname:
                         ceph_mon_count += 1;
-                        ceph_mon_hosts_list.append(entries)
+                        ceph_mon_hosts_list.append(hostname)
         else:
             for entries, entry_token, hostname in zip(self._args.storage_hosts,
                                             self._args.storage_host_tokens,
@@ -1433,7 +1462,7 @@ class SetupCeph(object):
         # restart monitors after package upgrade
         self.do_monitor_restarts()
 
-    # end do_create_monlist
+    # end do_update_monhost_config
 
     # Function to create monitor if its not already running
     def do_monitor_create(self):
@@ -1525,8 +1554,9 @@ class SetupCeph(object):
         local('ceph tell osd.* injectargs -- --filestore_split_multiple=8')
 
         # compute ceph.conf configuration done here
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                            self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
                 nofilecheck = run('sudo cat %s | grep -w \
@@ -1618,10 +1648,11 @@ class SetupCeph(object):
                             filestore_split_multiple 8' %(CEPH_CONFIG_FILE))
                 run('sudo openstack-config --set %s client \
                             rbd_cache true' %(CEPH_CONFIG_FILE))
-                run('sudo openstack-config --set %s DEFAULT \
+                if storage_only == False:
+                    run('sudo openstack-config --set %s DEFAULT \
                             disk_cachemodes \\\'network=writeback\\\''
                                 %(NOVA_CONFIG_FILE))
-                run('sudo openstack-config --set %s libvirt \
+                    run('sudo openstack-config --set %s libvirt \
                             disk_cachemodes \\\'network=writeback\\\''
                                 %(NOVA_CONFIG_FILE))
                 ceph_disks=run('cat /proc/mounts | grep ceph | grep osd | \
@@ -2248,9 +2279,6 @@ class SetupCeph(object):
                         if entries != self._args.storage_master:
                             # Set the cinder mysql and rabbit configutaion on
                             # compute node
-                            run('sudo openstack-config --set %s DEFAULT \
-                                sql_connection mysql://cinder:cinder@%s/cinder'
-                                %(CINDER_CONFIG_FILE, self._args.storage_master))
                             if self._args.cinder_vip != 'none':
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
@@ -2258,10 +2286,16 @@ class SetupCeph(object):
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
                                     commonport.RABBIT_PORT))
+                                run('sudo openstack-config --set %s DEFAULT \
+                                    sql_connection mysql://cinder:cinder@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.cinder_vip))
                             else:
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
                                     self._args.cfg_host))
+                                run('sudo openstack-config --set %s DEFAULT \
+                                    sql_connection mysql://cinder:cinder@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
                         # Enable lvm backend in cinder
@@ -2337,9 +2371,6 @@ class SetupCeph(object):
                         if entries != self._args.storage_master:
                             # Set the cinder mysql and rabbit configutaion on
                             # compute node
-                            run('sudo openstack-config --set %s DEFAULT \
-                                sql_connection mysql://cinder:cinder@%s/cinder'
-                                %(CINDER_CONFIG_FILE, self._args.storage_master))
                             if self._args.cinder_vip != 'none':
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
@@ -2347,10 +2378,16 @@ class SetupCeph(object):
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
                                     commonport.RABBIT_PORT))
+                                run('sudo openstack-config --set %s DEFAULT \
+                                    sql_connection mysql://cinder:cinder@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.cinder_vip))
                             else:
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
                                     self._args.cfg_host))
+                                run('sudo openstack-config --set %s DEFAULT \
+                                    sql_connection mysql://cinder:cinder@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
                         # Enable lvm backend in cinder
@@ -2405,29 +2442,31 @@ class SetupCeph(object):
     # This is required for all storage types
     # Run this in all the storage-compute nodes.
     def do_configure_nova(self):
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                                self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries),
-                                                password = entry_token):
-                    # Remove rbd_user configurations from nova if present
-                    run('sudo openstack-config --del %s DEFAULT rbd_user'
+                                               password = entry_token):
+                    if storage_only == False:
+                        # Remove rbd_user configurations from nova if present
+                        run('sudo openstack-config --del %s DEFAULT rbd_user'
                                     %(NOVA_CONFIG_FILE))
-                    run('sudo openstack-config --del %s DEFAULT rbd_secret_uuid'
+                        run('sudo openstack-config --del %s DEFAULT rbd_secret_uuid'
                                     %(NOVA_CONFIG_FILE))
-                    # Set the cinder end point to point to either the cinder_vip
-                    # in case of HA or the storage master.
-                    if self._args.cinder_vip != 'none':
-                        run('sudo openstack-config --set %s DEFAULT \
+                        # Set the cinder end point to point to either the cinder_vip
+                        # in case of HA or the storage master.
+                        if self._args.cinder_vip != 'none':
+                            run('sudo openstack-config --set %s DEFAULT \
                                     cinder_endpoint_template \
                                     "http://%s:8776/v1/%%(project_id)s"'
                                     %(NOVA_CONFIG_FILE, self._args.cinder_vip),
                                     shell='/bin/bash')
-                    else:
-                        run('sudo openstack-config --set %s DEFAULT \
+                        else:
+                            run('sudo openstack-config --set %s DEFAULT \
                                     cinder_endpoint_template \
                                     "http://%s:8776/v1/%%(project_id)s"'
-                                    %(NOVA_CONFIG_FILE, self._args.storage_master),
+                                    %(NOVA_CONFIG_FILE, self._args.openstack_ip),
                                     shell='/bin/bash')
         return
     #end do_configure_nova()
@@ -2701,8 +2740,9 @@ class SetupCeph(object):
     # This is done after the cinder type creation.
     # This is done on all the storage-compute nodes.
     def do_service_restarts_2(self):
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                        self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             # Check if the node is not an openstack node.
             is_openstack = 0
             if self._args.storage_os_hosts[0] != 'none':
@@ -2717,7 +2757,7 @@ class SetupCeph(object):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                    if pdist == 'centos':
+                    if storage_only == False and pdist == 'centos':
                         run('sudo chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo service openstack-cinder-api restart')
@@ -2739,7 +2779,7 @@ class SetupCeph(object):
                         run('sudo service openstack-cinder-volume restart')
                         run('sudo service libvirtd restart')
                         run('sudo service openstack-nova-compute restart')
-                    if pdist == 'Ubuntu':
+                    if storage_only == False and pdist == 'Ubuntu':
                         run('sudo chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo chkconfig cinder-volume on')
@@ -3033,6 +3073,19 @@ class SetupCeph(object):
             # restart osds after package upgrade
             self.do_osd_restarts()
 
+    def find_storage_only_nodes(self):
+        global storage_only_node
+
+        # compute ceph.conf configuration done here
+        for entries, entry_token in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+            with settings(host_string = 'root@%s' %(entries),
+                                            password = entry_token):
+                nova_conf=run('ls %s 2>/dev/null |wc -l' %(NOVA_CONFIG_FILE))
+                if nova_conf != '0':
+                    storage_only_node.append(False)
+                else:
+                    storage_only_node.append(True)
 
 
     # Top level function for storage setup.
@@ -3047,6 +3100,9 @@ class SetupCeph(object):
             configure_with_ceph = 0
 
         if configure_with_ceph:
+            # Find Storage only nodes
+            self.find_storage_only_nodes()
+
             # Create the required ceph monitors
             self.do_monitor_create()
 
@@ -3136,6 +3192,9 @@ class SetupCeph(object):
 
         # Patch cinder if required
         self.do_patch_cinder()
+
+        # Patch ceph_deploy if required
+        self.do_patch_ceph_deploy()
 
         # Create monitor list
         self.do_create_monlist()
@@ -3254,6 +3313,8 @@ class SetupCeph(object):
         parser.add_argument("--disks-to-remove", help = "Disks to remove", nargs="+", type=str)
         parser.add_argument("--hosts-to-remove", help = "Hosts to remove", nargs="+", type=str)
         parser.add_argument("--storage-replica-size", help = "Replica size")
+        parser.add_argument("--openstack-ip", help = "Openstack IP")
+        parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
 
         self._args = parser.parse_args(remaining_argv)
 
