@@ -443,26 +443,27 @@ class SetupNFSLivem(object):
             nfs_server = nfs_mount_pt.split(':')[0]
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    # Add to fstab to auto-mount the nfs file system upon
-                    # reboot. The 'bg' option takes care of retrying mount
-                    # if the vm is not reachable.
-                    fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
-                    if fstab_added == '0':
-                        run('sudo echo \"%s %s nfs rw,bg,soft 0 0\" >> %s' %(nfs_mount_pt, NOVA_INST_GLOBAL, ETC_FSTAB))
-                    mounted=run('sudo cat /proc/mounts | grep %s|wc -l' %(nfs_mount_pt))
-                    if mounted == '0':
-                        run('ping -c 10 %s' %(nfs_server))
-                        run('sudo rm -rf /var/lib/nova/instances/global')
-                        run('sudo mkdir /var/lib/nova/instances/global')
-                        run('sudo mount /var/lib/nova/instances/global')
-                        run('sudo chown nova:nova /var/lib/nova/instances/global')
-                    else:
-                        run('ping -c 10 %s' %(nfs_server))
-                        stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
-                        if stalenfs == '1':
-                            run('sudo umount /var/lib/nova/instances/global')
-                            run('sudo mount  /var/lib/nova/instances/global')
+                    if entries != self._args.storage_master:
+                        # Add to fstab to auto-mount the nfs file system upon
+                        # reboot. The 'bg' option takes care of retrying mount
+                        # if the vm is not reachable.
+                        fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
+                        if fstab_added == '0':
+                            run('sudo echo \"%s %s nfs rw,bg,soft 0 0\" >> %s' %(nfs_mount_pt, NOVA_INST_GLOBAL, ETC_FSTAB))
+                        mounted=run('sudo cat /proc/mounts | grep %s|wc -l' %(nfs_mount_pt))
+                        if mounted == '0':
+                            run('ping -c 10 %s' %(nfs_server))
+                            run('sudo rm -rf /var/lib/nova/instances/global')
+                            run('sudo mkdir /var/lib/nova/instances/global')
+                            run('sudo mount /var/lib/nova/instances/global')
                             run('sudo chown nova:nova /var/lib/nova/instances/global')
+                        else:
+                            run('ping -c 10 %s' %(nfs_server))
+                            stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
+                            if stalenfs == '1':
+                                run('sudo umount /var/lib/nova/instances/global')
+                                run('sudo mount  /var/lib/nova/instances/global')
+                                run('sudo chown nova:nova /var/lib/nova/instances/global')
 
         if self._args.storage_setup_mode == 'setup_global':
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
