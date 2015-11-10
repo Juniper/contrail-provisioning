@@ -157,6 +157,9 @@ class SetupCeph(object):
     # global all host list
     global ceph_all_hosts
     ceph_all_hosts = ''
+    global storage_only_node
+    storage_only_node = []
+
     # The function create a script which runs and lists the mons
     # running on the local node
     def reset_mon_local_list(self):
@@ -1525,8 +1528,9 @@ class SetupCeph(object):
         local('ceph tell osd.* injectargs -- --filestore_split_multiple=8')
 
         # compute ceph.conf configuration done here
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                            self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
                 nofilecheck = run('sudo cat %s | grep -w \
@@ -1618,10 +1622,11 @@ class SetupCeph(object):
                             filestore_split_multiple 8' %(CEPH_CONFIG_FILE))
                 run('sudo openstack-config --set %s client \
                             rbd_cache true' %(CEPH_CONFIG_FILE))
-                run('sudo openstack-config --set %s DEFAULT \
+                if storage_only == False:
+                    run('sudo openstack-config --set %s DEFAULT \
                             disk_cachemodes \\\'network=writeback\\\''
                                 %(NOVA_CONFIG_FILE))
-                run('sudo openstack-config --set %s libvirt \
+                    run('sudo openstack-config --set %s libvirt \
                             disk_cachemodes \\\'network=writeback\\\''
                                 %(NOVA_CONFIG_FILE))
                 ceph_disks=run('cat /proc/mounts | grep ceph | grep osd | \
@@ -2405,26 +2410,28 @@ class SetupCeph(object):
     # This is required for all storage types
     # Run this in all the storage-compute nodes.
     def do_configure_nova(self):
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                                self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries),
-                                                password = entry_token):
-                    # Remove rbd_user configurations from nova if present
-                    run('sudo openstack-config --del %s DEFAULT rbd_user'
+                                               password = entry_token):
+                    if storage_only == False:
+                        # Remove rbd_user configurations from nova if present
+                        run('sudo openstack-config --del %s DEFAULT rbd_user'
                                     %(NOVA_CONFIG_FILE))
-                    run('sudo openstack-config --del %s DEFAULT rbd_secret_uuid'
+                        run('sudo openstack-config --del %s DEFAULT rbd_secret_uuid'
                                     %(NOVA_CONFIG_FILE))
-                    # Set the cinder end point to point to either the cinder_vip
-                    # in case of HA or the storage master.
-                    if self._args.cinder_vip != 'none':
-                        run('sudo openstack-config --set %s DEFAULT \
+                        # Set the cinder end point to point to either the cinder_vip
+                        # in case of HA or the storage master.
+                        if self._args.cinder_vip != 'none':
+                            run('sudo openstack-config --set %s DEFAULT \
                                     cinder_endpoint_template \
                                     "http://%s:8776/v1/%%(project_id)s"'
                                     %(NOVA_CONFIG_FILE, self._args.cinder_vip),
                                     shell='/bin/bash')
-                    else:
-                        run('sudo openstack-config --set %s DEFAULT \
+                        else:
+                            run('sudo openstack-config --set %s DEFAULT \
                                     cinder_endpoint_template \
                                     "http://%s:8776/v1/%%(project_id)s"'
                                     %(NOVA_CONFIG_FILE, self._args.storage_master),
@@ -2701,8 +2708,9 @@ class SetupCeph(object):
     # This is done after the cinder type creation.
     # This is done on all the storage-compute nodes.
     def do_service_restarts_2(self):
-        for entries, entry_token in zip(self._args.storage_hosts,
-                                        self._args.storage_host_tokens):
+        for entries, entry_token, storage_only in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens,
+                                            storage_only_node):
             # Check if the node is not an openstack node.
             is_openstack = 0
             if self._args.storage_os_hosts[0] != 'none':
@@ -2717,7 +2725,7 @@ class SetupCeph(object):
             if entries != self._args.storage_master:
                 with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                    if pdist == 'centos':
+                    if storage_only == False and pdist == 'centos':
                         run('sudo chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo service openstack-cinder-api restart')
@@ -2739,7 +2747,7 @@ class SetupCeph(object):
                         run('sudo service openstack-cinder-volume restart')
                         run('sudo service libvirtd restart')
                         run('sudo service openstack-nova-compute restart')
-                    if pdist == 'Ubuntu':
+                    if storage_only == False and pdist == 'Ubuntu':
                         run('sudo chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo chkconfig cinder-volume on')
@@ -3033,6 +3041,19 @@ class SetupCeph(object):
             # restart osds after package upgrade
             self.do_osd_restarts()
 
+    def find_storage_only_nodes(self):
+        global storage_only_node
+
+        # compute ceph.conf configuration done here
+        for entries, entry_token in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+            with settings(host_string = 'root@%s' %(entries),
+                                            password = entry_token):
+                nova_conf=run('ls %s 2>/dev/null |wc -l' %(NOVA_CONFIG_FILE))
+                if nova_conf != '0':
+                    storage_only_node.append(False)
+                else:
+                    storage_only_node.append(True)
 
 
     # Top level function for storage setup.
@@ -3047,6 +3068,9 @@ class SetupCeph(object):
             configure_with_ceph = 0
 
         if configure_with_ceph:
+            # Find Storage only nodes
+            self.find_storage_only_nodes()
+
             # Create the required ceph monitors
             self.do_monitor_create()
 
