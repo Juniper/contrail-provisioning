@@ -3,7 +3,6 @@ import string
 template = string.Template("""
 [DEFAULTS]
 rabbit_server=$__rabbit_server_ip__
-rabbit_port=$__rabbit_server_port__
 api_server_ip=$__contrail_api_server_ip__
 api_server_port=$__contrail_api_server_port__
 api_server_use_ssl=False
