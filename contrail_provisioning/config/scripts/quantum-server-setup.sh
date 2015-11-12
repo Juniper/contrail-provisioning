@@ -97,7 +97,7 @@ if [ -d /etc/neutron ]; then
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts $AMQP_SERVER
     openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
     openstack-config --del /etc/neutron/neutron.conf service_providers service_provider
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
@@ -116,8 +116,7 @@ openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT log_format 
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_port 5673
+    openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_hosts $AMQP_SERVER
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_retry_interval 1
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_retry_backoff 2
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_max_retries 0
