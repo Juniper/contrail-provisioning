@@ -15,7 +15,6 @@ cassandra_server_list=$__contrail_cassandra_server_list__
 disc_server_ip=$__contrail_disc_server_ip__
 disc_server_port=$__contrail_disc_server_port__
 rabbit_server=$__rabbit_server_ip__
-rabbit_port=$__rabbit_server_port__
 log_local=1
 log_level=SYS_NOTICE
 

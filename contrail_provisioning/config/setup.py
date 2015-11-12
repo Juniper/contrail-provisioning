@@ -47,6 +47,7 @@ class ConfigSetup(ContrailSetup):
             'quantum_service_protocol': 'http',
             'manage_neutron': 'yes',
             'orchestrator' : 'openstack',
+            'amqp_port': '5672',
         }
         self.parse_args(args_str)
 
@@ -95,8 +96,10 @@ class ConfigSetup(ContrailSetup):
             default = '1')
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--region_name", help = "The Region name for the openstack")
-        parser.add_argument("--amqp_server_ip",
-            help = "IP of the AMQP server to be used for neutron and api server")
+        parser.add_argument("--amqp_ip_list", nargs='+', type=str,
+            help = "IP of the AMQP server to be used for neutron and config services")
+        parser.add_argument("--amqp_port",
+            help = "IP of the AMQP server port to be used for neutron and config services")
         parser.add_argument("--manage_neutron", help = "Provision neutron user/role in Keystone.")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
