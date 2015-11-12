@@ -63,18 +63,18 @@ class SetupLivem(object):
             for entry, entry_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
                 uid_fix_nodes.append(entry)
                 uid_fix_node_tokens.append(entry_token)
-            uid_fix_nodes.append(self._args.storage_master)
-            uid_fix_node_tokens.append(self._args.storage_master_token)
+            #uid_fix_nodes.append(self._args.storage_master)
+            #uid_fix_node_tokens.append(self._args.storage_master_token)
             if self._args.storage_os_hosts[0] != 'none':
                 for entry, entry_token in zip(self._args.storage_os_hosts,
                                                 self._args.storage_os_host_tokens):
                     uid_fix_nodes.append(entry)
                     uid_fix_node_tokens.append(entry_token)
 
-            nova_id = local('sudo id -u nova', capture=True,
-                            shell='/bin/bash')
-            qemu_id = local('sudo id -u libvirt-qemu', capture=True,
-                            shell='/bin/bash')
+            with settings(host_string = 'root@%s' %(uid_fix_nodes[0]),
+                            password = uid_fix_node_tokens[0]):
+                nova_id = run('sudo id -u nova')
+                qemu_id = run('sudo id -u libvirt-qemu')
             uid_fix_required = 0
 
             #Check if nova/libvirt uid is different in each node
@@ -185,6 +185,7 @@ class SetupLivem(object):
                     for service in nova_services:
                         if service[0] != '':
                             run('service %s start' %(service))
+                    run('service libvirt-bin restart')
 
             return
 
