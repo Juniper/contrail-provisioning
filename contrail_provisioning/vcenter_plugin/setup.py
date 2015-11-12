@@ -71,7 +71,7 @@ class VcenterPluginSetup(ContrailSetup):
            ks_admin_user = self._args.keystone_admin_user
            ks_admin_passwd = self._args.keystone_admin_passwd
            ks_admin_tenant_name = self._args.keystone_admin_tenant_name
-           ks_auth_url = ks_auth_protocol+"://"+keystone_ip+ks_auth_port+"/v2.0"
+           ks_auth_url = ks_auth_protocol+"://"+keystone_ip+":"+ks_auth_port+"/v2.0"
 
         template_vals = {'__contrail_vcenter_url__' : vcenter_full_url,
                          '__contrail_vcenter_username__' : self._args.vcenter_username,
