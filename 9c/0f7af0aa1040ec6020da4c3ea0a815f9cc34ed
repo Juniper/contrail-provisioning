@@ -1,0 +1,8 @@
+Verified+2: Zuul <zuul@lists.opencontrail.org>
+Approved+1: Sachchidanand Vaidya <vaidyasd@juniper.net>
+Code-Review+2: Sachchidanand Vaidya <vaidyasd@juniper.net>
+Submitted-by: Zuul <zuul@lists.opencontrail.org>
+Submitted-at: Fri, 13 Nov 2015 02:02:27 -0800
+Reviewed-on: https://review.opencontrail.org/15096
+Project: Juniper/contrail-provisioning
+Branch: refs/heads/R2.20
