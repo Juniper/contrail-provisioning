@@ -33,4 +33,7 @@ api.port=$__contrail_api_port__
 
 zookeeper.serverlist=$__contrail_zookeeper_serverlist__
 
+# HTTP Introspect
+introspect.port=$__introspect_port__
+
 """)
