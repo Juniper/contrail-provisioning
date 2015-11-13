@@ -21,6 +21,7 @@ class VcenterPluginSetup(ContrailSetup):
             'api_hostname': '127.0.0.1',
             'api_port': 8082,
             'zookeeper_serverlist': '127.0.0.1:2181',
+            'introspect_port': 8234,
         }
 
         self.parse_args(args_str)
@@ -40,6 +41,7 @@ class VcenterPluginSetup(ContrailSetup):
         parser.add_argument("--vcenter_ipfabricpg", help = "vcenter ipfabric port group")
         parser.add_argument("--api_hostname", help = "IP Address of the config node")
         parser.add_argument("--api_port", help = "Listen port for api server", type = int)
+        parser.add_argument("--introspect_port", help = "Introspect port for vcenter-plugin", type = int)
         parser.add_argument("--zookeeper_serverlist", help = "List of zookeeper ip:port")
         parser.add_argument("--vcenter_mode", help = "vcenter as compute mode value")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
@@ -82,6 +84,7 @@ class VcenterPluginSetup(ContrailSetup):
                          '__contrail_api_hostname__' : self._args.api_hostname,
                          '__contrail_zookeeper_serverlist__' : self._args.zookeeper_serverlist,
                          '__contrail_api_port__' : self._args.api_port,
+                         '__introspect_port__' : self._args.introspect_port,
                          '__contrail_vcenter_mode__' : self._args.vcenter_mode,
                          '__contrail_ks_auth_url__': ks_auth_url,
                          '__contrail_admin_user__': ks_admin_user,
