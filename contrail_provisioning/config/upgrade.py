@@ -76,6 +76,18 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                             self._args.internal_vip or self._args.self_ip)
             self.set_config(conf_file, 'COLLECTOR', 'analytics_api_port',
                             '8081')
+        # Correct the rabbit server config parameter to use ip:port
+        if (self._args.from_rel < 3.0 and self._args.to_rel >= 3.0):
+            conf_files = ['contrail-api.conf',
+                          'contrail-schema.conf',
+                          'contrail-device-manager.conf',
+                          'contrail-svc-monitor.conf',
+                         ]
+            for conf_file in conf_files:
+                self.del_config(conf_file, 'DEFAULT', 'rabbit_port')
+                self.set_config(conf_file, 'DEFAULT', 'rabbit_server',
+                                self.rabbit_servers)
+
 
 
 def main():

@@ -40,15 +40,17 @@ class ConfigBaseSetup(ContrailSetup):
         self._args = config_args
 
         self.cfgm_ip = self._args.self_ip
-        self.cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
+        self.cassandra_server_list = [(cassandra_server_ip, '9160')\
+            for cassandra_server_ip in self._args.cassandra_ip_list]
         self.zk_servers = ','.join(self._args.zookeeper_ip_list)
-        self.zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zookeeper_ip_list])
+        self.zk_servers_ports = ','.join(['%s:2181' %(s)\
+            for s in self._args.zookeeper_ip_list])
 
-        self.rabbit_host = self.cfgm_ip
-        self.rabbit_port = 5672
-        if self._args.internal_vip:
-            self.rabbit_host = self._args.internal_vip
-            self.rabbit_port = 5673
+        amqp_ip_list = [self.cfgm_ip]
+        if self._args.amqp_ip_list:
+            amqp_ip_list = self._args.amqp_ip_list
+        self.rabbit_servers = ','.join(['%s:%s' % (amqp, self._args.amqp_port)\
+                                        for amqp in amqp_ip_list])
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -114,8 +116,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_certfile_location__': '/etc/contrail/ssl/certs/apiserver.pem',
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_multi_tenancy__': multi_tenancy_flag,
-                         '__rabbit_server_ip__': self._args.internal_vip or self.rabbit_host,
-                         '__rabbit_server_port__': self.rabbit_port,
+                         '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
@@ -174,8 +175,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
-                         '__rabbit_server_ip__': self.rabbit_host,
-                         '__rabbit_server_port__': self.rabbit_port,
+                         '__rabbit_server_ip__': self.rabbit_servers,
                         }
         self._template_substitute_write(contrail_schema_transformer_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
@@ -198,8 +198,7 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_device_manager_config_file(self):
         # contrail-device-manager.conf
-        template_vals = {'__rabbit_server_ip__': self.rabbit_host,
-                         '__rabbit_server_port__': self.rabbit_port,
+        template_vals = {'__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
@@ -219,8 +218,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'svc-monitor',
                          '__contrail_ifmap_password__': 'svc-monitor',
-                         '__rabbit_server_ip__': self.rabbit_host,
-                         '__rabbit_server_port__': self.rabbit_port,
+                         '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.collector_ip,

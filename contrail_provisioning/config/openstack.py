@@ -131,7 +131,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
-        ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
+        ctrl_infos.append('AMQP_SERVER=%s' % self.rabbit_servers)
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
