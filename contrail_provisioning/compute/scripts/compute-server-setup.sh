@@ -135,7 +135,22 @@ else
         is_juno_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$nova_compute_ver') >= LooseVersion('2014.2.2')")
         if [ "$is_kilo_or_above" == "True" ]; then
+            # Neutron section in nova.conf
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+            openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
+            openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+            openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
+            openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
+            openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+            openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
+            openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+
+            # New configs in keystone section
+            openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
+            openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
+
         elif [ "$is_juno_or_above" == "True" ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
