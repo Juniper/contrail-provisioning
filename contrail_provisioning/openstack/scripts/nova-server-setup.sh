@@ -274,6 +274,8 @@ else
         openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
         openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
         openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
+        openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+        openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
 
         # New configs in keystone section
         openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
