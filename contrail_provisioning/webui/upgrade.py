@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Webui components."""
 
+from distutils.version import LooseVersion
+
 from setup import WebuiSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 
@@ -33,7 +35,7 @@ class WebuiUpgrade(ContrailUpgrade, WebuiSetup):
         self.upgrade_python_pkgs()
         #Disable redis server persistence since that is not used by and webui in r2.20
         #bug-1463749
-        if self._args.to_rel >= 2.2:
+        if self._args.to_rel >= LooseVersion('2.20'):
             self.fix_redis()
         self.restart()
 
