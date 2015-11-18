@@ -5,6 +5,7 @@
 """Upgrade's Contrail Collector components."""
 
 import os
+from distutils.version import LooseVersion
 
 from fabric.api import local
 
@@ -26,7 +27,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             '/etc/contrail/contrail-analytics-api.conf',
             '/etc/contrail/contrail-collector.conf',
             '/etc/contrail/contrail-query-engine.conf',
-                                              ]
+
     def update_config(self):
         # DEvlop
         pass
@@ -39,7 +40,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         self.upgrade_python_pkgs()
         self.update_config()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.fixup_contrail_analytics_nodemgr()
             # contrail-snmp-collector support
             self.fixup_contrail_snmp_collector()
@@ -63,7 +65,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
 
         #Disable redis server persistence since that is not used by analytics in r2.20
         #bug-1463749
-        if self._args.to_rel >= 2.2:
+        if self._args.to_rel >= LooseVersion('2.20'):
             self.fix_redis()
 
         self.restart()

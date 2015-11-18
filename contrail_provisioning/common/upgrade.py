@@ -8,6 +8,7 @@ import os
 import shutil
 import argparse
 from time import sleep
+from distutils.version import LooseVersion
 
 from fabric.api import local, settings
 
@@ -36,9 +37,9 @@ class ContrailUpgrade(object):
 
         conf_parser.add_argument("-c", "--conf_file",
                                  help="Specify config file", metavar="FILE")
-        conf_parser.add_argument("-F", "--from_rel", type=float, default=0.0,
+        conf_parser.add_argument("-F", "--from_rel", type=LooseVersion,
             help="Release of contrail software installed in the node")
-        conf_parser.add_argument("-T", "--to_rel", type=float, default=0.0,
+        conf_parser.add_argument("-T", "--to_rel", type=LooseVersion,
             help="Release of contrail software to be upgraded in the node")
         conf_parser.add_argument("-P", "--packages", nargs='+', type=str,
             help = "List of packages to be upgraded.")
