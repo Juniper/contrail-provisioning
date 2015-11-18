@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Openstack components."""
 
+from distutils.version import LooseVersion
+
 from setup import OpenstackSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 from fabric.context_managers import settings
@@ -86,8 +88,8 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         # removed from Galera clustering. Hence, the following change
         # will drop CMON DB and re-provision CMON.
         if (self._args.internal_vip and
-            self._args.from_rel < 2.2 and
-            self._args.to_rel >= 2.2):
+            self._args.from_rel <= LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
             self.fix_haproxy_config()

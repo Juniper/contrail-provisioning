@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Control components."""
 
+from distutils.version import LooseVersion
+
 from setup import ControlSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 
@@ -25,7 +27,8 @@ class ControlUpgrade(ContrailUpgrade, ControlSetup):
                             '/etc/contrail/contrail-dns.conf',
                             '/etc/contrail/dns/contrail-named.conf',
                             '/etc/contrail/dns/contrail-rndc.conf',
-                            '/etc/contrail/dns/contrail-named.pid'] 
+                            '/etc/contrail/dns/contrail-named.pid'
+                                        ]
 
     def restart(self):
         local('service supervisor-control restart')
@@ -34,7 +37,8 @@ class ControlUpgrade(ContrailUpgrade, ControlSetup):
         self._upgrade()
         self.upgrade_python_pkgs()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.fixup_contrail_control_nodemgr()
         self.restart()
 

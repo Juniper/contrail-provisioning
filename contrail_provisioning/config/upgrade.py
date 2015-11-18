@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Config components."""
 
+from distutils.version import LooseVersion
+
 from fabric.api import local
 
 from setup import ConfigSetup
@@ -28,7 +30,8 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         self.upgrade_data['upgrade'] = self._args.packages
         ifmap_dir = '/etc/ifmap-server'
         if self.pdist in ['centos', 'redhat']:
-            if (self._args.from_rel < 2.0 and self._args.to_rel >= 2.2):
+            if (self._args.from_rel < LooseVersion('2.00') and
+                self._args.to_rel >= LooseVersion('2.20')):
                 ifmap_dir = '/etc/irond'
         self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron']
 
@@ -44,10 +47,12 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         self.upgrade_python_pkgs()
         # Device manager is introduced from release 2.1, So fixup the config
         # file if the upgrade is from pre releases to 2.1 release.
-        if (self._args.from_rel < 2.1 and self._args.to_rel >= 2.1):
+        if (self._args.from_rel < LooseVersion('2.10') and
+            self._args.to_rel >= LooseVersion('2.10')):
             self.config_setup.fixup_device_manager_config_file()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.config_setup.fixup_contrail_config_nodemgr()
             # Populate RabbitMQ details in contrail-svc-monitor.conf
             conf_file = '/etc/contrail/contrail-svc-monitor.conf'
@@ -56,7 +61,8 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
             self.set_config(conf_file, 'DEFAULTS', 'rabbit_port',
                             self.config_setup.rabbit_port)
         # Populate collector configuration to retrieve loadbalancer stats
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             conf_file = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
             self.set_config(conf_file, 'COLLECTOR', 'analytics_api_ip',
                             self._args.internal_vip or self._args.self_ip)

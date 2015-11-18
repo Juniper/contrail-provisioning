@@ -4,6 +4,8 @@
 #
 """Upgrade's Contrail Compute components."""
 
+from distutils.version import LooseVersion
+
 from setup import ComputeSetup
 from openstack import ComputeOpenstackSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
@@ -66,10 +68,11 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             local('service supervisor-vrouter status', capture=True)):
             local("service supervisor-vrouter stop")
         self.upgrade_python_pkgs()
-        if self._args.from_rel == 2.0:
+        if self._args.from_rel == LooseVersion('2.00'):
             self.fix_nova_params()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
-        if (self._args.from_rel < 2.2 and self._args.to_rel >= 2.2):
+        if (self._args.from_rel < LooseVersion('2.20') and
+            self._args.to_rel >= LooseVersion('2.20')):
             self.compute_setup.fixup_contrail_vrouter_nodemgr()
 
 
