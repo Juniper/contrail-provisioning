@@ -10,9 +10,6 @@ MYIPS=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}'
 MYIP=0
 RUN_STATE="isrunning"
 CMON_SVC_CHECK=$(pgrep -xf '/usr/local/cmon/sbin/cmon -r /var/run/cmon')
-RUN_CMON="service cmon start"
-STOP_CMON="service cmon stop"
-RESTART_CMON="service cmon restart"
 mysql_host=$VIP
 mysql_port=33306
 MYSQL_SVC_CHECK="service mysql status"
@@ -32,6 +29,8 @@ cleanuppending="/tmp/ha-chk/rmq_mnesia_cleanup_pending"
 MYID="/etc/contrail/galeraid"
 cmonerror="CmonCron could not initialize"
 cmonlog="/var/log/cmon.log"
+ZKLOCK="/tmp/cmon-lock"
+ZKLOCK_PPID="/tmp/cmon-lock-ppid"
 
 NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
 NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
@@ -54,8 +53,8 @@ STATE_EXITED="EXITED"
 STATE_FATAL="FATAL"
 GTID_FILE="/tmp/galera/gtid"
 GALERA_BOOT="/opt/contrail/bin/contrail-bootstrap-galera.sh DONOR"
-MYSQL_USERNAME="cmon"
-MYSQL_PASSWORD="cmon"
+MYSQL_USERNAME=$CMON_USER
+MYSQL_PASSWORD=$CMON_PASS
 MYSQL_BIN="/usr/bin/mysql"
 MYSQL_WSREP_STATE="show status like 'wsrep_local_state';"
 MYSQL_CLUSTER_STATE="show status like 'wsrep_cluster_status';"
@@ -94,14 +93,20 @@ cSize=$((${DIPS_SIZE} - 1))
 nFailures=$(($cSize / 2))
 
 vip_info() {
+flag=false
 for y in $MYIPS
  do
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
      if [ $y == ${DIPS[i]} ]; then
         MYIP=$y
+        flag=true
+        break
      fi
    done
+   if [[ "$flag" == true ]]; then
+      break
+   fi
 done
 
 for y in $MYIPS
@@ -268,20 +273,6 @@ fi
 }
 
 chkNRun_cluster_mon() {
-cmon_run=$(verify_cmon)
-# change >= R2.21 cmon will run on every node
-if [ $cmon_run == "n" ]; then
-      (exec $RUN_CMON)&
-      log_info_msg "Started MySql galera Cluster Monitor"
-fi
-
-cerr=$(grep "$cmonerror" "$cmonlog" | wc -l)
-   if [[ $cerr != 0 ]]; then
-     (exec rm -rf "$cmonlog")&
-     log_info_msg "Restarting cmon on detecting a connection error that could happen if CMON is trying to connect before mysql is ready"
-     (exec $RESTART_CMON)&
-   fi
-
 # Check periodically for RMQ status
 if [[ -n "$PERIODIC_RMQ_CHK_INTER" ]]; then
       sleep $PERIODIC_RMQ_CHK_INTER
@@ -330,7 +321,6 @@ fi
       
 cleanup() {
 #Cleanup if there exists sockets in CLOSE_WAIT
-clssoc=$(netstat -natp | grep 33306 | grep CLOSE_WAIT | wc -l)
 if [[ $clssoc -ne 0 ]]; then
    netstat -anp |\
    grep ':33306 ' |\
@@ -358,24 +348,26 @@ for (( i=0; i<${#status[@]}; i++ ))
   fi
  done
 
-mypid=$(pidof mysqld)
-if [ -n "$mypid" ] && [ $galerastate == "n" ]; then
-   $MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -e "$MYSQL_WSREP_STATE" 2> >( cat <() > $STDERR)
-   err1=$(cat $STDERR | grep "$ERROR2002" | awk '{print $2}')
-   err2=$(cat $STDERR | grep "$ERROR1205" | awk '{print $2}')
-   if [[ $err1 == 2002 ]] || [[ $err2 == 1205 ]]; then
-      recluster=true
-   fi
-   (exec rm -rf "$STDERR")&
-fi
+if [[ $MONITOR_GALERA == "True" ]]; then
+  mypid=$(pidof mysqld)
+  if [ -n "$mypid" ] && [ $galerastate == "n" ]; then
+    $MYSQL_BIN --connect_timeout 5 -u $MYSQL_USERNAME -p${MYSQL_PASSWORD} -e "$MYSQL_WSREP_STATE" 2> >( cat <() > $STDERR)
+    err1=$(cat $STDERR | grep "$ERROR2002" | awk '{print $2}')
+    err2=$(cat $STDERR | grep "$ERROR1205" | awk '{print $2}')
+    if [[ $err1 == 2002 ]] || [[ $err2 == 1205 ]]; then
+       recluster=true
+    fi
+    (exec rm -rf "$STDERR")&
+  fi
 
-if [ ! -f $RECLUSTRUN ]; then
-  if [ $noconn -ge $cSize ] || [[ "$recluster" == true ]]; then
-    log_info_msg "Connectivity lost with $noconn peers"
-    log_info_msg "Mysql Galera Error $err1 $err2 requires reclustering"
-    log_info_msg "Reclustering MySql Galera"
-    (exec $RECLUSTER)&
-    touch $RECLUSTRUN
+  if [ ! -f $RECLUSTRUN ]; then
+    if [ $noconn -ge $cSize ] || [[ "$recluster" == true ]]; then
+      log_info_msg "Connectivity lost with $noconn peers"
+      log_info_msg "Mysql Galera Error $err1 $err2 requires reclustering"
+      log_info_msg "Reclustering MySql Galera"
+      (exec $RECLUSTER)&
+      touch $RECLUSTRUN
+    fi
   fi
 fi
 
@@ -392,10 +384,124 @@ else
 fi
 }
 
+manage_cmon() {
+cmon_run=$(verify_cmon)
+zkPID=$(ps -ef|grep "python - cmon_lock" | grep -v grep | awk '{print $2}')
+if [ ! -n "$zkPID" ]; then
+    if [ ! -f "$ZKLOCK" ]; then
+        touch "$ZKLOCK"
+    fi
+    if [ ! -f "$ZKLOCK_PPID" ]; then
+        touch "$ZKLOCK_PPID"
+    fi
+    (run_onzk_lock_acquire) & zkppid=$!
+    zkpid=$(ps -ef|grep "python - cmon_lock" | grep -v grep | awk '{print $2}')
+    log_info_msg "Created new ZK PID $zkpid"
+    echo $zkpid > "$ZKLOCK"
+    echo $zkppid > "$ZKLOCK_PPID"
+    log_info_msg "Updated $zkpid in $ZKLOCK"
+else
+  if [ -f "$ZKLOCK" ] && [ -f "$ZKLOCK_PPID" ]; then
+     ZkPid=$(cat "$ZKLOCK")
+     if [ $zkPID == $ZkPid ] && [ ! -d "/proc/${ZkPid}" ]; then
+       if [ $cmon_run == "y" ]; then
+         cmonpid=$(pidof cmon)
+         `kill -9 $cmonpid`
+       fi
+       `kill -9 $(cat "$ZKLOCK_PPID")`
+       `kill -9 $ZkPid`
+       `rm -r "$ZKLOCK"`
+       `rm -r "$ZKLOCK_PPID"`
+     fi
+  fi
+fi
+}
+ 
+function run_onzk_lock_acquire {
+ZK_IPPORTS="$ZK_SERVER_IP" python - "cmon_lock" <<END
+import os
+import socket
+import subprocess
+import sys, getopt
+import time
+import signal
+from kazoo.client import KazooClient
+from kazoo.client import KazooState
+class CmonElection:
+   zk_state = KazooState.CONNECTED
+   def __init__(self):
+       pass
+   def electCmon(self):
+       zk_ip_ports=os.environ['ZK_IPPORTS']
+       zk=KazooClient(zk_ip_ports, max_retries=10)
+       zk.start()
+       zk.add_listener(self.my_listener)
+       while True:
+          elect=zk.Election('/cmonelection','%s-%d' % (socket.gethostname(),os.getpid()))
+          elect.run(self.start_cmon)
+
+   def my_listener(self, state):
+      if state == KazooState.LOST:
+         CmonElection.zk_state=KazooState.LOST
+         self.stop_cmon()
+      elif state == KazooState.SUSPENDED:
+         CmonElection.zk_state=KazooState.SUSPENDED
+         self.stop_cmon()
+      elif state == KazooState.CONNECTED:
+         CmonElection.zk_state=KazooState.CONNECTED
+
+   def start_cmon(self):
+       while True:
+         time.sleep(3)
+         cmon_pid=self.get_cmon_pid("cmon")
+         if not cmon_pid:
+            subprocess.call("rm -rf /var/run/cmon/cmon.pid", shell=True)
+            subprocess.call("service cmon start", shell=True)
+
+   def stop_cmon(self):
+       cmon_pid=self.get_cmon_pid("cmon")
+       if cmon_pid:
+          subprocess.call("pkill -9 cmon", shell=True)
+          subprocess.call("rm -rf /var/run/cmon/cmon.pid", shell=True)
+          os._exit(0)
+       if (CmonElection.zk_state == KazooState.LOST or
+           CmonElection.zk_state == KazooState.SUSPENDED):
+          try:
+              with open('/tmp/cmon-lock-ppid') as file:
+                   zkpPid = file.read()
+                   zkpPid = ' '.join(zkpPid.split())
+                   subprocess.call("rm -rf /tmp/cmon-lock-ppid", shell=True)
+                   os.kill(int(zkpPid), signal.SIGKILL)
+              with open('/tmp/cmon-lock') as file:
+                   zkPid = file.read()
+                   zkPid = ' '.join(zkPid.split())
+                   subprocess.call("rm -rf /tmp/cmon-lock", shell=True)
+                   os.kill(int(zkPid), signal.SIGKILL)
+          except IOError:
+                  pass
+
+   def get_cmon_pid(self, name):
+       try:
+           return int(subprocess.check_output(["pidof", name]))
+       except (subprocess.CalledProcessError, ValueError):
+           return 0
+
+def main():
+    cel=CmonElection()
+    cel.stop_cmon()
+    cel.electCmon()
+
+if  __name__ =='__main__':main()
+END
+}
+
 main()
 {
   vip_info
-  bootstrap
+  if [[ $MONITOR_GALERA == "True" ]]; then
+    bootstrap
+    manage_cmon
+  fi
   chkNRun_cluster_mon
   ka_vip_del
   procs_check

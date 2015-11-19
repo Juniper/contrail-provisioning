@@ -33,16 +33,24 @@ MYIP=0
 MONITOR="MONITOR"
 RMQ_CLNTS=${#RMQ_CLIENTS[@]}
 
+get_my_ip() {
+flag=false
 for y in $MYIPS
  do
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
      if [ $y == ${DIPS[i]} ]; then
         MYIP=$y
+        flag=true
+        break
      fi
    done
+   if [[ "$flag" == true ]]; then
+      break
+   fi
 done
-
+}
+ 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
 fi
