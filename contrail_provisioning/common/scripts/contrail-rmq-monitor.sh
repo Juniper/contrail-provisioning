@@ -33,16 +33,24 @@ MYIP=0
 MONITOR="MONITOR"
 RMQ_CLNTS=${#RMQ_CLIENTS[@]}
 
+get_my_ip() {
+flag=false
 for y in $MYIPS
  do
   for (( i=0; i<${DIPS_SIZE}; i++ ))
    do
      if [ $y == ${DIPS[i]} ]; then
         MYIP=$y
+        flag=true
+        break
      fi
    done
+   if [[ "$flag" == true ]]; then
+      break
+   fi
 done
-
+}
+ 
 if [ ! -f "$LOCKFILE_DIR" ] ; then
         mkdir -p $LOCKFILE_DIR 
 fi
@@ -196,6 +204,77 @@ do
  fi
   i=$[$i+1]
 done
+}
+
+cleanup()
+{
+ dst=$1
+ if [[ $dst != '' ]]; then
+   out=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $dst "date")
+   if [[ $out != '' ]]; then
+     (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $dst "$rmqstop")
+     (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $dst "pkill -9 beam")
+     (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $dst "pkill -9 epmd")
+     (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $dst "$rmmnesia")
+     (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 $dst "$RMQ_RESET")
+     log_info_msg "Cleaned up mnesia and reset RMQ on $dst -- Done"
+     echo "y"
+   else
+     echo "n"
+     log_info_msg "Cleanup mnesia and reset RMQ on $dst -- PENDING"
+   fi
+ fi
+}
+
+rmqclientsstop()
+{
+  for (( i=0; i<${DIPS_SIZE}; i++ ))
+   do
+    for (( j=0; j<${RMQ_CLNTS}; j++ ))
+     do
+      (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "service ${RMQ_CLIENTS[j]} stop")
+      log_info_msg "${RMQ_CLIENTS[j]} stopped on ${DIPS[i]}"
+     done
+   done
+}
+
+rmqclientsrestart()
+{
+  for (( i=0; i<${DIPS_SIZE}; i++ ))
+   do
+    for (( j=0; j<${RMQ_CLNTS}; j++ ))
+     do
+      (ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${DIPS[i]} "service ${RMQ_CLIENTS[j]} restart")
+      log_info_msg "${RMQ_CLIENTS[j]} started on ${DIPS[i]}"
+     done
+   done
+}
+
+cleanpending() {
+if [ -f "$cleanuppending" ] && [ -s "$cleanuppending" ] && [[ $RABBITMQ_MNESIA_CLEAN == "True" ]]; then
+  readarray ips < $cleanuppending
+  ipsz=${#ips[@]}
+  for (( i=0; i<${ipsz}; i++ ))
+   do
+    status=$(ping -c 1 -w 1 -W 1 -n ${ips[i]} | grep packet | awk '{print $6}' | cut -c1)
+    if [[ $status == 0 ]]; then
+      rmqclientsstop
+      isClean=$(cleanup "${ips[i]}")
+      if [[ $isClean == "y" ]];  then
+        var=$(grep -F -ve "${ips[i]}" $cleanuppending)
+        echo $var > $cleanuppending
+        sed -i '/^$/d' $cleanuppending
+      fi
+    fi
+   done
+else
+  if [ -f "$cleanuppending" ] && [ ! -s "$cleanuppending" ]; then
+    pol=$($sethapolicy)
+    log_info_msg "HA Policy set - $pol"
+    rmqclientsrestart
+    (exec rm -rf "$cleanuppending")&
+  fi
+fi
 }
 
 cleanup()
