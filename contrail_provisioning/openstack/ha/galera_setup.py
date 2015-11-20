@@ -54,7 +54,8 @@ class GaleraSetup(ContrailSetup):
         '''
         Eg. setup-vnc-galera --openstack0_user root --openstack0_password c0ntrail123 --self_ip 10.1.5.11
                    --keystone_ip 10.1.5.11 --galera_ip_list 10.1.5.11 10.1.5.12 --openstack_index 1
-                   --internal_vip 10.1.5.13 --zoo_ip_list 10.1.5.11 10.1.5.12
+                   --internal_vip 10.1.5.13 --zoo_ip_list 10.1.5.11 10.1.5.12 --keystone_user keystone
+                   --keystone_pass keystone --cmon_user cmon --cmon_pass cmon --monitor_galera True
         '''
         parser = self._parse_args(args_str)
 
@@ -66,8 +67,13 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--galera_ip_list", help = "List of IP Addresses of galera servers", nargs='+', type=str)
         parser.add_argument("--internal_vip", help = "Internal Virtual IP Address of HA Openstack nodes"),
         parser.add_argument("--external_vip", help = "External Virtual IP Address of HA Openstack nodes"),
-        parser.add_argument("--node_to_add", help = "IP address of the new node to add into the Galera cluster", type=str),
+        parser.add_argument("--node_to_add", help = "IP address of the new node to add into the Galera cluster", type=str)
         parser.add_argument("--zoo_ip_list", help = "List of IP Addresses of zookeeper servers", nargs='+', type=str)
+        parser.add_argument("--keystone_user", help = "Keystone user")
+        parser.add_argument("--keystone_pass", help = "Keystone password")
+        parser.add_argument("--cmon_user", help = "Cmon user")
+        parser.add_argument("--cmon_pass", help = "Cmon pass")
+        parser.add_argument("--monitor_galera", help = "Monitor Galera. Value can be boolean in string True / False")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fix_galera_config(self, bootstrap=True):
@@ -127,7 +133,16 @@ class GaleraSetup(ContrailSetup):
     def fix_cmon_config(self):
         zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
         template_vals = {'__internal_vip__' : self._args.internal_vip,
-                         '__haproxy_dips__' : '"' + '" "'.join(self._args.galera_ip_list) + '"'}
+                         '__haproxy_dips__' : '"' + '" "'.join(self._args.galera_ip_list) + '"',
+                         '__external_vip__' : self._args.external_vip,
+                         '__zooipports__' : zk_servers_ports,
+                         '__keystoneuser__': self._args.keystone_user,
+                         '__keystonepass__': self._args.keystone_pass,
+                         '__cmonuser__': self._args.cmon_user,
+                         '__cmonpass__': self._args.cmon_pass,
+                         '__monitorgalera__': self._args.monitor_galera
+                        }
+
         self._template_substitute_write(cmon_param_template.template,
                                         template_vals,
                                         self._temp_dir_name + '/cmon_param')
