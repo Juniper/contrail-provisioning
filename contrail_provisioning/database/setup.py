@@ -69,12 +69,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         self._args = parser.parse_args(self.remaining_argv)
 
-    def fixup_config_files(self):
-        # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
-        hosts_entry = '%s %s' %(self.database_listen_ip, self.hostname)
-        with settings( warn_only= True) :
-            local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(self.database_listen_ip, hosts_entry))
-
+    def fixup_cassandra_config_files(self):
         if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
             CASSANDRA_CONF = '/etc/cassandra/conf'
             CASSANDRA_CONF_FILE = 'cassandra.yaml'
@@ -192,6 +187,15 @@ class DatabaseSetup(ContrailSetup):
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
         local("sudo sed -i 's/MaxTenuringThreshold=1/MaxTenuringThreshold=30/g' %s" % (env_file))
+
+    def fixup_config_files(self):
+        # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
+        hosts_entry = '%s %s' %(self.database_listen_ip, self.hostname)
+        with settings( warn_only= True) :
+            local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(self.database_listen_ip, hosts_entry))
+
+        self.fixup_cassandra_config_files()
+
 
         self.fixup_contrail_database_nodemgr()
 
