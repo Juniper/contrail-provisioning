@@ -69,12 +69,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         self._args = parser.parse_args(self.remaining_argv)
 
-    def fixup_config_files(self):
-        # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
-        hosts_entry = '%s %s' %(self.database_listen_ip, self.hostname)
-        with settings( warn_only= True) :
-            local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(self.database_listen_ip, hosts_entry))
-
+    def fixup_cassandra_config_files(self):
         if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
             CASSANDRA_CONF = '/etc/cassandra/conf'
             CASSANDRA_CONF_FILE = 'cassandra.yaml'
@@ -193,6 +188,15 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/MaxTenuringThreshold=1/MaxTenuringThreshold=30/g' %s" % (env_file))
 
+    def fixup_config_files(self):
+        # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
+        hosts_entry = '%s %s' %(self.database_listen_ip, self.hostname)
+        with settings( warn_only= True) :
+            local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(self.database_listen_ip, hosts_entry))
+
+        self.fixup_cassandra_config_files()
+
+
         self.fixup_contrail_database_nodemgr()
 
         # set high session timeout to survive glance led disk activity
@@ -206,7 +210,7 @@ class DatabaseSetup(ContrailSetup):
             local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
 
         self.fix_zookeeper_servers_config()
-        self.fixup_kafka_server_properties(listen_ip)
+        self.fixup_kafka_server_properties(self.database_listen_ip)
 
     def fixup_kafka_server_properties(self, listen_ip):
         #Update the broker id of the /usr/share/kafka/config/server.properties
