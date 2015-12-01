@@ -278,9 +278,9 @@ fi
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $CINDER_SERVICE) ]; then
     keystone endpoint-create --region RegionOne --service-id $CINDER_SERVICE \
-        --publicurl 'http://'$CONTROLLER':8776/$CINDER_SERVICE_TYPE/$(tenant_id)s' \
-        --adminurl 'http://'$CONTROLLER':8776/$CINDER_SERVICE_TYPE/$(tenant_id)s' \
-        --internalurl 'http://'$CONTROLLER':8776/$CINDER_SERVICE_TYPE/$(tenant_id)s'
+        --publicurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s' \
+        --adminurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s' \
+        --internalurl 'http://'$CONTROLLER':8776/'$CINDER_SERVICE_TYPE'/$(tenant_id)s'
     fi
 fi
 
