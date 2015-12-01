@@ -32,7 +32,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             self.upgrade_data['backup'].append('/etc/nova')
             self.upgrade_data['backup'].append('/etc/libvirt')
 
-        if self._args.orchestrator == 'vcenter':
+        if self._args.mode == 'vcenter':
            self.upgrade_data['backup'].remove('/etc/nova')
            self.upgrade_data['backup'].remove('/etc/libvirt')
 
@@ -49,7 +49,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if self.pdist in ['Ubuntu']:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')
-        if self._args.orchestrator == 'vcenter':
+        if self._args.mode == 'vcenter':
            self.upgrade_data['restore'].remove('/etc/nova/nova.conf')
            self.upgrade_data['restore'].remove('/etc/nova/nova-compute.conf')
            self.upgrade_data['restore'].remove('/etc/libvirt/qemu.conf')
