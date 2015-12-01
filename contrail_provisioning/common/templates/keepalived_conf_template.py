@@ -3,7 +3,7 @@ import string
 
 template = string.Template("""
 vrrp_script chk_haproxy_$__vip_str__ {
-        script "killall -0 haproxy" # verify if pid exists
+        script "pgrep haproxy > /dev/null" # verify if pid exists
         interval 1
         timeout $__timeout__
         rise $__rise__
