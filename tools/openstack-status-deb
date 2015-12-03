@@ -236,7 +236,7 @@ fi
 
 if test "$keystonerc" && test "$glance"; then
   printf "== Glance images ==\n"
-  glance index
+  glance image-list
 fi
 
 if test "$nova"; then
@@ -245,7 +245,7 @@ if test "$nova"; then
   else
     printf "== Nova instance flavors ==\n"
     # Check direct access
-    nova-manage flavor list
+    nova flavor-list
 
     printf "== Nova instances ==\n"
     # Check access through the API
