@@ -52,6 +52,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('QUANTUM_PORT=%s' % self._args.quantum_port)
 
         ctrl_infos.append('COMPUTE=%s' % self._args.self_ip)
+        if self._args.mgmt_self_ip:
+            ctrl_infos.append('SELF_MGMT_IP=%s' % self._args.mgmt_self_ip)
         ctrl_infos.append('CONTROLLER_MGMT=%s' % self._args.openstack_mgmt_ip)
         if self._args.vmware:
             ctrl_infos.append('VMWARE_IP=%s' % self._args.vmware)
