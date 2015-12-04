@@ -53,6 +53,7 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -113,8 +114,7 @@ fi
 
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT log_format '%(asctime)s.%(msecs)d %(levelname)8s [%(name)s] %(message)s'
 
-INTERNAL_VIP=${INTERNAL_VIP:-none}
-if [ "$INTERNAL_VIP" != "none" ]; then
+if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_hosts $AMQP_SERVER
     openstack-config --set /etc/$net_svc_name/$net_svc_name.conf DEFAULT rabbit_retry_interval 1
