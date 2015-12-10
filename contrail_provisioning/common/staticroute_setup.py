@@ -81,7 +81,7 @@ class StaticRoute(object):
                 route_fields = route.split()
                 flags = int(route_fields[3], 16)
                 destination = socket.inet_ntoa(struct.pack('I', int(route_fields[1], 16)))
-                if flags & 0x2 and int(route_fields[1], 16):
+                if flags & 0x2:
                     gateway = socket.inet_ntoa(struct.pack('I', int(route_fields[2], 16)))
                     mask = socket.inet_ntoa(struct.pack('I', int(route_fields[7], 16)))
                     actual_list.append('%s %s %s' %(destination, mask, gateway))
