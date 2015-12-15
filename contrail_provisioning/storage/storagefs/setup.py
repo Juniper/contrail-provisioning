@@ -172,6 +172,10 @@ class SetupCeph(object):
     rabbit_host_section = 'DEFAULT'
     global cinder_command
     cinder_command = 'cinder'
+    global glance_store
+    glance_store = 'DEFAULT'
+    global glance_known_store
+    glance_known_store = 'known_stores'
 
     # The function create a script which runs and lists the mons
     # running on the local node
@@ -822,7 +826,7 @@ class SetupCeph(object):
         global ceph_all_hosts
 
         # Find existing mons
-        ceph_mon_entries = local('ceph mon stat 2>&1 |grep quorum | \
+        ceph_mon_entries = local('ceph --connect-timeout 5 mon stat 2>&1 |grep quorum | \
                                 awk \'{print $11}\'', capture=True)
         if ceph_mon_entries != '':
             ceph_mon_list = ceph_mon_entries.split(',')
@@ -924,16 +928,16 @@ class SetupCeph(object):
                 else:
                     break
 
-            local('sudo openstack-config --set /etc/glance/glance-api.conf \
-                                    DEFAULT default_store file')
-            local('sudo openstack-config --del /etc/glance/glance-api.conf \
-                                    DEFAULT known_stores')
-            local('sudo openstack-config --del /etc/glance/glance-api.conf \
-                                    DEFAULT show_image_direct_url')
-            local('sudo openstack-config --del /etc/glance/glance-api.conf \
-                                    DEFAULT rbd_store_user')
-            local('sudo openstack-config --set /etc/glance/glance-api.conf \
-                                    DEFAULT workers 1')
+            local('sudo openstack-config --set %s %s default_store file'
+                        %(GLANCE_API_CONF, glance_store))
+            local('sudo openstack-config --del %s %s %s'
+                        %(GLANCE_API_CONF, glance_store, glance_known_store))
+            local('sudo openstack-config --del %s %s show_image_direct_url'
+                        %(GLANCE_API_CONF, glance_store))
+            local('sudo openstack-config --del %s %s rbd_store_user'
+                        %(GLANCE_API_CONF, glance_store))
+            local('sudo openstack-config --set %s DEFAULT workers 1'
+                        %(GLANCE_API_CONF, glance_store))
             if pdist == 'centos':
                 local('sudo service openstack-glance-api restart')
             if pdist == 'Ubuntu':
@@ -944,21 +948,21 @@ class SetupCeph(object):
                                                 self._args.storage_os_host_tokens):
                     with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                        run('sudo openstack-config --set \
-                                        /etc/glance/glance-api.conf \
-                                        DEFAULT default_store file')
-                        run('sudo openstack-config --del \
-                                        /etc/glance/glance-api.conf \
-                                        DEFAULT known_stores')
-                        run('sudo openstack-config --del \
-                                        /etc/glance/glance-api.conf \
-                                        DEFAULT show_image_direct_url')
-                        run('sudo openstack-config --del \
-                                        /etc/glance/glance-api.conf \
-                                        DEFAULT rbd_store_user')
-                        run('sudo openstack-config --set \
-                                        /etc/glance/glance-api.conf \
-                                        DEFAULT workers 1')
+                        run('sudo openstack-config --set %s %s \
+                                    default_store file'
+                                    %(GLANCE_API_CONF, glance_store))
+                        run('sudo openstack-config --del %s %s %s'
+                                    %(GLANCE_API_CONF, glance_store,
+                                    glance_known_store))
+                        run('sudo openstack-config --del %s %s \
+                                    show_image_direct_url'
+                                    %(GLANCE_API_CONF, glance_store))
+                        run('sudo openstack-config --del %s %s \
+                                    rbd_store_user'
+                                    %(GLANCE_API_CONF, glance_store))
+                        run('sudo openstack-config --set %s DEFAULT \
+                                    workers 1'
+                                    %(GLANCE_API_CONF, glance_store))
                         if pdist == 'centos':
                             run('sudo service openstack-glance-api restart')
                         if pdist == 'Ubuntu':
@@ -1108,8 +1112,8 @@ class SetupCeph(object):
                         run('sudo rm -rf /etc/ceph')
         time.sleep(2)
         # Purge data on all the nodes.
-        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts),
-                                            capture=False, shell='/bin/bash')
+        # local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts),
+        #                                     capture=False, shell='/bin/bash')
         # Remove local Ceph directories
         local('sudo rm -rf /var/lib/ceph')
         local('sudo rm -rf /var/run/ceph')
@@ -2549,24 +2553,26 @@ class SetupCeph(object):
     # Function for glance configuration for Ceph
     def do_configure_glance_rbd(self):
         #Glance configuration on the storage master
-        local('sudo openstack-config --set %s DEFAULT default_store rbd'
-                                            %(GLANCE_API_CONF))
-        local('sudo openstack-config --set %s DEFAULT known_stores \
-                glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
-                                            %(GLANCE_API_CONF))
-        local('sudo openstack-config --set %s DEFAULT show_image_direct_url True'
-                                            %(GLANCE_API_CONF))
-        local('sudo openstack-config --set %s DEFAULT rbd_store_user images'
-                                            %(GLANCE_API_CONF))
         local('sudo openstack-config --set %s DEFAULT workers %s'
                                             %(GLANCE_API_CONF, RBD_WORKERS))
-        local('sudo openstack-config --set %s DEFAULT rbd_store_chunk_size %s'
-                                            %(GLANCE_API_CONF,
-                                            RBD_STORE_CHUNK_SIZE))
-        local('sudo openstack-config --set %s DEFAULT rbd_store_pool images'
+        local('sudo openstack-config --set %s DEFAULT show_image_direct_url True'
                                             %(GLANCE_API_CONF))
-        local('sudo openstack-config --set %s DEFAULT rbd_store_ceph_conf %s'
-                                            %(GLANCE_API_CONF, CEPH_CONFIG_FILE))
+        local('sudo openstack-config --set %s %s default_store rbd'
+                                            %(GLANCE_API_CONF, glance_store))
+        local('sudo openstack-config --set %s %s %s \
+                glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
+                                            %(GLANCE_API_CONF, glance_store,
+                                            glance_known_store))
+        local('sudo openstack-config --set %s %s rbd_store_user images'
+                                            %(GLANCE_API_CONF, glance_store))
+        local('sudo openstack-config --set %s %s rbd_store_chunk_size %s'
+                                            %(GLANCE_API_CONF, glance_store,
+                                            RBD_STORE_CHUNK_SIZE))
+        local('sudo openstack-config --set %s %s rbd_store_pool images'
+                                            %(GLANCE_API_CONF, glance_store))
+        local('sudo openstack-config --set %s %s rbd_store_ceph_conf %s'
+                                            %(GLANCE_API_CONF, glance_store,
+                                                CEPH_CONFIG_FILE))
         #Glance configuration on all the other openstack nodes
         if self._args.storage_os_hosts[0] != 'none':
             for entries, entry_token in zip(self._args.storage_os_hosts,
@@ -2574,31 +2580,33 @@ class SetupCeph(object):
                 with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
                     run('sudo openstack-config --set %s DEFAULT \
-                                            default_store rbd'
-                                            %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT known_stores \
-                            glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
-                                            %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT \
-                                            show_image_direct_url True'
-                                            %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT \
-                                            rbd_store_user images'
-                                            %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT \
                                             workers %s'
                                             %(GLANCE_API_CONF,
                                             RBD_WORKERS))
                     run('sudo openstack-config --set %s DEFAULT \
-                                            rbd_store_chunk_size %s'
-                                            %(GLANCE_API_CONF,
-                                            RBD_STORE_CHUNK_SIZE))
-                    run('sudo openstack-config --set %s DEFAULT \
-                                            rbd_store_pool images'
+                                            show_image_direct_url True'
                                             %(GLANCE_API_CONF))
-                    run('sudo openstack-config --set %s DEFAULT \
+                    run('sudo openstack-config --set %s %s \
+                                            default_store rbd'
+                                            %(GLANCE_API_CONF, glance_store))
+                    run('sudo openstack-config --set %s %s %s \
+                            glance.store.rbd.Store,glance.store.filesystem.Store,glance.store.http.Store'
+                                            %(GLANCE_API_CONF, glance_store,
+                                            glance_known_store))
+                    run('sudo openstack-config --set %s %s \
+                                            rbd_store_user images'
+                                            %(GLANCE_API_CONF, glance_store))
+                    run('sudo openstack-config --set %s %s \
+                                            rbd_store_chunk_size %s'
+                                            %(GLANCE_API_CONF, glance_store,
+                                            RBD_STORE_CHUNK_SIZE))
+                    run('sudo openstack-config --set %s %s \
+                                            rbd_store_pool images'
+                                            %(GLANCE_API_CONF, glance_store))
+                    run('sudo openstack-config --set %s %s \
                                             rbd_store_ceph_conf %s'
-                                            %(GLANCE_API_CONF, CEPH_CONFIG_FILE))
+                                            %(GLANCE_API_CONF, glance_store,
+                                            CEPH_CONFIG_FILE))
         return
     #end do_configure_glance_rbd()
 
@@ -3217,6 +3225,8 @@ class SetupCeph(object):
         global sql_key
         global rabbit_host_section
         global cinder_command
+        global glance_store
+        global glance_known_store
 
         cinder_version = int(local('cinder-manage --version 2>&1 | grep ^20 | \
                                 cut -d \'.\' -f 1', capture=True))
@@ -3225,6 +3235,8 @@ class SetupCeph(object):
             sql_key = 'connection'
             rabbit_host_section = 'oslo_messaging_rabbit'
             cinder_command = 'cinder --os-volume-api-version 2'
+            glance_store = 'glance_store'
+            glance_known_store = 'stores'
     #end find_keystone_config()
 
     # Top level function for storage setup.
@@ -3343,6 +3355,7 @@ class SetupCeph(object):
 
         # Create monitor list
         self.do_create_monlist()
+
         # Following all are specific setups based on the setup_mode
 
         # Do a unconfigure of all the nodes that are part of ceph.
