@@ -260,7 +260,7 @@ if [ -f /etc/redhat-release ]; then
 fi
 
 # Create cinder service if not created in above steps
-if [[ -z "CINDER_SERVICE" ]]; then
+if [[ -z "$CINDER_SERVICE" ]]; then
     CINDER_SERVICE=$(get_service "cinder" volume "Cinder Service")
 fi
 
