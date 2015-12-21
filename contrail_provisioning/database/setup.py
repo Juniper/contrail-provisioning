@@ -78,6 +78,10 @@ class DatabaseSetup(ContrailSetup):
             CASSANDRA_CONF = '/etc/cassandra/'
             CASSANDRA_CONF_FILE = 'cassandra.yaml'
             CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+        if self.is_cql_supported():
+            CASSANDRA_ANALYTICS_KEYSPACE = 'ContrailAnalyticsCql'
+        else:
+            CASSANDRA_ANALYTICS_KEYSPACE = 'ContrailAnalytics'
         listen_ip = self.database_listen_ip
         cassandra_dir = self.database_dir
         initial_token = self._args.initial_token
@@ -120,8 +124,8 @@ class DatabaseSetup(ContrailSetup):
                 cass_data_dir = os.path.join(data_dir, 'data')
             else:
                 cass_data_dir = data_dir
-            analytics_dir_link = os.path.join(cass_data_dir, 'ContrailAnalytics')
-            analytics_dir = os.path.join(analytics_data_dir, 'ContrailAnalytics')
+            analytics_dir_link = os.path.join(cass_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
+            analytics_dir = os.path.join(analytics_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
             if not os.path.exists(analytics_dir_link):
                 if not os.path.exists(data_dir):
                     local("sudo mkdir -p %s" % (data_dir))
@@ -140,7 +144,7 @@ class DatabaseSetup(ContrailSetup):
                 cass_data_dir = os.path.join(data_dir, 'data')
             else:
                 cass_data_dir = data_dir
-            analytics_dir = os.path.join(cass_data_dir, 'ContrailAnalytics')
+            analytics_dir = os.path.join(cass_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
             if not os.path.exists(analytics_dir):
                 if not os.path.exists(data_dir):
                     local("sudo mkdir -p %s" % (data_dir))
