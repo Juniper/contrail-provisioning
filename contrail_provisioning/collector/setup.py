@@ -38,7 +38,11 @@ class CollectorSetup(ContrailSetup):
         }
 
         self.parse_args(args_str)
-        self.cassandra_server_list = [(cassandra_server_ip, '9160') for cassandra_server_ip in self._args.cassandra_ip_list]
+        if self.is_cql_supported():
+            cassandra_port = '9042'
+        else:
+            cassandra_port = '9160'
+        self.cassandra_server_list = [(cassandra_server_ip, cassandra_port) for cassandra_server_ip in self._args.cassandra_ip_list]
 
     def parse_args(self, args_str):
         '''

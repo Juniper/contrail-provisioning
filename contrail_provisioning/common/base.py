@@ -65,6 +65,13 @@ class ContrailSetup(object):
 
         return parser
 
+    def is_cql_supported(self):
+        if self.pdist == 'Ubuntu' and self.pdistversion.find('12.') == 0:
+            return False
+        elif self.pdist == 'centos' and self.pdistversion.find('6.') == 0:
+            return False
+        return True
+
     def update_vips_in_ctrl_details(self, ctrl_infos):
         if self._args.internal_vip:
             ctrl_infos.append('INTERNAL_VIP=%s' % self._args.internal_vip)
