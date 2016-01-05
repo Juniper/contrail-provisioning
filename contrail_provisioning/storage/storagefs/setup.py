@@ -1061,8 +1061,8 @@ class SetupCeph(object):
                         run('sudo rm -rf /etc/ceph')
         time.sleep(2)
         # Purge data on all the nodes.
-        local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts),
-                                            capture=False, shell='/bin/bash')
+        # local('sudo ceph-deploy purgedata %s <<< \"y\"' % (ceph_all_hosts),
+        #                                    capture=False, shell='/bin/bash')
         # Remove local Ceph directories
         local('sudo rm -rf /var/lib/ceph')
         local('sudo rm -rf /var/run/ceph')
