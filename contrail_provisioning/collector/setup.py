@@ -183,6 +183,9 @@ class CollectorSetup(ContrailSetup):
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
                         self.cassandra_server_list[0][0] + ':2181')
+        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
+                        self._args.cfgm_ip)
+        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',
                         'program:contrail-topology',
@@ -227,9 +230,8 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_redis_server__': '127.0.0.1',
                          '__contrail_redis_server_port__' : '6379',
                          '__contrail_http_server_port__' : '8091',
-                         '__contrail_collector__' : '127.0.0.1',
-                         '__contrail_collector_port__' : '8086',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_discovery_ip__' : self._args.cfgm_ip,
                          '__contrail_redis_password__' : ''}
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
@@ -252,8 +254,6 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_host_ip__' : self._args.self_collector_ip,
                          '__contrail_discovery_ip__' : self._args.cfgm_ip,
                          '__contrail_discovery_port__' : 5998,
-                         '__contrail_collector__': self._args.self_collector_ip,
-                         '__contrail_collector_port__': '8086',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
                          '__contrail_config_audit_ttl__' : self._args.analytics_config_audit_ttl,
