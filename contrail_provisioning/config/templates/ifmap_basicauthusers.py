@@ -28,4 +28,7 @@ helper:mapclient
 
 # This is a read-only MAPC
 reader:reader
+$__contrail_control_node_users__
+$__contrail_control_node_dns_users__
+
 """)
