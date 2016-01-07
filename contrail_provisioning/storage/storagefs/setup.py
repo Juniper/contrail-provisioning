@@ -741,6 +741,17 @@ class SetupCeph(object):
                                             self._args.storage_host_tokens):
             with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
+                if self._args.storage_hostnames[0] == \
+                                self._args.orig_hostnames[0]:
+                    for hostname, host_ip in zip(self._args.storage_hostnames,
+                                                self._args.storage_hosts):
+                        run('cat /etc/hosts | grep -v -w %s$ > /tmp/hosts; \
+                            a=`cat /tmp/hosts | grep -w "%s[ ]*%s" | wc -l`; \
+                            if [ "$a" == "0" ]; then echo %s %s >> /tmp/hosts; fi ; \
+                            cp -f /tmp/hosts /etc/hosts' \
+                            % (hostname, host_ip, hostname, host_ip, hostname))
+
+
                 for hostname, host_ip, orig_hostname in zip(
                                             self._args.storage_hostnames,
                                             self._args.storage_hosts,
@@ -932,7 +943,7 @@ class SetupCeph(object):
             local('sudo openstack-config --del %s %s rbd_store_user'
                         %(GLANCE_API_CONF, glance_store))
             local('sudo openstack-config --set %s DEFAULT workers 1'
-                        %(GLANCE_API_CONF, glance_store))
+                        %(GLANCE_API_CONF))
             if pdist == 'centos':
                 local('sudo service openstack-glance-api restart')
             if pdist == 'Ubuntu':
@@ -957,7 +968,7 @@ class SetupCeph(object):
                                     %(GLANCE_API_CONF, glance_store))
                         run('sudo openstack-config --set %s DEFAULT \
                                     workers 1'
-                                    %(GLANCE_API_CONF, glance_store))
+                                    %(GLANCE_API_CONF))
                         if pdist == 'centos':
                             run('sudo service openstack-glance-api restart')
                         if pdist == 'Ubuntu':
@@ -1376,11 +1387,8 @@ class SetupCeph(object):
             self.do_journal_initialize(ceph_disk_entry)
             osd_running = self.do_osd_check(ceph_disk_entry)
             if osd_running == FALSE:
-                # Zap the existing partitions
-                local('sudo ceph-deploy disk zap %s' % (ceph_disk_entry))
-                # Allow disk partition changes to sync.
-                time.sleep(5)
-
+                # Find interface ip subnet
+                # reset Drives
                 diskentry = ceph_disk_entry.split(':')
                 for hostname, entries, entry_token in \
                         zip(self._args.storage_hostnames,
@@ -1389,15 +1397,24 @@ class SetupCeph(object):
                     if hostname == diskentry[0]:
                         with settings(host_string = 'root@%s' %(entries),
                                       password = entry_token):
-                            ip_cidr = run('ip addr show |grep -w %s |awk \'{print $2}\' | \
+                            ip_cidr = run('ip addr show |grep -w %s | \
+                                          awk \'{print $2}\' | \
                                           head -n 1' %(entries))
+                            run('sudo parted -s %s mklabel gpt 2>&1 > /dev/null'
+                                    %(diskentry[1]))
                         local('sudo openstack-config --set /root/ceph.conf \
                                     global public_network %s\/%s'
                                     %(netaddr.IPNetwork(ip_cidr).network,
                                     netaddr.IPNetwork(ip_cidr).prefixlen))
                         break
+                # Zap the existing partitions
+                local('sudo ceph-deploy disk zap %s' % (ceph_disk_entry))
+                # Allow disk partition changes to sync.
+                time.sleep(5)
+
                 # For prefirefly use prepare/activate on ubuntu release
-                local('sudo ceph-deploy --overwrite-conf osd create %s' % (ceph_disk_entry))
+                local('sudo ceph-deploy --overwrite-conf osd create %s'
+                        %(ceph_disk_entry))
                 time.sleep(10)
                 osd_running = self.do_osd_check(ceph_disk_entry)
                 if osd_running == FALSE:
