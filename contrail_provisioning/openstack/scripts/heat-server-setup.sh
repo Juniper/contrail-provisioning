@@ -115,7 +115,8 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_port $AMQP_PORT
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs /usr/lib/heat/resources
+    PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs ${PYDIST}/contrail_heat/resources
     openstack-config --set /etc/$svc/$svc.conf DEFAULT heat_waitcondition_server_url http://$controller_ip:8000/v1/waitcondition
 
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri http://$controller_ip:5000/v2.0
