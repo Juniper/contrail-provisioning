@@ -41,6 +41,13 @@ setup(
             'update-cfgm-config = contrail_provisioning.config.setup:fix_cfgm_config_files',
             'update-collector-config = contrail_provisioning.collector.setup:fix_collector_config',
             'update-webui-config = contrail_provisioning.webui.setup:fix_webui_config',
+            'remove-galera-node = contrail_provisioning.openstack.ha.galera_setup:remove_galera_node',
+            'unregister-openstack-services = contrail_provisioning.openstack.setup:service_unregister',
+            'readjust-cassandra-seed-list = contrail_provisioning.database.setup:readjust_seed_list',
+            'decommission-cassandra-node = contrail_provisioning.database.setup:decommission_cassandra_node',
+            'update-ifmap-users = contrail_provisioning.config.setup:update_ifmap_users',
+            'remove-cassandra-node = contrail_provisioning.database.setup:remove_cassandra_node',
+
             # Reset scripts
             'reset-vnc-database = contrail_provisioning.database.reset:main',
             # Upgrade scripts

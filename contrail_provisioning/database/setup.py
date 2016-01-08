@@ -46,6 +46,7 @@ class DatabaseSetup(ContrailSetup):
             --data_dir /home/cassandra
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --database_index 1
+            --node_to_delete 10.1.5.11
         '''
         parser = self._parse_args(args_str)
 
@@ -65,6 +66,7 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--database_index", help = "The index of this databse node")
         parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for contrail database")
         parser.add_argument("--kafka_broker_id", help = "The broker id of the database node")
+        parser.add_argument("--node_to_delete", help = "The DB node to remove from the cluster")
         parser.add_argument("--cassandra_user", help = "Cassandra user name if provided")
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         self._args = parser.parse_args(self.remaining_argv)
@@ -320,6 +322,50 @@ class DatabaseSetup(ContrailSetup):
     def restart_zookeeper(self):
         local('sudo service zookeeper restart')
 
+    def update_seed_list(self):
+        if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
+            CASSANDRA_CONF = '/etc/cassandra/conf'
+            CASSANDRA_CONF_FILE = 'cassandra.yaml'
+            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+        if self.pdist == 'Ubuntu':
+            CASSANDRA_CONF = '/etc/cassandra/'
+            CASSANDRA_CONF_FILE = 'cassandra.yaml'
+            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+        conf_dir = CASSANDRA_CONF
+        cnd = os.path.exists(conf_dir)
+        conf_file = os.path.join(conf_dir, CASSANDRA_CONF_FILE)
+
+        if self._args.seed_list:
+            self.replace_in_file(conf_file, '          - seeds:*', '          - seeds: "' + ", ".join(self._args.seed_list) + '"')
+
+        local("sudo service contrail-database restart")
+
+    def decommission_db_node(self):
+        print "Decommissioning node %s from cluster. This might take a long time" % self._args.self_ip
+        local("nodetool decommission")
+        is_decommissioned = local('nodetool netstats | grep "Mode: DECOMMISSIONED"').succeeded
+        if not is_decommissioned:
+            raise RuntimeError("Error while decommissioning %s from the DB cluster", del_db_node)
+
+        local("service supervisor-database stop")
+
+    def remove_db_node(self):
+        print "Removing node %s from cluster. This might take a long time" % self._args.node_to_delete
+        with settings(warn_only = True):
+            node_uuid = local('nodetool status | grep %s | awk \'{print $7}\'' % self._args.node_to_delete, capture = True) 
+
+        if node_uuid:
+            local("nodetool removenode %s" % node_uuid)
+        else:
+            print "Node %s was never part of the cluster", self._args.node_to_delete
+            return
+
+        with settings(warn_only = True):
+            is_removed = local('nodetool status | grep %s' % self._args.node_to_delete).failed
+
+        if not is_removed:
+            raise RuntimeError("Error while removed node %s from the DB cluster", self._args.node_to_delete)
+
 def main(args_str = None):
     database = DatabaseSetup(args_str)
     database.setup()
@@ -332,6 +378,18 @@ def update_zookeeper_servers(args_str = None):
 def restart_zookeeper_server(args_str = None):
     database = DatabaseSetup(args_str)
     database.restart_zookeeper()
+
+def readjust_seed_list(args_str = None):
+    database = DatabaseSetup(args_str)
+    database.update_seed_list()
+
+def decommission_cassandra_node(args_str = None):
+    database = DatabaseSetup(args_str)
+    database.decommission_db_node()
+
+def remove_cassandra_node(args_str = None):
+    database = DatabaseSetup(args_str)
+    database.remove_db_node()
 
 if __name__ == "__main__":
     main()
