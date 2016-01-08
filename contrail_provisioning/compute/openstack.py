@@ -119,8 +119,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         nova_compute = 'openstack-nova-compute'
         if self.pdist in ['Ubuntu']:
             nova_compute = 'nova-compute'
-        local('chkconfig %s on' % nova_compute)
         if config_nova:
+            local('chkconfig %s on' % nova_compute)
             local('service %s restart' % nova_compute)
         super(ComputeOpenstackSetup, self).run_services()
 
