@@ -36,6 +36,7 @@ class OpenstackSetup(ContrailSetup):
             'haproxy': False,
             'osapi_compute_workers': 40,
             'conductor_workers': 40,
+            'sriov':False,
         }
         self._args = None
         if not args_str:
@@ -84,6 +85,7 @@ class OpenstackSetup(ContrailSetup):
                             help = "Number of worker threads for osapi compute")
         parser.add_argument("--conductor_workers", type=int,
                             help = "Number of worker threads for conductor")
+        parser.add_argument("--sriov", help = "Enable SRIOV", action="store_true")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied by user
@@ -119,6 +121,12 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('QUANTUM_PORT=%s' % self._args.quantum_port)
         if self._args.openstack_index:
             ctrl_infos.append('OPENSTACK_INDEX=%s' % self._args.openstack_index)
+        if self._args.sriov:
+            ctrl_infos.append('SRIOV_ENABLED=%s' % 'True')
+        else:
+            ctrl_infos.append('SRIOV_ENABLED=%s' % 'False')
+
+
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 

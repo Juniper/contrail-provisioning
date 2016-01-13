@@ -68,6 +68,23 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             ctrl_infos.append('VCENTER_DVSWITCH=%s' % self._args.vcenter_dvswitch)
         if self._args.dpdk:
             ctrl_infos.append('DPDK_MODE=True')
+        if self._args.sriov:
+            intf_str = ""
+            physnet_str = ""
+            sriov_string = self._args.sriov
+            intf_list = sriov_string.split(",")
+            for intf_details in intf_list:
+                info = intf_details.split(":")
+                if info:
+                    intf_str += (info[0] + ",")
+                    physnets = info[2]
+                    physnet_str += physnets
+                    if intf_list[-1] != intf_details:
+                        physnet_str += ","
+
+            ctrl_infos.append('SRIOV_INTERFACES=%s' % intf_str)
+            ctrl_infos.append('SRIOV_PHYSNETS=%s' % physnet_str)
+
         self.update_vips_in_ctrl_details(ctrl_infos)
 
         for ctrl_info in ctrl_infos:
@@ -128,6 +145,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
+        self.setup_sriov_grub()
+        self.setup_sriov_vfs()
         self.build_ctrl_details()
         if self._args.vcenter_server:
             self.fixup_nova_conf()

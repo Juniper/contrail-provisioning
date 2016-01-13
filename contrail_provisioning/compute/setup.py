@@ -133,6 +133,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--cpu_mode", help = "VM cpu_mode, can be one of 'none', 'host-model', 'host-passthrough', 'custom'")
         parser.add_argument("--cpu_model", help = "VM cpu_model, required if cpu_mode is 'custom'. eg. 'Nehalem'")
         parser.add_argument("--dpdk", help = "vRouter/DPDK mode.", action="store_true")
+        parser.add_argument("--sriov", help = "sriov configuration")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied

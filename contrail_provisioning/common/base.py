@@ -156,6 +156,49 @@ class ContrailSetup(object):
                 # cleanup in case move had error
                 local("rm config.new")
 
+    def setup_sriov_grub(self):
+        if not self._args.sriov:
+            return
+
+        if self.pdist != 'Ubuntu':
+            print "Not configuring SRIOV Grub changes for ", self.pdist, " distribution"
+            return
+
+        with open ('/etc/default/grub', 'r') as f:
+            gcnf = f.read ()
+            p = re.compile ('\s*GRUB_CMDLINE_LINUX_DEFAULT')
+            el = gcnf.split ('\n')
+            for i, x in enumerate (el):
+                if not p.match(x):
+                    continue
+                exec(el[i])
+                el[i] = 'GRUB_CMDLINE_LINUX_DEFAULT="%s intel_iommu=on"' % (
+                        ' '.join (filter (lambda x: not x.startswith (
+                                    'intel_iommu='), GRUB_CMDLINE_LINUX_DEFAULT.split ())))
+                exec(el[i])
+                with open ('%s/grub' % self._temp_dir_name, 'w') as f:
+                    f.write ('\n'.join (el))
+                    f.flush ()
+                local ('sudo mv %s/grub /etc/default/grub' % (self._temp_dir_name))
+                local ('sudo /usr/sbin/update-grub')
+                break
+
+    def setup_sriov_vfs(self):
+        # Set the required number of Virtual Functions for given interfaces
+        if self.pdist != 'Ubuntu':
+            print "Not configuring VF's for ", self.pdist, " distribution"
+            return
+
+        sriov_string = self._args.sriov
+        if sriov_string:
+            intf_list = sriov_string.split(",")
+            for intf_details in intf_list:
+                info = intf_details.split(":")
+                str = 'sudo sed -i \'/^exit/i \\echo ' + info[1] + ' > /sys/class/net/' + info[0] + '/device/sriov_numvfs \' /etc/rc.local'
+                with settings(warn_only = True):
+                    local(str)
+
+
     def disable_iptables(self):
         # Disable iptables
         with settings(warn_only = True):
