@@ -247,16 +247,19 @@ fi
 CINDER_SERVICE=""
 CINDER_USER=""
 CINDER_SERVICE_TYPE=v1
-# If cinder is Kilo based in centos7/rhel7, volumev2 services are required
+# If cinder is Kilo based, volumev2 services are required
 if [ -f /etc/redhat-release ]; then
     os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
-    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
-    if [ "$is_kilo_or_above" == "True" ]; then
-        CINDER_SERVICE=$(get_service "cinderv2" volumev2 "Cinder V2 Service")
-        CINDER_USER=$(get_service_user cinderv2)
-        CINDER_SERVICE_TYPE=v2
-    fi
+fi
+if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
+    os_cinder=$(dpkg-query -W -f='${Version}' cinder-api | cut -d ':' -f 2)
+fi
+is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+              print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
+if [ "$is_kilo_or_above" == "True" ]; then
+    CINDER_SERVICE=$(get_service "cinderv2" volumev2 "Cinder V2 Service")
+    CINDER_USER=$(get_service_user cinderv2)
+    CINDER_SERVICE_TYPE=v2
 fi
 
 # Create cinder service if not created in above steps
