@@ -31,7 +31,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   os_cinder=$(dpkg-query -W -f='${Version}' openstack-cinder)
+   os_cinder=$(dpkg-query -W -f='${Version}' cinder-api | cut -d ':' -f 2)
 fi
 echo "$0: Openstack Cinder Version: ( $os_cinder )"
 
@@ -112,15 +112,13 @@ for svc in cinder; do
 
     # If cinder is Kilo based in centos7/rhel7, needed more
     # more settings
-    if [ $is_redhat -eq 1 ]; then
-        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
-        if [ "$is_kilo_or_above" == "True" ]; then
-            openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                                   auth_uri http://${controller_ip}:5000/v2.0
-            openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                                   identity_uri http://${controller_ip}:35357
-        fi
+    if [ "$is_kilo_or_above" == "True" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
+                               auth_uri http://${controller_ip}:5000/v2.0
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
+                               identity_uri http://${controller_ip}:35357
     fi
 
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
