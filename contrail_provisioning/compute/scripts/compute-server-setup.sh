@@ -191,6 +191,33 @@ if [ $VMWARE_IP ]; then
     fi
 fi
 
+if [ $SRIOV_INTERFACES != "" ]; then
+    OLD_IFS=$IFS
+    IFS=','
+    intf_list=($SRIOV_INTERFACES)
+    physnet_list=($SRIOV_PHYSNETS)
+    IFS='%'
+    physnets=($physnet_list)
+    search_pattern=""
+    i=0
+    openstack-config --del /etc/nova/nova-compute.conf DEFAULT pci_passthrough_whitelist
+    for intf in ${intf_list[@]}; do
+        phys=$physnets[$i]
+        i=$i+1
+        for physnet_name in ${phys[@]}; do
+            wl="{ \"devname\": \"$intf\", \"physical_network\": \"$physnet_name\"}"
+            if [ $search_pattern ]; then
+                pci_wl="pci_passthrough_whitelist = $wl"
+                sed -i "/$search_pattern/a \ $pci_wl" /etc/nova/nova.conf
+            else
+                openstack-config --set /etc/nova/nova-compute.conf DEFAULT pci_passthrough_whitelist $wl
+            fi
+            search_pattern=$wl
+        done
+    done
+    IFS=$OLD_IFS
+fi
+
 if [ $VCENTER_IP ]; then
     openstack-config --set /etc/nova/nova.conf vmware host_ip $VCENTER_IP 
     openstack-config --set /etc/nova/nova.conf vmware host_username $VCENTER_USERNAME 

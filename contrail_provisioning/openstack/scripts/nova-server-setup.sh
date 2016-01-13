@@ -331,6 +331,15 @@ if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
 fi
 
+if [ -n "$SRIOV_ENABLED" ]; then
+    openstack-config --del /etc/nova/nova.conf DEFAULT scheduler_default_filters
+    openstack-config --del /etc/nova/nova.conf DEFAULT scheduler_available_filters
+    openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_default_filters PciPassthroughFilter
+    openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_available_filters nova.scheduler.filters.all_filters
+    sed -i "/scheduler_available_filters/a \
+           scheduler_available_filters = nova.scheduler.filters.pci_passthrough_filter.PciPassthroughFilter"  /etc/nova/nova.conf
+fi
+
 echo "======= Enabling the services ======"
 
 for svc in $web_svc memcached; do
