@@ -3273,9 +3273,10 @@ class SetupCeph(object):
         # Check keystone configuration
         self.do_keystone_config()
 
+        # Find Storage only nodes
+        self.find_storage_only_nodes()
+
         if configure_with_ceph:
-            # Find Storage only nodes
-            self.find_storage_only_nodes()
 
             # Create the required ceph monitors
             self.do_monitor_create()
