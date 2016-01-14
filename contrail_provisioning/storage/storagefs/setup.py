@@ -938,8 +938,8 @@ class SetupCeph(object):
                         %(GLANCE_API_CONF, glance_store))
             local('sudo openstack-config --del %s %s %s'
                         %(GLANCE_API_CONF, glance_store, glance_known_store))
-            local('sudo openstack-config --del %s %s show_image_direct_url'
-                        %(GLANCE_API_CONF, glance_store))
+            local('sudo openstack-config --del %s DEFAULT show_image_direct_url'
+                        %(GLANCE_API_CONF))
             local('sudo openstack-config --del %s %s rbd_store_user'
                         %(GLANCE_API_CONF, glance_store))
             local('sudo openstack-config --set %s DEFAULT workers 1'
@@ -960,9 +960,9 @@ class SetupCeph(object):
                         run('sudo openstack-config --del %s %s %s'
                                     %(GLANCE_API_CONF, glance_store,
                                     glance_known_store))
-                        run('sudo openstack-config --del %s %s \
+                        run('sudo openstack-config --del %s DEFAULT \
                                     show_image_direct_url'
-                                    %(GLANCE_API_CONF, glance_store))
+                                    %(GLANCE_API_CONF))
                         run('sudo openstack-config --del %s %s \
                                     rbd_store_user'
                                     %(GLANCE_API_CONF, glance_store))
@@ -2271,6 +2271,9 @@ class SetupCeph(object):
                                 true' %(CINDER_CONFIG_FILE))
                         run('sudo openstack-config --set %s DEFAULT auth_strategy \
                                 keystone' %(CINDER_CONFIG_FILE))
+                        run('sudo openstack-config --set %s keystone_authtoken \
+                                admin_user cinderv2'
+                                %(CINDER_CONFIG_FILE))
                         if self._args.cinder_vip != 'none':
                             run('sudo openstack-config --set %s keystone_authtoken \
                                 auth_uri http://%s:5000/v2.0'
@@ -2295,6 +2298,9 @@ class SetupCeph(object):
                     true' %(CINDER_CONFIG_FILE))
             local('sudo openstack-config --set %s DEFAULT auth_strategy \
                     keystone' %(CINDER_CONFIG_FILE))
+            local('sudo openstack-config --set %s keystone_authtoken \
+                    admin_user cinderv2'
+                    %(CINDER_CONFIG_FILE))
             if self._args.cinder_vip != 'none':
                 local('sudo openstack-config --set %s keystone_authtoken \
                     auth_uri http://%s:5000/v2.0'
@@ -3237,6 +3243,34 @@ class SetupCeph(object):
                                 self._args.openstack_ip, self._args.openstack_ip,
                                 self._args.openstack_ip), shell='/bin/bash')
 
+            v1_config = local('source /etc/contrail/openstackrc && \
+                                keystone service-list | grep -w volume | wc -l',
+                                capture=True, shell='/bin/bash')
+            if v1_config == '0':
+                local('source /etc/contrail/openstackrc && \
+                        keystone service-create --type volume --name cinder \
+                        --description volume', shell='/bin/bash')
+                v1_service = local('source /etc/contrail/openstackrc && \
+                        keystone service-list | grep -w volume | awk \'{print $2}\'',
+                        capture=True, shell='/bin/bash')
+                if self._args.cinder_vip != 'none':
+                    local('source /etc/contrail/openstackrc && \
+                            keystone endpoint-create --service-id %s \
+                            --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --region RegionOne' %(v1_service,
+                                self._args.cinder_vip, self._args.cinder_vip,
+                                self._args.cinder_vip), shell='/bin/bash')
+                else:
+                    local('source /etc/contrail/openstackrc && \
+                            keystone endpoint-create --service-id %s \
+                            --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --region RegionOne' %(v1_service,
+                                self._args.openstack_ip, self._args.openstack_ip,
+                                self._args.openstack_ip), shell='/bin/bash')
     #end do_keystone_config()
 
     def find_cinder_version(self):
@@ -3273,9 +3307,10 @@ class SetupCeph(object):
         # Check keystone configuration
         self.do_keystone_config()
 
+        # Find Storage only nodes
+        self.find_storage_only_nodes()
+
         if configure_with_ceph:
-            # Find Storage only nodes
-            self.find_storage_only_nodes()
 
             # Create the required ceph monitors
             self.do_monitor_create()
