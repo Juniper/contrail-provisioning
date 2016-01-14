@@ -938,8 +938,8 @@ class SetupCeph(object):
                         %(GLANCE_API_CONF, glance_store))
             local('sudo openstack-config --del %s %s %s'
                         %(GLANCE_API_CONF, glance_store, glance_known_store))
-            local('sudo openstack-config --del %s %s show_image_direct_url'
-                        %(GLANCE_API_CONF, glance_store))
+            local('sudo openstack-config --del %s DEFAULT show_image_direct_url'
+                        %(GLANCE_API_CONF))
             local('sudo openstack-config --del %s %s rbd_store_user'
                         %(GLANCE_API_CONF, glance_store))
             local('sudo openstack-config --set %s DEFAULT workers 1'
@@ -960,9 +960,9 @@ class SetupCeph(object):
                         run('sudo openstack-config --del %s %s %s'
                                     %(GLANCE_API_CONF, glance_store,
                                     glance_known_store))
-                        run('sudo openstack-config --del %s %s \
+                        run('sudo openstack-config --del %s DEFAULT \
                                     show_image_direct_url'
-                                    %(GLANCE_API_CONF, glance_store))
+                                    %(GLANCE_API_CONF))
                         run('sudo openstack-config --del %s %s \
                                     rbd_store_user'
                                     %(GLANCE_API_CONF, glance_store))
@@ -3273,9 +3273,10 @@ class SetupCeph(object):
         # Check keystone configuration
         self.do_keystone_config()
 
+        # Find Storage only nodes
+        self.find_storage_only_nodes()
+
         if configure_with_ceph:
-            # Find Storage only nodes
-            self.find_storage_only_nodes()
 
             # Create the required ceph monitors
             self.do_monitor_create()
