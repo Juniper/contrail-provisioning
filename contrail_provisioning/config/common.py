@@ -245,7 +245,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_listen_ip_addr__': '0.0.0.0',
                          '__contrail_listen_port__': '5998',
                          '__contrail_log_local__': 'True',
-                         '__contrail_log_file__': '/var/log/contrail/discovery.log',
+                         '__contrail_log_file__': '/var/log/contrail/contrail-discovery.log',
                          '__contrail_healthcheck_interval__': 5,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                         }
