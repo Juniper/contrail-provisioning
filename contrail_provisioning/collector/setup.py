@@ -157,7 +157,7 @@ class CollectorSetup(ContrailSetup):
             local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
-                        self.cassandra_server_list[0][0] + ':2181')
+            ','.join('%s:2181' % cs[0] for cs in self.cassandra_server_list))
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
@@ -182,7 +182,7 @@ class CollectorSetup(ContrailSetup):
         with settings(warn_only=True):
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
-                        self.cassandra_server_list[0][0] + ':2181')
+            ','.join('%s:2181' % cs[0] for cs in self.cassandra_server_list))
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',
                         'program:contrail-topology',
