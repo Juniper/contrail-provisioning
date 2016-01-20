@@ -96,6 +96,10 @@ class SetupCeph(object):
     OPENSTACK_RC_FILE = '/etc/contrail/openstackrc'
     global SYSFS_CONF
     SYSFS_CONF = '/etc/sysfs.conf'
+    global LIBVIRT_AA_HELPER_TMP_FILE
+    LIBVIRT_AA_HELPER_TMP_FILE = '/tmp/usr.lib.libvirt.virt-aa-helper'
+    global LIBVIRT_AA_HELPER_FILE
+    LIBVIRT_AA_HELPER_FILE = '/etc/apparmor.d/usr.lib.libvirt.virt-aa-helper'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -772,6 +776,9 @@ class SetupCeph(object):
                         match = '%s %s' %(match, orig_hostname)
                     run('echo "%s" >> /tmp/hosts' %(match))
                     run('cp -f /tmp/hosts /etc/hosts')
+                    chkconfig = run('ls /sbin/chkconfig 2>/dev/null | wc -l')
+                    if chkconfig == '0':
+                        run('ln -s /bin/true /sbin/chkconfig')
 
         # Generate public id using ssh-keygen and first add the key to the
         # authorized keys file and the known_hosts file in the master itself.
@@ -2710,6 +2717,33 @@ class SetupCeph(object):
             local('sudo service openstack-nova-api restart')
             local('sudo service openstack-nova-scheduler restart')
         if pdist == 'Ubuntu':
+            virt_aa_present=local('sudo ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+            if virt_aa_present != '0':
+                global_virt_aa_helper=local('sudo cat %s | \
+                                    grep -n "instances\/global" | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE), capture=True)
+                if global_virt_aa_helper == '0':
+                    snap_lineno=int(local('sudo cat %s | \
+                                    grep -n "instances\/snapshots" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_AA_HELPER_FILE), capture=True))
+                    local('sudo head -n %d %s > %s' %(snap_lineno,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                    local('sudo echo "  /var/lib/nova/instances/global/_base/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                    local('sudo echo "  /var/lib/nova/instances/global/snapshots/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                    local('sudo tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                    local('sudo cp -f %s %s'
+                                    %(LIBVIRT_AA_HELPER_TMP_FILE,
+                                    LIBVIRT_AA_HELPER_FILE))
+                    local('sudo apparmor_parser -r %s'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+            return
             local('sudo /sbin/chkconfig cinder-api on')
             local('sudo service cinder-api restart')
             local('sudo /sbin/chkconfig cinder-scheduler on')
@@ -2741,6 +2775,34 @@ class SetupCeph(object):
                                             self._args.storage_os_host_tokens):
                     with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
+                        virt_aa_present=sudo('ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                        if virt_aa_present != '0':
+                            global_virt_aa_helper=sudo('cat %s | \
+                                    grep -n "instances\/global" | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                            if global_virt_aa_helper == '0':
+                                snap_lineno=int(sudo('cat %s | \
+                                    grep -n "instances\/snapshots" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_AA_HELPER_FILE)))
+                                sudo('head -n %d %s > %s' %(snap_lineno,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /var/lib/nova/instances/global/_base/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /var/lib/nova/instances/global/snapshots/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('cp -f %s %s'
+                                    %(LIBVIRT_AA_HELPER_TMP_FILE,
+                                    LIBVIRT_AA_HELPER_FILE))
+                                sudo('apparmor_parser -r %s'
+                                    %(LIBVIRT_AA_HELPER_FILE))
                         run('sudo /sbin/chkconfig cinder-api on')
                         run('sudo service cinder-api restart')
                         run('sudo /sbin/chkconfig cinder-scheduler on')
@@ -2888,6 +2950,35 @@ class SetupCeph(object):
                         run('sudo service libvirtd restart')
                         run('sudo service openstack-nova-compute restart')
                     if storage_only == False and pdist == 'Ubuntu':
+                        virt_aa_present=sudo('ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                        if virt_aa_present != '0':
+                            global_virt_aa_helper=sudo('cat %s | \
+                                    grep -n "instances\/global" | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                            if global_virt_aa_helper == '0':
+                                snap_lineno=int(sudo('cat %s | \
+                                    grep -n "instances\/snapshots" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_AA_HELPER_FILE)))
+                                sudo('head -n %d %s > %s' %(snap_lineno,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /var/lib/nova/instances/global/_base/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /var/lib/nova/instances/global/snapshots/** r," \
+                                    >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_AA_HELPER_FILE,
+                                    LIBVIRT_AA_HELPER_TMP_FILE))
+                                sudo('cp -f %s %s'
+                                    %(LIBVIRT_AA_HELPER_TMP_FILE,
+                                    LIBVIRT_AA_HELPER_FILE))
+                                sudo('apparmor_parser -r %s'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                        return
                         run('sudo /sbin/chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo /sbin/chkconfig cinder-volume on')
