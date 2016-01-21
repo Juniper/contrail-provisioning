@@ -325,6 +325,8 @@ SUBCHANNELS=1,2,3
                       self._args.keystone_admin_user,
                       self._args.keystone_admin_password,
                       self._args.keystone_admin_tenant_name, self._args.keystone_ip)
+        if self._args.dpdk:
+            prov_args += " --dpdk_enabled"
         local("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
 
     def setup(self):
