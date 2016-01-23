@@ -102,14 +102,14 @@ for cfg in api registry; do
         openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
     fi
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:glance@$CONTROLLER:3306/glance
+        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:$GLANCE_DBPASS@$CONTROLLER:3306/glance
     fi
 done
 
 for APP in glance; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        openstack-db -y --init --service $APP --password $GLANCE_DBPASS --rootpw "$MYSQL_TOKEN"
         glance-manage db_sync
         if [ $is_ubuntu -eq 1 ] ; then
             chown glance /var/lib/glance/glance.sqlite
