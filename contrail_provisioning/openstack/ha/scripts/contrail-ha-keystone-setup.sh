@@ -31,6 +31,10 @@
 # demo                 demo      Member,sysadmin,netadmin
 # invisible_to_admin   demo      Member
 
+set -x
+
+source /etc/contrail/keystonerc
+
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
 if [ -f /etc/redhat-release ]; then

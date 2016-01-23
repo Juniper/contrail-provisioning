@@ -33,6 +33,8 @@
 
 set -x
 
+source /etc/contrail/keystonerc
+
 ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
 if [ -f /etc/redhat-release ]; then
