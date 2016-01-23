@@ -145,14 +145,14 @@ export SERVICE_PASSWORD
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$SERVICE_DBPASS@$CONTROLLER:3306/keystone
 else
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$SERVICE_DBPASS@127.0.0.1/keystone
 fi
 for APP in keystone; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        openstack-db -y --init --service $APP --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
     fi
 done
 
@@ -197,7 +197,7 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
-    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:$SERVICE_DBPASS@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
@@ -233,7 +233,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$SERVICE_DBPASS@$CONTROLLER:3306/keystone
     if [ $is_ubuntu -eq 1 ] ; then
         dpkg --compare-versions $keystone_version_without_epoch ge 2015
         if [ $? -eq 0 ]; then
