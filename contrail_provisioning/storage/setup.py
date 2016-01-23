@@ -41,6 +41,7 @@ class StorageSetup(ContrailSetup):
                 --collector-host-tokens n1keenA n1keenA
                 --cfg-host 10.157.43.171
                 --storage-compute-hostnames cmbu-dt05 cmbu-ixs6-2
+                --service-dbpass c0ntrail123
         '''
 
         parser = self._parse_args(args_str)
@@ -75,6 +76,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--storage-replica-size", help = "Replica size")
         parser.add_argument("--openstack-ip", help = "Openstack node ip")
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
+        parser.add_argument("--service-dbpass", help = "DB password for Openstack cinder db user")
 
 
         self._args = parser.parse_args(self.remaining_argv)
@@ -139,6 +141,7 @@ class StorageSetup(ContrailSetup):
         storage_setup_args = storage_setup_args + " --storage-replica-size %s" %(self._args.storage_replica_size)
         storage_setup_args = storage_setup_args + " --openstack-ip %s" %(self._args.openstack_ip)
         storage_setup_args = storage_setup_args + " --orig-hostnames %s" %(' '.join(self._args.orig_hostnames))
+        storage_setup_args = storage_setup_args + " --service-dbpass %s" %(' '.join(self._args.service_dbpass))
 
         #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
