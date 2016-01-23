@@ -154,14 +154,14 @@ export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@127.0.0.1/nova
+openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$NOVA_DBPASS@127.0.0.1/nova
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$NOVA_DBPASS@$INTERNAL_VIP:33306/nova
 fi
 
 for APP in nova; do
@@ -255,7 +255,7 @@ else
         openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
         openstack-config --set /etc/nova/nova.conf DEFAULT instances_path /var/lib/nova/instances
         openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
-        chown -R nova:nova /var/lib/nova
+        chown -R nova:$NOVA_DBPASS /var/lib/nova
     fi
 
     is_kilo_or_latest=$(python -c "from distutils.version import LooseVersion; \
@@ -306,7 +306,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:nova@$INTERNAL_VIP:33306/nova
+    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$NOVA_DBPASS@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90

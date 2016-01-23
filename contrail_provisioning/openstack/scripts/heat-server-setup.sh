@@ -107,9 +107,9 @@ export SERVICE_TOKEN
 # Update all config files with service username and password
 for svc in heat; do
     openstack-config --del /etc/$svc/$svc.conf database connection
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:heat@127.0.0.1/heat
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$HEAT_DBPASS@127.0.0.1/heat
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:heat@$INTERNAL_VIP:33306/heat
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$HEAT_DBPASS@$INTERNAL_VIP:33306/heat
         openstack-config --set /etc/$svc/$svc.conf heat_api bind_port 8005
     fi
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu

@@ -37,6 +37,11 @@ class OpenstackSetup(ContrailSetup):
             'osapi_compute_workers': 40,
             'conductor_workers': 40,
             'sriov':False,
+            'heat_dbpass' : 'heat',
+            'keystone_dbpass' : 'keystone',
+            'nova_dbpass' : 'nova',
+            'glance_dbpass' : 'glance',
+            'cinder_dbpass' : 'cinder',
         }
         self._args = None
         if not args_str:
@@ -86,6 +91,11 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--conductor_workers", type=int,
                             help = "Number of worker threads for conductor")
         parser.add_argument("--sriov", help = "Enable SRIOV", action="store_true")
+        parser.add_argument("--heat-dbpass", help = "Database password for heat db user.")
+        parser.add_argument("--keystone-dbpass", help = "Database password for keystone db user.")
+        parser.add_argument("--nova-dbpass", help = "Database password for nova db user.")
+        parser.add_argument("--glance-dbpass", help = "Database password for glance db user.")
+        parser.add_argument("--cinder-dbpass", help = "Database password for cinder db user.")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied by user
@@ -125,8 +135,11 @@ class OpenstackSetup(ContrailSetup):
             ctrl_infos.append('SRIOV_ENABLED=%s' % 'True')
         else:
             ctrl_infos.append('SRIOV_ENABLED=%s' % 'False')
-
-
+        ctrl_infos.append('HEAT_DBPASS=%s' % self.args.heat_dbpass)
+        ctrl_infos.append('KEYSTONE_DBPASS=%s' % self.args.keystone_dbpass)
+        ctrl_infos.append('NOVA_DBPASS=%s' % self.args.nova_dbpass)
+        ctrl_infos.append('GLANCE_DBPASS=%s' % self.args.glance_dbpass)
+        ctrl_infos.append('CINDER_DBPASS=%s' % self.args.cinder_dbpass)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
