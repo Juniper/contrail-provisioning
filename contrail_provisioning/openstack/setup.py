@@ -37,6 +37,7 @@ class OpenstackSetup(ContrailSetup):
             'osapi_compute_workers': 40,
             'conductor_workers': 40,
             'sriov':False,
+            'service_dbpass' : 'c0ntrail123',
         }
         self._args = None
         if not args_str:
@@ -86,6 +87,7 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--conductor_workers", type=int,
                             help = "Number of worker threads for conductor")
         parser.add_argument("--sriov", help = "Enable SRIOV", action="store_true")
+        parser.add_argument("--service-dbpass", help = "Database password for openstack service db user.")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied by user
@@ -125,8 +127,7 @@ class OpenstackSetup(ContrailSetup):
             ctrl_infos.append('SRIOV_ENABLED=%s' % 'True')
         else:
             ctrl_infos.append('SRIOV_ENABLED=%s' % 'False')
-
-
+        ctrl_infos.append('SERVICE_DBPASS=%s' % self._args.service_dbpass)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
