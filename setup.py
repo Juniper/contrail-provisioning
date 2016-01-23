@@ -110,7 +110,6 @@ setup(
                # Config file rewrite executables
                'contrail_provisioning/compute/scripts/vrouter-agent.conf.sh',
                # Tools 
-               'tools/openstack-db',
                'tools/openstack-config',
               ]
 
