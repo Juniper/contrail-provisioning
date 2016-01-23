@@ -145,14 +145,14 @@ export SERVICE_PASSWORD
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$KEYSTONE_DBPASS@$CONTROLLER:3306/keystone
 else
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$KEYSTON_DBPASS@127.0.0.1/keystone
 fi
 for APP in keystone; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        openstack-db -y --init --service $APP --password $KEYSTONE_DBPASS --rootpw "$MYSQL_TOKEN"
     fi
 done
 
@@ -189,7 +189,7 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_PASSWORD
     openstack-config --set /etc/$svc/$svc.conf DEFAULT log_file /var/log/keystone/keystone.log
-    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:keystone@127.0.0.1/keystone
+    openstack-config --set /etc/$svc/$svc.conf sql connection mysql://keystone:$KEYSTONE_DBPASS@127.0.0.1/keystone
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
@@ -231,7 +231,7 @@ fi
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
-    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
+    openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$KEYSTONE_DBPASS@$CONTROLLER:3306/keystone
     openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
