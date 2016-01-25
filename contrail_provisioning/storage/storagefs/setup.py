@@ -2744,7 +2744,6 @@ class SetupCeph(object):
                                     LIBVIRT_AA_HELPER_FILE))
                     local('sudo apparmor_parser -r %s'
                                     %(LIBVIRT_AA_HELPER_FILE))
-            return
             local('sudo /sbin/chkconfig cinder-api on')
             local('sudo service cinder-api restart')
             local('sudo /sbin/chkconfig cinder-scheduler on')
@@ -2979,7 +2978,6 @@ class SetupCeph(object):
                                     LIBVIRT_AA_HELPER_FILE))
                                 sudo('apparmor_parser -r %s'
                                     %(LIBVIRT_AA_HELPER_FILE))
-                        return
                         run('sudo /sbin/chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo /sbin/chkconfig cinder-volume on')
