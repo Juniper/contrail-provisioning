@@ -191,26 +191,27 @@ if [ $VMWARE_IP ]; then
     fi
 fi
 
+openstack-config --del /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist
 if [ $SRIOV_INTERFACES != "" ]; then
     OLD_IFS=$IFS
     IFS=','
     intf_list=($SRIOV_INTERFACES)
     physnet_list=($SRIOV_PHYSNETS)
-    IFS='%'
-    physnets=($physnet_list)
     search_pattern=""
     i=0
-    openstack-config --del /etc/nova/nova-compute.conf DEFAULT pci_passthrough_whitelist
+    IFS='%'
     for intf in ${intf_list[@]}; do
-        phys=$physnets[$i]
-        i=$i+1
+        physnets=${physnet_list[$i]}
+        i=$((i+1))
+        phys=($physnets)
         for physnet_name in ${phys[@]}; do
             wl="{ \"devname\": \"$intf\", \"physical_network\": \"$physnet_name\"}"
             if [ $search_pattern ]; then
                 pci_wl="pci_passthrough_whitelist = $wl"
-                sed -i "/$search_pattern/a \ $pci_wl" /etc/nova/nova.conf
+                sed -i "/$search_pattern/a \
+                       $pci_wl" /etc/nova/nova.conf
             else
-                openstack-config --set /etc/nova/nova-compute.conf DEFAULT pci_passthrough_whitelist $wl
+                openstack-config --set /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist $wl
             fi
             search_pattern=$wl
         done
