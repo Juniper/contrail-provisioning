@@ -80,6 +80,13 @@ class ComputeNetworkSetup(object):
         raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
     #end get_secondary_device
 
+    def get_if_mac(self, dev):
+        iface_addr = netifaces.ifaddresses(dev)
+        link_info = iface_addr[netifaces.AF_LINK]
+        mac_addr = link_info[0]['addr']
+        return mac_addr
+    #end get_if_mac
+
     @staticmethod
     def is_interface_vlan(interface):
         with settings(warn_only=True):
@@ -340,6 +347,13 @@ HWADDR=%s
                 local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
         if esxi_vm and vmpg_mtu:
             intf = self.get_secondary_device(self.dev)
+            mac_addr = self.get_if_mac(intf)
+            udev_net_file = '/etc/udev/rules.d/70-persistent-net.rules'
+            temp_udev_net_file = '%s/70-persistent-net.rules' %(self._temp_dir_name)
+            local("touch %s" %(temp_udev_net_file))
+            local("cp %s %s" %(udev_net_file, temp_udev_net_file))
+            local("echo 'SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"%s\", ATTR{dev_id}==\"0x0\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"%s\"' >> %s" %(mac_addr, intf, temp_udev_net_file))
+            local("sudo mv -f %s %s" %(temp_udev_net_file, udev_net_file))
             local("sed -i '/auto %s/,/down/d' %s" %(intf, temp_intf_file))
             local("echo '\nauto %s' >> %s" %(intf, temp_intf_file))
             local("echo 'iface %s inet manual' >> %s" %(intf, temp_intf_file))
