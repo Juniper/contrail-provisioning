@@ -47,7 +47,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self.fixup_contrail_vrouter_nodemgr()
 
     def setup_lbaas_prereq(self):
-        if self.pdist in ['centos']:
+        if self.pdist in ['centos', 'redhat']:
            local('groupadd -f nogroup')
            local("sed -i s/'Defaults    requiretty'/'#Defaults    requiretty'/g /etc/sudoers")
 
