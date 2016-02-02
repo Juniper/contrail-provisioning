@@ -192,7 +192,7 @@ if [ $VMWARE_IP ]; then
 fi
 
 openstack-config --del /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist
-if [ $SRIOV_INTERFACES != "" ]; then
+if [ ! -z $SRIOV_INTERFACES ] ; then
     OLD_IFS=$IFS
     IFS=','
     intf_list=($SRIOV_INTERFACES)
