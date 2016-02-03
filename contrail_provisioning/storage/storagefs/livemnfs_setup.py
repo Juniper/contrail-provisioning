@@ -545,7 +545,7 @@ class SetupNFSLivem(object):
                 while True:
                     volvmattached=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep %s | wc -l' %(nova_id) , capture=True, shell='/bin/bash')
                     if volvmattached == '0':
-                        break;
+                        break
                     else:
                         print 'Waiting for volume to be detached'
                         time.sleep(5)
@@ -558,11 +558,21 @@ class SetupNFSLivem(object):
                 while True:
                     cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
                     if cindervolavail == '0':
-                        break;
+                        break
                     else:
                         print 'Waiting for volume to be deleted'
                         time.sleep(5)
 
+                    cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol | grep available |wc -l' , capture=True, shell='/bin/bash')
+                    if cindervolavail != '0':
+                        vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs | grep ACTIVE |wc -l' , capture=True, shell='/bin/bash')
+                        if vm_running == '1':
+                            local('source /etc/contrail/openstackrc && nova stop livemnfs', shell='/bin/bash')
+                            time.sleep(5)
+                            local('source /etc/contrail/openstackrc && cinder delete %s' %(cinder_id) , shell='/bin/bash')
+                        else:
+                            print 'Not able to delete the volume. Pl. delete the volume manually'
+                            break
             # Revert all the VGW configuration done and remove all the dynamic
             # and static routes from all the nodes
             vmhost = nfs_livem_host
@@ -687,7 +697,7 @@ class SetupNFSLivem(object):
             while True:
                 vm_running=local('source /etc/contrail/openstackrc && nova list | grep livemnfs |wc -l' , capture=True, shell='/bin/bash')
                 if vm_running == '0':
-                    break;
+                    break
                 else:
                     print 'Waiting for VM to be destroyed'
                     time.sleep(5)
