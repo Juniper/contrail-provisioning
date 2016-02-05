@@ -22,6 +22,7 @@ class ContrailUpgrade(object):
             'restore' : [],
             'remove_config' : [],
             'rename_config' : [],
+            'replace' : [],
         }
 
 
@@ -140,6 +141,23 @@ class ContrailUpgrade(object):
         else:
             local('rpm -e --nodeps %s' % pkgs)
 
+    def _replace_package(self):
+        if not self.upgrade_data['replace']:
+            return
+
+        rem_pkgs = ' '.join([x for (x,y) in self.upgrade_data['replace']])
+        add_pkgs = ' '.join([y for (x,y) in self.upgrade_data['replace']])
+        if self.pdist in ['Ubuntu']:
+            local('DEBIAN_FRONTEND=noninteractive apt-get -y remove --purge\
+                   %s' % rem_pkgs)
+            local('DEBIAN_FRONTEND=noninteractive apt-get -y install --reinstall\
+                   %s' % add_pkgs)
+        else:
+            local('rpm -e --nodeps %s' % rem_pkgs)
+            cmd = 'yum -y --nogpgcheck --disablerepo=*'
+            cmd += ' --enablerepo=contrail* install %s' % add_pkgs
+            local(cmd)
+
     def _ensure_package(self):
         if not self.upgrade_data['ensure']:
             return
@@ -182,6 +200,7 @@ class ContrailUpgrade(object):
         self._upgrade_package()
         if self.pdist in ['Ubuntu']:
             self._remove_package()
+        self._replace_package()
         self._restore_config()
         self._rename_config()
         self._remove_config()
