@@ -85,15 +85,15 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         # Correct the rabbit server config parameter to use ip:port
         if (self._args.from_rel < LooseVersion('3.00') and
             self._args.to_rel >= LooseVersion('3.00')):
-            conf_files = ['contrail-api.conf',
-                          'contrail-schema.conf',
-                          'contrail-device-manager.conf',
-                          'contrail-svc-monitor.conf',
+            conf_files = ['/etc/contrail/contrail-api.conf',
+                          '/etc/contrail/contrail-schema.conf',
+                          '/etc/contrail/contrail-device-manager.conf',
+                          '/etc/contrail/contrail-svc-monitor.conf',
                          ]
             for conf_file in conf_files:
                 self.del_config(conf_file, 'DEFAULT', 'rabbit_port')
                 self.set_config(conf_file, 'DEFAULT', 'rabbit_server',
-                                self.rabbit_servers)
+                                self.config_setup.rabbit_servers)
 
 
 
