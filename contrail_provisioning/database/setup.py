@@ -173,10 +173,10 @@ class DatabaseSetup(ContrailSetup):
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/g' %s" \
               % (env_file))
         if  (self.pdist == 'centos' and self.pdistversion >= '6.5') or self.pdist == 'redhat':
-            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss228k\"/g' %s" \
+            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss.*\"/JVM_OPTS=\"\$JVM_OPTS -Xss228k\"/g' %s" \
               % (env_file))
         else:
-            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss180k\"/JVM_OPTS=\"\$JVM_OPTS -Xss512k\"/g' %s" \
+            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss.*\"/JVM_OPTS=\"\$JVM_OPTS -Xss512k\"/g' %s" \
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/g' %s" \
               % (env_file))
@@ -192,7 +192,7 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
-        local("sudo sed -i 's/MaxTenuringThreshold=1/MaxTenuringThreshold=30/g' %s" % (env_file))
+        local("sudo sed -i 's/MaxTenuringThreshold=.*\"/MaxTenuringThreshold=30\"/g' %s" % (env_file))
 
     def fixup_config_files(self):
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
