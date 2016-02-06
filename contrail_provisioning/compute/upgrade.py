@@ -31,6 +31,10 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             self.upgrade_data['backup'].append('/etc/nova')
             self.upgrade_data['backup'].append('/etc/libvirt')
 
+        if self._args.mode == 'vcenter':
+           self.upgrade_data['backup'].remove('/etc/nova')
+           self.upgrade_data['backup'].remove('/etc/libvirt')
+
         self.upgrade_data['restore'] += ['/etc/contrail/agent_param',
                                      '/etc/contrail/contrail-vrouter-agent.conf',
                                      '/etc/contrail/vrouter_nodemgr_param',
@@ -41,9 +45,20 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if (self._args.from_rel >= LooseVersion('2.20')):
             self.upgrade_data['restore'].append('/etc/contrail/contrail-vrouter-nodemgr.conf')
 
+        if 'vcenter_compute' in self._args.roles:
+            self.upgrade_data['restore'].remove('/etc/contrail/agent_param')
+            self.upgrade_data['restore'].remove('/etc/contrail/contrail-vrouter-agent.conf')
+            self.upgrade_data['restore'].remove('/etc/contrail/vrouter_nodemgr_param')
+            self.upgrade_data['restore'].remove('/etc/contrail/contrail-vrouter-nodemgr.conf')
+
+
         if self.pdist in ['Ubuntu']:
             self.upgrade_data['restore'].append(
                                     '/etc/nova/nova-compute.conf')
+        if self._args.mode == 'vcenter':
+           self.upgrade_data['restore'].remove('/etc/nova/nova.conf')
+           self.upgrade_data['restore'].remove('/etc/nova/nova-compute.conf')
+           self.upgrade_data['restore'].remove('/etc/libvirt/qemu.conf')
         if 'tsn' in self._args.roles:
             self.upgrade_data['restore'].remove('/etc/nova/nova.conf')
             self.upgrade_data['restore'].remove('/etc/libvirt/qemu.conf')
