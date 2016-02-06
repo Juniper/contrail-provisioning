@@ -107,6 +107,25 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             local('openstack-config --set\
                   /etc/contrail/contrail-collector.conf\
                   DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
+
+        # From 3.0, analytics services no longer connect to the
+        # local collector. All analytics services other than collector
+        # would subscribe for the collector service with discovery server.
+        if (self._args.from_rel < LooseVersion('3.00') and
+            self._args.to_rel >= LooseVersion('3.00')):
+            topology_conf = '/etc/contrail/contrail-topology.conf'
+            self.set_config(topology_conf, 'DISCOVERY',
+                            'disc_server_ip', self._args.cfgm_ip)
+            self.set_config(topology_conf, 'DISCOVERY',
+                            'disc_server_port', '5998')
+            qe_conf = '/etc/contrail/contrail-query-engine.conf'
+            self.set_config(qe_conf, 'DISCOVERY',
+                            'server', self._args.cfgm_ip)
+            self.set_config(qe_conf, 'DISCOVERY',
+                            'port', '5998')
+            self.del_config(qe_conf, 'DEFAULT', 'collectors')
+            analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
+            self.del_config(analytics_api_conf, 'DEFAULTS', 'collectors')
         self.restart()
 
 
