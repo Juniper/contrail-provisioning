@@ -81,6 +81,8 @@ SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 AMQP_PORT=5672
 if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
     AMQP_PORT=5673
@@ -155,6 +157,9 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $controller_ip
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ $KEYSTONE_INSECURE == "True" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    fi
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
