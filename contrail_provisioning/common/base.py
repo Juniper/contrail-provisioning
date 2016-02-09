@@ -293,20 +293,36 @@ class ContrailSetup(object):
                          '__keystone_insecure_flag__': self._args.keystone_insecure,
                          '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                          '__contrail_ks_auth_url__': '%s://%s:%s/%s' % (self._args.keystone_auth_protocol,
-                             self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version)
+                             self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version),
+                         '__keystone_cert_file_opt__': self._args.keystone_certfile or '',
+                         '__keystone_key_file_opt__': self._args.keystone_keyfile or '',
+                         '__keystone_ca_file_opt__': self._args.keystone_cafile or '',
                         }
+        if self._args.keystone_certfile:
+            template_vals.update({'__keystone_cert_file__': self._args.keystone_certfile})
+        if self._args.keystone_keyfile:
+            template_vals.update({'__keystone_key_file__': self._args.keystone_keyfile})
+        if self._args.keystone_cafile:
+            template_vals.update({'__keystone_ca_file__': self._args.keystone_cafile})
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
+        if self.keystone_ssl_enabled:
+            conf_file = '/etc/contrail/contrail-keystone-auth.conf'
+            configs = {'certfile': self._args.keystone_certfile,
+                       'keyfile': self._args.keystone_keyfile,
+                       'cafile': self._args.keystone_cafile,}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):
-            local("openstack-config --set %s %s %s '%s'" % (
+            local("contrail-config --set %s %s %s '%s'" % (
                         fl, sec, var, val))
 
     def del_config(self, fl, sec, var):
         with settings(warn_only=True):
-            local("openstack-config --del %s %s %s" % (
+            local("contrail-config --del %s %s %s" % (
                         fl, sec, var))
 
     def get_config(self, fl, sec, var):
