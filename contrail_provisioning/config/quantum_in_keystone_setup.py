@@ -40,7 +40,8 @@ class QuantumSetup(object):
         self._args_quant_url = "http://%s:9696" % (self._args_quant_ip)
 
         self._args_ks_ip = self._args.ks_server_ip
-        self._auth_url = "http://%s:35357/v2.0" % (self._args_ks_ip)
+        self._auth_url = "%s://%s:35357/v2.0" % (self._args.auth_protocol,
+                                                 self._args_ks_ip)
      
 
         # Flag to enable/disable quantum if needed
@@ -57,10 +58,15 @@ class QuantumSetup(object):
         self._quant_admin_name = "admin"
 
         try:
-            self.kshandle = client.Client(username=self._args_user,
-                                          password=self._args_passwd,
-                                          tenant_name=self._args_tenant_id,
-                                          auth_url=self._auth_url)
+            kwargs = {'username' : self._args_user,
+                      'password' : self._args_passwd,
+                      'tenant_name' : self._args_tenant_id,
+                      'auth_url' : self._auth_url,
+                     }
+            import pdb; pdb.set_trace()
+            if self._args.insecure:
+                kwargs.update({'insecure' : True})
+            self.kshandle = client.Client(**kwargs)
         except Exception as e:
             print e
             raise e
@@ -92,6 +98,8 @@ class QuantumSetup(object):
             'svc_tenant_name': 'service',
             'root_password': 'c0ntrail123',
             'region_name': 'RegionOne',
+            'auth_protocol': 'http',
+            'insecure': False,
         }
 
         if args.conf_file:
@@ -111,13 +119,16 @@ class QuantumSetup(object):
             )
 
         all_defaults = { 'keystone': keystone_server_defaults }
-        parser.set_defaults(**all_defaults)
+        parser.set_defaults(**keystone_server_defaults)
 
         parser.add_argument("--ks_server_ip", help = "IP Address of quantum server")
         parser.add_argument("--quant_server_ip", help = "IP Address of quantum server")
         parser.add_argument("--tenant", help = "Tenant ID on keystone server")
         parser.add_argument("--user", help = "User ID to access keystone server")
         parser.add_argument("--password", help = "Password to access keystone server")
+        parser.add_argument("--auth_protocol", help = "auth protocol to access keystone server")
+        parser.add_argument("--insecure", action="store_true",
+                            help = "Insecure SSL connection to keystone")
         parser.add_argument("--svc_password", help = "Quantum/Neutron service password on keystone server")
         parser.add_argument("--svc_tenant_name", help = "Quantum/Neutron service tenant name on keystone server")
         parser.add_argument("--root_password", help = "Root password for keystone server")

@@ -102,6 +102,13 @@ source /etc/contrail/ctrl-details
 ADMIN_PASSWORD=${ADMIN_TOKEN:-contrail123}
 SERVICE_PASSWORD=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(setup-service-token.sh; cat $CONF_DIR/service.token)}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
+if [ $KEYSTONE_INSECURE == 'True' ]; then
+    export INSECURE_FLAG='--insecure'
+else
+    export INSECURE_FLAG=''
+fi
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
@@ -156,6 +163,7 @@ export OS_TENANT_NAME=admin
 export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 export OS_REGION_NAME=$REGION_NAME
+export OS_CACERT=$KEYSTONE_CAFILE
 EOF
 
 cat > $CONF_DIR/keystonerc <<EOF
@@ -163,6 +171,8 @@ export OS_USERNAME=admin
 export SERVICE_TOKEN=$SERVICE_TOKEN
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 export OS_REGION_NAME=$REGION_NAME
+export AUTH_PROTOCOL=$AUTH_PROTOCOL
+export OS_CACERT=$KEYSTONE_CAFILE
 EOF
 
 if [ $is_redhat == 1 ]; then
@@ -194,10 +204,18 @@ for APP in keystone; do
     fi
 done
 
+if [ "$AUTH_PROTOCOL" == "https" ]; then
+    conf_file="/etc/keystone/keystone.conf"
+    openstack-config --set $conf_file ssl enable true
+    openstack-config --set $conf_file ssl certfile $KEYSTONE_CERTFILE
+    openstack-config --set $conf_file ssl keyfile $KEYSTONE_KEYFILE
+    openstack-config --set $conf_file ssl ca_certs $KEYSTONE_CAFILE
+fi
+
 # wait for the keystone service to start
 tries=0
 while [ $tries -lt 10 ]; do
-    $(source $CONF_DIR/keystonerc; keystone user-list >/dev/null 2>&1)
+    $(source $CONF_DIR/keystonerc; keystone $INSECURE_FLAG user-list >/dev/null 2>&1)
     if [ $? -eq 0 ]; then break; fi;
     tries=$(($tries + 1))
     sleep 1
