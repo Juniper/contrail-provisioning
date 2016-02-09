@@ -29,9 +29,18 @@ class CollectorSetup(ContrailSetup):
             'keystone_admin_tenant_name': 'admin',
             'keystone_service_tenant_name' : 'service',
             'keystone_auth_protocol': 'http',
+            'keystone_insecure': False,
+            'keystone_certfile': None,
+            'keystone_keyfile': None,
+            'keystone_cafile': None,
             'keystone_auth_port': '35357',
             'aaa_mode': 'cloud-admin-only',
             'keystone_version': 'v2.0',
+            'apiserver_insecure': False,
+            'apiserver_certfile': None,
+            'apiserver_keyfile': None,
+            'apiserver_cafile': None,
+            'orchestrator' : 'openstack',
         }
 
         self.parse_args(args_str)
@@ -45,6 +54,16 @@ class CollectorSetup(ContrailSetup):
         if self._args.zookeeper_ip_list:
             self.zookeeper_server_list = [(zookeeper_server_ip, zookeeper_port) for \
                 zookeeper_server_ip in self._args.zookeeper_ip_list]
+
+        self.api_ssl_enabled = False
+        if (self._args.apiserver_keyfile and
+                self._args.apiserver_certfile and self._args.apiserver_cafile):
+            self.api_ssl_enabled = True
+        self.keystone_ssl_enabled = False
+        if (self._args.keystone_keyfile and
+                self._args.keystone_certfile and self._args.keystone_cafile):
+            self.keystone_ssl_enabled = True
+
 
     def parse_args(self, args_str):
         '''
@@ -87,6 +106,9 @@ class CollectorSetup(ContrailSetup):
             default = 'False')
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
+        parser.add_argument("--keystone_certfile", help="")
+        parser.add_argument("--keystone_keyfile", help="")
+        parser.add_argument("--keystone_cafile", help="")
         parser.add_argument("--aaa_mode", help="AAA mode",
             choices=['no-auth', 'cloud-admin-only'])
         parser.add_argument("--cassandra_user", help="Cassandra user name",
@@ -96,6 +118,12 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--amqp_ip_list",
             help="List of IP addresses of AMQP servers", nargs="+", type=str)
         parser.add_argument("--amqp_port", help="Port number of AMQP server")
+        parser.add_argument("--apiserver_insecure",
+            help = "Connect to apiserver in secure or insecure mode if in https mode")
+        parser.add_argument("--apiserver_certfile", help="")
+        parser.add_argument("--apiserver_keyfile", help="")
+        parser.add_argument("--apiserver_cafile", help="")
+        parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -107,6 +135,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_analytics_nodemgr()
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
             self.fixup_keystone_auth_config_file()
+        self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_alarm_gen()
         self.fixup_cassandra_config()
         self.fixup_ini_files()
@@ -318,6 +347,7 @@ class CollectorSetup(ContrailSetup):
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
             'aaa_mode' : self._args.aaa_mode,
+            'api_server_use_ssl': 'True' if self.api_ssl_enabled else 'False',
             },
           'REDIS' : {
             'redis_server_port' : 6379,
@@ -365,7 +395,8 @@ class CollectorSetup(ContrailSetup):
             local("sudo collector-server-setup.sh multinode")
         else:
             local("sudo collector-server-setup.sh")
-#end class SetupVncCollector
+
+#end class CollectorSetup
 
 def main(args_str = None):
     collector = CollectorSetup(args_str)
