@@ -98,7 +98,7 @@ EOF
 for APP in cinder; do
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --rootpw "$MYSQL_TOKEN"
+        openstack-db -y --init --service $APP --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
     fi
 done
 

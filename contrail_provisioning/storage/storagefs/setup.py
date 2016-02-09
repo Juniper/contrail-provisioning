@@ -2189,15 +2189,17 @@ class SetupCeph(object):
 
         if self._args.cinder_vip != 'none':
             local('sudo openstack-config --set %s %s %s \
-                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        mysql://cinder:%s@%s:33306/cinder'
                                         %(CINDER_CONFIG_FILE,
                                             sql_section, sql_key,
+                                            self._args.service_dbpass,
                                             self._args.cinder_vip))
         else:
             local('sudo openstack-config --set %s %s %s \
-                                        mysql://cinder:cinder@127.0.0.1/cinder'
+                                        mysql://cinder:%s@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE,
-                                            sql_section, sql_key))
+                                            sql_section, sql_key,
+                                            self._args.service_dbpass))
         # recently contrail changed listen address from 0.0.0.0 to mgmt address
         # so adding mgmt network to rabbit host
         # If the cinder_vip is present, use it as the rabbit host.
@@ -2229,15 +2231,17 @@ class SetupCeph(object):
                                                 password = entry_token):
                     if self._args.cinder_vip != 'none':
                         run('sudo openstack-config --set %s %s %s \
-                                        mysql://cinder:cinder@%s:33306/cinder'
+                                        mysql://cinder:%s@%s:33306/cinder'
                                         %(CINDER_CONFIG_FILE,
                                             sql_section, sql_key,
+                                            self._args.service_dbpass,
                                             self._args.cinder_vip))
                     else:
                         run('sudo openstack-config --set %s %s %s \
-                                        mysql://cinder:cinder@127.0.0.1/cinder'
+                                        mysql://cinder:%s@127.0.0.1/cinder'
                                         %(CINDER_CONFIG_FILE,
-                                            sql_section, sql_key))
+                                            sql_section, sql_key,
+                                            self._args.service_dbpass))
                     # recently contrail changed listen address from 0.0.0.0 to
                     # mgmt address so adding mgmt network to rabbit host
                     # If the cinder_vip is present, use it as the rabbit host.
@@ -2392,15 +2396,17 @@ class SetupCeph(object):
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
                                     commonport.RABBIT_PORT))
                                 run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:cinder@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.cinder_vip))
+                                    sql_connection mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                      self._args.cinder_vip))
                             else:
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
                                     self._args.cfg_host))
                                 run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:cinder@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.openstack_ip))
+                                    sql_connection mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                      self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
                         # Enable lvm backend in cinder
@@ -2484,15 +2490,17 @@ class SetupCeph(object):
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
                                     commonport.RABBIT_PORT))
                                 run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:cinder@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.cinder_vip))
+                                    sql_connection mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                      self._args.cinder_vip))
                             else:
                                 run('sudo openstack-config --set %s DEFAULT \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
                                     self._args.cfg_host))
                                 run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:cinder@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.openstack_ip))
+                                    sql_connection mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                      self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
                         # Enable lvm backend in cinder
@@ -3568,6 +3576,7 @@ class SetupCeph(object):
         args, remaining_argv = conf_parser.parse_known_args(args_str.split())
 
         global_defaults = {
+            'service_dbpass' : 'c0ntrail123',
         }
 
         if args.conf_file:
@@ -3618,6 +3627,7 @@ class SetupCeph(object):
         parser.add_argument("--storage-replica-size", help = "Replica size")
         parser.add_argument("--openstack-ip", help = "Openstack IP")
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
+        parser.add_argument("--service-dbpass", help = "Database password for openstack service db user.")
 
         self._args = parser.parse_args(remaining_argv)
 
