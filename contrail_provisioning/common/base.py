@@ -295,18 +295,30 @@ class ContrailSetup(object):
                          '__contrail_ks_auth_url__': '%s://%s:%s/%s' % (self._args.keystone_auth_protocol,
                              self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version)
                         }
+        if self._args.keystone_certfile:
+            template_vals.update({'__keystone_cert_file__': self._args.keystone_certfile})
+        if self._args.keystone_keyfile:
+            template_vals.update({'__keystone_key_file__': self._args.keystone_keyfile})
+        if self._args.keystone_cafile:
+            template_vals.update({'__keystone_ca_file__': self._args.keystone_cafile})
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
+        if self.keystone_ssl_enabled:
+            configs = {'certfile': self._args.keystone_certfile,
+                       'keyfile': self._args.keystone_keyfile,
+                       'cafile': self._args.keystone_cafile,}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):
-            local("openstack-config --set %s %s %s '%s'" % (
+            local("contrail-config --set %s %s %s '%s'" % (
                         fl, sec, var, val))
 
     def del_config(self, fl, sec, var):
         with settings(warn_only=True):
-            local("openstack-config --del %s %s %s" % (
+            local("contrail-config --del %s %s %s" % (
                         fl, sec, var))
 
     def get_config(self, fl, sec, var):

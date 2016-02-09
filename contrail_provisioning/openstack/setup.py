@@ -40,6 +40,10 @@ class OpenstackSetup(ContrailSetup):
             'conductor_workers': 40,
             'sriov':False,
             'service_dbpass' : 'c0ntrail123',
+            'keystone_insecure': False,
+            'keystone_certfile': None,
+            'keystone_keyfile':  None,
+            'keystone_cafile': None,
         }
         self._args = None
         if not args_str:
@@ -53,6 +57,10 @@ class OpenstackSetup(ContrailSetup):
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
         self.mysql_redo_log_sz='5242880'
+        self.keystone_ssl_enabled = (self._args.keystone_keyfile and
+                self._args.keystone_certfile and self._args.keystone_cafile)
+        if self.keystone_ssl_enabled:
+            self._args.keystone_auth_protocol = 'https'
 
     def parse_args(self, args_str):
         '''
@@ -73,6 +81,11 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_passwd", help = "Passwd of the admin tenant")
         parser.add_argument("--region_name", help = "Region name of the openstack services")
+        parser.add_argument("--keystone_insecure",
+            help = "Connect to keystone in secure or insecure mode if in https mode")
+        parser.add_argument("--keystone_certfile", help="")
+        parser.add_argument("--keystone_keyfile", help="")
+        parser.add_argument("--keystone_cafile", help="")
         parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--nova_password", help="Password of nova user")
         parser.add_argument("--keystone_service_tenant_name",
@@ -135,6 +148,10 @@ class OpenstackSetup(ContrailSetup):
         else:
             ctrl_infos.append('SRIOV_ENABLED=%s' % 'False')
         ctrl_infos.append('SERVICE_DBPASS=%s' % self._args.service_dbpass)
+        if self.keystone_ssl_enabled:
+            ctrl_infos.append('KEYSTONE_CERTFILE=%s' % self._args.keystone_certfile)
+            ctrl_infos.append('KEYSTONE_KEYFILE=%s' % self._args.keystone_keyfile)
+            ctrl_infos.append('KEYSTONE_CAFILE=%s' % self._args.keystone_cafile)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
