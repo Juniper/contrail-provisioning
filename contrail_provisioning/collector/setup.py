@@ -191,7 +191,8 @@ class CollectorSetup(ContrailSetup):
                         'program:contrail-topology',
                         'command',
                         '/usr/bin/contrail-topology --conf_file ' + \
-                        conf_fl)
+                        conf_fl + ' --conf_file ' + \
+                        '/etc/contrail/contrail-keystone-auth.conf')
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
