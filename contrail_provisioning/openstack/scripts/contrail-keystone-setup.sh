@@ -257,9 +257,9 @@ KEYSTONE_SERVICE=$(get_service keystone identity "Keystone Identity Service")
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $KEYSTONE_SERVICE) ]; then
     keystone endpoint-create --region $OS_REGION_NAME --service-id $KEYSTONE_SERVICE \
-        --publicurl 'http://'$CONTROLLER':$(public_port)s/v2.0' \
-        --adminurl 'http://'$CONTROLLER':$(admin_port)s/v2.0' \
-        --internalurl 'http://'$CONTROLLER':$(admin_port)s/v2.0'
+        --publicurl $AUTH_PROTOCOL'://'$CONTROLLER':$(public_port)s/v2.0' \
+        --adminurl $AUTH_PROTOCOL'://'$CONTROLLER':$(admin_port)s/v2.0' \
+        --internalurl $AUTH_PROTOCOL'://'$CONTROLLER':$(admin_port)s/v2.0'
     fi
 fi
 

@@ -10,7 +10,8 @@ admin_password=$__contrail_admin_password__
 admin_tenant_name=$__contrail_admin_tenant_name__
 insecure=$__keystone_insecure_flag__
 $__contrail_memcached_opt__
-#certfile=$__keystone_cert_file__
-#keyfile=$__keystone_key_file__
-#cafile=$__keystone_ca_file__
+#insecure=False
+#certfile=/etc/contrail/ssl/certs/keystone.pem
+#keyfile=/etc/contrail/ssl/private/keystone_key.pem
+#cafile=/etc/contrail/ssl/certs/keystone_ca.pem
 """)

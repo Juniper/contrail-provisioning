@@ -20,6 +20,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def __init__(self, config_args, args_str=None):
         super(ConfigOpenstackSetup, self).__init__(config_args)
         self._args = config_args
+        self.keystone_ssl_enabled = (self._args.keystone_keyfile and
+                self._args.keystone_certfile and self._args.keystone_cafile)
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -51,7 +53,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_contrail_api_config_file(self):
         super(ConfigOpenstackSetup, self).fixup_contrail_api_config_file()
-        local('sudo openstack-config --set /etc/contrail/contrail-api.conf DEFAULTS auth keystone')
+        self.set_config('/etc/contrail/contrail-api.conf', 'DEFAULTS',
+                        'auth', 'keystone')
 
     def fixup_contrail_schema_supervisor_ini(self):
         contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-schema.ini"
@@ -61,8 +64,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                 '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
-        local('sudo openstack-config --set %s program:contrail-schema command "/usr/bin/contrail-schema --conf_file %s"'
-              % (contrail_svc_ini, config_file_args))
+        commandline = "/usr/bin/contrail-schema --conf_file %s" % config_file_args
+        self.set_config(contrail_svc_ini, 'program:contrail-schema',
+                        'command', commandline)
 
     def fixup_contrail_device_manager_supervisor_ini(self):
         contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-device-manager.ini"
@@ -75,8 +79,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                 '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
-        local('sudo openstack-config --set %s program:contrail-device-manager command "/usr/bin/contrail-device-manager --conf_file %s"'
-              % (contrail_svc_ini, config_file_args))
+        commandline = "/usr/bin/contrail-device-manager --conf_file %s" % config_file_args
+        self.set_config(contrail_svc_ini, 'program:contrail-device-manager',
+                        'command', commandline)
         if self._args.optional_services is None or \
                 'device-manager' not in self._args.optional_services:
             local(' '.join(["sudo", 'mv', contrail_svc_ini,
@@ -90,8 +95,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                 '/etc/contrail/contrail-database.conf',
                ]
         config_file_args = ' --conf_file '.join(config_files)
-        local('sudo openstack-config --set %s program:contrail-svc-monitor command "/usr/bin/contrail-svc-monitor --conf_file %s"'
-              % (contrail_svc_ini, config_file_args))
+        commandline = "/usr/bin/contrail-svc-monitor --conf_file %s" % config_file_args
+        self.set_config(contrail_svc_ini, 'program:contrail-svc-monitor',
+                        'command', commandline)
 
     def fixup_contrail_plugin_ini(self):
         # quantum/neutron plugin
@@ -123,11 +129,20 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def fixup_vnc_api_lib_ini(self):
         # vnc_api_lib.ini
         template_vals = {
+                         '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
                         }
         self._template_substitute_write(vnc_api_lib_ini.template,
                                         template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
         local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
+        conf_file = "/etc/contrail/vnc_api_lib.ini"
+        if self.keystone_ssl_enabled:
+            configs = {'certfile': self._args.keystone_certfile,
+                       'keyfile': self._args.keystone_keyfile,
+                       'cafile': self._args.keystone_cafile,
+                       'insecure': self._args.keystone_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
 
     def build_ctrl_details(self):
         ctrl_infos = []

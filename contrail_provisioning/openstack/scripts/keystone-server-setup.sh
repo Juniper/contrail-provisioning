@@ -84,6 +84,7 @@ source /etc/contrail/ctrl-details
 ADMIN_PASSWORD=${ADMIN_TOKEN:-contrail123}
 SERVICE_PASSWORD=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(setup-service-token.sh; cat $CONF_DIR/service.token)}
+PROTOCOL=${PROTOCOL:-http}
 
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
@@ -141,6 +142,7 @@ export OS_USERNAME=admin
 export SERVICE_TOKEN=$SERVICE_TOKEN
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 export OS_REGION_NAME=$REGION_NAME
+export AUTH_PROTOCOL=$AUTH_PROTOCOL
 EOF
 
 export ADMIN_PASSWORD
@@ -207,6 +209,12 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf catalog template_file /etc/keystone/default_catalog.templates
     openstack-config --set /etc/$svc/$svc.conf catalog driver keystone.catalog.backends.sql.Catalog
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
+    if [ $PROTOCOL == 'https' ]; then
+        openstack-config --set /etc/$svc/$svc.conf ssl enable true
+        openstack-config --set /etc/$svc/$svc.conf ssl certfile $KEYSTONE_CERTFILE
+        openstack-config --set /etc/$svc/$svc.conf ssl keyfile $KEYSTONE_KEYFILE
+        openstack-config --set /etc/$svc/$svc.conf ssl ca_certs $KEYSTONE_CAFILE
+    fi
 
     if [ $is_ubuntu -eq 1 ] ; then
         if [ $ubuntu_kilo_or_above -eq 1 ] ; then

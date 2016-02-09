@@ -109,9 +109,9 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             kafka_broker_list = [server[0] + ":9092"\
                                  for server in self.cassandra_server_list]
             kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
-            local('openstack-config --set\
-                  /etc/contrail/contrail-collector.conf\
-                  DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
+            self.set_config('/etc/contrail/contrail-collector.conf',
+                            'DEFAULT', 'kafka_broker_list',
+                            kafka_broker_list_str)
 
         # From 3.0, analytics services no longer connect to the
         # local collector. All analytics services other than collector
