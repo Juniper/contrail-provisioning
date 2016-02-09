@@ -80,6 +80,8 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 AMQP_PORT=5672
 if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
     AMQP_PORT=5673
@@ -94,7 +96,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -103,7 +105,7 @@ export SERVICE_TOKEN
 
 openstack-config --set /etc/barbican/barbican.conf DEFAULT sql_connection sqlite:////var/lib/barbican/barbican.sqlite 
 openstack-config --set /etc/barbican/barbican-api-paste.ini composite:main /v1 barbican-api-keystone
-openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri http://localhost:35357
+openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri $AUTH_PROTOCOL://localhost:35357
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_tenant_name service
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_user barbican
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_password $ADMIN_TOKEN
@@ -112,7 +114,7 @@ openstack-config --set /etc/barbican/barbican.conf DEFAULT host_href http://$CON
 openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_hosts $AMQP_SERVER:$AMQP_PORT
 
 if [ "$INTERNAL_VIP" != "none" ]; then
-     openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri http://$INTERNAL_VIP:35357
+     openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri $AUTH_PROTOCOL://$INTERNAL_VIP:35357
      openstack-config --set /etc/barbican/barbican.conf DEFAULT host_href http://$INTERNAL_VIP:9311
      openstack-config --set /etc/barbican/barbican.conf database idle_timeout 180
      openstack-config --set /etc/barbican/barbican.conf database min_pool_size 100

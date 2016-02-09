@@ -70,6 +70,8 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 AMQP_PORT=5672
 if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
     AMQP_PORT=5673
@@ -84,7 +86,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=http://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -129,7 +131,10 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
-    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ $KEYSTONE_INSECURE == "True" ]; then
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    fi
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT log_file /var/log/glance/$cfg.log
 
@@ -147,10 +152,10 @@ for cfg in api registry; do
     fi
 
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri http://$INTERNAL_VIP:5000
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$INTERNAL_VIP:5000
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 5000
-        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
         openstack-config --set /etc/glance/glance-$cfg.conf database idle_timeout 180
         openstack-config --set /etc/glance/glance-$cfg.conf database min_pool_size 100
         openstack-config --set /etc/glance/glance-$cfg.conf database max_pool_size 700

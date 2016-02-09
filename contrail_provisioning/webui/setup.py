@@ -29,6 +29,7 @@ class WebuiSetup(ContrailSetup):
             'admin_password': 'contrail123',
             'admin_tenant_name': 'admin',
             'keystone_version': 'v2.0',
+            'keystone_auth_protocol': 'http',
         }
         self.parse_args(args_str)
 
@@ -65,6 +66,8 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--redis_password", help = "Redis password")
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
+        parser.add_argument("--keystone_auth_protocol",
+            help = "Auth protocol used to talk to keystone")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
@@ -110,6 +113,8 @@ class WebuiSetup(ContrailSetup):
         local("sudo sed \"s/config.computeManager.ip.*/config.computeManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or keystone_ip))
+        local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        local("sudo sed \"s/config.identityManager.authProtocol.*/config.identityManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" % self._args.keystone_auth_protocol)
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")

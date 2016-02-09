@@ -106,6 +106,11 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ "$AUTH_PROTOCOL" == "https" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken certfile $KEYSTONE_CERTFILE
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken keyfile $KEYSTONE_KEYFILE
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken cafile $KEYSTONE_CAFILE
+    fi
 done
 
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf quotas quota_driver neutron_plugin_contrail.plugins.opencontrail.quota.driver.QuotaDriver
