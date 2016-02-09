@@ -167,6 +167,8 @@ SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 AMQP_PORT=5672
 if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
     AMQP_PORT=5673
@@ -221,7 +223,10 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ $KEYSTONE_INSECURE == "True" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    fi
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host 127.0.0.1
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
@@ -349,7 +354,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
