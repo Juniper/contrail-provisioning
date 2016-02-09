@@ -32,6 +32,12 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         if (self._args.from_rel >= LooseVersion('2.20')):
             self.upgrade_data['restore'].append('/etc/contrail/contrail-analytics-nodemgr.conf')
 
+        #python-kafka-python is replaced by python-kafka
+        if (self._args.from_rel >= LooseVersion('2.20') and
+                self._args.from_rel < LooseVersion('3.00') and
+                    self._args.to_rel >= LooseVersion('3.00')):
+            self.upgrade_data['replace'].append(('python-kafka-python', 'python-kafka'))
+
     def update_config(self):
         # DEvlop
         pass

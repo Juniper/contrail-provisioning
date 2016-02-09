@@ -5,6 +5,7 @@
 """Upgrade's Contrail Database components."""
 
 from distutils.version import LooseVersion
+from subprocess import Popen, PIPE
 
 from setup import DatabaseSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
@@ -37,6 +38,16 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
                     self._args.to_rel >= LooseVersion('3.00'))):
             return
 
+        if self.pdist in ['Ubuntu']:
+            cassandra_version = local("dpkg -s cassandra | grep Version | awk '{print $2}'", capture=True)
+        else:
+            cassandra_version = local("rpm -q --queryformat '%%{RELEASE}' cassandra21", capture=True)
+
+        if (cassandra_version.succeeded and
+            LooseVersion(cassandra_version) >= LooseVersion('2.1')):
+            print "Cassandra already upgraded to %s" % cassandra_version
+            return
+
         # run nodetool upgradesstables
         print 'Upgrading database sstables...'
         local('nodetool upgradesstables')
@@ -53,8 +64,17 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         local(cmd)
         local('service cassandra stop')
         self.fixup_cassandra_config_files()
-        local('service cassandra start; sleep 5')
-        while local('netstat -lnp | grep 9160').failed:
+        local('chown -R cassandra: /var/lib/cassandra/')
+        local('chown -R cassandra: /var/log/cassandra/')
+        local('service cassandra start;sleep 5')
+
+        cassandra_cli_cmd = "cassandra-cli --host " + self._args.self_ip + \
+            " --batch  < /dev/null | grep 'Connected to:'"
+        while True:
+            proc = Popen(cassandra_cli_cmd, shell=True, stdout=PIPE, stderr=PIPE)
+            (output, errout) = proc.communicate()
+            if proc.returncode == 0:
+                break;
             local('sleep 5')
 
         # run nodetool upgradesstables again
