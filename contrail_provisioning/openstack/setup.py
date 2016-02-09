@@ -39,6 +39,10 @@ class OpenstackSetup(ContrailSetup):
             'conductor_workers': 40,
             'sriov':False,
             'service_dbpass' : 'c0ntrail123',
+            'keystone_insecure': False,
+            'keystone_certfile': '/etc/keystone/ssl/keystone.pem',
+            'keystone_keyfile': '/etc/keystone/ssl/keystone.key',
+            'keystone_cafile': '/etc/keystone/ssl/keystone_ca.pem',
         }
         self._args = None
         if not args_str:
@@ -72,6 +76,11 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_passwd", help = "Passwd of the admin tenant")
         parser.add_argument("--region_name", help = "Region name of the openstack services")
+        parser.add_argument("--keystone_insecure",
+            help = "Connect to keystone in secure or insecure mode if in https mode")
+        parser.add_argument("--keystone_certfile", help="")
+        parser.add_argument("--keystone_keyfile", help="")
+        parser.add_argument("--keystone_cafile", help="")
         parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--nova_password", help="Password of nova user")
         parser.add_argument("--keystone_service_tenant_name",

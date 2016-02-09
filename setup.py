@@ -71,10 +71,12 @@ setup(
                'contrail_provisioning/common/scripts/setup-pki.sh',
                'contrail_provisioning/common/scripts/contrail-rmq-monitor.sh',
                'contrail_provisioning/common/scripts/contrail-ha-check.sh',
+               'contrail_provisioning/common/scripts/create-ssl-certs.sh',
                # Config executables
                'contrail_provisioning/config/scripts/config-server-setup.sh',
                'contrail_provisioning/config/scripts/config-server-cleanup.sh',
                'contrail_provisioning/config/scripts/quantum-server-setup.sh',
+               'contrail_provisioning/config/scripts/create-api-ssl-certs.sh',
                # Collector executables
                'contrail_provisioning/collector/scripts/collector-server-setup.sh',
                'contrail_provisioning/collector/scripts/collector-server-cleanup.sh',
@@ -104,6 +106,7 @@ setup(
                'contrail_provisioning/openstack/scripts/contrail-token-clean.sh',
                'contrail_provisioning/openstack/scripts/contrail-keystone-setup.sh',
                'contrail_provisioning/openstack/scripts/chk_ctrldata.sh',
+               'contrail_provisioning/openstack/scripts/create-keystone-ssl-certs.sh',
                # Openstack HA executables
                'contrail_provisioning/openstack/ha/scripts/contrail-ha-keystone-setup.sh',
                'contrail_provisioning/openstack/scripts/contrail-galera-check.sh',

@@ -289,6 +289,12 @@ class ContrailSetup(object):
                          '__keystone_insecure_flag__': self._args.keystone_insecure,
                          '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
                         }
+        if self._args.keystone_certfile:
+            template_vals.update({'__keystone_cert_file__': self._args.keystone_certfile})
+        if self._args.keystone_keyfile:
+            template_vals.update({'__keystone_key_file__': self._args.keystone_keyfile})
+        if self._args.keystone_cafile:
+            template_vals.update({'__keystone_ca_file__': self._args.keystone_cafile})
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
