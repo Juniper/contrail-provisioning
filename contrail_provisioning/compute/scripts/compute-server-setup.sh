@@ -128,6 +128,9 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
             openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
             openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+            if [ $AUTH_PROTOCOL == "https" ]; then
+                openstack-config --set /etc/nova/nova.conf neutron insecure True
+            fi
         fi
     else
         if [ ${nova_compute_ver%%.*} -ge 2014 ]; then
@@ -155,6 +158,9 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
                 openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
                 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+                if [ $AUTH_PROTOCOL == "https" ]; then
+                    openstack-config --set /etc/nova/nova.conf neutron insecure True
+                fi
                 openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
                 openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
 

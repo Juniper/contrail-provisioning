@@ -85,6 +85,8 @@ ADMIN_TOKEN=${ADMIN_TOKEN:-contrail123}
 SERVICE_TOKEN=${SERVICE_TOKEN:-$(cat $CONF_DIR/service.token)}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
+AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
+KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -130,9 +132,9 @@ for svc in cinder; do
     # If cinder is Kilo based, need additional settings
     if [ "$is_kilo_or_above" == "True" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                               auth_uri http://${controller_ip}:5000/$KEYSTONE_VERSION
+                               auth_uri $AUTH_PROTOCOL://${controller_ip}:5000/$KEYSTONE_VERSION
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                               identity_uri http://${controller_ip}:35357
+                               identity_uri $AUTH_PROTOCOL://${controller_ip}:35357
         admin_user='cinderv2'
     else
         admin_user='cinder'
@@ -142,6 +144,9 @@ for svc in cinder; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $admin_user
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ $KEYSTONE_INSECURE == "True" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    fi
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 5000
