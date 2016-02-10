@@ -30,7 +30,6 @@ class WebuiUpgrade(ContrailUpgrade, WebuiSetup):
 
     def upgrade(self):
         self._upgrade()
-        self.upgrade_python_pkgs()
         self.restart()
 
 
