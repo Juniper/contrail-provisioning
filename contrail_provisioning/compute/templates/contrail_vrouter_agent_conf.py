@@ -114,20 +114,20 @@ vmware_physical_interface=$__vmware_physical_interface__
 
 # Number of threads for flow setup
 # thread_count = 1
-thread_count = 4
+thread_count=4
 
 [TASK]
 # Number of threads used by TBB
-# thread_count = 8
+# thread_count=8
 
 # Log message if time taken to execute task exceeds a threshold (in msec)
-# log_exec_threshold = 0
+# log_exec_threshold=0
 #
 # Log message if time taken to schedule task exceeds a threshold (in msec)
-# log_schedule_threshold = 0
+# log_schedule_threshold=0
 #
 # TBB Keepawake timer interval (in msec)
-# tbb_keepawake_timeout = 20
+# tbb_keepawake_timeout=20
 
 [METADATA]
 # Shared secret for metadata proxy service (Optional)
