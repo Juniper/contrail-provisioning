@@ -176,6 +176,10 @@ class ContrailSetup(object):
                         ' '.join (filter (lambda x: not x.startswith (
                                     'intel_iommu='), GRUB_CMDLINE_LINUX_DEFAULT.split ())))
                 exec(el[i])
+                el[i] = 'GRUB_CMDLINE_LINUX_DEFAULT="%s iommu=pt"' % (
+                        ' '.join (filter (lambda x: not x.startswith (
+                                    'iommu='), GRUB_CMDLINE_LINUX_DEFAULT.split ())))
+                exec(el[i])
                 with open ('%s/grub' % self._temp_dir_name, 'w') as f:
                     f.write ('\n'.join (el))
                     f.flush ()
