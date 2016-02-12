@@ -39,6 +39,9 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                     '/etc/sudoers.d/contrail_sudoers',
                                        ]
 
+       if self._args.orchestrator == 'vcenter':
+           self.upgrade_data['backup'].remove('/etc/neutron')
+
         self.upgrade_data['restore'] += ['/etc/contrail/vnc_api_lib.ini',
                                    '/etc/contrail/contrail-svc-monitor.conf',
                                    '/etc/contrail/contrail-schema.conf',
