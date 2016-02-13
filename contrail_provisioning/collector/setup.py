@@ -161,13 +161,17 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
-        self.set_config('/etc/contrail/supervisord_analytics_files/' +\
-                        'contrail-snmp-collector.ini',
+        sv_ini_fl = '/etc/contrail/supervisord_analytics_files/' +\
+                        'contrail-snmp-collector.ini'
+        self.set_config(sv_ini_fl,
                         'program:contrail-snmp-collector',
                         'command',
                         '/usr/bin/contrail-snmp-collector --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
+        if self._args.optional_services is None or \
+                'snmp-collector' not in self._args.optional_services:
+            local(' '.join(["sudo", 'mv', sv_ini_fl, sv_ini_fl+'.save']))
 
     def fixup_contrail_analytics_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
@@ -186,13 +190,17 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
-        self.set_config('/etc/contrail/supervisord_analytics_files/' +\
-                        'contrail-topology.ini',
+        sv_ini_fl = '/etc/contrail/supervisord_analytics_files/' +\
+                    'contrail-topology.ini'
+        self.set_config(sv_ini_fl,
                         'program:contrail-topology',
                         'command',
                         '/usr/bin/contrail-topology --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
+        if self._args.optional_services is None or \
+             'topology' not in self._args.optional_services:
+            local(' '.join(["sudo", 'mv', sv_ini_fl, sv_ini_fl+'.save']))
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
