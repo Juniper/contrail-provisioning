@@ -3328,18 +3328,20 @@ class SetupCeph(object):
                             --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
-                            --region RegionOne' %(v2_service,
+                            --region %s' %(v2_service,
                                 self._args.cinder_vip, self._args.cinder_vip,
-                                self._args.cinder_vip), shell='/bin/bash')
+                                self._args.cinder_vip, self._args.region_name),
+                                shell='/bin/bash')
                 else:
                     local('source /etc/contrail/openstackrc && \
                             keystone endpoint-create --service-id %s \
                             --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
-                            --region RegionOne' %(v2_service,
+                            --region %s' %(v2_service,
                                 self._args.openstack_ip, self._args.openstack_ip,
-                                self._args.openstack_ip), shell='/bin/bash')
+                                self._args.openstack_ip, self._args.region_name),
+                                shell='/bin/bash')
 
             v1_config = local('source /etc/contrail/openstackrc && \
                                 keystone service-list | grep -w volume | wc -l',
@@ -3357,18 +3359,20 @@ class SetupCeph(object):
                             --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
-                            --region RegionOne' %(v1_service,
+                            --region %s' %(v1_service,
                                 self._args.cinder_vip, self._args.cinder_vip,
-                                self._args.cinder_vip), shell='/bin/bash')
+                                self._args.cinder_vip, self._args.region_name),
+                                shell='/bin/bash')
                 else:
                     local('source /etc/contrail/openstackrc && \
                             keystone endpoint-create --service-id %s \
                             --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
-                            --region RegionOne' %(v1_service,
+                            --region %s' %(v1_service,
                                 self._args.openstack_ip, self._args.openstack_ip,
-                                self._args.openstack_ip), shell='/bin/bash')
+                                self._args.openstack_ip, self._args.region_name),
+                                shell='/bin/bash')
     #end do_keystone_config()
 
     def find_cinder_version(self):
@@ -3577,6 +3581,7 @@ class SetupCeph(object):
 
         global_defaults = {
             'service_dbpass' : 'c0ntrail123',
+            'region_name': 'RegionOne',
         }
 
         if args.conf_file:
@@ -3628,6 +3633,7 @@ class SetupCeph(object):
         parser.add_argument("--openstack-ip", help = "Openstack IP")
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--service-dbpass", help = "Database password for openstack service db user.")
+        parser.add_argument("--region_name", help = "Region name of the cinder service")
 
         self._args = parser.parse_args(remaining_argv)
 
