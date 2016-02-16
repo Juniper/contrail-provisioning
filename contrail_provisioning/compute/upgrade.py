@@ -83,16 +83,19 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             local("service %s start" % openstack_compute_service)
 
     def upgrade(self):
+        self.disable_apt_get_auto_start()
         self._upgrade()
-        if ('running' in
-            local('service supervisor-vrouter status', capture=True)):
+        if ((self.pdist not in ['ubuntu']) and 
+            ('running' in local('service supervisor-vrouter status', capture=True))):
             local("service supervisor-vrouter stop")
-        if self._args.from_rel == LooseVersion('2.00'):
+        nova_config = not(getattr(self._args, 'no_nova_config', False))
+        if nova_config:
             self.fix_nova_params()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
             self.compute_setup.fixup_contrail_vrouter_nodemgr()
+        self.enable_apt_get_auto_start()
 
 
 def main():

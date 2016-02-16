@@ -7,6 +7,7 @@
 import os
 import shutil
 import argparse
+import stat
 from distutils.version import LooseVersion
 
 from fabric.api import local
@@ -191,6 +192,19 @@ class ContrailUpgrade(object):
             return None
         return pkg_rel
 
+    def disable_apt_get_auto_start(self):
+        if self.pdist in ['Ubuntu']:
+            with open("/usr/sbin/policy-rc.d", "w+") as f:
+                f.write('#!/bin/sh\n')
+                f.write('exit 101\n')
+                f.close()
+            h = os.stat("/usr/sbin/policy-rc.d")
+            os.chmod("/usr/sbin/policy-rc.d", h.st_mode | stat.S_IEXEC)
+
+    def enable_apt_get_auto_start(self):
+        if self.pdist in ['Ubuntu']:
+            local('rm -f /usr/sbin/policy-rc.d')
+ 
     def _upgrade(self):
         self._backup_config()
         if self.pdist in ['centos']:
