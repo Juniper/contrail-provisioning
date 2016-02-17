@@ -9,6 +9,7 @@ from distutils.version import LooseVersion
 from setup import ComputeSetup
 from openstack import ComputeOpenstackSetup
 from contrail_provisioning.common.upgrade import ContrailUpgrade
+from contrail_provisioning.compute.common import ComputeBaseSetup
 
 from fabric.api import local
 
@@ -87,8 +88,9 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if ('running' in
             local('service supervisor-vrouter status', capture=True)):
             local("service supervisor-vrouter stop")
-        if self._args.from_rel == LooseVersion('2.00'):
-            self.fix_nova_params()
+        if self._args.orchestrator == 'openstack':
+           if self._args.from_rel == LooseVersion('2.00'):
+               self.fix_nova_params()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
