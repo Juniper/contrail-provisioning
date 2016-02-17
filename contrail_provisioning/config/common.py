@@ -57,6 +57,8 @@ class ConfigBaseSetup(ContrailSetup):
             amqp_ip_list = self._args.amqp_ip_list
         self.rabbit_servers = ','.join(['%s:%s' % (amqp, self._args.amqp_port)\
                                         for amqp in amqp_ip_list])
+        self.contrail_internal_vip = (self._args.contrail_internal_vip or
+                                 self._args.internal_vip)
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -128,7 +130,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                         }
@@ -173,7 +175,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'schema-transformer',
                          '__contrail_ifmap_password__': 'schema-transformer',
-                         '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_use_certs__': self._args.use_certs,
@@ -182,7 +184,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-schema.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__rabbit_server_ip__': self.rabbit_servers,
                         }
@@ -212,12 +214,12 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_device_manager_config_file(self):
         # contrail-device-manager.conf
         template_vals = {'__rabbit_server_ip__': self.rabbit_servers,
-                         '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_log_file__' : '/var/log/contrail/contrail-device-manager.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                         }
         self._template_substitute_write(contrail_device_manager_conf.template,
@@ -232,9 +234,9 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_ifmap_username__': 'svc-monitor',
                          '__contrail_ifmap_password__': 'svc-monitor',
                          '__rabbit_server_ip__': self.rabbit_servers,
-                         '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
-                         '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.collector_ip,
+                         '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.collector_ip,
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_use_certs__': self._args.use_certs,
                          '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
@@ -242,7 +244,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-svc-monitor.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self._args.internal_vip or self.cfgm_ip,
+                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_region_name__': self._args.region_name,
                         }
@@ -323,7 +325,7 @@ class ConfigBaseSetup(ContrailSetup):
             local("sudo chmod 440 /etc/sudoers.d/contrail_sudoers")
 
     def fixup_contrail_config_nodemgr(self):
-        template_vals = {'__contrail_discovery_ip__' : self._args.internal_vip or self.cfgm_ip,
+        template_vals = {'__contrail_discovery_ip__' : self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_discovery_port__': '5998'
                        }
         self._template_substitute_write(contrail_config_nodemgr_template.template,
@@ -345,12 +347,6 @@ class ConfigBaseSetup(ContrailSetup):
         local('sudo service supervisor-config restart')
 
     def run_services(self):
-        if self._args.internal_vip:
-            # Assumption cfgm and openstack in same node.
-            # TO DO: When we introduce contrail_vip for cfgm nodes, this needs to be revisited.
-            quantum_ip = self._args.internal_vip
-        else:
-            quantum_ip = self.cfgm_ip
         local("sudo config-server-setup.sh")
         # Wait for supervisor to start contrail-api and rabbitmq
         for i in range(10):
