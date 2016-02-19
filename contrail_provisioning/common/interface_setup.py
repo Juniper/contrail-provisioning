@@ -304,7 +304,15 @@ class UbuntuInterface(BaseInterface):
         '''Execute commands before interface configuration for Ubuntu'''
         self.default_cfg_file = os.path.join(os.path.sep, 'etc',
                                              'network', 'interfaces')
-        ifaces = [self.device] + self.members
+
+        # Build self.mac_list[bond_member_name] = bond_member_mac
+        self.get_mac_from_bond_intf()
+        # Build a list of bond members from both self.mac_list and passed with
+        # --members, without duplicates
+        bond_members = list(set(self.members) | set(self.mac_list.keys()))
+
+        # These interfaces will be removed from cfg_file
+        ifaces = [self.device] + bond_members
         if self.vlan:
             ifaces += [self.device + '.' + self.vlan, 'vlan'+self.vlan]
 
