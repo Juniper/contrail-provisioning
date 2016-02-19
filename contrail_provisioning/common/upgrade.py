@@ -102,8 +102,10 @@ class ContrailUpgrade(object):
                     os.makedirs(backup_dir)
                 if os.path.isfile(backup_elem):
                     shutil.copy2(backup_elem, backup_config)
-                else:
+                elif os.path.isdir(backup_elem):
                     local('cp -rfp %s %s' % (backup_elem, backup_config))
+                else:
+                    print "WARNING: [%s] is not present, no need to backup" % backup_elem
             else:
                 print "Already the config dir %s is backed up at %s." %\
                     (backup_elem, backup_config)
@@ -114,8 +116,10 @@ class ContrailUpgrade(object):
             print "Restoring %s to: %s" % (restore_config, restore_elem)
             if os.path.isfile(restore_config):
                 shutil.copy2(restore_config, restore_elem)
-            else:    
-                local('cp -rfp %s %s' % (restore_config, restore_elem))
+            elif os.path.isdir(restore_config):
+                local('cp -rfp %s %s' % ('%s/*' % restore_config, restore_elem))
+            else:
+                print "WARNING: [%s] is not backed up, no need to restore" % restore_elem
 
     def _downgrade_package(self):
         if not self.upgrade_data['downgrade']:
@@ -167,17 +171,21 @@ class ContrailUpgrade(object):
         for remove_config in self.upgrade_data['remove_config']:
             if os.path.isfile(remove_config):
                 os.remove(remove_config)
-            else:
+            elif os.path.isdir(remove_config):
                 shutil.rmtree(remove_config)
+            else:
+                print "WARNING: [%s] is not present, no need to remove" % remove_config
 
     def _rename_config(self):
         for src, dst in self.upgrade_data['rename_config']:
             if os.path.isfile(src):
                 shutil.copy2(src, dst)
                 os.remove(src)
-            else:
+            elif os.path.isdir(src):
                 local('cp -rfp %s %s' % src, dst)
                 shutil.rmtree(src)
+            else:
+                print "WARNING: [%s] is not present, no need to rename" % src
 
     def get_build(self, pkg='contrail-install-packages'):
         pkg_rel = None
