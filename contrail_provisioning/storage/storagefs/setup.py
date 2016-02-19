@@ -3633,7 +3633,7 @@ class SetupCeph(object):
         parser.add_argument("--openstack-ip", help = "Openstack IP")
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--service-dbpass", help = "Database password for openstack service db user.")
-        parser.add_argument("--region_name", help = "Region name of the cinder service")
+        parser.add_argument("--region-name", help = "Region name of the cinder service")
 
         self._args = parser.parse_args(remaining_argv)
 
