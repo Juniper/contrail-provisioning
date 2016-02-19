@@ -24,6 +24,7 @@ class StorageSetup(ContrailSetup):
         self.global_defaults = {
             'storage_master': '127.0.0.1',
             'service_dbpass': 'c0ntrail123',
+            'region_name': 'RegionOne',
         }
         self.parse_args(args_str)
 
@@ -43,6 +44,7 @@ class StorageSetup(ContrailSetup):
                 --cfg-host 10.157.43.171
                 --storage-compute-hostnames cmbu-dt05 cmbu-ixs6-2
                 --service-dbpass c0ntrail123
+                --region-name RegionOne
         '''
 
         parser = self._parse_args(args_str)
@@ -78,6 +80,7 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--openstack-ip", help = "Openstack node ip")
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--service-dbpass", help = "DB password for Openstack cinder db user")
+        parser.add_argument("--region-name", help = "Region name of the cinder service")
 
 
         self._args = parser.parse_args(self.remaining_argv)
