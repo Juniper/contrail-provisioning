@@ -85,7 +85,7 @@ class StaticRoute(object):
                     gateway = socket.inet_ntoa(struct.pack('I', int(route_fields[2], 16)))
                     mask = socket.inet_ntoa(struct.pack('I', int(route_fields[7], 16)))
                     actual_list.append('%s %s %s' %(destination, mask, gateway))
-        if cmp(sorted(actual_list), sorted(self.config_route_list)): 
+        if (set(actual_list).intersection(self.config_route_list)) != set(self.config_route_list):
             raise RuntimeError('Seems Routes are not properly configured')
 
     def post_config(self):
