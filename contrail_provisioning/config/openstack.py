@@ -92,9 +92,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_contrail_plugin_ini(self):
         # quantum/neutron plugin
-        template_vals = {'__contrail_api_server_ip__': self._args.internal_vip or self._args.self_ip,
+        template_vals = {'__contrail_api_server_ip__': self.contrail_internal_vip or self._args.self_ip,
                          '__contrail_api_server_port__': '8082',
-                         '__contrail_analytics_server_ip__': self._args.internal_vip or self._args.self_ip,
+                         '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.self_ip,
                          '__contrail_analytics_server_port__': '8081',
                          '__contrail_multi_tenancy__': self._args.multi_tenancy,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
@@ -151,10 +151,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         local("sudo rm %s/ctrl-details" %(self._temp_dir_name))
 
     def run_services(self):
-        if self._args.internal_vip:
-            # Assumption cfgm and openstack in same node.
-            # TO DO: When we introduce contrail_vip for cfgm nodes, this needs to be revisited.
-            quantum_ip = self._args.internal_vip
+        if self.contrail_internal_vip:
+            quantum_ip = self.contrail_internal_vip
         else:
             quantum_ip = self.cfgm_ip
         quant_args = '--ks_server_ip     %s ' % self._args.keystone_ip + \
