@@ -200,7 +200,7 @@ class ConfigBaseSetup(ContrailSetup):
         if self._args.cassandra_user is not None:
             config_files.append('/etc/contrail/contrail-database.conf')
         config_file_args = ' --conf_file '.join(config_files)
-        template_vals = {'__contrail_config_file_args__':''}
+        template_vals = {'__contrail_config_file_args__': config_file_args}
         self._template_substitute_write(contrail_device_manager_ini.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.ini')
         local("sudo mv %s/contrail-device-manager.ini /etc/contrail/supervisord_config_files/" %(self._temp_dir_name))
