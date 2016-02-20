@@ -243,7 +243,8 @@ class QuantumSetup(object):
     def quant_set_endpoints(self):
         # check if endpoint exists
         try:
-            quant_ends = self.kshandle.endpoints.find(service_id=self.quant_svc_id)
+            quant_ends = self.kshandle.endpoints.find(region=self._args.region_name,
+                                                      service_id=self.quant_svc_id)
             if quant_ends:
                 # service tenant exists! possible that the openstack node is setup independently
                 # delete and recreate it

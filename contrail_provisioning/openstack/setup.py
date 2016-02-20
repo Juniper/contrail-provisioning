@@ -27,6 +27,7 @@ class OpenstackSetup(ContrailSetup):
             'keystone_ip': '127.0.0.1',
             'keystone_auth_protocol':'http',
             'keystone_admin_passwd': 'contrail123',
+            'region_name': 'RegionOne',
             'nova_password': None,
             'neutron_password': None,
             'keystone_service_tenant_name': 'service',
@@ -70,6 +71,7 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_passwd", help = "Passwd of the admin tenant")
+        parser.add_argument("--region_name", help = "Region name of the openstack services")
         parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--nova_password", help="Password of nova user")
         parser.add_argument("--keystone_service_tenant_name",
@@ -103,6 +105,7 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('AUTH_PROTOCOL=%s' % self._args.keystone_auth_protocol)
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_passwd)
+        ctrl_infos.append('REGION_NAME=%s' % self._args.region_name)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
         ctrl_infos.append('NOVA_PASSWORD=%s' % self._args.nova_password)

@@ -113,6 +113,7 @@ if [ -d /var/log/keystone ]; then
 fi
 
 # Set up a keystonerc file with admin password
+REGION_NAME=${REGION_NAME:-RegionOne}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -132,12 +133,14 @@ export OS_PASSWORD=$ADMIN_PASSWORD
 export OS_TENANT_NAME=admin
 export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
+export OS_REGION_NAME=$REGION_NAME
 EOF
 
 cat > $CONF_DIR/keystonerc <<EOF
 export OS_USERNAME=admin
 export SERVICE_TOKEN=$SERVICE_TOKEN
 export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
+export OS_REGION_NAME=$REGION_NAME
 EOF
 
 export ADMIN_PASSWORD
