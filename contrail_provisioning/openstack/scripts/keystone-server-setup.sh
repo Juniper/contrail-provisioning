@@ -164,21 +164,6 @@ for APP in keystone; do
     fi
 done
 
-if [ "$INTERNAL_VIP" != "none" ]; then
-    # Required only in first openstack node, as the mysql db is replicated using galera.
-    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
-        if [ $? != 0 ]; then
-            exit 1
-        fi
-    fi
-else
-    (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
-    if [ $? != 0 ]; then
-        exit 1
-    fi
-fi
-
 # wait for the keystone service to start
 tries=0
 while [ $tries -lt 10 ]; do
@@ -188,14 +173,27 @@ while [ $tries -lt 10 ]; do
     sleep 1
 done
 
-# Check if ADMIN/SERVICE Password has been set
-
 if [ $is_ubuntu -eq 1 ] ; then
+    ubuntu_kilo_or_above=0
     if [[ $keystone_version == *":"* ]]; then
         keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
     else
         keystone_version_without_epoch=`echo $keystone_version`
     fi
+    dpkg --compare-versions $keystone_version_without_epoch ge 2015
+    if [ $? -eq 0 ]; then
+        ubuntu_kilo_or_above=1
+    else
+        # starting liberty package versioning is changed to x.y.z from 2015.x.y
+        if [[ $keystone_version_without_epoch == *"8.0.0"* ]]; then
+            ubuntu_kilo_or_above=1
+        else
+            ubuntu_kilo_or_above=0
+        fi
+    fi
+else
+    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+        print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
 fi
 
 # Update all config files with service username and password
@@ -211,17 +209,13 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
 
     if [ $is_ubuntu -eq 1 ] ; then
-        dpkg --compare-versions $keystone_version_without_epoch ge 2015
-        if [ $? -eq 0 ]; then
+        if [ $ubuntu_kilo_or_above -eq 1 ] ; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
         fi
     else
-
         # For Kilo openstack release, set keystone.token.persistence.backends.memcache.Token
-        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
         if [ "$is_kilo_or_above" == "True" ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
@@ -243,15 +237,12 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$SERVICE_DBPASS@$CONTROLLER:3306/keystone
     if [ $is_ubuntu -eq 1 ] ; then
-        dpkg --compare-versions $keystone_version_without_epoch ge 2015
-        if [ $? -eq 0 ]; then
-            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
+        if [ $ubuntu_kilo_or_above -eq 1 ] ; then
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
-            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
         fi
     else
-        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
         if [ "$is_kilo_or_above" == "True" ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
         else
@@ -318,3 +309,17 @@ done
 # Start keysotne service
 service keystone restart
 
+if [ "$INTERNAL_VIP" != "none" ]; then
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
+        if [ $? != 0 ]; then
+            exit 1
+        fi
+    fi
+else
+    (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+    if [ $? != 0 ]; then
+        exit 1
+    fi
+fi
