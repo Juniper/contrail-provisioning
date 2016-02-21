@@ -163,6 +163,9 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
         sv_ini_fl = '/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-snmp-collector.ini'
+        if os.path.exists(sv_ini_fl+'.save'):
+            local(' '.join(["sudo", 'mv',
+                        sv_ini_fl+'.save', sv_ini_fl]))
         self.set_config(sv_ini_fl,
                         'program:contrail-snmp-collector',
                         'command',
@@ -192,6 +195,9 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
         sv_ini_fl = '/etc/contrail/supervisord_analytics_files/' +\
                     'contrail-topology.ini'
+        if os.path.exists(sv_ini_fl+'.save'):
+            local(' '.join(["sudo", 'mv',
+                        sv_ini_fl+'.save', sv_ini_fl]))
         self.set_config(sv_ini_fl,
                         'program:contrail-topology',
                         'command',
