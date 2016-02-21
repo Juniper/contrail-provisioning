@@ -66,6 +66,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_contrail_device_manager_supervisor_ini(self):
         contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-device-manager.ini"
+        if os.path.exists(contrail_svc_ini+'.save'):
+            local(' '.join(["sudo", 'mv',
+                        contrail_svc_ini+'.save', contrail_svc_ini]))
         config_files = [
                 '/etc/contrail/contrail-device-manager.conf',
                 '/etc/contrail/contrail-keystone-auth.conf',
