@@ -64,7 +64,8 @@ class ContrailSetup(object):
 
         parser.set_defaults(**self.global_defaults)
         parser.add_argument("--optional_services",
-            help = "comma seperated optional services list")
+            help = "comma seperated optional services list", type=str,
+            default='')
 
         return parser
 

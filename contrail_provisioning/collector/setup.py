@@ -172,8 +172,7 @@ class CollectorSetup(ContrailSetup):
                         '/usr/bin/contrail-snmp-collector --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
-        if self._args.optional_services is None or \
-                'snmp-collector' not in self._args.optional_services:
+        if 'snmp-collector' not in self._args.optional_services:
             local(' '.join(["sudo", 'mv', sv_ini_fl, sv_ini_fl+'.save']))
 
     def fixup_contrail_analytics_nodemgr(self):
@@ -204,8 +203,7 @@ class CollectorSetup(ContrailSetup):
                         '/usr/bin/contrail-topology --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
-        if self._args.optional_services is None or \
-             'topology' not in self._args.optional_services:
+        if 'topology' not in self._args.optional_services:
             local(' '.join(["sudo", 'mv', sv_ini_fl, sv_ini_fl+'.save']))
 
     def fixup_contrail_collector(self):
