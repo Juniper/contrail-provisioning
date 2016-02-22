@@ -206,7 +206,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_device_manager_ini.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.ini')
         local("sudo mv %s/contrail-device-manager.ini /etc/contrail/supervisord_config_files/" %(self._temp_dir_name))
-        if 'device-manager' not in self._args.optional_services:
+        if self._args.optional_services is None or \
+            'device-manager' not in self._args.optional_services:
             fl = "/etc/contrail/supervisord_config_files/" + \
                     "contrail-device-manager.ini"
             local(' '.join(["sudo", 'mv', fl, fl+'.save']))
