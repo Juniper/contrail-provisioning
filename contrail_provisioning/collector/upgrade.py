@@ -38,16 +38,15 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                     self._args.to_rel >= LooseVersion('3.00')):
             self.upgrade_data['replace'].append(('python-kafka-python', 'python-kafka'))
 
-    def update_config(self):
-        # DEvlop
-        pass
-
     def restart(self):
         local('service supervisor-analytics restart')
 
     def upgrade(self):
         self._upgrade()
         self.update_config()
+        self.restart()
+
+    def update_config(self):
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
@@ -116,6 +115,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         # From 3.0, analytics services no longer connect to the
         # local collector. All analytics services other than collector
         # would subscribe for the collector service with discovery server.
+        # Collector uses Zookeeper servers also.
         if (self._args.from_rel < LooseVersion('3.00') and
             self._args.to_rel >= LooseVersion('3.00')):
             topology_conf = '/etc/contrail/contrail-topology.conf'
@@ -131,8 +131,11 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             self.del_config(qe_conf, 'DEFAULT', 'collectors')
             analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
             self.del_config(analytics_api_conf, 'DEFAULTS', 'collectors')
-        self.restart()
-
+            collector_conf = '/etc/contrail/contrail-collector.conf'
+            self.set_config(collector_conf, 'DEFAULT',
+                'zookeeper_server_list',
+                ','.join('%s:%s' % zookeeper_server for zookeeper_server in \
+                self.zookeeper_server_list))
 
 def main():
     collector = CollectorUpgrade()
