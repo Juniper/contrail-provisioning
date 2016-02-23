@@ -96,8 +96,8 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                           '/etc/contrail/contrail-svc-monitor.conf',
                          ]
             for conf_file in conf_files:
-                self.del_config(conf_file, 'DEFAULT', 'rabbit_port')
-                self.set_config(conf_file, 'DEFAULT', 'rabbit_server',
+                self.del_config(conf_file, 'DEFAULTS', 'rabbit_port')
+                self.set_config(conf_file, 'DEFAULTS', 'rabbit_server',
                                 self.config_setup.rabbit_servers)
 
 
