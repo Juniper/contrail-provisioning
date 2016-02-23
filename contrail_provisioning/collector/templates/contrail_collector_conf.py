@@ -20,6 +20,10 @@ $__contrail_flow_ttl__
 # Multiple IP:port strings separated by space can be provided
 cassandra_server_list=$__contrail_cassandra_server_list__
 
+# IP address and port to be used to connect to zookeeper.
+# Multiple IP:port are specified as single string separated by comma
+zookeeper_server_list=$__contrail_zookeeper_server_list__
+
 # IP address and port to be used to connect to kafka.
 # Multiple IP:port strings separated by space can be provided
 kafka_broker_list=$__contrail_kafka_broker_list__

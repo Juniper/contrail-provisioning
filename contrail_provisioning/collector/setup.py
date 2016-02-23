@@ -43,10 +43,13 @@ class CollectorSetup(ContrailSetup):
         else:
             cassandra_port = '9160'
         self.cassandra_server_list = [(cassandra_server_ip, cassandra_port) for cassandra_server_ip in self._args.cassandra_ip_list]
+        zookeeper_port = '2181'
+        self.zookeeper_server_list = [(zookeeper_server_ip, zookeeper_port) for zookeeper_server_ip in self._args.zookeeper_ip_list]
 
     def parse_args(self, args_str):
         '''
         Eg. setup-vnc-collector --cassandra_ip_list 10.1.1.1 10.1.1.2
+            --zookeeper_ip_list 10.1.1.1 10.1.1.2
             --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11
             --analytics_data_ttl 1 --analytics_syslog_port 3514
             --keystone_ip 10.1.5.11
@@ -54,6 +57,8 @@ class CollectorSetup(ContrailSetup):
 
         parser = self._parse_args(args_str)
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper nodes",
                             nargs='+', type=str)
         parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
@@ -201,6 +206,7 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_listen_port__' : '8086',
                          '__contrail_http_server_port__' : '8089',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
+                         '__contrail_zookeeper_server_list__' : ','.join('%s:%s' % zookeeper_server for zookeeper_server in self.zookeeper_server_list),
                          '__contrail_analytics_data_ttl__' : '#analytics_data_ttl=48',
                          '__contrail_config_audit_ttl__' : '#analytics_config_audit_ttl=2160',
                          '__contrail_statistics_ttl__' : '#analytics_statistics_ttl=24',
