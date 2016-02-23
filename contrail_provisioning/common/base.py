@@ -48,7 +48,6 @@ class ContrailSetup(object):
         if args.conf_file:
             config = ConfigParser.SafeConfigParser()
             config.read([args.conf_file])
-            self.global_defaults.update(dict(optional_services=''))
             self.global_defaults.update(dict(config.items("GLOBAL")))
 
         # Override with CLI options
@@ -63,8 +62,6 @@ class ContrailSetup(object):
             )
 
         parser.set_defaults(**self.global_defaults)
-        parser.add_argument("--optional_services",
-            help = "comma seperated optional services list")
 
         return parser
 
