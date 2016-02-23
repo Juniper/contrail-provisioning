@@ -199,7 +199,7 @@ fi
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
-    keystone endpoint-create --region $REGION_NAME --service-id $NOVA_SERVICE \
+    keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
         --publicurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s' \
         --adminurl 'http://localhost:$(compute_port)s/v1.1/$(tenant_id)s' \
         --internalurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s'
@@ -209,7 +209,7 @@ fi
 EC2_SERVICE=$(get_service ec2 ec2 "EC2 Compatibility Layer")
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $EC2_SERVICE) ]; then
-    keystone endpoint-create --region $REGION_NAME --service-id $EC2_SERVICE \
+    keystone endpoint-create --region $OS_REGION_NAME --service-id $EC2_SERVICE \
         --publicurl http://localhost:8773/services/Cloud \
         --adminurl http://localhost:8773/services/Admin \
         --internalurl http://localhost:8773/services/Cloud
@@ -227,7 +227,7 @@ fi
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $GLANCE_SERVICE) ]; then
-    keystone endpoint-create --region $REGION_NAME --service-id $GLANCE_SERVICE \
+    keystone endpoint-create --region $OS_REGION_NAME --service-id $GLANCE_SERVICE \
         --publicurl http://$CONTROLLER:9292/v1 \
         --adminurl http://localhost:9393/v1 \
         --internalurl http://localhost:9393/v1
@@ -237,7 +237,7 @@ fi
 KEYSTONE_SERVICE=$(get_service keystone identity "Keystone Identity Service")
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $KEYSTONE_SERVICE) ]; then
-    keystone endpoint-create --region $REGION_NAME --service-id $KEYSTONE_SERVICE \
+    keystone endpoint-create --region $OS_REGION_NAME --service-id $KEYSTONE_SERVICE \
         --publicurl 'http://'$CONTROLLER':5000/v2.0' \
         --adminurl 'http://'$CONTROLLER':35357/v2.0' \
         --internalurl 'http://'$CONTROLLER':35357/v2.0'
@@ -255,7 +255,7 @@ fi
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $CINDER_SERVICE) ]; then
-    keystone endpoint-create --region $REGION_NAME --service-id $CINDER_SERVICE \
+    keystone endpoint-create --region $OS_REGION_NAME --service-id $CINDER_SERVICE \
         --publicurl 'http://'$CONTROLLER':8776/v1/$(tenant_id)s' \
         --adminurl 'http://localhost:9776/v1/$(tenant_id)s' \
         --internalurl 'http://localhost:9776/v1/$(tenant_id)s'
@@ -277,7 +277,7 @@ if [[ -n "$ENABLE_SWIFT" ]]; then
                            --user-id $SWIFT_USER \
                            --role-id $ADMIN_ROLE
     if [[ -n "$ENABLE_ENDPOINTS" ]]; then
-        keystone endpoint-create --region $REGION_NAME --service-id $SWIFT_SERVICE \
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $SWIFT_SERVICE \
             --publicurl   'http://localhost:8080/v1/AUTH_$(tenant_id)s' \
             --adminurl    'http://localhost:8080/v1/AUTH_$(tenant_id)s' \
             --internalurl 'http://localhost:8080/v1/AUTH_$(tenant_id)s'
@@ -295,7 +295,7 @@ if [[ -n "$ENABLE_QUANTUM" ]]; then
 
     if [[ -n "$ENABLE_ENDPOINTS" ]]; then
 	if [ -z $(endpoint_lookup $QUANTUM_SERVICE) ]; then
-        keystone endpoint-create --region $REGION_NAME --service-id $QUANTUM_SERVICE \
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $QUANTUM_SERVICE \
             --publicurl http://'$CONTROLLER':9696 \
             --adminurl http://'$CONTROLLER':9696 \
             --internalurl http://'$CONTROLLER':9696
@@ -316,7 +316,7 @@ if [[ -n "$ENABLE_HEAT" ]]; then
 
     if [[ -n "$ENABLE_ENDPOINTS" ]]; then
 	if [ -z $(endpoint_lookup $HEAT_SERVICE) ]; then
-        keystone endpoint-create --region $REGION_NAME --service-id $HEAT_SERVICE \
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $HEAT_SERVICE \
             --publicurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s' \
             --adminurl 'http://'$CONTROLLER:'8004/v1/%(tenant_id)s' \
             --internalurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s'
