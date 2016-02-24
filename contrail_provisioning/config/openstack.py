@@ -66,9 +66,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_contrail_device_manager_supervisor_ini(self):
         contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-device-manager.ini"
-        if os.path.exists(contrail_svc_ini+'.save'):
-            local(' '.join(["sudo", 'mv',
-                        contrail_svc_ini+'.save', contrail_svc_ini]))
         config_files = [
                 '/etc/contrail/contrail-device-manager.conf',
                 '/etc/contrail/contrail-keystone-auth.conf',
@@ -77,10 +74,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         config_file_args = ' --conf_file '.join(config_files)
         local('sudo openstack-config --set %s program:contrail-device-manager command "/usr/bin/contrail-device-manager --conf_file %s"'
               % (contrail_svc_ini, config_file_args))
-        if self._args.optional_services is None or \
-                'device-manager' not in self._args.optional_services:
-            local(' '.join(["sudo", 'mv', contrail_svc_ini,
-                        contrail_svc_ini+'.save']))
 
     def fixup_contrail_svc_monitor_supervisor_ini(self):
         contrail_svc_ini = "/etc/contrail/supervisord_config_files/contrail-svc-monitor.ini"
