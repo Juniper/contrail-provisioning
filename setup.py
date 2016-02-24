@@ -53,6 +53,7 @@ setup(
             # Upgrade scripts
             'upgrade-vnc-openstack = contrail_provisioning.openstack.upgrade:main',
             'upgrade-vnc-database = contrail_provisioning.database.upgrade:main',
+            'migrate-vnc-database = contrail_provisioning.database.migrate:main',
             'upgrade-vnc-config = contrail_provisioning.config.upgrade:main',
             'upgrade-vnc-control = contrail_provisioning.control.upgrade:main',
             'upgrade-vnc-collector = contrail_provisioning.collector.upgrade:main',
