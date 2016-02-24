@@ -238,6 +238,7 @@ class CollectorSetup(ContrailSetup):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
                          '__contrail_redis_server__': '127.0.0.1',
                          '__contrail_redis_server_port__' : '6379',
+                         '__contrail_host_ip__' : self._args.self_collector_ip,
                          '__contrail_http_server_port__' : '8091',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_discovery_ip__' : self._args.cfgm_ip,
