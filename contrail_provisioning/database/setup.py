@@ -366,6 +366,12 @@ class DatabaseSetup(ContrailSetup):
         if not is_removed:
             raise RuntimeError("Error while removed node %s from the DB cluster", self._args.node_to_delete)
 
+    def restart(self):
+        local('service zookeeper restart')
+        local('service contrail-database restart')
+        local('service supervisor-database restart')
+
+
 def main(args_str = None):
     database = DatabaseSetup(args_str)
     database.setup()
