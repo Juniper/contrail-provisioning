@@ -212,12 +212,12 @@ source /etc/contrail/openstackrc
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
         if [ $ubuntu_liberty -eq 1 ]; then
-            openstack endpoint create --region RegionOne $NOVA_SERVICE \
+            openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                 --publicurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s \
                 --adminurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s  \
                 --internalurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s
         else
-            keystone endpoint-create --region RegionOne --service-id $NOVA_SERVICE \
+            keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
                 --publicurl 'http://'$CONTROLLER':$(compute_port)s/v1.1/$(tenant_id)s' \
                 --adminurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s' \
                 --internalurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s'
