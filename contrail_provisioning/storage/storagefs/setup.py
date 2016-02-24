@@ -1081,9 +1081,11 @@ class SetupCeph(object):
                 run('sudo openstack-config --del /etc/cinder/cinder.conf \
                                             DEFAULT enabled_backends')
                 run('sudo openstack-config --del /etc/cinder/cinder.conf \
-                                            DEFAULT rabbit_host')
+                                            %s rabbit_host' %(rabbit_host_section),
+                                            warn_only=True)
                 run('sudo openstack-config --del /etc/cinder/cinder.conf \
-                                            DEFAULT sql_connection')
+                                            %s %s' %(sql_section, sql_key),
+                                            warn_only=True)
 
         # Remove Ceph configurations
         # stop existing ceph monitor/osd
@@ -2389,23 +2391,30 @@ class SetupCeph(object):
                             # Set the cinder mysql and rabbit configutaion on
                             # compute node
                             if self._args.cinder_vip != 'none':
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     self._args.cinder_vip))
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     commonport.RABBIT_PORT))
-                                run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:%s@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                run('sudo openstack-config --set %s %s %s \
+                                    mysql://cinder:%s@%s:33306/cinder'
+                                    %(CINDER_CONFIG_FILE, 
+                                      sql_section, sql_key,
+                                      self._args.service_dbpass,
                                       self._args.cinder_vip))
                             else:
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     self._args.cfg_host))
-                                run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:%s@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                run('sudo openstack-config --set %s %s %s \
+                                    mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE,
+                                      sql_section, sql_key,
+                                      self._args.service_dbpass,
                                       self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
@@ -2483,23 +2492,30 @@ class SetupCeph(object):
                             # Set the cinder mysql and rabbit configutaion on
                             # compute node
                             if self._args.cinder_vip != 'none':
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     self._args.cinder_vip))
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_port %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     commonport.RABBIT_PORT))
-                                run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:%s@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                run('sudo openstack-config --set %s %s %s \
+                                    mysql://cinder:%s@%s:33306/cinder'
+                                    %(CINDER_CONFIG_FILE,
+                                      sql_section, sql_key,
+                                      self._args.service_dbpass,
                                       self._args.cinder_vip))
                             else:
-                                run('sudo openstack-config --set %s DEFAULT \
+                                run('sudo openstack-config --set %s %s \
                                     rabbit_host %s' %(CINDER_CONFIG_FILE,
+                                    rabbit_host_section,
                                     self._args.cfg_host))
-                                run('sudo openstack-config --set %s DEFAULT \
-                                    sql_connection mysql://cinder:%s@%s/cinder'
-                                    %(CINDER_CONFIG_FILE, self._args.service_dbpass,
+                                run('sudo openstack-config --set %s %s %s \
+                                    mysql://cinder:%s@%s/cinder'
+                                    %(CINDER_CONFIG_FILE,
+                                      sql_section, sql_key,
+                                      self._args.service_dbpass,
                                       self._args.openstack_ip))
                             run('sudo cinder-manage db sync')
 
@@ -3480,6 +3496,16 @@ class SetupCeph(object):
                 self._args.storage_ssd_disk_config[0] != 'none':
             self._args.storage_disk_config = self._args.storage_ssd_disk_config
             self._args.storage_ssd_disk_config = ['none']
+        #check for cinder password if already present
+        cinder_pw_prsnt = local('cat /etc/cinder/cinder.conf | \
+                                grep -w ^%s | wc -l' %(sql_key), capture=True)
+        if cinder_pw_prsnt != '0':
+            cinder_pw = local('cat /etc/cinder/cinder.conf | \
+                                grep -w ^%s | cut -d \':\' -f 3 | \
+                                cut -d \'@\' -f 1' %(sql_key), capture=True)
+            if cinder_pw != '':
+                self._args.service_dbpass = cinder_pw
+
     #end do_cleanup_config()
 
 
@@ -3498,11 +3524,11 @@ class SetupCeph(object):
         # Do the ssh key configuration
         self.do_ssh_config()
 
-        # Cleanup configuration
-        self.do_cleanup_config()
-
         # Find cinder version
         self.find_cinder_version()
+
+        # Cleanup configuration
+        self.do_cleanup_config()
 
         # Patch cinder if required
         self.do_patch_cinder()
