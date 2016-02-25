@@ -60,9 +60,9 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
                 self.fixup_keystone_auth_config_file()
 
-        # Kafka is introduced from release 2.30
-        if (self._args.from_rel <= LooseVersion('2.20') and
-            self._args.to_rel > LooseVersion('2.20')):
+        # Alarmgen is enabled by default starting in 3.0
+        if (self._args.from_rel < LooseVersion('3.00') and
+            self._args.to_rel >= LooseVersion('3.00')):
             # regenerate alarm-gen INI file
             ALARM_GEN_INI_FILE = \
                 '/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'
