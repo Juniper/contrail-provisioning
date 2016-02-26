@@ -96,10 +96,10 @@ class GaleraSetup(ContrailSetup):
             wsrep_conf_file = 'my.cnf'
             wsrep_template = wsrep_conf_centos_template.template
 
-        if self._args.openstack_index == 1 and bootstrap == True:
-            wsrep_cluster_address= ''
-        else:
-            wsrep_cluster_address =  (':4567,'.join(self._args.galera_ip_list) + ':4567')
+        #if self._args.openstack_index == 1 and bootstrap == True:
+        #    wsrep_cluster_address= ''
+        #else:
+        wsrep_cluster_address =  (':4567,'.join(self._args.galera_ip_list) + ':4567')
 
         template_vals = {'__wsrep_nodes__' : wsrep_cluster_address,
                          '__wsrep_node_address__' : self._args.self_ip,
@@ -120,9 +120,9 @@ class GaleraSetup(ContrailSetup):
         local('sed -i -e "s/thread_stack/#thread_stack/" %s' % self.mysql_conf)
         local('sed -i -e "s/thread_cache_size/#thread_cache_size/" %s' % self.mysql_conf)
         local('sed -i -e "s/myisam-recover/#myisam-recover/" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld\]/a\lock_wait_timeout=600" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld\]/a\interactive_timeout = 60" %s' % self.mysql_conf)
-        local('sed -i "/\[mysqld\]/a\wait_timeout = 60" %s' % self.mysql_conf)
+        local('grep -q "lock_wait_timeout" %s || sed -i "/\[mysqld\]/a\lock_wait_timeout=600" %s' % (self.mysql_conf, self.mysql_conf))
+        local('grep -q "interactive_timeout" %s || sed -i "/\[mysqld\]/a\interactive_timeout = 60" %s' % (self.mysql_conf, self.mysql_conf))
+        local('grep -q "wait_timeout" %s || sed -i "/\[mysqld\]/a\wait_timeout = 60" %s' % (self.mysql_conf,self.mysql_conf))
 
         # FIX for UTF8
         if self.pdist in ['Ubuntu']:
@@ -174,8 +174,8 @@ class GaleraSetup(ContrailSetup):
             self.get_mysql_token_file()
         self.fix_galera_config()
 
-        if self._args.openstack_index == 1:
-            local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://#g" %s' % (self.wsrep_conf))
+        #if self._args.openstack_index == 1:
+        #    local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://#g" %s' % (self.wsrep_conf))
         self.fix_cmon_config()
 
         local("echo %s > /etc/contrail/galeraid" % self._args.openstack_index)
@@ -193,7 +193,10 @@ class GaleraSetup(ContrailSetup):
         if install_db:
             local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
             self.cleanup_redo_log()
-            local("service %s restart" % self.mysql_svc)
+            if self._args.openstack_index == 1:
+               self.bootstrap_donor()
+            else:
+               local("service %s restart" % self.mysql_svc)
 
     def create_mysql_token_file(self):
         # Use MYSQL_ROOT_PW from the environment or generate a new password
@@ -317,27 +320,44 @@ class GaleraSetup(ContrailSetup):
         local("sudo update-rc.d mysql defaults")
         local("service contrail-hamon start")
 
+    # Assuming that there are 3 nodes in the cluster,
+    # check for the state of wsrep in each node.
+    # In case of fresh setup, the first node will be
+    # the donor. In case of re-run of fab setup, first node
+    # will join the cluster.
     def run_services(self):
-        self.cleanup_redo_log()
+        wsrep_state_result = self.verify_mysql_server_status(self._args.galera_ip_list[0], self.mysql_token)
         if self._args.openstack_index == 1:
-            local("service %s restart" % self.mysql_svc)
+           if wsrep_state_result == False:
+              self.bootstrap_donor()
         else:
-            wsrep_state_result = self.verify_mysql_server_status(self._args.galera_ip_list[0], self.mysql_token)
-            if wsrep_state_result == False:
-                raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
-            local("service %s restart" % self.mysql_svc)
+           if wsrep_state_result == False:
+               raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
+           local("service %s restart" % self.mysql_svc)
 
         local("sudo update-rc.d -f mysql remove")
         local("sudo update-rc.d mysql defaults")
+
+    # bootstrsp the donor node. Check if the first node can be
+    # donor or joiner
+    def bootstrap_donor(self):
+        if (self.verify_mysql_server_status(self._args.galera_ip_list[self._args.openstack_index], self.mysql_token) == True or
+            self.verify_mysql_server_status(self._args.galera_ip_list[self._args.openstack_index+1], self.mysql_token) == True):
+              local("service %s restart" % self.mysql_svc)
+        else:
+              local("service %s restart --wsrep_cluster_address=gcomm://" % self.mysql_svc)
+        time.sleep(15)
 
     def cleanup_redo_log(self):
         # Delete the default initially created redo log file
         # This is required coz the wsrep config changes the
         # size of redo log file
         with settings(warn_only = True):
-            siz = local("ls -l /var/lib/mysql/ib_logfile1 | awk '{print $5}'", capture=True).strip()
+            siz = local("ls -l /var/lib/mysql/ib_logfile0 | awk '{print $5}'", capture=True).strip()
             if siz == self.mysql_redo_log_sz:
                 local("rm -rf /var/lib/mysql/ib_logfile*")
+                local("rm -rf /var/lib/mysql/ibdata*")
+                local("rm -rf /var/lib/mysql/GRA_*")
 
 def main(args_str = None):
     galera = GaleraSetup(args_str)
