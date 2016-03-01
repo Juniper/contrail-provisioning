@@ -62,48 +62,6 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         # Alarmgen is enabled by default starting in 3.0
         if (self._args.from_rel < LooseVersion('3.00') and
             self._args.to_rel >= LooseVersion('3.00')):
-            # regenerate alarm-gen INI file
-            ALARM_GEN_INI_FILE = \
-                '/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'
-            cnd = os.path.exists(ALARM_GEN_INI_FILE)
-            if cnd:
-                local('rm -rf %s' % ALARM_GEN_INI_FILE)
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'command',
-                '/usr/bin/contrail-alarm-gen -c /etc/contrail/contrail-alarm-gen.conf')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'priority',
-                '440')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'autostart',
-                'true')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'killasgroup',
-                'true')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen', 'stopsignal',
-                'KILL')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'stdout_capture_maxbytes','1MB')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'redirect_stderr','true')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'stdout_logfile','/var/log/contrail/contrail-alarm-gen-stdout.log')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'stderr_logfile','/var/log/contrail/contrail-alarm-gen-stderr.log')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'startsecs','5')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'exitcodes','0')
-            self.set_config(\
-                ALARM_GEN_INI_FILE, 'program:contrail-alarm-gen',
-                'user','contrail')
             self.fixup_contrail_alarm_gen()
             kafka_broker_list = [server[0] + ":9092"\
                                  for server in self.cassandra_server_list]
