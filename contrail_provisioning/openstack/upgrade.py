@@ -38,6 +38,11 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         self.upgrade_data['backup'] += backup_data
 
         self.upgrade_data['restore'] = self.upgrade_data['backup']
+        # Never restore /etc/contrail fully, Because all contrail
+        # services share same config dir, During upgrade rerun
+        # restoring whole /etc/contrail will replace config files
+        # with older version
+        self.upgrade_data['restore'].remove('/etc/contrail')
 
     def stop(self):
         with settings(warn_only=True):
