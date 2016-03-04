@@ -122,6 +122,7 @@ function get_role() {
 }
 
 ADMIN_ROLE=$(get_role admin)
+CLOUD_ADMIN_ROLE=$(get_role cloud-admin)
 MEMBER_ROLE=$(get_role Member)
 KEYSTONEADMIN_ROLE=$(get_role KeystoneAdmin)
 KEYSTONESERVICE_ROLE=$(get_role KeystoneServiceAdmin)
@@ -136,6 +137,10 @@ function user_role_lookup() {
 # Add Roles to Users in Tenants
 if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT admin) ]; then
 keystone user-role-add --user-id $ADMIN_USER --role-id $ADMIN_ROLE --tenant-id $ADMIN_TENANT
+fi
+
+if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT $CLOUD_ADMIN_ROLE) ]; then
+keystone user-role-add --user-id $ADMIN_USER --role-id $CLOUD_ADMIN_ROLE --tenant-id $ADMIN_TENANT
 fi
 
 if [ -z $(user_role_lookup $DEMO_USER $DEMO_TENANT Member) ]; then
