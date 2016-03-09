@@ -37,9 +37,12 @@ ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
 if [ -f /etc/redhat-release ]; then
     rpm -q contrail-heat > /dev/null && ENABLE_HEAT='yes'
+    is_ubuntu=0
 fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
+    is_ubuntu=1
+    keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
 fi
 
 if [ -z $ADMIN_PASSWORD ]; then
@@ -196,12 +199,28 @@ keystone user-role-add --tenant-id $SERVICE_TENANT \
                        --role-id $ADMIN_ROLE
 fi
 
+ubuntu_liberty=0
+if [ $is_ubuntu -eq 1 ]; then
+    if [[ $keystone_version == *"8.0.0"* ]]; then
+        ubuntu_liberty=1
+    fi
+fi
+
++source /etc/contrail/openstackrc
+
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
-    keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
-        --publicurl 'http://'$CONTROLLER':$(compute_port)s/v1.1/$(tenant_id)s' \
-        --adminurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s' \
-        --internalurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s'
+        if [ $ubuntu_liberty -eq 1 ]; then
+            openstack endpoint create --region RegionOne $NOVA_SERVICE \
+            --publicurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s \
+            --adminurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s  \
+            --internalurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s
+        else
+            keystone endpoint-create --region RegionOne --service-id $NOVA_SERVICE \
+            --publicurl 'http://'$CONTROLLER':$(compute_port)s/v1.1/$(tenant_id)s' \
+            --adminurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s' \
+            --internalurl 'http://'$CONTROLLER:'$(compute_port)s/v1.1/$(tenant_id)s'
+        fi
     fi
 fi
 

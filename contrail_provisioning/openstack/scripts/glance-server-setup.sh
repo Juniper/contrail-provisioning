@@ -31,6 +31,8 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
+   glance_api_ver=`dpkg -l | grep 'ii' | grep glance-api | awk '{print $3}'`
+   echo $glance_api_ver
 fi
 
 function error_exit
@@ -137,11 +139,18 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
+    if [ $is_ubuntu -eq 1 ] ; then
+        if [[ $glance_api_ver == *"11.0.0"* ]]; then
+            openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
+        fi
+    fi 
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri http://$INTERNAL_VIP:5000
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 5000
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
         openstack-config --set /etc/glance/glance-$cfg.conf database idle_timeout 180
         openstack-config --set /etc/glance/glance-$cfg.conf database min_pool_size 100
         openstack-config --set /etc/glance/glance-$cfg.conf database max_pool_size 700

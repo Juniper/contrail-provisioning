@@ -217,24 +217,13 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
 if [ $is_ubuntu -eq 1 ] ; then
-    if [[ $nova_api_version == *"2013.2"* ]]; then
+    if [[ $nova_api_version == *"2013.2"* ]] || [[ $nova_api_version == *"2015"* ]] || [[ $nova_api_version == *"12.0.0"* ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
     else
-        if [[ $nova_api_version == *"2015"* ]]; then
-            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-        else
-            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
-        fi
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
-    if [[ $nova_api_version == *":"* ]]; then
-            nova_api_version_without_epoch=`echo $nova_api_version | cut -d':' -f2`
-        else
-            nova_api_version_without_epoch=`echo $nova_api_version`
-        fi
-
-        dpkg --compare-versions $nova_api_version_without_epoch ge 2015
-    if [ $? -eq 0 ]; then
+    if [[ $nova_api_version == *"2015"* ]] || [[ $nova_api_version == *"12.0.0"* ]]; then
         openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
         openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN

@@ -99,7 +99,23 @@ if [ -d /etc/neutron ]; then
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions
     openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts $AMQP_SERVER
-    openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
+    liberty_ubuntu=0
+    if [ $is_ubuntu -eq 1 ] ; then
+        neutron_server_version=`dpkg -l | grep 'ii' | grep nova-api | awk '{print $3}'` 
+        if [[ $neutron_server_version == *"12.0.0"* ]]; then
+            liberty_ubuntu=1
+        fi
+    fi
+    if [ $is_ubuntu -eq 1 ] && [ $liberty_ubuntu -eq 1 ] ; then 
+        # for liberty loadbalanacer plugin would be V2 by default and
+        # neutron_lbaas extensions would be needed in api_extensions_path
+        openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions:${PYDIST}/neutron_lbaas/extensions
+        openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2
+    else
+        openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions
+        openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
+    fi
+
     openstack-config --del /etc/neutron/neutron.conf service_providers service_provider
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
 else

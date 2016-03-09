@@ -89,8 +89,17 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             nova_compute_version_without_epoch=`echo $nova_compute_version`
         fi
 
+        kilo_or_above=0
         dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
         if [ $? -eq 0 ]; then
+            kilo_or_above=1
+         else
+            if [[ $nova_compute_version == *"12.0.0"* ]]; then
+                kilo_or_above=1
+            fi
+         fi
+
+         if [ $kilo_or_above -eq 1 ] ; then
             openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
             openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
             openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
