@@ -41,7 +41,6 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
 
     def upgrade(self):
         self._upgrade()
-        self.upgrade_python_pkgs()
         self.update_config()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and

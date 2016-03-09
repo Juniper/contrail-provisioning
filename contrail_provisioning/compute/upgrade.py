@@ -81,7 +81,6 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if ('running' in
             local('service supervisor-vrouter status', capture=True)):
             local("service supervisor-vrouter stop")
-        self.upgrade_python_pkgs()
         if self._args.orchestrator == 'openstack':
             if self._args.from_rel == LooseVersion('2.00'):
                 self.fix_nova_params()

@@ -30,7 +30,6 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
 
     def upgrade(self):
         self._upgrade()
-        self.upgrade_python_pkgs()
         # Kafka is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
