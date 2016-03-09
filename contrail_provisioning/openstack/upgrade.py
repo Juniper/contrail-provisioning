@@ -83,7 +83,6 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
     def upgrade(self):
         self.stop()
         self._upgrade()
-        self.upgrade_python_pkgs()
         # In Rel 2.0 and 2.1, the cmon was started as part of CMON monitor
         # script so that we could give a specific runtime directory.
         # From 2.2, we are using the conf file to specify the runtime

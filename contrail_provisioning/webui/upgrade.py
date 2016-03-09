@@ -32,7 +32,6 @@ class WebuiUpgrade(ContrailUpgrade, WebuiSetup):
 
     def upgrade(self):
         self._upgrade()
-        self.upgrade_python_pkgs()
         #Disable redis server persistence since that is not used by and webui in r2.20
         #bug-1463749
         if self._args.to_rel >= LooseVersion('2.20'):
