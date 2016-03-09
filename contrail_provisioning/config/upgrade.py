@@ -61,7 +61,6 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
 
     def upgrade(self):
         self._upgrade()
-        self.upgrade_python_pkgs()
         # Device manager is introduced from release 2.1, So fixup the config
         # file if the upgrade is from pre releases to 2.1 release.
         if (self._args.from_rel < LooseVersion('2.10') and

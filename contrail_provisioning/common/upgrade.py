@@ -213,17 +213,3 @@ class ContrailUpgrade(object):
         self._restore_config()
         self._rename_config()
         self._remove_config()
-
-    def upgrade_python_pkgs(self):
-        # This step is required in customer env, becasue they used to call fab
-        # commands from one of the node in the cluster(cfgm).
-        # Installing packages(python-nova, python-cinder) brings in lower
-        # version of python-paramiko(1.7.5), fabric-utils requires 1.9.0 or
-        # above.ubuntu does not need this, as pycrypto and paramiko are
-        # installed as debian packages.
-        cmd = "sudo easy_install \
-              /opt/contrail/python_packages/pycrypto-2.6.tar.gz;\
-              sudo easy_install \
-              /opt/contrail/python_packages/paramiko-1.11.0.tar.gz"
-        if self.pdist not in ['Ubuntu']:
-            local(cmd)
