@@ -30,6 +30,7 @@ from fabric.api import local, env, run
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
 from contrail_provisioning.storage.storagefs.ceph_utils import SetupCephUtils
+from distutils.version import LooseVersion
 
 sys.path.insert(0, os.getcwd())
 
@@ -118,6 +119,8 @@ class SetupCeph(object):
     IO_NOOP_SCHED = 'noop'
     global KILO_VERSION
     KILO_VERSION = 2015
+    global LIBERTY_VERSION
+    LIBERTY_VERSION = 2016
     # Denotes the OS type whether Ubuntu or Centos.
     global pdist
     pdist = platform.dist()[0]
@@ -182,6 +185,14 @@ class SetupCeph(object):
     glance_store = 'DEFAULT'
     global glance_known_store
     glance_known_store = 'known_stores'
+    global keystone_endpt_create
+    keystone_endpt_create = 'keystone endpoint-create'
+    global keystone_svc_create
+    keystone_svc_create = 'keystone service-create'
+    global keystone_endpt_list
+    keystone_endpt_list = 'keystone endpoint-list'
+    global keystone_svc_list
+    keystone_svc_list = 'keystone service-list'
 
     # The function create a script which runs and lists the mons
     # running on the local node
@@ -3329,63 +3340,129 @@ class SetupCeph(object):
                 local('echo "export OS_VOLUME_API_VERSION=2" >> %s'
                                 %(OPENSTACK_RC_FILE))
             v2_config = local('source /etc/contrail/openstackrc && \
-                                keystone service-list | grep volumev2 | wc -l',
+                                %s | grep volumev2 | wc -l'
+                                %(keystone_svc_list),
                                 capture=True, shell='/bin/bash')
             if v2_config == '0':
-                local('source /etc/contrail/openstackrc && \
-                        keystone service-create --type volumev2 --name cinderv2 \
-                        --description volumev2', shell='/bin/bash')
+                if cinder_version >= LIBERTY_VERSION:
+                    local('source /etc/contrail/openstackrc && \
+                        %s  --name cinderv2 --description volumev2 \
+                        volumev2' %(keystone_svc_create),
+                        shell='/bin/bash')
+                else:
+                    local('source /etc/contrail/openstackrc && \
+                        %s --type volumev2 --name cinderv2 \
+                        --description volumev2' %(keystone_svc_create),
+                        shell='/bin/bash')
                 v2_service = local('source /etc/contrail/openstackrc && \
-                        keystone service-list | grep volumev2 | awk \'{print $2}\'',
+                        %s | grep volumev2 | awk \'{print $2}\''
+                        %(keystone_svc_list),
                         capture=True, shell='/bin/bash')
                 if self._args.cinder_vip != 'none':
-                    local('source /etc/contrail/openstackrc && \
-                            keystone endpoint-create --service-id %s \
+                    if cinder_version >= LIBERTY_VERSION:
+                        local('source /etc/contrail/openstackrc && \
+                            %s \
                             --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
-                            --region %s' %(v2_service,
+                            --region %s %s' %(keystone_endpt_create,
+                                self._args.cinder_vip, self._args.cinder_vip,
+                                self._args.cinder_vip, self._args.region_name,
+                                v2_service),
+                                shell='/bin/bash')
+                    else:
+                        local('source /etc/contrail/openstackrc && \
+                            %s --service-id %s \
+                            --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --region %s' %(keystone_endpt_create, v2_service,
                                 self._args.cinder_vip, self._args.cinder_vip,
                                 self._args.cinder_vip, self._args.region_name),
                                 shell='/bin/bash')
                 else:
-                    local('source /etc/contrail/openstackrc && \
-                            keystone endpoint-create --service-id %s \
+                    if cinder_version >= LIBERTY_VERSION:
+                        local('source /etc/contrail/openstackrc && \
+                            %s \
                             --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
-                            --region %s' %(v2_service,
+                            --region %s %s' %(keystone_endpt_create,
+                                self._args.openstack_ip, self._args.openstack_ip,
+                                self._args.openstack_ip, self._args.region_name,
+                                v2_service),
+                                shell='/bin/bash')
+                    else:
+                        local('source /etc/contrail/openstackrc && \
+                            %s --service-id %s \
+                            --publicurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v2/%%\(tenant_id\)s \
+                            --region %s' %(keystone_endpt_create, v2_service,
                                 self._args.openstack_ip, self._args.openstack_ip,
                                 self._args.openstack_ip, self._args.region_name),
                                 shell='/bin/bash')
 
             v1_config = local('source /etc/contrail/openstackrc && \
-                                keystone service-list | grep -w volume | wc -l',
+                                %s | grep -w volume | wc -l'
+                                %(keystone_svc_list),
                                 capture=True, shell='/bin/bash')
             if v1_config == '0':
-                local('source /etc/contrail/openstackrc && \
-                        keystone service-create --type volume --name cinder \
-                        --description volume', shell='/bin/bash')
+                if cinder_version >= LIBERTY_VERSION:
+                    local('source /etc/contrail/openstackrc && \
+                        %s  --name cinder --description volume \
+                        volume' %(keystone_svc_create),
+                        shell='/bin/bash')
+                else:
+                    local('source /etc/contrail/openstackrc && \
+                        %s --type volume --name cinder \
+                        --description volume' %(keystone_svc_create),
+                        shell='/bin/bash')
                 v1_service = local('source /etc/contrail/openstackrc && \
-                        keystone service-list | grep -w volume | awk \'{print $2}\'',
+                        %s | grep -w volume | awk \'{print $2}\''
+                        %(keystone_svc_list),
                         capture=True, shell='/bin/bash')
                 if self._args.cinder_vip != 'none':
-                    local('source /etc/contrail/openstackrc && \
-                            keystone endpoint-create --service-id %s \
+                    if cinder_version >= LIBERTY_VERSION:
+                        local('source /etc/contrail/openstackrc && \
+                            %s \
                             --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
-                            --region %s' %(v1_service,
+                            --region %s %s' %(keystone_endpt_create,
+                                self._args.cinder_vip, self._args.cinder_vip,
+                                self._args.cinder_vip, self._args.region_name,
+                                v1_service),
+                                shell='/bin/bash')
+                    else:
+                        local('source /etc/contrail/openstackrc && \
+                            %s --service-id %s \
+                            --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --region %s' %(keystone_endpt_create, v1_service,
                                 self._args.cinder_vip, self._args.cinder_vip,
                                 self._args.cinder_vip, self._args.region_name),
                                 shell='/bin/bash')
                 else:
-                    local('source /etc/contrail/openstackrc && \
-                            keystone endpoint-create --service-id %s \
+                    if cinder_version >= LIBERTY_VERSION:
+                        local('source /etc/contrail/openstackrc && \
+                            %s \
                             --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
                             --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
-                            --region %s' %(v1_service,
+                            --region %s %s' %(keystone_endpt_create,
+                                self._args.openstack_ip, self._args.openstack_ip,
+                                self._args.openstack_ip, self._args.region_name,
+                                v1_service),
+                                shell='/bin/bash')
+                    else:
+                        local('source /etc/contrail/openstackrc && \
+                            %s --service-id %s \
+                            --publicurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --internalurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --adminurl http://%s:8776/v1/%%\(tenant_id\)s \
+                            --region %s' %(keystone_endpt_create, v1_service,
                                 self._args.openstack_ip, self._args.openstack_ip,
                                 self._args.openstack_ip, self._args.region_name),
                                 shell='/bin/bash')
@@ -3399,9 +3476,26 @@ class SetupCeph(object):
         global cinder_command
         global glance_store
         global glance_known_store
+        global keystone_command
+        global keystone_endpt_create
+        global keystone_svc_create
+        global keystone_endpt_list
+        global keystone_svc_list
 
-        cinder_version = int(local('cinder-manage --version 2>&1 | grep ^20 | \
-                                cut -d \'.\' -f 1', capture=True))
+        if pdist == 'centos':
+            os_cinder = local('rpm -q --queryformat="%{VERSION}" openstack-cinder',
+                                capture=True)
+            if LooseVersion('$os_cinder') >= LooseVersion('2015.1.1'):
+                cinder_version = KILO_VERSION
+
+        if pdist == 'Ubuntu':
+            os_cinder = local('dpkg-query -W -f=\'${Version}\' cinder-api',
+                                capture=True)
+            if LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1'):
+                cinder_version = KILO_VERSION
+            if LooseVersion('$os_cinder') >= LooseVersion('2:0.0.0'):
+                cinder_version = LIBERTY_VERSION
+
         if cinder_version >= KILO_VERSION:
             sql_section = 'database'
             sql_key = 'connection'
@@ -3409,7 +3503,12 @@ class SetupCeph(object):
             cinder_command = 'cinder --os-volume-api-version 2'
             glance_store = 'glance_store'
             glance_known_store = 'stores'
-    #end find_keystone_config()
+        if cinder_version >= LIBERTY_VERSION:
+            keystone_endpt_create = 'openstack endpoint create'
+            keystone_svc_create = 'openstack service create'
+            keystone_endpt_list = 'openstack endpoint list'
+            keystone_svc_list = 'openstack service list'
+    #end find_cinder_version()
 
     # Top level function for storage setup.
     def do_storage_setup(self):
