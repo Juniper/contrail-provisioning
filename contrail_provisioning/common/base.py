@@ -300,6 +300,12 @@ class ContrailSetup(object):
             local("openstack-config --del %s %s %s" % (
                         fl, sec, var))
 
+    def get_config(self, fl, sec, var):
+        with settings(warn_only=True):
+            output = local("openstack-config --get %s %s %s" % (
+                fl, sec, var), capture=True)
+        return output
+
     def setup(self):
         self.disable_selinux()
         self.disable_iptables()
