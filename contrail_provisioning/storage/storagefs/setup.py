@@ -3485,15 +3485,15 @@ class SetupCeph(object):
         if pdist == 'centos':
             os_cinder = local('rpm -q --queryformat="%{VERSION}" openstack-cinder',
                                 capture=True)
-            if LooseVersion('$os_cinder') >= LooseVersion('2015.1.1'):
+            if LooseVersion(os_cinder) >= LooseVersion('2015.1.1'):
                 cinder_version = KILO_VERSION
 
         if pdist == 'Ubuntu':
             os_cinder = local('dpkg-query -W -f=\'${Version}\' cinder-api',
                                 capture=True)
-            if LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1'):
+            if LooseVersion(os_cinder) >= LooseVersion('1:2015.1.1'):
                 cinder_version = KILO_VERSION
-            if LooseVersion('$os_cinder') >= LooseVersion('2:0.0.0'):
+            if LooseVersion(os_cinder) >= LooseVersion('2:0.0.0'):
                 cinder_version = LIBERTY_VERSION
 
         if cinder_version >= KILO_VERSION:
