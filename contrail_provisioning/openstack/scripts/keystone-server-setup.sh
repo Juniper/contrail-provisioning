@@ -182,6 +182,14 @@ done
 
 # Check if ADMIN/SERVICE Password has been set
 
+if [ $is_ubuntu -eq 1 ] ; then
+    if [[ $keystone_version == *":"* ]]; then
+        keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
+    else
+        keystone_version_without_epoch=`echo $keystone_version`
+    fi
+fi
+
 # Update all config files with service username and password
 for svc in keystone; do
     openstack-config --del /etc/$svc/$svc.conf database connection
@@ -195,12 +203,6 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
 
     if [ $is_ubuntu -eq 1 ] ; then
-        if [[ $keystone_version == *":"* ]]; then
-            keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
-        else
-            keystone_version_without_epoch=`echo $keystone_version`
-        fi
-
         dpkg --compare-versions $keystone_version_without_epoch ge 2015
         if [ $? -eq 0 ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
@@ -232,7 +234,22 @@ fi
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:keystone@$CONTROLLER:3306/keystone
-    openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
+    if [ $is_ubuntu -eq 1 ] ; then
+        dpkg --compare-versions $keystone_version_without_epoch ge 2015
+        if [ $? -eq 0 ]; then
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
+        else
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
+        fi
+    else
+        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
+        if [ "$is_kilo_or_above" == "True" ]; then
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
+        else
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
+        fi
+    fi
     openstack-config --del /etc/keystone/keystone.conf memcache servers
     openstack-config --set /etc/keystone/keystone.conf database idle_timeout 180
     openstack-config --set /etc/keystone/keystone.conf database min_pool_size 100
