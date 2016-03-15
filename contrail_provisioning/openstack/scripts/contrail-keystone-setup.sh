@@ -206,7 +206,7 @@ if [ $is_ubuntu -eq 1 ]; then
     fi
 fi
 
-+source /etc/contrail/openstackrc
+source /etc/contrail/openstackrc
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
