@@ -3,6 +3,7 @@
 import argparse
 import ConfigParser
 
+import platform
 import os
 import sys
 import time
@@ -14,6 +15,8 @@ import tempfile
 from fabric.api import local, env, run
 from fabric.operations import get, put
 from fabric.context_managers import lcd, settings
+from distutils.version import LooseVersion
+
 sys.path.insert(0, os.getcwd())
 
 class SetupNFSLivem(object):
@@ -29,6 +32,14 @@ class SetupNFSLivem(object):
     NOVA_INST_GLOBAL='/var/lib/nova/instances/global'
     global MAX_RETRY_WAIT
     MAX_RETRY_WAIT = 10
+    global cinder_version
+    cinder_version = 2015
+    global LIBERTY_VERSION
+    LIBERTY_VERSION = 2016
+    # Denotes the OS type whether Ubuntu or Centos.
+    global pdist
+    pdist = platform.dist()[0]
+
 
     def check_vm(self, vmip):
         retry = 0
@@ -47,6 +58,7 @@ class SetupNFSLivem(object):
     #end check_vm
 
     def __init__(self, args_str = None):
+        global cinder_version
         print sys.argv[1:]
         self._args = None
         if not args_str:
@@ -59,6 +71,12 @@ class SetupNFSLivem(object):
             self._args.storage_setup_mode == 'setup_global') and \
             self._args.nfs_livem_host:
 
+            if pdist == 'Ubuntu':
+                os_cinder = local('dpkg-query -W -f=\'${Version}\' cinder-api',
+                                    capture=True)
+                if LooseVersion(os_cinder) >= LooseVersion('2:0.0.0'):
+                    cinder_version = LIBERTY_VERSION
+
             nfs_livem_image = self._args.nfs_livem_image[0]
             nfs_livem_host = self._args.nfs_livem_host[0]
             nfs_livem_subnet = self._args.nfs_livem_subnet[0]
@@ -69,7 +87,10 @@ class SetupNFSLivem(object):
                 print 'NFS Live migration is already configured'
             else:
                 print 'NFS Live migration is yet to be configured'
-                local('source /etc/contrail/openstackrc && /usr/bin/glance image-create --name livemnfs --disk-format qcow2 --container-format ovf --file %s --is-public True' %(nfs_livem_image) , capture=True, shell='/bin/bash')
+                if cinder_version >= LIBERTY_VERSION:
+                    local('source /etc/contrail/openstackrc && /usr/bin/glance image-create --name livemnfs --disk-format qcow2 --container-format ovf --file %s --visibility public' %(nfs_livem_image) , capture=True, shell='/bin/bash')
+                else:
+                    local('source /etc/contrail/openstackrc && /usr/bin/glance image-create --name livemnfs --disk-format qcow2 --container-format ovf --file %s --is-public True' %(nfs_livem_image) , capture=True, shell='/bin/bash')
                 livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
                 if livemnfs == '1':
                     print 'image add success'
@@ -310,7 +331,10 @@ class SetupNFSLivem(object):
                 # update quota based on Total size
                 total=local('rados df | grep "total space" | awk  \'{ print $3 }\'', capture = True, shell='/bin/bash')
                 quota_gb = int(total)/1024/1024/2
-                admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
+                if cinder_version >= LIBERTY_VERSION:
+                    admintenantid=local('source /etc/contrail/openstackrc && openstack project list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
+                else:
+                    admintenantid=local('source /etc/contrail/openstackrc && keystone tenant-list |grep " admin" | awk \'{print $2}\'' , capture=True, shell='/bin/bash')
                 local('source /etc/contrail/openstackrc && cinder quota-update --gigabytes=%d %s' %(quota_gb, admintenantid), capture=True, shell='/bin/bash')
 
                 cindervolavail=local('source /etc/contrail/openstackrc && cinder list | grep livemnfsvol |wc -l' , capture=True, shell='/bin/bash')
@@ -718,7 +742,8 @@ class SetupNFSLivem(object):
                 local('source /etc/contrail/openstackrc && neutron net-delete livemnfs', shell='/bin/bash')
             livemnfs=local('source /etc/contrail/openstackrc && /usr/bin/glance image-list | grep livemnfs|wc -l', capture=True, shell='/bin/bash')
             if livemnfs == '1':
-                local('source /etc/contrail/openstackrc && /usr/bin/glance image-delete livemnfs', capture=True, shell='/bin/bash')
+                id = local('source /etc/contrail/openstackrc && glance image-list | grep -w livemnfs | awk \'{print $2}\'', capture=True, shell='/bin/bash')
+                local('source /etc/contrail/openstackrc && /usr/bin/glance image-delete %s' %(id), capture=True, shell='/bin/bash')
 
         if self._args.storage_setup_mode == 'unconfigure':
             # Remove Storage scope configuration

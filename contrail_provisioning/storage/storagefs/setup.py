@@ -2301,14 +2301,14 @@ class SetupCeph(object):
                                 %(CINDER_CONFIG_FILE))
                         if self._args.cinder_vip != 'none':
                             run('sudo openstack-config --set %s keystone_authtoken \
-                                auth_uri http://%s:5000/v2.0'
+                                auth_uri http://%s:5000'
                                 %(CINDER_CONFIG_FILE, self._args.cinder_vip))
                             run('sudo openstack-config --set %s keystone_authtoken \
                                 identity_uri http://%s:35357'
                                 %(CINDER_CONFIG_FILE, self._args.cinder_vip))
                         else:
                             run('sudo openstack-config --set %s keystone_authtoken \
-                                auth_uri http://%s:5000/v2.0'
+                                auth_uri http://%s:5000'
                                 %(CINDER_CONFIG_FILE, self._args.openstack_ip))
                             run('sudo openstack-config --set %s keystone_authtoken \
                                 identity_uri http://%s:35357'
@@ -2328,14 +2328,14 @@ class SetupCeph(object):
                     %(CINDER_CONFIG_FILE))
             if self._args.cinder_vip != 'none':
                 local('sudo openstack-config --set %s keystone_authtoken \
-                    auth_uri http://%s:5000/v2.0'
+                    auth_uri http://%s:5000'
                     %(CINDER_CONFIG_FILE, self._args.cinder_vip))
                 local('sudo openstack-config --set %s keystone_authtoken \
                     identity_uri http://%s:35357'
                     %(CINDER_CONFIG_FILE, self._args.cinder_vip))
             else:
                 local('sudo openstack-config --set %s keystone_authtoken \
-                    auth_uri http://%s:5000/v2.0'
+                    auth_uri http://%s:5000'
                     %(CINDER_CONFIG_FILE, self._args.openstack_ip))
                 local('sudo openstack-config --set %s keystone_authtoken \
                     identity_uri http://%s:35357'
