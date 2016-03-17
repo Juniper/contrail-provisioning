@@ -241,8 +241,10 @@ class DatabaseSetup(ContrailSetup):
 
         # Set log compaction and topic delete options
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.enable=false','log.cleaner.enable=true')
-        local('sudo echo "log.cleanup.policy=compact" >> %s' % KAFKA_SERVER_PROPERTIES)
-        local('sudo echo "delete.topic.enable=true" >> %s' % KAFKA_SERVER_PROPERTIES)
+        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=compact'):
+            local('sudo echo "log.cleanup.policy=compact" >> %s' % KAFKA_SERVER_PROPERTIES)
+        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'delete.topic.enable=true'):
+            local('sudo echo "delete.topic.enable=true" >> %s' % KAFKA_SERVER_PROPERTIES)
 
         #Set replication factor to 2 if more than one kafka broker is available
         if (len(zk_list)>1):
