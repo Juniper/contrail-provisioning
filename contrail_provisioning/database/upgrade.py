@@ -102,10 +102,8 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         self.fixup_cassandra_upgrade()
 
         self._upgrade()
-        # Kafka is must from release 3.00
-        if (self._args.from_rel < LooseVersion('3.00') and
-            self._args.to_rel >= LooseVersion('3.00')):
-            self.fixup_kafka_server_properties(self._args.self_ip)
+        # Accomodate Kafka upgrade, if needed
+        self.fixup_kafka_server_properties(self._args.self_ip)
         # Adding hostip in contrail-database-nodemgr.conf
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
