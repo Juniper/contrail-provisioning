@@ -14,7 +14,7 @@ from fabric.api import local
 
 
 class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
-    def __init__(self, args_str = None):
+    def __init__(self, args_str=None):
         ContrailUpgrade.__init__(self)
         OpenstackSetup.__init__(self)
 
@@ -28,12 +28,14 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         backup_data = ['/etc/keystone',
                        '/etc/glance',
                        '/etc/nova',
-                       '/etc/cinder',
-                      ]
+                       '/etc/cinder']
         if self._args.internal_vip:
             backup_data += ['/etc/mysql',
                             '/etc/keepalived',
-                            '/etc/contrail/ha',
+                            # no need to backup /etc/contrail/ha
+                            # because all contents in /etc/contrail/ is already
+                            # backed up
+                            # '/etc/contrail/ha',
                             '/etc/cmon.cnf']
         self.upgrade_data['backup'] += backup_data
 
@@ -47,7 +49,8 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
     def stop(self):
         with settings(warn_only=True):
             if ('running' in
-                local('service supervisor-openstack status', capture=True)):
+                    local('service supervisor-openstack status',
+                          capture=True)):
                 local('service supervisor-openstack stop')
 
     def restart(self):
@@ -55,7 +58,7 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
 
     def fix_cmon_param_file(self):
         with settings(warn_only=True):
-            cmon_param='/etc/contrail/ha/cmon_param'
+            cmon_param = '/etc/contrail/ha/cmon_param'
             local("grep -q '# New Param in 2.1 #' %s || echo '# New Param in 2.1 #' >> %s" % (cmon_param, cmon_param))
             local("sed -i '/EVIP/d' %s" % cmon_param)
             local("sed -i '$ a\EVIP=%s' %s" % (self._args.external_vip, cmon_param))
@@ -69,7 +72,6 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("sed -i '/RMQ_CLIENTS/d' %s" % cmon_param)
             local("sed -i '$ a\RMQ_CLIENTS=(\"nova-conductor\" \"nova-scheduler\")' %s" % cmon_param)
 
-
     def fix_cmon_config(self):
         with settings(warn_only=True):
             local('service contrail-hamon stop')
@@ -79,12 +81,11 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
 
     def fix_haproxy_config(self):
         with settings(warn_only=True):
-             hap_cfg='/etc/haproxy/haproxy.cfg'
-             local("sed -i -e 's/timeout client 48h/timeout client 0/g' %s" % hap_cfg)
-             local("sed -i -e 's/timeout server 48h/timeout server 0/g' %s" % hap_cfg)
-             local("sed -i -e 's/timeout client 24h/timeout client 0/g' %s" % hap_cfg)
-             local("sed -i -e 's/timeout server 24h/timeout server 0/g' %s" % hap_cfg)
-
+            hap_cfg = '/etc/haproxy/haproxy.cfg'
+            local("sed -i -e 's/timeout client 48h/timeout client 0/g' %s" % hap_cfg)
+            local("sed -i -e 's/timeout server 48h/timeout server 0/g' %s" % hap_cfg)
+            local("sed -i -e 's/timeout client 24h/timeout client 0/g' %s" % hap_cfg)
+            local("sed -i -e 's/timeout server 24h/timeout server 0/g' %s" % hap_cfg)
 
     def upgrade(self):
         self.stop()
@@ -97,8 +98,8 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         # removed from Galera clustering. Hence, the following change
         # will drop CMON DB and re-provision CMON.
         if (self._args.internal_vip and
-            self._args.from_rel <= LooseVersion('2.20') and
-            self._args.to_rel >= LooseVersion('2.20')):
+                self._args.from_rel <= LooseVersion('2.20') and
+                self._args.to_rel >= LooseVersion('2.20')):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
             self.fix_haproxy_config()
