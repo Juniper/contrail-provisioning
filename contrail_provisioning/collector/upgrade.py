@@ -65,9 +65,9 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         #    All analytics services other than collector would subscribe for
         #    the collector service with discovery server.
         # 3. Collector uses Zookeeper servers.
-        # 4. Collector and query engine use CQL to connect to cassandra and
-        #    hence the port in DEFAULT.cassandra_server_list needs to be
-        #    updated to the default CQL port - 9042
+        # 4. Collector, query engine, analytics api use CQL to connect to
+        #    cassandra and hence the port in DEFAULT.cassandra_server_list
+        #    needs to be updated to the default CQL port - 9042
         if (self._args.from_rel < LooseVersion('3.00') and
             self._args.to_rel >= LooseVersion('3.00')):
             collector_conf = '/etc/contrail/contrail-collector.conf'
@@ -103,9 +103,9 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                     'zookeeper_server_list',
                     ','.join('%s:%s' % zookeeper_server for zookeeper_server in \
                     self.zookeeper_server_list))
-            # 4. Collector and query engine use CQL to connect to cassandra and
-            #    hence the port in DEFAULT.cassandra_server_list needs to be
-            #    updated to the default CQL port - 9042
+            # 4. Collector, query engine, analytics api use CQL to connect to
+            #    cassandra and hence the port in DEFAULT.cassandra_server_list
+            #    needs to be updated to the default CQL port - 9042
             qe_cass_server_list = self.get_config(qe_conf, 'DEFAULT',
                 'cassandra_server_list')
             self.set_config(qe_conf, 'DEFAULT', 'cassandra_server_list',
@@ -116,6 +116,12 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             self.set_config(collector_conf, 'DEFAULT', 'cassandra_server_list',
                 ' '.join('%s:%s' % (server.split(':')[0], '9042') for server \
                 in collector_cass_server_list.split()))
+            analytics_api_cass_server_list = self.get_config(analytics_api_conf,
+                'DEFAULTS', 'cassandra_server_list')
+            self.set_config(analytics_api_conf, 'DEFAULTS',
+                'cassandra_server_list',
+                ' '.join('%s:%s' % (server.split(':')[0], '9042') for server \
+                in analytics_api_cass_server_list.split()))
 
 def main():
     collector = CollectorUpgrade()
