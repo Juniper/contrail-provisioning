@@ -95,6 +95,11 @@ class VcenterPluginSetup(ContrailSetup):
                                    template_vals, self._temp_dir_name + '/contrail-vcenter-plugin.conf')
         local("sudo mv %s/contrail-vcenter-plugin.conf /etc/contrail/contrail-vcenter-plugin.conf" %(self._temp_dir_name))
 
+        if self._args.vcenter_mode == "vcenter-only":
+           #disable contrail-svc-monitor for vcenter as orchestrator based provisioning
+           if (os.path.isfile('/etc/contrail/supervisord_config_files/contrail-svc-monitor.ini')):
+              local("sudo rm /etc/contrail/supervisord_config_files/contrail-svc-monitor.ini")
+
     def run_services(self):
         local("sudo vcenter-plugin-setup.sh")
 
