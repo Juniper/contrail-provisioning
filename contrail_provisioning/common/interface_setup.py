@@ -434,7 +434,7 @@ class UbuntuInterface(BaseInterface):
 
     def create_vlan_interface(self):
         '''Create interface config for vlan sub interface'''
-        interface = 'vlan'+self.vlan
+        interface = "%s.%s"%(self.device, self.vlan)
         cfg = ['auto %s' %interface,
                'iface %s inet static' %interface,
                'address %s' %self.ipaddr,
