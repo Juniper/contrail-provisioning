@@ -238,9 +238,9 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/keystone/keystone.conf sql connection mysql://keystone:$SERVICE_DBPASS@$CONTROLLER:3306/keystone
     if [ $is_ubuntu -eq 1 ] ; then
         if [ $ubuntu_kilo_or_above -eq 1 ] ; then
-            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
         else
-            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+            openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
         fi
     else
         if [ "$is_kilo_or_above" == "True" ]; then
