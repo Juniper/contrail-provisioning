@@ -102,7 +102,7 @@ if [ -d /etc/neutron ]; then
     liberty_ubuntu=0
     if [ $is_ubuntu -eq 1 ] ; then
         neutron_server_version=`dpkg -l | grep 'ii' | grep nova-api | awk '{print $3}'` 
-        if [[ $neutron_server_version == *"12.0.0"* ]]; then
+        if [[ $neutron_server_version == *"12.0."* ]]; then
             liberty_ubuntu=1
         fi
     fi
