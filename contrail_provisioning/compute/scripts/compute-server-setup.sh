@@ -93,8 +93,8 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
         if [ $? -eq 0 ]; then
             kilo_or_above=1
-        else
-            if [[ $nova_compute_version == *"12.0"* ]]; then
+         else
+            if [[ $nova_compute_version == *"12.0."* ]]; then
                 kilo_or_above=1
             fi
          fi
