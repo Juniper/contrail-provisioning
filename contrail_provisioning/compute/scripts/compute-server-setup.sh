@@ -94,7 +94,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         if [ $? -eq 0 ]; then
             kilo_or_above=1
         else
-            if [[ $nova_compute_version == *"12.0.0"* ]]; then
+            if [[ $nova_compute_version == *"12.0."* ]]; then
                 kilo_or_above=1
             fi
         fi
