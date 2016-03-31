@@ -37,9 +37,12 @@ ENABLE_ENDPOINTS=yes
 #ENABLE_QUANTUM=yes
 if [ -f /etc/redhat-release ]; then
     rpm -q contrail-heat > /dev/null && ENABLE_HEAT='yes'
+    is_ubuntu=0
 fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
+    is_ubuntu=1
+    keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
 fi
 CONTROLLER=${INTERNAL_VIP:-$CONTROLLER}
 
@@ -89,6 +92,7 @@ if [ $? != 0 ]; then
     echo "Keystone is not up, Exiting..."
     exit 1
 fi
+
 ADMIN_TENANT=$(get_tenant admin)
 SERVICE_TENANT=$(get_tenant service)
 DEMO_TENANT=$(get_tenant demo)
@@ -197,12 +201,28 @@ keystone user-role-add --tenant-id $SERVICE_TENANT \
                        --role-id $ADMIN_ROLE
 fi
 
+ubuntu_liberty=0
+if [ $is_ubuntu -eq 1 ]; then
+    if [[ $keystone_version == *"8.0.0"* ]]; then
+        ubuntu_liberty=1
+    fi
+fi
+
+source /etc/contrail/openstackrc
+
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
-    keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
-        --publicurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s' \
-        --adminurl 'http://localhost:$(compute_port)s/v1.1/$(tenant_id)s' \
-        --internalurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s'
+        if [ $ubuntu_liberty -eq 1 ]; then
+            openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
+                --publicurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s' \
+                --adminurl 'http://localhost:$(compute_port)s/v1.1/$(tenant_id)s' \
+                --internalurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s'
+        else
+            keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
+                --publicurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s' \
+                --adminurl 'http://localhost:$(compute_port)s/v1.1/$(tenant_id)s' \
+                --internalurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s'
+        fi
     fi
 fi
 
