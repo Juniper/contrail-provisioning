@@ -383,7 +383,9 @@ HWADDR=%s
             local("echo -n '    dns-nameservers' >> %s" %(temp_intf_file))
             for dns in dns_list:
                 local("echo -n ' %s' >> %s" %(dns, temp_intf_file))
-        local("echo '\n' >> %s" %(temp_intf_file))
+            local("echo '' >> %s" % (temp_intf_file))
+        local("echo '    post-up ip link set vhost0 address %s' >> %s" % (mac,
+              temp_intf_file))
 
         # move it to right place
         local("sudo mv -f %s %s" %(temp_intf_file, dev_cfgfile))
