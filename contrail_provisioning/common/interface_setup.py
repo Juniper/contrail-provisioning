@@ -52,6 +52,7 @@ class BaseInterface(object):
         self.device     = kwargs['device']
         self.members    = kwargs.get('members', [])
         self.ip         = kwargs.get('ip', None)
+        self.no_ip      = kwargs.get('no_ip', False)
         self.gw         = kwargs.get('gw', None)
         self.vlan       = kwargs.get('vlan', None)
         self.bond_opts  = {'miimon': '100', 'mode': '802.3ad',
@@ -208,7 +209,7 @@ class BaseInterface(object):
                'BOOTPROTO'     : 'none',
                'NM_CONTROLLED' : 'no',
                'HWADDR'        : mac}
-        if not self.vlan:
+        if not self.vlan and not self.no_ip:
             cfg.update({'NETMASK'       : self.netmask,
                         'IPADDR'        : self.ipaddr
                        })
@@ -242,7 +243,7 @@ class BaseInterface(object):
             ip = IPNetwork(self.ip)
             self.ipaddr = str(ip.ip)
             self.netmask = str(ip.netmask)
-        else:
+        elif not self.no_ip:
             raise Exception("IP address/mask is not specified")
         if 'bond' in self.device.lower():
             self.create_bonding_interface()
@@ -402,11 +403,36 @@ class UbuntuInterface(BaseInterface):
             fd.flush()
         os.system('sudo cp -f %s %s'%(self.tempfile.name, interface_file))
 
+    @staticmethod
+    def _dev_is_vf(dev):
+        '''Return True if the given device is a PCI virtual function and not
+        the physical interface.
+        '''
+        if os.path.exists('/sys/class/net/%s/device/physfn' % dev):
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def _get_mac_of_vf_parent(dev):
+        '''Get MAC address of the physical interface the given VF belongs.
+        '''
+        dir_list = os.listdir('/sys/class/net/%s/device/physfn/net/' % dev)
+        if not dir_list:
+            return ''
+
+        phys_dev = dir_list[0]
+        mac = ''
+        with open('/sys/class/net/%s/address' % phys_dev, 'r') as f:
+            mac = f.readline()
+
+        return mac
+
     def create_interface(self):
         '''Create interface config for normal interface for Ubuntu'''
         log.info('Creating Interface: %s' % self.device)
         mac = self.get_mac_addr(self.device)
-        if not self.vlan:
+        if not self.vlan and not self.no_ip:
             cfg = ['auto %s' %self.device,
                    'iface %s inet static' %self.device,
                    'address %s' %self.ipaddr,
@@ -417,6 +443,13 @@ class UbuntuInterface(BaseInterface):
             cfg = ['auto %s' %self.device,
                    'iface %s inet manual' %self.device,
                    'down ip addr flush dev %s' %self.device]
+
+        if self._dev_is_vf(self.device):
+            correct_mac = self._get_mac_of_vf_parent(self.device)
+            if correct_mac:
+                cfg.append('post-up ip link set %s address %s' % (self.device,
+                           correct_mac))
+
         self.write_network_script(self.device, cfg)
         if self.vlan:
             self.create_vlan_interface()
@@ -485,10 +518,6 @@ def parse_cli(args):
                         default=[],
                         nargs='+',
                         help='Name of Member interfaces')
-    parser.add_argument('--ip', 
-                        action='store',
-                        required=True,
-                        help='IP address of the new Interface')
     parser.add_argument('--gw', 
                         action='store',
                         help='Gateway Address of the Interface')
@@ -500,6 +529,16 @@ def parse_cli(args):
     parser.add_argument('--vlan',
                         action='store',
                         help='vLAN ID')
+
+    ip_group = parser.add_mutually_exclusive_group(required=True)
+    ip_group.add_argument('--ip',
+                          action='store',
+                          help='IP address of the new Interface')
+    ip_group.add_argument('--no-ip',
+                          action='store_true',
+                          help='The interface should NOT have any IP ' +
+                               'configured')
+
     pargs = parser.parse_args(args)
     if len(args) == 0:
         parser.print_help()
