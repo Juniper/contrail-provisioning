@@ -81,9 +81,17 @@ class ContrailUpgrade(object):
             return
         pkgs = ' '.join(self.upgrade_data['upgrade'])
         if self.pdist in ['Ubuntu']:
-            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
-            cmd += ' -o Dpkg::Options::="--force-overwrite"'
-            cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
+            if (self._args.from_rel >= LooseVersion('2.20') and
+                    self._args.from_rel < LooseVersion('3.00') and
+                        self._args.to_rel >= LooseVersion('3.00')):
+                cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
+                cmd += ' -o Dpkg::Options::="--force-overwrite"'
+                cmd += ' -o Dpkg::Options::="--force-confmiss"'
+                cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
+            else:
+                cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
+                cmd += ' -o Dpkg::Options::="--force-overwrite"'
+                cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
         else:
             local('yum clean all')
             cmd = 'yum -y --disablerepo=* --enablerepo=contrail*'
