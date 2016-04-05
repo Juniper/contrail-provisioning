@@ -68,6 +68,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             ctrl_infos.append('VCENTER_DVSWITCH=%s' % self._args.vcenter_dvswitch)
         if self._args.dpdk:
             ctrl_infos.append('DPDK_MODE=True')
+            ctrl_infos.append('DPDK_INTERFACE=%s' % self.dev)
         if self._args.sriov:
             intf_str = ""
             physnet_str = ""

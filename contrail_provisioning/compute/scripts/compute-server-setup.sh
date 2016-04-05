@@ -200,6 +200,44 @@ if [ $VMWARE_IP ]; then
     fi
 fi
 
+get_pci_whitelist_addresses() {
+    orig_ifs=$IFS
+    IFS=$'\n'
+
+    # Function arguments
+    dpdk_iface=$1
+    sriov_iface=$2
+
+    # If the DPDK vRouter is not a virtual function, there is nothing to do
+    if [ ! -e "/sys/class/net/${dpdk_iface}/device/physfn" ]; then
+        return 0
+    fi
+
+    # Also, if the physical parent interface of the VF used by the DPDK vRouter
+    # is different than the SRIOV interface, there is nothing to do
+    dpdk_parent=$(basename /sys/class/net/${dpdk_iface}/device/physfn/net/*)
+    if [ $dpdk_parent != $sriov_iface ]; then
+        return 0
+    fi
+
+    # Get the PCI address of the DPDK vRouter interface
+    dpdk_pci=$(basename $(readlink /sys/class/net/${dpdk_iface}/device))
+
+    # Loop through the VFs of the SRIOV interface and whitelist all but the one
+    # used by the DPDK vRouter
+    pci_to_whitelist=()
+    pcis=($(readlink /sys/class/net/${sriov_iface}/device/virtfn*))
+    for pci in ${pcis[@]}; do
+        if [ $dpdk_pci != ${pci##*/} ]; then
+            pci_to_whitelist[${#pci_to_whitelist[@]}]="${pci##*/}"
+        fi
+    done
+
+    echo ${pci_to_whitelist[@]}
+
+    IFS=$orig_ifs
+}
+
 openstack-config --del /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist
 if [ ! -z $SRIOV_INTERFACES ] ; then
     OLD_IFS=$IFS
@@ -214,15 +252,29 @@ if [ ! -z $SRIOV_INTERFACES ] ; then
         i=$((i+1))
         phys=($physnets)
         for physnet_name in ${phys[@]}; do
-            wl="{ \"devname\": \"$intf\", \"physical_network\": \"$physnet_name\"}"
-            if [ $search_pattern ]; then
-                pci_wl="pci_passthrough_whitelist = $wl"
-                sed -i "/$search_pattern/a \
-                       $pci_wl" /etc/nova/nova.conf
+            pci_addresses=$(get_pci_whitelist_addresses $DPDK_INTERFACE $intf)
+            if [ -z $pci_addresses ]; then
+                wl_list=("{ \"devname\": \"$intf\", \"physical_network\": \"$physnet_name\"}")
             else
-                openstack-config --set /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist $wl
+                wl_list=()
+                orig_ifs=$IFS
+                IFS=' '
+                for pci in $pci_addresses; do
+                    wl_list[${#wl_list[@]}]="{ \"address\": \"$pci\", \"physical_network\": \"$physnet_name\" }"
+                done
+                IFS=$orig_ifs
             fi
-            search_pattern=$wl
+
+            for wl in ${wl_list[@]}; do
+                if [ $search_pattern ]; then
+                    pci_wl="pci_passthrough_whitelist = $wl"
+                    sed -i "/$search_pattern/a \
+                           $pci_wl" /etc/nova/nova.conf
+                else
+                    openstack-config --set /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist $wl
+                fi
+                search_pattern=$wl
+            done
         done
     done
     IFS=$OLD_IFS

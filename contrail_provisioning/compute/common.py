@@ -36,6 +36,24 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         super(ComputeBaseSetup, self).__init__()
         self._args = compute_args
 
+        self.multi_net = False
+        if self._args.non_mgmt_ip:
+            self.multi_net = True
+            self.vhost_ip = self._args.non_mgmt_ip
+        else:
+            self.vhost_ip = self._args.self_ip
+
+        self.dev = None
+        if self._args.physical_interface:
+            if self._args.physical_interface in netifaces.interfaces():
+                self.dev = self._args.physical_interface
+            else:
+                raise KeyError, 'Interface %s in present' % (
+                        self._args.physical_interface)
+        else:
+            # Deduce the phy interface from ip, if configured
+            self.dev = self.get_device_by_ip(self.vhost_ip)
+
     def enable_kernel_core(self): 
         self.enable_kernel_core()
         local ('for s in abrt-vmcore abrtd kdump; do chkconfig ${s} on; done')
@@ -91,32 +109,12 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         compute_ip = self._args.self_ip
         discovery_ip = self._args.contrail_internal_vip or self._args.cfgm_ip
         ncontrols = self._args.ncontrols
-        physical_interface = self._args.physical_interface
-        non_mgmt_ip = self._args.non_mgmt_ip
         non_mgmt_gw = self._args.non_mgmt_gw
-        self.vhost_ip = compute_ip
         vgw_public_subnet = self._args.vgw_public_subnet
         vgw_public_vn_name = self._args.vgw_public_vn_name
         vgw_intf_list = self._args.vgw_intf_list
         vgw_gateway_routes = self._args.vgw_gateway_routes
-        self.multi_net= False
-        if non_mgmt_ip :
-            self.multi_net= True
-            self.vhost_ip= non_mgmt_ip
 
-        self.dev = None
-        compute_dev = None
-        if physical_interface:
-            if physical_interface in netifaces.interfaces ():
-                self.dev = physical_interface
-            else:
-                 raise KeyError, 'Interface %s in present' % (
-                         physical_interface)
-        else:
-            # deduce the phy interface from ip, if configured
-            self.dev = self.get_device_by_ip (self.vhost_ip)
-            if self.multi_net:
-                compute_dev = self.get_device_by_ip (compute_ip)
 
         self.mac = None
         if self.dev and self.dev != 'vhost0' :
