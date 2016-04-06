@@ -27,6 +27,10 @@ template = string.Template("""#
   log_local=1
 # test_mode=0
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 [DISCOVERY]
 # port=5998
   server=$__contrail_discovery_ip__ # discovery-server IP address

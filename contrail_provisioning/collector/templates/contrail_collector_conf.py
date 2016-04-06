@@ -63,6 +63,10 @@ syslog_port=$__contrail_analytics_syslog_port__
 # UDP port to listen on for receiving ipfix messages. -1 to disable.
 # ipfix_port=4739
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 [COLLECTOR]
 # Everything in this section is optional
 
