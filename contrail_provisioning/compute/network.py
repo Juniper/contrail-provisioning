@@ -92,10 +92,10 @@ class ComputeNetworkSetup(object):
         with settings(warn_only=True):
             iface = local("ip link show %s | head -1" % interface +
                     "| cut -f2 -d':' | grep '@'", capture=True)
-        if iface is "":
-            return False
-        else:
+        if iface.succeeded:
             return True
+        else:
+            return False
 
     @staticmethod
     def get_physical_interface_of_vlan(interface):

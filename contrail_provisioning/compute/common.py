@@ -110,7 +110,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if physical_interface in netifaces.interfaces ():
                 self.dev = physical_interface
             else:
-                 raise KeyError, 'Interface %s in present' % (
+                 raise KeyError, 'Interface %s is not present' % (
                          physical_interface)
         else:
             # deduce the phy interface from ip, if configured
@@ -173,7 +173,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 iface = self.dev
                 if self.is_interface_vlan(self.dev):
                     iface = self.get_physical_interface_of_vlan(self.dev)
-                pci_dev = local("/opt/contrail/bin/dpdk_nic_bind.py --status | grep %s | cut -d' ' -f 1" %(iface), capture=True)
+                pci_dev = local("/opt/contrail/bin/dpdk_nic_bind.py --status | grep -w %s | cut -d' ' -f 1" %(iface), capture=True)
                 # If there is no PCI address, the device is a bond.
                 # Bond interface in DPDK has zero PCI address.
                 if not pci_dev:
