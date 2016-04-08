@@ -105,6 +105,7 @@ class DatabaseSetup(ContrailSetup):
         self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
         self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
         self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
+        self.replace_in_file(conf_file, 'start_rpc: ', 'start_rpc: true')
         if self._args.cassandra_user is not None:
             self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator')
         if data_dir:
