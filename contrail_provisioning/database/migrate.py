@@ -111,7 +111,6 @@ class DatabaseMigrate(DatabaseSetup):
         local(cmd)
 
         self.stop_cassandra()
-        self.fixup_cassandra_config_files()
 
     def migrate(self, inter_pkg, final_ver):
         if not self.migrated():
