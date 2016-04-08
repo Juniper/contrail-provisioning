@@ -30,8 +30,13 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseMigrate):
             self.migrate(self._args.inter_pkg, self._args.final_ver)
 
         self._upgrade()
+
+        # Accomodate cassandra upgrade, if needed
+        self.fixup_cassandra_config_files()
+
         # Accomodate Kafka upgrade, if needed
         self.fixup_kafka_server_properties(self._args.self_ip)
+
         # Adding hostip in contrail-database-nodemgr.conf
         if (self._args.from_rel < LooseVersion('2.20') and
                 self._args.to_rel >= LooseVersion('2.20')):

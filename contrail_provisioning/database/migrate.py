@@ -80,15 +80,7 @@ class DatabaseMigrate(DatabaseSetup):
         local('chown -R cassandra: /var/log/cassandra/')
         local('service cassandra start;sleep 5')
 
-        cmds = ["cassandra-cli --host", self._args.self_ip,
-                " --batch  < /dev/null | grep 'Connected to:'"]
-        cassandra_cli_cmd = ' '.join(cmds)
-        while True:
-            proc = Popen(cassandra_cli_cmd, shell=True,
-                         stdout=PIPE, stderr=PIPE)
-            (output, errout) = proc.communicate()
-            if proc.returncode == 0:
-                break
+        while not self.check_database_up():
             local('sleep 5')
 
         # run nodetool upgradesstables again
@@ -110,8 +102,12 @@ class DatabaseMigrate(DatabaseSetup):
 
         local(cmd)
 
+        while not self.check_database_up():
+            local('sleep 5')
+
+        # run nodetool upgradesstables again
+        self.upgrade_sstables()
         self.stop_cassandra()
-        self.fixup_cassandra_config_files()
 
     def migrate(self, inter_pkg, final_ver):
         if not self.migrated():

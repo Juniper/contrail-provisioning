@@ -105,6 +105,7 @@ class DatabaseSetup(ContrailSetup):
         self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
         self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
         self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
+        self.replace_in_file(conf_file, 'start_rpc: ', 'start_rpc: true')
         if self._args.cassandra_user is not None:
             self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator')
         if data_dir:
@@ -367,6 +368,17 @@ class DatabaseSetup(ContrailSetup):
 
         if not is_removed:
             raise RuntimeError("Error while removed node %s from the DB cluster", self._args.node_to_delete)
+
+    def check_database_up(self):
+        cmds = ["cqlsh ", self._args.self_ip, " -e exit"]
+        cassandra_cli_cmd = ' '.join(cmds)
+        proc = Popen(cassandra_cli_cmd, shell=True,
+                stdout=PIPE, stderr=PIPE)
+        (output, errout) = proc.communicate()
+        if proc.returncode == 0:
+            return True
+        else:
+            return False
 
     def restart(self):
         local('service zookeeper restart')
