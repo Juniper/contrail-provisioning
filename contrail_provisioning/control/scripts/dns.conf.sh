@@ -39,28 +39,28 @@ cat << EOF
 # named_log_file=/var/log/contrail/contrail-named.log   # named log file
 # rndc_config_file=contrail-rndc.conf                   # rndc config file
 # rndc_secret=secretkey                                 # rndc secret
-  hostip=$HOSTIP # Resolved IP of `hostname`
-  hostname=$HOSTNAME # Retrieved as `hostname`
+hostip=$HOSTIP # Resolved IP of `hostname`
+hostname=$HOSTNAME # Retrieved as `hostname`
 # http_server_port=8092
 # dns_server_port=53
 # log_category=
 # log_disable=0
-  log_file=/var/log/contrail/contrail-dns.log
+log_file=/var/log/contrail/contrail-dns.log
 # log_files_count=10
 # log_file_size=1048576 # 1MB
-  log_level=SYS_NOTICE
-  log_local=1
+log_level=SYS_NOTICE
+log_local=1
 # test_mode=0
 
 [DISCOVERY]
 # port=5998
-  server=$DISCOVERY # discovery-server IP address
+server=$DISCOVERY # discovery-server IP address
 
 [IFMAP]
-  certs_store=$CERT_OPTS
-  password=$IFMAP_PASWD
+certs_store=$CERT_OPTS
+password=$IFMAP_PASWD
 # server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
-  user=$IFMAP_USER
+user=$IFMAP_USER
 
 
 EOF
