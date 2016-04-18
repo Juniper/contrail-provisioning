@@ -8,14 +8,14 @@ import sys
 from distutils.version import LooseVersion
 from subprocess import Popen, PIPE
 
-from setup import DatabaseSetup
+from contrail_provisioning.common.base import ContrailSetup
 
 from fabric.api import local
 
 
-class DatabaseMigrate(DatabaseSetup):
+class DatabaseMigrate(ContrailSetup):
     def __init__(self, args_str=None):
-        DatabaseSetup.__init__(self)
+        ContrailSetup.__init__(self)
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
 

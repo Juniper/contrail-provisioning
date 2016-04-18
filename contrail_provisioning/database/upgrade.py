@@ -5,13 +5,15 @@
 """Upgrade's Contrail Database components."""
 from distutils.version import LooseVersion
 
+from setup import DatabaseSetup
 from contrail_provisioning.database.migrate import DatabaseMigrate
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 
 
-class DatabaseUpgrade(ContrailUpgrade, DatabaseMigrate):
+class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
     def __init__(self, args_str=None):
         ContrailUpgrade.__init__(self)
+        DatabaseSetup.__init__(self)
         DatabaseMigrate.__init__(self)
 
         self.update_upgrade_data()
