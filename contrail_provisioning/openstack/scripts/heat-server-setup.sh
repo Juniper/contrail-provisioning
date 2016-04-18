@@ -110,6 +110,25 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$SERVICE_DBPASS@127.0.0.1/heat
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$SERVICE_DBPASS@$INTERNAL_VIP:33306/heat
+
+        # Configuring a MySQL DB Pool for  Heat.
+        openstack-config --set /etc/$svc/$svc.conf database idle_timeout 180
+        openstack-config --set /etc/$svc/$svc.conf database min_pool_size 100
+        openstack-config --set /etc/$svc/$svc.conf database max_pool_size 350
+        openstack-config --set /etc/$svc/$svc.conf database max_overflow 700
+        openstack-config --set /etc/$svc/$svc.conf database retry_interval 5
+        openstack-config --set /etc/$svc/$svc.conf database max_retries -1
+        openstack-config --set /etc/$svc/$svc.conf database db_max_retries 3
+        openstack-config --set /etc/$svc/$svc.conf database db_retry_interval 1
+        openstack-config --set /etc/$svc/$svc.conf database connection_debug 10
+        openstack-config --set /etc/$svc/$svc.conf database pool_timeout 120
+
+        # RabbitMQ HA config
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_retry_interval 10
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_retry_backoff 5
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_max_retries 0
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_ha_queues True
+
         openstack-config --set /etc/$svc/$svc.conf heat_api bind_port 8005
     fi
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
