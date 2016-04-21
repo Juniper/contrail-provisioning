@@ -254,6 +254,27 @@ if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     fi
 fi
 
+if [ $ubuntu_liberty -eq 1 ]; then
+    BARBICAN_SERVICE=$(get_service barbican key-manager "Barbican Service")
+    BARBICAN_USER=$(get_service_user barbican)
+
+    if [ -z $(user_role_lookup $BARBICAN_USER $SERVICE_TENANT admin) ]; then
+    keystone user-role-add --tenant-id $SERVICE_TENANT \
+                           --user-id $BARBICAN_USER \
+                           --role-id $ADMIN_ROLE
+    fi
+
+    if [[ -n "$ENABLE_ENDPOINTS" ]]; then
+        if [ -z $(endpoint_lookup $BARBICAN_SERVICE) ]; then
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $BARBICAN_SERVICE \
+            --publicurl   http://$CONTROLLER:9311 \
+            --adminurl    http://$CONTROLLER:9311 \
+            --internalurl http://$CONTROLLER:9311
+        fi
+    fi
+fi
+
+
 KEYSTONE_SERVICE=$(get_service keystone identity "Keystone Identity Service")
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $KEYSTONE_SERVICE) ]; then
