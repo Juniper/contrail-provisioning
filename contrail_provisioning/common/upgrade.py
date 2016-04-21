@@ -197,7 +197,7 @@ class ContrailUpgrade(object):
             local("sudo service %s start" % (redis_svc_name))
             sleep(1)
             # Check if the redis-server is running, if not, issue start again
-            if local("sudo service %s status | grep 'is running'" % (redis_svc_name)).failed:
+            if local("redis-cli quit").failed:
                 raise RuntimeError('redis-server failed to start')
     # end fix_redis
 
