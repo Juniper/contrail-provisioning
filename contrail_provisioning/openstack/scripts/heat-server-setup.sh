@@ -107,9 +107,9 @@ export SERVICE_TOKEN
 # Update all config files with service username and password
 for svc in heat; do
     openstack-config --del /etc/$svc/$svc.conf database connection
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$SERVICE_DBPASS@127.0.0.1/heat
+    openstack-config --set /etc/$svc/$svc.conf database connection mysql://heat:$SERVICE_DBPASS@127.0.0.1/heat
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/$svc/$svc.conf DEFAULT sql_connection mysql://heat:$SERVICE_DBPASS@$INTERNAL_VIP:33306/heat
+        openstack-config --set /etc/$svc/$svc.conf database connection mysql://heat:$SERVICE_DBPASS@$INTERNAL_VIP:33306/heat
 
         # Configuring a MySQL DB Pool for  Heat.
         openstack-config --set /etc/$svc/$svc.conf database idle_timeout 180
