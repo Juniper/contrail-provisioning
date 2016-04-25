@@ -167,6 +167,7 @@ class OpenstackSetup(ContrailSetup):
     def fixup_config_files(self):
         nova_conf_file = "/etc/nova/nova.conf"
         cinder_conf_file = "/etc/cinder/cinder.conf"
+        barbican_file = "/etc/barbican/barbican-api-paste.ini"
 
         # TODO till post of openstack-horizon.spec is fixed...
         if (os.path.isdir("/etc/openstack_dashboard")):
@@ -188,6 +189,13 @@ class OpenstackSetup(ContrailSetup):
         if os.path.exists(cinder_conf_file):
             local("sudo sed -i 's/rpc_backend = cinder.openstack.common.rpc.impl_qpid/#rpc_backend = cinder.openstack.common.rpc.impl_qpid/g' %s" \
                    % (cinder_conf_file))
+
+        #barbican
+        if os.path.exists(barbican_file):
+            local("sudo sed -i 's/pipeline = unauthenticated-context apiapp/#pipeline = unauthenticated-context apiapp/g' %s" \
+                   %(barbican_file))
+            local("sudo sed -i 's/#pipeline = keystone_authtoken context apiapp/pipeline = keystone_authtoken context apiapp/g' %s" \
+                   %(barbican_file))
 
         local('sed -i -e "s/bind-address/#bind-address/" %s' % self.mysql_conf)
         self.service_token = self._args.service_token
@@ -216,6 +224,8 @@ class OpenstackSetup(ContrailSetup):
         local("sudo glance-server-setup.sh")
         local("sudo cinder-server-setup.sh")
         local("sudo nova-server-setup.sh")
+        if os.path.exists("/etc/barbican"):
+            local("sudo barbican-server-setup.sh")
         with settings(warn_only=True):
             if (self.pdist in ['centos'] and
                 local("rpm -qa | grep contrail-heat").succeeded):
