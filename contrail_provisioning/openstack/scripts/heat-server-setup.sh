@@ -154,6 +154,7 @@ for svc in heat; do
         openstack-config --set /etc/$svc/$svc.conf clients_contrail api_server $CONTRAIL_INTERNAL_VIP
     fi
     openstack-config --set /etc/$svc/$svc.conf clients_contrail api_base_url /
+    openstack-config --set /etc/$svc/$svc.conf clients_contrail auth_host_ip $controller_ip
 done
 
 for APP in heat; do
