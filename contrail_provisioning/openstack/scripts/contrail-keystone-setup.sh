@@ -42,7 +42,7 @@ fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
     is_ubuntu=1
-    keystone_version=`dpkg -l | grep 'ii' | grep keystone | grep -v python | awk '{print $3}'`
+    keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}'`
 fi
 
 if [ -z $ADMIN_PASSWORD ]; then
@@ -255,6 +255,26 @@ if [[ -n "$ENABLE_ENDPOINTS" ]]; then
         --publicurl http://$CONTROLLER:9292/v1 \
         --adminurl http://$CONTROLLER:9292/v1 \
         --internalurl http://$CONTROLLER:9292/v1
+    fi
+fi
+
+if [ $ubuntu_liberty -eq 1 ]; then
+    BARBICAN_SERVICE=$(get_service barbican key-manager "Barbican Service")
+    BARBICAN_USER=$(get_service_user barbican)
+
+    if [ -z $(user_role_lookup $BARBICAN_USER $SERVICE_TENANT admin) ]; then
+    keystone user-role-add --tenant-id $SERVICE_TENANT \
+                           --user-id $BARBICAN_USER \
+                           --role-id $ADMIN_ROLE
+    fi
+
+    if [[ -n "$ENABLE_ENDPOINTS" ]]; then
+        if [ -z $(endpoint_lookup $BARBICAN_SERVICE) ]; then
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $BARBICAN_SERVICE \
+            --publicurl   http://$CONTROLLER:9311 \
+            --adminurl    http://$CONTROLLER:9311 \
+            --internalurl http://$CONTROLLER:9311
+        fi
     fi
 fi
 
