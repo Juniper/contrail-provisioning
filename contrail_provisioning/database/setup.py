@@ -192,6 +192,9 @@ class DatabaseSetup(ContrailSetup):
               % (env_file))
         local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
               % (env_file))
+        # change < to -lt for numeric comparison
+        local("sudo sed -i 's/if \\[ \\\"\\$JVM_VERSION\\\" \\\\< \\\"1.8\\\" \\] && \\[ \\\"\\$JVM_PATCH_VERSION\\\" \\\\< \\\"25\\\" \\] ; \
+then/if [ \"\\$JVM_VERSION\" \\\\< \"1.8\" ] \\&\\& [ \"\\$JVM_PATCH_VERSION\" -lt \"25\" ] ; then/g' %s" % (env_file))
         local("sudo sed -i 's/MaxTenuringThreshold=.*\"/MaxTenuringThreshold=30\"/g' %s" % (env_file))
 
     def fixup_config_files(self):
