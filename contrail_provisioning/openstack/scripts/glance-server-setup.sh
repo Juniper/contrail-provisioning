@@ -101,10 +101,10 @@ EOF
 
 for cfg in api registry; do
     if [ $is_ubuntu -eq 1 ] ; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection sqlite:////var/lib/glance/glance.sqlite
+        openstack-config --set /etc/glance/glance-$cfg.conf database connection sqlite:////var/lib/glance/glance.sqlite
     fi
     if [ "$INTERNAL_VIP" != "none" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_connection mysql://glance:$SERVICE_DBPASS@$CONTROLLER:3306/glance
+        openstack-config --set /etc/glance/glance-$cfg.conf database connection mysql://glance:$SERVICE_DBPASS@$CONTROLLER:3306/glance
     fi
 done
 
