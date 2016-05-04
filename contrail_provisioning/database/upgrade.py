@@ -30,10 +30,10 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
 
     def upgrade(self):
         self._upgrade()
-        # Kafka is introduced from release 2.20
+        # Kafka is introduced from release 2.20. Will be disabled by default
+        self.fixup_kafka_server_properties()
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
-            self.fixup_kafka_server_properties()
             # Adding hostip in contrail-database-nodemgr.conf
             self.fixup_contrail_database_nodemgr()
         self.restart()

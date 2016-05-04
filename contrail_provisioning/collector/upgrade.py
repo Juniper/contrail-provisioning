@@ -42,6 +42,20 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
     def upgrade(self):
         self._upgrade()
         self.update_config()
+
+        # Kafka needs to be disabled by default for all R2.2
+        if self._args.kafka_enabled == 'True':
+            self.fixup_contrail_alarm_gen()
+            kafka_broker_list = [server[0] + ":9092"\
+                                 for server in self.cassandra_server_list]
+            kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
+            local('openstack-config --set\
+                  /etc/contrail/contrail-collector.conf\
+                  DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
+        else:
+            if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
+                  os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
+
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
@@ -53,18 +67,6 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             # Create contrail-keystone-auth.conf
             if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
                 self.fixup_keystone_auth_config_file()
-            # Kafka is introduced from release 2.20
-            if self._args.kafka_enabled == 'True':
-                self.fixup_contrail_alarm_gen()
-                kafka_broker_list = [server[0] + ":9092"\
-                                     for server in self.cassandra_server_list]
-                kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
-                local('openstack-config --set\
-                      /etc/contrail/contrail-collector.conf\
-                      DEFAULT kafka_broker_list %s' % kafka_broker_list_str)
-            else:
-                if os.path.exists('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini'):
-                      os.remove('/etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini')
 
         #Disable redis server persistence since that is not used by analytics in r2.20
         #bug-1463749
