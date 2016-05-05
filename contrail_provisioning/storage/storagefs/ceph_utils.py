@@ -77,6 +77,8 @@ class SetupCephUtils(object):
     # Used during pool, virsh, pg/pgp count configurations
     global ceph_pool_list
     ceph_pool_list = []
+    global ceph_tier_list
+    ceph_tier_list = []
 
     # Function to check if Chassis configuration is disabled or not
     # Returns False if enabled
@@ -1398,12 +1400,13 @@ class SetupCephUtils(object):
     # Sets ruleset based on pool/chassis configuration
     def do_configure_pools(self, storage_hostnames, storage_disk_config,
                             storage_ssd_disk_config, chassis_config,
-                            replica_size = None):
+                            replica_size = None, ssd_cache_tier = False):
         global host_hdd_dict
         global host_ssd_dict
         global hdd_pool_count
         global ssd_pool_count
         global ceph_pool_list
+        global ceph_tier_list
         global chassis_hdd_ruleset
         global chassis_ssd_ruleset
 
@@ -1612,6 +1615,73 @@ class SetupCephUtils(object):
                     pool_index = pool_index + 1
                     if pool_index >= ssd_pool_count:
                         break
+
+            if ssd_cache_tier == 'True' and storage_ssd_disk_config[0] != 'none':
+                pool_index = 0
+                while True:
+                    if hdd_pool_count == 0:
+                        pool_present = self.exec_local('sudo rados lspools | \
+                                                grep -w ssd_tier | wc -l')
+                        if pool_present == '0':
+                            self.exec_local('sudo rados mkpool ssd_tier')
+                        self.exec_local('sudo ceph osd pool set \
+                                    ssd_tier crush_ruleset %d'
+                                    %(host_ssd_dict[('ruleid', '%s'
+                                        %(pool_index))]))
+                        if host_ssd_dict[('hostcount', '%s' %(pool_index))] <= 1:
+                            self.exec_local('sudo ceph osd pool set ssd_tier size %s'
+                                                %(REPLICA_ONE))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set ssd_tier size %s'
+                                                %(replica_size))
+                        else:
+                            self.exec_local('sudo ceph osd pool set ssd_tier size %s'
+                                                %(REPLICA_DEFAULT))
+                        self.set_pg_pgp_count(host_ssd_dict[('totalcount', '%s'
+                                                %(pool_index))], 'ssd_tier',
+                                                host_ssd_dict[('hostcount', '%s'
+                                                %(pool_index))])
+                        ceph_tier_list.append('ssd_tier')
+                    else:
+                        if hdd_pool_count == ssd_pool_count:
+                            pool_name = host_hdd_dict[('poolname',
+                                                        '%s' %(pool_index))]
+                            rule_id = host_ssd_dict[('ruleid',
+                                                        '%s'%(pool_index))]
+                            host_count = host_ssd_dict[('hostcount',
+                                                        '%s' %(pool_index))]
+                            total_count = host_ssd_dict[('totalcount',
+                                                        '%s' %(pool_index))]
+                        else:
+                            pool_name = host_hdd_dict[('poolname',
+                                                        '%s' %(pool_index))]
+                            rule_id = host_ssd_dict[('ruleid','0')]
+                            host_count = host_ssd_dict[('hostcount', '0')]
+                            total_count = host_ssd_dict[('totalcount', '0')]
+                        pool_present = self.exec_local('sudo rados lspools | \
+                                                grep -w ssd_tier_%s | wc -l'
+                                                %(pool_name))
+                        if pool_present == '0':
+                            self.exec_local('sudo rados mkpool ssd_tier_%s'
+                                        %(pool_name))
+                        self.exec_local('sudo ceph osd pool set \
+                                        ssd_tier_%s crush_ruleset %d'
+                                        %(pool_name, rule_id))
+                        if host_hdd_dict[('hostcount', '%s' %(pool_index))] <= 1:
+                            self.exec_local('sudo ceph osd pool set ssd_tier_%s size %s'
+                                        %(pool_name, REPLICA_ONE))
+                        elif replica_size != 'None':
+                            self.exec_local('sudo ceph osd pool set ssd_tier_%s size %s'
+                                        %(pool_name, replica_size))
+                        else:
+                            self.exec_local('sudo ceph osd pool set ssd_tier_%s size %s'
+                                        %(pool_name, REPLICA_DEFAULT))
+                        self.set_pg_pgp_count(total_count,
+                                        'ssd_tier_%s' %(pool_name), host_count)
+                        ceph_tier_list.append('ssd_tier_%s' %(pool_name))
+                    pool_index = pool_index + 1
+                    if pool_index >= hdd_pool_count:
+                        break
         # Without HDD/SSD pool
         else:
             # Find the host count
@@ -1669,7 +1739,7 @@ class SetupCephUtils(object):
             else:
                 self.exec_local('sudo ceph osd pool set images crush_ruleset 0')
                 self.exec_local('sudo ceph osd pool set volumes crush_ruleset 0')
-        return ceph_pool_list
+        return {'ceph_pool_list': ceph_pool_list, 'ceph_tier_list': ceph_tier_list}
     #end do_configure_pools()
 
     def create_and_apply_cinder_patch(self):
