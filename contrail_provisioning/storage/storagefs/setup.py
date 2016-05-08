@@ -649,6 +649,7 @@ class SetupCeph(object):
     # Top level function for crush map changes
     def do_crush_map_pool_config(self):
         global ceph_pool_list
+        global ceph_tier_list
 
         crush_setup_utils = SetupCephUtils()
 
@@ -675,12 +676,15 @@ class SetupCeph(object):
             crush_setup_utils.apply_crush(crush_map)
 
         # Configure Pools
-        ceph_pool_list = crush_setup_utils.do_configure_pools(
+        result = crush_setup_utils.do_configure_pools(
                                         self._args.storage_hostnames,
                                         self._args.storage_disk_config,
                                         self._args.storage_ssd_disk_config,
                                         self._args.storage_chassis_config,
-                                        self._args.storage_replica_size)
+                                        self._args.storage_replica_size,
+                                        self._args.ssd_cache_tier)
+        ceph_pool_list = result['ceph_pool_list']
+        ceph_tier_list = result['ceph_tier_list']
     #end do_crush_map_pool_config()
 
     # Function for NFS cinder configuration
@@ -1841,13 +1845,36 @@ class SetupCeph(object):
 
         if self.is_multi_pool_disabled() == FALSE or \
                         self.is_ssd_pool_disabled() == FALSE:
+            index = 0
             for pool_name in ceph_pool_list:
+                list_length = len(ceph_tier_list)
+                if index < list_length:
+                    tier_name = ceph_tier_list[index]
+                else:
+                    tier_name = ''
                 # Run local for storage-master for HDD/SSD pools
-                local('sudo ceph auth get-or-create client.%s mon \
+                if tier_name == '':
+                    local('sudo ceph auth get-or-create client.%s mon \
                                 \'allow r\' osd \
                                 \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images\' \
                                 -o /etc/ceph/client.%s.keyring'
                                 %(pool_name, pool_name, pool_name))
+                else:
+                    auth_present = local('sudo ceph auth list 2>&1 | \
+                                        grep -w %s| wc -l' %(pool_name),
+                                        shell='/bin/bash',
+                                        capture=True)
+                    if auth_present != '0':
+                        local('sudo ceph auth caps client.%s mon \
+                                \'allow r\' osd \
+                                \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images, allow rwx pool=%s\' \
+                                -o /etc/ceph/client.%s.keyring'
+                                %(pool_name, pool_name, tier_name, pool_name))
+                    local('sudo ceph auth get-or-create client.%s mon \
+                                \'allow r\' osd \
+                                \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images, allow rwx pool=%s\' \
+                                -o /etc/ceph/client.%s.keyring'
+                                %(pool_name, pool_name, tier_name, pool_name))
                 local('sudo openstack-config --set %s client.%s keyring \
                                 /etc/ceph/client.%s.keyring'
                                 %(CEPH_CONFIG_FILE, pool_name, pool_name))
@@ -1861,13 +1888,22 @@ class SetupCeph(object):
                                             self._args.storage_os_host_tokens):
                         with settings(host_string = 'root@%s' %(entries),
                                             password = entry_token):
-                            run('sudo ceph -k %s auth get-or-create \
+                            if tier_name == '':
+                                run('sudo ceph -k %s auth get-or-create \
                                     client.%s mon \
                                     \'allow r\' osd \
                                     \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images\' \
                                     -o /etc/ceph/client.%s.keyring'
                                     %(CEPH_ADMIN_KEYRING, pool_name,
                                     pool_name, pool_name))
+                            else:
+                                run('sudo ceph -k %s auth get-or-create \
+                                    client.%s mon \
+                                    \'allow r\' osd \
+                                    \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images, allow rwx pool=%s\' \
+                                    -o /etc/ceph/client.%s.keyring'
+                                    %(CEPH_ADMIN_KEYRING, pool_name,
+                                    pool_name, tier_name, pool_name))
                             run('sudo openstack-config --set %s client.%s \
                                     keyring /etc/ceph/client.%s.keyring'
                                     %(CEPH_CONFIG_FILE, pool_name, pool_name))
@@ -1881,13 +1917,22 @@ class SetupCeph(object):
                     if entries != self._args.storage_master:
                         with settings(host_string = 'root@%s' %(entries),
                                                 password = entry_token):
-                            run('sudo ceph -k %s auth get-or-create \
+                            if tier_name == '':
+                                run('sudo ceph -k %s auth get-or-create \
                                     client.%s mon \
                                     \'allow r\' osd \
                                     \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images\' \
                                     -o /etc/ceph/client.%s.keyring'
                                     %(CEPH_ADMIN_KEYRING, pool_name,
                                     pool_name, pool_name))
+                            else:
+                                run('sudo ceph -k %s auth get-or-create \
+                                    client.%s mon \
+                                    \'allow r\' osd \
+                                    \'allow class-read object_prefix rbd_children, allow rwx pool=%s, allow rx pool=images, allow rwx pool=%s\' \
+                                    -o /etc/ceph/client.%s.keyring'
+                                    %(CEPH_ADMIN_KEYRING, pool_name,
+                                    pool_name, tier_name, pool_name))
                             run('sudo openstack-config --set %s client.%s \
                                     keyring /etc/ceph/client.%s.keyring'
                                     %(CEPH_CONFIG_FILE, pool_name, pool_name))
@@ -1895,8 +1940,60 @@ class SetupCeph(object):
                                     /etc/ceph/client.%s.keyring > \
                                     /etc/ceph/client.%s'
                                     %(pool_name, pool_name, pool_name))
+                index += 1
         return
     #end do_configure_ceph_auth()
+
+    # Function to configure Ceph cache tier
+    def do_configure_ceph_cache_tier(self):
+        global ceph_pool_list
+        global ceph_tier_list
+        num_hdd_pool = len(ceph_tier_list)
+        if num_hdd_pool == 0:
+            return
+        index = 0
+        for entry in ceph_pool_list:
+            if index >= num_hdd_pool:
+                return
+            total_ssd_size_st = local('sudo ceph df | grep -w %s | \
+                                awk \'{print $5}\''
+                                %(ceph_tier_list[index]), capture=True,
+                                shell='/bin/bash')
+            size_mult_st = total_ssd_size_st[len(total_ssd_size_st) - 1]
+            if size_mult_st == 'T':
+                size_mult = 1024 * 1024 * 1024 * 1024
+            elif size_mult_st == 'G':
+                size_mult = 1024 * 1024 * 1024
+            elif size_mult_st == 'M':
+                size_mult = 1024 * 1024
+            elif size_mult_st == 'K':
+                size_mult = 1024
+            total_ssd_size = int(total_ssd_size_st[:-1])
+            total_ssd_size = total_ssd_size * size_mult
+            if self._args.storage_replica_size != 'None':
+                replica_size = int(self._args.storage_replica_size)
+            else:
+                replica_size = 2
+            cache_size = total_ssd_size / replica_size
+            local('sudo ceph osd tier add %s %s'
+                    %(ceph_pool_list[index], ceph_tier_list[index]))
+            local('sudo ceph osd tier cache-mode %s writeback'
+                    %(ceph_tier_list[index]))
+            local('sudo ceph osd tier set-overlay %s %s'
+                    %(ceph_pool_list[index], ceph_tier_list[index]))
+            local('sudo ceph osd pool set %s hit_set_type bloom'
+                    %(ceph_tier_list[index]))
+            local('sudo ceph osd pool set %s hit_set_count 1'
+                    %(ceph_tier_list[index]))
+            local('sudo ceph osd pool set %s hit_set_period 3600'
+                    %(ceph_tier_list[index]))
+            local('sudo ceph osd pool set %s target_max_bytes %s'
+                    %(ceph_tier_list[index], cache_size))
+            local('ceph osd pool set %s min_read_recency_for_promote 1'
+                    %(ceph_tier_list[index]))
+            index += 1
+        return
+    #end do_configure_ceph_cache_tier
 
     # Function for Virsh/Cinder configurations for Ceph
     def do_configure_virsh_cinder_rbd(self):
@@ -2412,7 +2509,7 @@ class SetupCeph(object):
                                     commonport.RABBIT_PORT))
                                 run('sudo openstack-config --set %s %s %s \
                                     mysql://cinder:%s@%s:33306/cinder'
-                                    %(CINDER_CONFIG_FILE, 
+                                    %(CINDER_CONFIG_FILE,
                                       sql_section, sql_key,
                                       self._args.service_dbpass,
                                       self._args.cinder_vip))
@@ -3087,7 +3184,7 @@ class SetupCeph(object):
                              %(CONTRAIL_STORAGE_STATS_CONF, \
                              self._args.cfg_host))
                     if self._args.storage_os_hosts[0] != 'none':
-                        for os_entry in zip(self._args.os_hosts):
+                        for os_entry in self._args.storage_os_hosts:
                             if os_entry == entries:
                                 master_node = 1
                                 break
@@ -3557,6 +3654,9 @@ class SetupCeph(object):
             # Configure glance to use Ceph
             self.do_configure_glance_rbd()
 
+            # Configure Cache tier
+            self.do_configure_ceph_cache_tier()
+
         # Configure base cinder
         self.do_configure_cinder()
 
@@ -3759,6 +3859,7 @@ class SetupCeph(object):
         parser.add_argument("--orig-hostnames", help = "Actual Host names of storage nodes", nargs='+', type=str)
         parser.add_argument("--service-dbpass", help = "Database password for openstack service db user.")
         parser.add_argument("--region-name", help = "Region name of the cinder service")
+        parser.add_argument("--ssd-cache-tier", help = "Enable SSD cache tier")
 
         self._args = parser.parse_args(remaining_argv)
 
