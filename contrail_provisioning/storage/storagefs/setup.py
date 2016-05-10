@@ -3087,7 +3087,7 @@ class SetupCeph(object):
                              %(CONTRAIL_STORAGE_STATS_CONF, \
                              self._args.cfg_host))
                     if self._args.storage_os_hosts[0] != 'none':
-                        for os_entry in zip(self._args.os_hosts):
+                        for os_entry in self._args.storage_os_hosts:
                             if os_entry == entries:
                                 master_node = 1
                                 break
