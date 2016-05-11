@@ -114,7 +114,7 @@ vmware_physical_interface=$__vmware_physical_interface__
 
 # Number of threads for flow setup
 # thread_count=1
-thread_count=4
+thread_count=2
 
 [TASK]
 # Number of threads used by TBB
