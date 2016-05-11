@@ -154,14 +154,14 @@ export OS_NO_CACHE=1
 EOF
 
 # must set SQL connection before running nova-manage
-openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova
+openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
+    openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
 fi
 
 for APP in nova; do
@@ -295,11 +295,11 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT sql_connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_max_attempts 10
+    openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
     openstack-config --set /etc/nova/nova.conf database min_pool_size 100
     openstack-config --set /etc/nova/nova.conf database max_pool_size 350

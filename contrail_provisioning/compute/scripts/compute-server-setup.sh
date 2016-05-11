@@ -68,7 +68,7 @@ fi
 source /etc/contrail/ctrl-details
 HYPERVISOR=${HYPERVISOR:-"libvirt"}
 if [ $CONTROLLER != $COMPUTE ] ; then
-    openstack-config --del /etc/nova/nova.conf DEFAULT sql_connection
+    openstack-config --del /etc/nova/nova.conf database connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
