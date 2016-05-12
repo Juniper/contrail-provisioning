@@ -61,6 +61,24 @@ if [ -z $CONTROLLER ]; then
     $CONTROLLER="localhost"
 fi
 
+function is_installed_rpm_greater() {
+    package_name=$1
+    read ref_epoch ref_version ref_release <<< $2
+    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
+    if [ $? != 0 ]; then
+        echo "ERROR: Seems $package_name is not installed"
+        return 2
+    fi
+    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
+    verdict=$(python -c "import sys,rpm; \
+        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
+    if [[ $verdict -ge 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function get_id () {
     echo `"$@" | grep ' id ' | awk '{print $4}'`
 }
@@ -290,9 +308,7 @@ CINDER_USER=""
 CINDER_SERVICE_TYPE=v1
 # If cinder is Kilo based, volumev2 services are required
 if [ -f /etc/redhat-release ]; then
-    os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
-    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-              print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
+    is_kilo_or_above=$(is_installed_rpm_greater openstack-cinder "0 2015.1.1 1.el7" && echo True)
 fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     os_cinder=$(dpkg-query -W -f='${Version}' cinder-api)

@@ -145,16 +145,16 @@ class OpenstackSetup(ContrailSetup):
         """
         pkg_name = "openstack-dashboard"
         with settings(warn_only=True):
-            dashboard_version = local("rpm -q --queryformat \"%%{VERSION}\" %s" % pkg_name, capture=True)
-        return dashboard_version if dashboard_version.succeeded else None
+            dashboard_version = local("rpm -q --qf \"%%{epochnum} %%{V} %%{R}\" %s" % pkg_name, capture=True)
+        return tuple(dashboard_version.split()) if dashboard_version.succeeded else None
 
     def is_dashboard_juno_or_above(self, actual_dashboard_version):
         """Returns True if installed openstack-dashboard package belongs to
            Juno or higher sku, False if not.
         """
         # override for ubuntu when required
-        juno_version = '2014.2.2'
-        return LooseVersion(actual_dashboard_version) >= LooseVersion(juno_version)
+        juno_version = ('0', '2014.2.2', '1.el7')
+        return rpm.labelCompare(actual_dashboard_version, juno_version) >= 0
 
     def unregister_all_services(self):
         hostname = local('sudo getent hosts %s | awk \'{print $2}\'' % self._args.node_to_unregister, capture=True)
