@@ -28,6 +28,24 @@ function error_exit
     exit ${3:-1}
 }
 
+function is_installed_rpm_greater() {
+    package_name=$1
+    read ref_epoch ref_version ref_release <<< $2
+    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
+    if [ $? != 0 ]; then
+        echo "ERROR: Seems $package_name is not installed"
+        return 2
+    fi
+    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
+    verdict=$(python -c "import sys,rpm; \
+        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
+    if [[ $verdict -ge 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 if [ $is_ubuntu -eq 1 ] ; then
     keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}'`
 else
@@ -192,8 +210,7 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
 else
-    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-        print LooseVersion('$keystone_version') >= LooseVersion('2015.1.1')")
+    is_kilo_or_latest=$(is_installed_rpm_greater openstack-keystone "0 2015.1.1 1.el7" && echo True)
 fi
 
 # Update all config files with service username and password
@@ -216,7 +233,7 @@ for svc in keystone; do
         fi
     else
         # For Kilo openstack release, set keystone.token.persistence.backends.memcache.Token
-        if [ "$is_kilo_or_above" == "True" ]; then
+        if [ "$is_kilo_or_latest" == "True" ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
@@ -243,7 +260,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
         fi
     else
-        if [ "$is_kilo_or_above" == "True" ]; then
+        if [ "$is_kilo_or_latest" == "True" ]; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
