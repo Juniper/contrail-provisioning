@@ -65,6 +65,25 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
 fi
+
+function is_installed_rpm_greater() {
+    package_name=$1
+    read ref_epoch ref_version ref_release <<< $2
+    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
+    if [ $? != 0 ]; then
+        echo "ERROR: Seems $package_name is not installed"
+        return 2
+    fi
+    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
+    verdict=$(python -c "import sys,rpm; \
+        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
+    if [[ $verdict -ge 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 source /etc/contrail/ctrl-details
 HYPERVISOR=${HYPERVISOR:-"libvirt"}
 if [ $CONTROLLER != $COMPUTE ] ; then
@@ -121,14 +140,12 @@ if [ $CONTROLLER != $COMPUTE ] ; then
 
         if [ $is_redhat -eq 1 ]; then
             # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
-            is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                      print LooseVersion('$nova_compute_ver') >= LooseVersion('2015.1.1')")
+            is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2015.1.1 1.el7" && echo True)
 
             # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
             # if controller node is compute node so the VIF_TYPE=vrouter is available
-            is_juno_or_above=$(python -c "from distutils.version import LooseVersion; \
-                      print LooseVersion('$nova_compute_ver') >= LooseVersion('2014.2.2')")
-            if [ "$is_kilo_or_above" == "True" ]; then
+            is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2014.2.2 1.el7" && echo True)
+            if [ "$is_kilo_or_latest" == "True" ]; then
                 # Neutron section in nova.conf
                 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
                 openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
@@ -145,7 +162,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
 
-            elif [ "$is_juno_or_above" == "True" ]; then
+            elif [ "$is_juno_or_latest" == "True" ]; then
                 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
             fi
         fi
@@ -161,14 +178,13 @@ if [ $CONTROLLER != $COMPUTE ] ; then
 else
     if [ $is_redhat -eq 1 ]; then
         # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
-        is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$nova_compute_ver') >= LooseVersion('2015.1.1')")
+        is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2015.1.1 1.el7" && echo True)
 
         # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
         # if controller node is compute node so the VIF_TYPE=vrouter is available
-        is_juno_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$nova_compute_ver') >= LooseVersion('2014.2.2')")
-        if [ "$is_kilo_or_above" == "True" ]; then
+        is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2014.2.2 1.el7" && echo True)
+
+        if [ "$is_kilo_or_latest" == "True" ]; then
             # Neutron section in nova.conf
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
@@ -185,7 +201,7 @@ else
             openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
             openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
 
-        elif [ "$is_juno_or_above" == "True" ]; then
+        elif [ "$is_juno_or_latest" == "True" ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
     fi

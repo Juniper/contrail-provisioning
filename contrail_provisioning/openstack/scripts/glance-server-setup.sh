@@ -35,6 +35,24 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    echo $glance_api_ver
 fi
 
+function is_installed_rpm_greater() {
+    package_name=$1
+    read ref_epoch ref_version ref_release <<< $2
+    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
+    if [ $? != 0 ]; then
+        echo "ERROR: Seems $package_name is not installed"
+        return 2
+    fi
+    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
+    verdict=$(python -c "import sys,rpm; \
+        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
+    if [[ $verdict -ge 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
@@ -145,7 +163,15 @@ for cfg in api registry; do
         if [[ $glance_api_ver == *"11.0.0"* ]]; then
             openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
         fi
-    fi 
+    elif [ $is_redhat -eq 1 ] ; then
+        is_liberty_or_latest=$(is_installed_rpm_greater openstack-glance "1 11.0.1 1.el7" && echo True)
+        if [ "$is_liberty_or_latest" == "True" ]; then
+            openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
+        fi
+    else
+        echo "Unrecognized OS"
+    fi
+
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri http://$INTERNAL_VIP:5000
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $INTERNAL_VIP
