@@ -238,7 +238,7 @@ then/if [ \"\\$JVM_VERSION\" \\\\< \"1.8\" ] \\&\\& [ \"\\$JVM_PATCH_VERSION\" -
         #Add all the zoo keeper server address to the server.properties file
         zk_list = [server + ":2181" for server in self._args.zookeeper_ip_list]
         zk_list_str = ','.join(map(str, zk_list))
-        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=*', 'zookeeper.connect='+zk_list_str)
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'zookeeper.connect=.*', 'zookeeper.connect='+zk_list_str)
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, '#advertised.host.name=<hostname routable by clients>',\
                 'advertised.host.name='+listen_ip)
 
