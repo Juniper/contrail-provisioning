@@ -314,6 +314,7 @@ HWADDR=%s
             local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
             local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
             if (esxi_vm):
+                    local("echo '    pre-up ifconfig %s up mtu %s' >> %s" % (dev, datapg_mtu, temp_intf_file))
                     device_driver = local("ethtool -i %s | grep driver | cut -f 2 -d ' '" %dev, capture=True)
                     if (device_driver == "vmxnet3"):
                         local("echo '    pre-up ethtool --offload %s rx off' >> %s" %(dev, temp_intf_file))
@@ -340,6 +341,7 @@ HWADDR=%s
             with settings(warn_only = True):
                 local("sed -i '/iface %s inet static/, +2d' %s" % (dev, temp_intf_file))
                 if esxi_vm:
+                    local("echo '    pre-up ifconfig %s up mtu %s' >> %s" % (dev, datapg_mtu, temp_intf_file))
                     device_driver = local("ethtool -i %s | grep driver | cut -f 2 -d ' '" %dev, capture=True)
                     if (device_driver == "vmxnet3"):
                         local("echo '    pre-up ethtool --offload %s rx off' >> %s" %(dev, temp_intf_file))
