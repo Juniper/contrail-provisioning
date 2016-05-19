@@ -198,12 +198,12 @@ class ContrailSetup(object):
             intf_list = sriov_string.split(",")
             for intf_details in intf_list:
                 info = intf_details.split(":")
-                #Keep this command consistent with provision.py in fabric utils
+                # Keep this command consistent with provision.py in fabric utils
                 str = 'echo %s > /sys/class/net/%s/device/sriov_numvfs; sleep 2; ifup -a' % (info[1], info[0])
                 # Do nothing if the entry already present in /etc/rc.local
-                if sudo('grep -w \'%s\' /etc/rc.local' % str,
-                        quiet=True).succeeded:
-                    continue 
+                with settings(warn_only = True):
+                    if local('grep -w \'%s\' /etc/rc.local' % str).succeeded:
+                        continue
 
                 sed = 'sudo sed -i \'/^\s*exit/i ' + str + '\' /etc/rc.local' 
                 with settings(warn_only = True):
