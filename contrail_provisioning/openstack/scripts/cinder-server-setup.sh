@@ -24,6 +24,8 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=mysqld
    os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
+   is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -32,6 +34,8 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    web_svc=apache2
    mysql_svc=mysql
    os_cinder=$(dpkg-query -W -f='${Version}' cinder-api | cut -d ':' -f 2)
+   is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
+                  print LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1')")
 fi
 echo "$0: Openstack Cinder Version: ( $os_cinder )"
 
@@ -111,17 +115,18 @@ export SERVICE_TOKEN
 for svc in cinder; do
 
     # If cinder is Kilo based, need additional settings
-    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
     if [ "$is_kilo_or_above" == "True" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
                                auth_uri http://${controller_ip}:5000/v2.0
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
                                identity_uri http://${controller_ip}:35357
+        admin_user='cinderv2'
+    else
+        admin_user='cinder'
     fi
 
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $admin_user
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
     if [ "$INTERNAL_VIP" != "none" ]; then
