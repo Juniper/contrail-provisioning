@@ -1585,6 +1585,9 @@ class SetupCeph(object):
     # Set number of disk threads
     def do_tune_ceph(self):
 
+        # Set tunables to optimal
+        local('ceph osd crush tunables optimal')
+
         # rbd cache enabled
         local('ceph tell osd.* injectargs -- --rbd_cache=true')
         #local('ceph tell osd.* injectargs -- --rbd_cache_size=%s'
@@ -1699,6 +1702,8 @@ class SetupCeph(object):
                             %(CEPH_CONFIG_FILE))
                 run('sudo openstack-config --set %s global \
                             throttler_perf_counter false' %(CEPH_CONFIG_FILE))
+                run('sudo openstack-config --set %s global \
+                            rbd_default_format 2' %(CEPH_CONFIG_FILE))
                 run('sudo openstack-config --set %s osd \
                             osd_enable_op_tracker false' %(CEPH_CONFIG_FILE))
                 run('sudo openstack-config --set %s osd \
@@ -2050,7 +2055,7 @@ class SetupCeph(object):
                                     %(CINDER_CONFIG_FILE))
         local('sudo openstack-config --set %s rbd-disk rbd_secret_uuid %s'
                                     %(CINDER_CONFIG_FILE, virsh_secret))
-        local('sudo openstack-config --set %s rbd-disk glance_api_version 2'
+        local('sudo openstack-config --set %s DEFAULT glance_api_version 2'
                                     %(CINDER_CONFIG_FILE))
         local('sudo openstack-config --set %s rbd-disk volume_backend_name RBD'
                                     %(CINDER_CONFIG_FILE))
@@ -2071,7 +2076,7 @@ class SetupCeph(object):
                     run('sudo openstack-config --set %s rbd-disk \
                                         rbd_secret_uuid %s'
                                         %(CINDER_CONFIG_FILE, virsh_secret))
-                    run('sudo openstack-config --set %s rbd-disk \
+                    run('sudo openstack-config --set %s DEFAULT \
                                         glance_api_version 2'
                                         %(CINDER_CONFIG_FILE))
                     run('sudo openstack-config --set %s rbd-disk \
