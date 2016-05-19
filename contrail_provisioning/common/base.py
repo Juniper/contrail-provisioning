@@ -198,9 +198,16 @@ class ContrailSetup(object):
             intf_list = sriov_string.split(",")
             for intf_details in intf_list:
                 info = intf_details.split(":")
-                str = 'sudo sed -i \'/^exit/i \\echo ' + info[1] + ' > /sys/class/net/' + info[0] + '/device/sriov_numvfs \' /etc/rc.local'
+                #Keep this command consistent with provision.py in fabric utils
+                str = 'echo %s > /sys/class/net/%s/device/sriov_numvfs; sleep 2; ifup -a' % (info[1], info[0])
+                # Do nothing if the entry already present in /etc/rc.local
+                if sudo('grep -w \'%s\' /etc/rc.local' % str,
+                        quiet=True).succeeded:
+                    continue 
+
+                sed = 'sudo sed -i \'/^\s*exit/i ' + str + '\' /etc/rc.local' 
                 with settings(warn_only = True):
-                    local(str)
+                    local(sed)
 
 
     def disable_iptables(self):

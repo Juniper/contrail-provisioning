@@ -259,7 +259,18 @@ class UbuntuInterface(BaseInterface):
         if LooseVersion(VERSION) < LooseVersion("14.04"):
             subprocess.call('sudo /etc/init.d/networking restart', shell=True)
         else:
-            subprocess.call('sudo ifdown -a && sudo ifup -a', shell=True)
+            # Avoid bringing down the PF of VF together with the VFs.
+            # Otherwise, the addition of the VF to a bond fails (probably due to
+            # a bug in the ixgbe driver)
+            if self.no_ip:
+                subprocess.call('sudo ifdown %s && ifup %s' %(self.device, \
+                                self.device), shell=True)
+            else:
+                output = os.popen("sudo ifquery -l --allow=auto").read()
+                intfs = output.split()
+                for intf in intfs:
+                    subprocess.call('sudo ifdown %s && ifup -a' %(intf), \
+                                    shell=True)
         time.sleep(5)
 
     def remove_lines(self, ifaces, filename):
@@ -288,13 +299,15 @@ class UbuntuInterface(BaseInterface):
 
         iface_pattern = '^\s*iface ' + " |^\s*iface ".join(ifaces) + ' '
         auto_pattern = '^\s*auto ' + "|^\s*auto ".join(ifaces)
+        allow_pattern = '^\s*allow-hotplug ' + "|^\s*allow-hotplug ".join(ifaces)
         # write new file
         with open(self.tempfile.name, 'w') as fd:
             fd.write('%s\n' %cfg_file[0:indices[0]])
             for each in matches:
                 each = each.strip()
                 if re.match(auto_pattern, each) or\
-                   re.match(iface_pattern, each):
+                   re.match(iface_pattern, each) or\
+                   re.match(allow_pattern, each):
                     continue
                 else:
                     fd.write('%s\n' %each)
@@ -428,6 +441,42 @@ class UbuntuInterface(BaseInterface):
 
         return mac
 
+    @staticmethod
+    def _get_pf(dev):
+        '''Get PF of specified VF
+        '''
+        dir_list = os.listdir('/sys/class/net/%s/device/physfn/net/' % dev)
+        if not dir_list:
+            return ''
+
+        return dir_list[0]
+
+    def _get_vf_index(self, dev):
+       '''Get index of given VF on its PF, -1 on error
+       '''
+       pf = self._get_pf(dev)
+       if pf:
+           str = "/sys/class/net/%s/device/virtfn*" %pf
+           vfd = "/sys/class/net/%s/device" % dev
+           for file in glob.glob(str):
+               if (os.path.realpath(file) == os.path.realpath(vfd)):
+                   num = re.search(r'\d+$', file)
+                   return num.group()
+       return ''
+
+    def _cfg_append_spoof_vlan(self, dev, cfg):
+        '''Append a line to the config to turn off spoof check Also add VLAN 0 
+           to the given VF as ixgbe seems to require it.
+        '''
+        vfi = self._get_vf_index(dev)
+        pf = self._get_pf(dev)
+        if (vfi and pf):
+            cfg.append('post-up ip link set %s vf %s spoof off'
+                       %(pf, vfi))
+            if (self.vlan):
+                cfg.append('pre-up ip link set %s vf %s vlan 0'
+                           %(pf, vfi))
+    
     def create_interface(self):
         '''Create interface config for normal interface for Ubuntu'''
         log.info('Creating Interface: %s' % self.device)
@@ -449,7 +498,13 @@ class UbuntuInterface(BaseInterface):
             if correct_mac:
                 cfg.append('post-up ip link set %s address %s' % (self.device,
                            correct_mac))
-
+            self._cfg_append_spoof_vlan(self.device, cfg)
+        elif self.no_ip:
+            # Set PF to allow-hotplug instead of auto to distinguish it from
+            # interfaces which are brought up and down every time by create_interface
+            cfg = ['allow-hotplug %s' %self.device,
+                   'iface %s inet manual' %self.device,
+                   'down ip addr flush dev %s' %self.device]
         self.write_network_script(self.device, cfg)
         if self.vlan:
             self.create_vlan_interface()
@@ -463,6 +518,11 @@ class UbuntuInterface(BaseInterface):
                    'iface %s inet manual' %each,
                    'down ip addr flush dev %s' %each,
                    'bond-master %s' %self.device]
+            if self._dev_is_vf(each):
+                self._cfg_append_spoof_vlan(each, cfg)
+                # work around a bug with bonding VFs on ixgbe by repeating ifenslave
+                cfg.append('post-up ifenslave %s %s > /dev/null 2>&1; ifconfig %s up'
+                           %(self.device, each, each))
             self.write_network_script(each, cfg)
 
     def create_vlan_interface(self):
