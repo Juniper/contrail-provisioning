@@ -465,7 +465,7 @@ class UbuntuInterface(BaseInterface):
        return ''
 
     def _cfg_append_spoof_vlan(self, dev, cfg):
-        '''Append a line to the config to turn off spoof check Also add VLAN 0 
+        '''Append a line to the config to turn off spoof check Also add VLAN 0
            to the given VF as ixgbe seems to require it.
         '''
         vfi = self._get_vf_index(dev)
