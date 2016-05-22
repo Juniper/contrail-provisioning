@@ -98,16 +98,16 @@ if [ -d /etc/neutron ]; then
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts $AMQP_SERVER
-    liberty_ubuntu=0
+    ubuntu_liberty_and_above=0
     if [ $is_ubuntu -eq 1 ] ; then
         neutron_server_version=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'` 
-        if [[ $neutron_server_version == *"7.0."* ]]; then
-            liberty_ubuntu=1
+        if [[ $neutron_server_version == *".0.0"* ]]; then
+            ubuntu_liberty_and_above=1
         fi
     fi
 
     if [ $is_ubuntu -eq 1 ] ; then 
-        if [ $liberty_ubuntu -eq 1 ] ; then 
+        if [ $ubuntu_liberty_and_above -eq 1 ] ; then 
             # for liberty loadbalanacer plugin would be V2 by default and
             # neutron_lbaas extensions would be needed in api_extensions_path
             openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions:${PYDIST}/neutron_lbaas/extensions

@@ -205,10 +205,10 @@ keystone user-role-add --tenant-id $SERVICE_TENANT \
                        --role-id $ADMIN_ROLE
 fi
 
-ubuntu_liberty=0
+ubuntu_liberty_and_above=0
 if [ $is_ubuntu -eq 1 ]; then
-    if [[ $keystone_version == *"8.0.0"* ]]; then
-        ubuntu_liberty=1
+    if [[ $keystone_version == *".0.0"* ]]; then
+        ubuntu_liberty_and_above=1
     fi
 fi
 
@@ -216,7 +216,7 @@ source /etc/contrail/openstackrc
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
-        if [ $ubuntu_liberty -eq 1 ]; then
+        if [ $ubuntu_liberty_and_above -eq 1 ]; then
             openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                 --publicurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s \
                 --adminurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s  \
@@ -258,7 +258,7 @@ if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     fi
 fi
 
-if [ $ubuntu_liberty -eq 1 ]; then
+if [ $ubuntu_liberty_and_above -eq 1 ]; then
     BARBICAN_SERVICE=$(get_service barbican key-manager "Barbican Service")
     BARBICAN_USER=$(get_service_user barbican)
 
