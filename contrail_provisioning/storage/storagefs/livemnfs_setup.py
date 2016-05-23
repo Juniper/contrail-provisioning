@@ -32,6 +32,8 @@ class SetupNFSLivem(object):
     NOVA_INST_GLOBAL='/var/lib/nova/instances/global'
     global MAX_RETRY_WAIT
     MAX_RETRY_WAIT = 10
+    global NOVA_PY_PATH
+    NOVA_PY_PATH='/usr/lib/python2.7/dist-packages/nova'
     global cinder_version
     cinder_version = 2015
     global LIBERTY_VERSION
@@ -39,6 +41,10 @@ class SetupNFSLivem(object):
     # Denotes the OS type whether Ubuntu or Centos.
     global pdist
     pdist = platform.dist()[0]
+    global nova_mount
+    nova_mount='/var/lib/nova/instances/global'
+    global contrail_nova
+    contrail_nova = True
 
 
     def check_vm(self, vmip):
@@ -59,17 +65,31 @@ class SetupNFSLivem(object):
 
     def __init__(self, args_str = None):
         global cinder_version
+        global nova_mount
+        global contrail_nova
+
         print sys.argv[1:]
         self._args = None
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
         self._parse_args(args_str)
         vm_running = 0
+        nova_storage_scope_fix = local('grep -r storage_scope %s | \
+                                        grep global | wc -l'
+                                        %(NOVA_PY_PATH), capture=True)
+        if nova_storage_scope_fix == '0':
+            contrail_nova = False
+            nova_mount = '/var/lib/nova/instances'
 
         #print self._args.storage_setup_mode
         if (self._args.storage_setup_mode == 'setup' or
             self._args.storage_setup_mode == 'setup_global') and \
             self._args.nfs_livem_host:
+
+            if contrail_nova == False:
+                print 'Standard Nova present. Use Ceph based live-migration.'
+                print 'NFS over Ceph based live-migration is discontinued and not supported.'
+                return
 
             if pdist == 'Ubuntu':
                 os_cinder = local('dpkg-query -W -f=\'${Version}\' cinder-api',
@@ -473,28 +493,30 @@ class SetupNFSLivem(object):
                         # if the vm is not reachable.
                         fstab_added=run('sudo cat %s | grep %s | wc -l' %(ETC_FSTAB, nfs_mount_pt))
                         if fstab_added == '0':
-                            run('sudo echo \"%s %s nfs rw,bg,soft 0 0\" >> %s' %(nfs_mount_pt, NOVA_INST_GLOBAL, ETC_FSTAB))
+                            run('sudo echo \"%s %s nfs rw,bg,soft 0 0\" >> %s' %(nfs_mount_pt, nova_mount, ETC_FSTAB))
                         mounted=run('sudo cat /proc/mounts | grep %s|wc -l' %(nfs_mount_pt))
                         if mounted == '0':
                             run('ping -c 10 %s' %(nfs_server))
-                            run('sudo rm -rf /var/lib/nova/instances/global')
-                            run('sudo mkdir /var/lib/nova/instances/global')
-                            run('sudo mount /var/lib/nova/instances/global')
-                            run('sudo chown nova:nova /var/lib/nova/instances/global')
+                            if contrail_nova == True:
+                                run('sudo rm -rf %s' %(nova_mount))
+                                run('sudo mkdir %s' %(nova_mount))
+                            run('sudo mount %s' %(nova_mount))
+                            run('sudo chown nova:nova %s' %(nova_mount))
                         else:
                             run('ping -c 10 %s' %(nfs_server))
-                            stalenfs=run('ls /var/lib/nova/instances/global 2>&1 | grep Stale|wc -l')
+                            stalenfs=run('ls %s 2>&1 | grep Stale|wc -l' %(nova_mount))
                             if stalenfs == '1':
-                                run('sudo umount /var/lib/nova/instances/global')
-                                run('sudo mount  /var/lib/nova/instances/global')
-                                run('sudo chown nova:nova /var/lib/nova/instances/global')
+                                run('sudo umount %s' %(nova_mount))
+                                run('sudo mount  %s' %(nova_mount))
+                                run('sudo chown nova:nova %s' %(nova_mount))
 
         if self._args.storage_setup_mode == 'setup_global':
             for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
                 with settings(host_string = 'root@%s' %(entries), password = entry_token):
-                    #Set autostart vm after node reboot
-                    run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
-                    run('sudo service nova-compute restart')
+                    if contrail_nova == True:
+                        #Set autostart vm after node reboot
+                        run('openstack-config --set /etc/nova/nova.conf DEFAULT storage_scope global')
+                        run('sudo service nova-compute restart')
 
         if self._args.storage_setup_mode == 'unconfigure' and \
            self._args.nfs_livem_mount:
@@ -513,12 +535,12 @@ class SetupNFSLivem(object):
                         run('sudo mv %s %s' %(TMP_FSTAB, ETC_FSTAB))
                     mounted=run('cat /proc/mounts | grep %s |wc -l' %(nfs_mount_pt))
                     if mounted == '1':
-                        mountused=run('lsof /var/lib/nova/instances/global | wc -l');
+                        mountused=run('lsof %s | wc -l' %(nova_mount));
                         if mountused != '0':
-                            print '/var/lib/nova/instance/global is being used, Cannot unconfigure'
+                            print '%s is being used, Cannot unconfigure' %(nova_mount)
                             return
                         else:
-                            run('sudo umount /var/lib/nova/instances/global')
+                            run('sudo umount %s' %(nova_mount))
 
 
         if self._args.storage_setup_mode == 'unconfigure' and \
