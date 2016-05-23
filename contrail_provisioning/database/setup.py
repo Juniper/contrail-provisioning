@@ -106,6 +106,7 @@ class DatabaseSetup(ContrailSetup):
         self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
         self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
         self.replace_in_file(conf_file, 'start_rpc: ', 'start_rpc: true')
+        self.replace_in_file(conf_file, 'compaction_throughput_mb_per_sec: 16', 'compaction_throughput_mb_per_sec: 96')
         if self._args.cassandra_user is not None:
             self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator')
         if data_dir:
