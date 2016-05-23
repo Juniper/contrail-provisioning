@@ -161,13 +161,14 @@ class ContrailUpgrade(object):
         rem_pkgs = ' '.join([x for (x,y) in self.upgrade_data['replace']])
         add_pkgs = ' '.join([y for (x,y) in self.upgrade_data['replace']])
         if self.pdist in ['Ubuntu']:
-            with settings(warn_only=True):
+            with settings(warn_only = True):
                 local('DEBIAN_FRONTEND=noninteractive apt-get -y remove --purge\
-                      %s' % rem_pkgs)
+                       %s' % rem_pkgs)
             local('DEBIAN_FRONTEND=noninteractive apt-get -y install --reinstall\
                    %s' % add_pkgs)
         else:
-            local('rpm -e --nodeps %s' % rem_pkgs)
+            with settings(warn_only = True):
+                local('rpm -e --nodeps %s' % rem_pkgs)
             cmd = 'yum -y --nogpgcheck --disablerepo=*'
             cmd += ' --enablerepo=contrail* install %s' % add_pkgs
             local(cmd)
