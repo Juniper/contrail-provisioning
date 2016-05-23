@@ -240,6 +240,7 @@ if [ $VCENTER_IP ]; then
         echo "cluster_name = " $cluster >> /etc/nova/nova.conf
     done
     openstack-config --set /etc/nova/nova.conf vmware vcenter_dvswitch $VCENTER_DVSWITCH 
+    openstack-config --set /etc/nova/nova.conf vmware insecure True
     openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
     openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
     if [ -f /etc/nova/nova-compute.conf ]; then
