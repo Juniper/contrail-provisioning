@@ -311,8 +311,12 @@ HWADDR=%s
             # add manual entry for dev
             local("echo 'auto %s' >> %s" %(dev, temp_intf_file))
             local("echo 'iface %s inet manual' >> %s" %(dev, temp_intf_file))
-            local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
-            local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            if vlan:
+                local("echo '    post-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+                local("echo '    pre-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
+            else: 
+                local("echo '    pre-up ifconfig %s up' >> %s" %(dev, temp_intf_file))
+                local("echo '    post-down ifconfig %s down' >> %s" %(dev, temp_intf_file))
             if (esxi_vm):
                     device_driver = local("ethtool -i %s | grep driver | cut -f 2 -d ' '" %dev, capture=True)
                     if (device_driver == "vmxnet3"):
@@ -344,7 +348,10 @@ HWADDR=%s
                     if (device_driver == "vmxnet3"):
                         local("echo '    pre-up ethtool --offload %s rx off' >> %s" %(dev, temp_intf_file))
                         local("echo '    pre-up ethtool --offload %s tx off' >> %s" %(dev, temp_intf_file))
-                local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+                if vlan:
+                    local("sed -i '/auto %s/ a\iface %s inet manual\\n    post-up ifconfig %s up\\n    pre-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
+                else:
+                    local("sed -i '/auto %s/ a\iface %s inet manual\\n    pre-up ifconfig %s up\\n    post-down ifconfig %s down\' %s"% (dev, dev, dev, dev, temp_intf_file))
         if esxi_vm and vmpg_mtu:
             intf = self.get_secondary_device(self.dev)
             mac_addr = self.get_if_mac(intf)
