@@ -158,7 +158,7 @@ class ConfigBaseSetup(ContrailSetup):
         # initd script wrapper for contrail-api
             sctl_lines = ''
             for worker_id in range(int(self._args.nworkers)):
-                sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
+                sctl_line = 'supervisorctl -s unix:///var/run/supervisord_config.sock ' + \
                             '${1} `basename ${0}:%s`' %(worker_id)
                 sctl_lines = sctl_lines + sctl_line
 
@@ -288,7 +288,7 @@ class ConfigBaseSetup(ContrailSetup):
         # initd script wrapper for contrail-discovery
         sctl_lines = ''
         for worker_id in range(int(self._args.nworkers)):
-            sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
+            sctl_line = 'supervisorctl -s unix:///var/run/supervisord_config.sock ' + \
                         '${1} `basename ${0}:%s`' %(worker_id)
             sctl_lines = sctl_lines + sctl_line
 

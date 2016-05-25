@@ -32,11 +32,19 @@ cmonlog="/var/log/cmon.log"
 ZKLOCK="/tmp/cmon-lock"
 ZKLOCK_PPID="/tmp/cmon-lock-ppid"
 
-NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
-NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
-NOVA_CONSAUTH_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-consoleauth"
-NOVA_COND_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-conductor"
-CIND_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status cinder-scheduler"
+if [ -e /tmp/supervisord_openstack.sock ]; then
+    NOVA_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-scheduler"
+    NOVA_CONS_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-console"
+    NOVA_CONSAUTH_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-consoleauth"
+    NOVA_COND_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status nova-conductor"
+    CIND_SCHED_CHK="supervisorctl -s unix:///tmp/supervisord_openstack.sock status cinder-scheduler"
+else
+    NOVA_SCHED_CHK="supervisorctl -s unix:///var/run/supervisord_openstack.sock status nova-scheduler"
+    NOVA_CONS_CHK="supervisorctl -s unix:///var/run/supervisord_openstack.sock status nova-console"
+    NOVA_CONSAUTH_CHK="supervisorctl -s unix:///var/run/supervisord_openstack.sock status nova-consoleauth"
+    NOVA_COND_CHK="supervisorctl -s unix:///var/run/supervisord_openstack.sock status nova-conductor"
+    CIND_SCHED_CHK="supervisorctl -s unix:///var/run/supervisord_openstack.sock status cinder-scheduler"
+fi
 NOVA_SCHED_RST="service nova-scheduler restart"
 NOVA_CONS_RST="service nova-console restart"
 NOVA_CONSAUTH_RST="service nova-consoleauth restart"
@@ -60,8 +68,13 @@ MYSQL_WSREP_STATE="show status like 'wsrep_local_state';"
 MYSQL_CLUSTER_STATE="show status like 'wsrep_cluster_status';"
 SYNCED=4
 STATUS="Primary"
-RMQ_SRVR_STATUS="supervisorctl -s unix:///tmp/supervisord_support_service.sock status rabbitmq-server"
-RMQ_SRVR_RST="supervisorctl -s unix:///tmp/supervisord_support_service.sock restart rabbitmq-server"
+if [ -e /tmp/supervisord_support_service]; then
+    RMQ_SRVR_STATUS="supervisorctl -s unix:///tmp/supervisord_support_service.sock status rabbitmq-server"
+    RMQ_SRVR_RST="supervisorctl -s unix:///tmp/supervisord_support_service.sock restart rabbitmq-server"
+else
+    RMQ_SRVR_STATUS="supervisorctl -s unix:///var/run/supervisord_support_service.sock status rabbitmq-server"
+    RMQ_SRVR_RST="supervisorctl -s unix:///var/run/supervisord_support_service.sock restart rabbitmq-server"
+fi
 RECLUSTER="/opt/contrail/bin/contrail-bootstrap-galera.sh"
 ERROR2002="Can't connect to local MySQL server"
 ERROR1205="Lock wait timeout exceeded"
