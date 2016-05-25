@@ -34,6 +34,7 @@ dpkg -l openstack-quantum-contrail 2> /dev/null 1> /dev/null && quantum='quantum
 dpkg -l openstack-swift 2> /dev/null 1> /dev/null && swift='swift'
 dpkg -l cinder-common 2> /dev/null 1> /dev/null && cinder='cinder'
 dpkg -l ceilometer-common 2> /dev/null 1> /dev/null && ceilometer='ceilometer'
+dpkg -l heat-common > /dev/null && heat='heat'
 dpkg -l libvirt0 2> /dev/null 1> /dev/null && libvirtd='libvirt-bin'
 dpkg -l qpidd 2> /dev/null 1> /dev/null && qpidd='qpidd'
 dpkg -l rabbitmq-server 2> /dev/null 1> /dev/null && rabbitmq='rabbitmq-server'
@@ -54,6 +55,7 @@ is_supervisor_managed() {
   echo $1 | grep 'keystone' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'nova' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'glance' 2>/dev/null 1> /dev/null && managed='yes'
+  echo $1 | grep 'heat' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'cinder' 2>/dev/null 1> /dev/null && managed='yes'
   echo $1 | grep 'rabbitmq' 2>/dev/null 1> /dev/null && managed='yes'
 
@@ -213,6 +215,13 @@ if test "$ceilometer"; then
   service_installed ceilometer-agent-notification && notification=agent-notification
   for service in api agent-central agent-compute collector $notifier $evaluator $notification; do
     check_svc ceilometer-$service
+  done
+fi
+
+if test "$heat"; then
+  printf "== Heat services ==\n"
+  for service in api api-cfn api-cloudwatch engine; do
+    check_svc heat-$service
   done
 fi
 
