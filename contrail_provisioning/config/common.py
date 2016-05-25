@@ -158,8 +158,13 @@ class ConfigBaseSetup(ContrailSetup):
         # initd script wrapper for contrail-api
             sctl_lines = ''
             for worker_id in range(int(self._args.nworkers)):
-                sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
-                            '${1} `basename ${0}:%s`' %(worker_id)
+                sctl_line = 'if [ -e /tmp/supervisord_config.sock ]; then\n'
+                sctl_line += '    supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
+                            '${1} `basename ${0}:%s`\n' %(worker_id)
+                sctl_line += 'else\n'
+                sctl_line += '    supervisorctl -s unix:///var/run/supervisord_config.sock ' + \
+                            '${1} `basename ${0}:%s`\n' %(worker_id)
+                sctl_line += 'fi\n'
                 sctl_lines = sctl_lines + sctl_line
 
             template_vals = {'__contrail_supervisorctl_lines__': sctl_lines,
@@ -288,8 +293,13 @@ class ConfigBaseSetup(ContrailSetup):
         # initd script wrapper for contrail-discovery
         sctl_lines = ''
         for worker_id in range(int(self._args.nworkers)):
-            sctl_line = 'supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
-                        '${1} `basename ${0}:%s`' %(worker_id)
+            sctl_line = 'if [ -e /tmp/supervisord_config.sock ]; then\n'
+            sctl_line += '    supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
+                            '${1} `basename ${0}:%s`\n' %(worker_id)
+            sctl_line += 'else\n'
+            sctl_line += '    supervisorctl -s unix:///var/run/supervisord_config.sock ' + \
+                            '${1} `basename ${0}:%s`\n' %(worker_id)
+            sctl_line += 'fi\n'
             sctl_lines = sctl_lines + sctl_line
 
         template_vals = {'__contrail_supervisorctl_lines__': sctl_lines,
