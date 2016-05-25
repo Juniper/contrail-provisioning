@@ -250,6 +250,7 @@ if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
         openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
+        openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit heartbeat_timeout_threshold 0
     fi
 else
     is_icehouse_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2014.1.1 1.el7" && echo True)
