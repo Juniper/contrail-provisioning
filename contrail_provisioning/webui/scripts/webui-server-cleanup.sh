@@ -3,7 +3,7 @@
 #cleanup script for webui package under supervisord
 
 for svc in contrail-webui contrail-webui-middleware; do
-    supervisorctl -s unix:///tmp/supervisord_webui.sock stop $svc
+    service $svc stop
 done
 
 chkconfig supervisor-webui off
