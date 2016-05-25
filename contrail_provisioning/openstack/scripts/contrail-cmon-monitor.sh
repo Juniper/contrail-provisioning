@@ -166,11 +166,9 @@ verify_cmon() {
    cmon=$CMON_SVC_CHECK
    cmonpid=$(pidof cmon)
    if [ $cmon == $cmonpid ] && [ -n "$cmonpid" ]; then
-      log_info_msg "CMON is Running"
       echo "y"
       return 1
    else
-      log_info_msg "CMON is not Running"
       echo "n"
       return 0
    fi
@@ -286,8 +284,9 @@ if [ $viponme == 0 ]; then
      hapid=$(pidof haproxy)
      for (( i=0; i<${DIPS_SIZE}; i++ ))
      do
-       dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
-       if [[ -n "$dipsonnonvip" ]]; then
+       dipsonnonvip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}' | wc -l)
+       if [[ $dipsonnonvip -ne 0 ]] && [[ -n "$dipsonnonvip" ]]; then
+         dipsonvipdumpip=$(lsof -p $hapid | grep ${DIPS[i]} | awk '{print $9}')
          haprestart=1
          break
        fi
@@ -295,14 +294,18 @@ if [ $viponme == 0 ]; then
 
      for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
       do
-        dipsonnonvip=$(lsof -p $hapid | grep ${DIPHOSTS[i]} | awk '{print $9}')
-        if [[ -n "$dipsonnonvip" ]]; then
+        dipsonnonvip=$(lsof -p $hapid | grep ${DIPHOSTS[i]} | awk '{print $9}' | wc -l)
+        if [[ $dipsonnonvip -ne 0 ]] && [[ -n "$dipsonnonvip" ]]; then
+         dipsonvipdumphosts=$(lsof -p $hapid | grep ${DIPHOSTS[i]} | awk '{print $9}')
          haprestart=1
          break
         fi
       done
 
       if [ $haprestart -eq 1 ]; then
+       log_error_msg "connections to backends from this HAP instance:"
+       log_error_msg "$dipsonvipdumpip"
+       log_error_msg "$dipsonvipdumphosts"
        (exec $HAP_RESTART)&
        log_info_msg "Restarted HAP becuase of stale dips"
       fi
@@ -311,12 +314,13 @@ fi
    if [ -f $cleanuppending ]; then
      (exec rm -rf $cleanuppending)&
    fi
-   if [ -f $rstcnt ]; then
-     (exec rm -rf $rstcnt)&
-   fi
-   if [ -f $numrst ]; then
-     (exec rm -rf $numrst)&
-   fi
+   # These are handled in RMQ monitoring
+   #if [ -f $rstcnt ]; then
+   #  (exec rm -rf $rstcnt)&
+   #fi
+   #if [ -f $numrst ]; then
+   #  (exec rm -rf $numrst)&
+   #fi
 }
       
 cleanup() {
