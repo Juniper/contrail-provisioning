@@ -132,6 +132,9 @@ for cfg in api; do
             openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT db_enforce_mysql_charset False
         fi
     fi
+    if [ $is_ubuntu -eq 1 ] ; then
+        openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
+    fi
 done
 
 for cfg in api registry; do
@@ -142,6 +145,7 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     if [ $is_ubuntu -eq 1 ] ; then
+        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT log_file /var/log/glance/$cfg.log
         if [[ $glance_api_ver == *"11.0.0"* ]]; then
             openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
         fi
