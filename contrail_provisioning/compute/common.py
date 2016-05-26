@@ -21,6 +21,7 @@ from contrail_provisioning.compute.network import ComputeNetworkSetup
 from contrail_provisioning.compute.templates import vrouter_nodemgr_param
 from contrail_provisioning.compute.templates import contrail_vrouter_agent_conf
 from contrail_provisioning.compute.templates import contrail_vrouter_nodemgr_template
+from contrail_provisioning.compute.templates import contrail_lbaas_auth_conf
 
 
 class ExtList (list):
@@ -63,6 +64,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self.fixup_vrouter_nodemgr_param()
         self.fixup_contrail_vrouter_agent()
         self.fixup_contrail_vrouter_nodemgr()
+        self.fixup_contrail_lbaas()
 
     def setup_lbaas_prereq(self):
         if self.pdist in ['centos', 'redhat']:
@@ -240,6 +242,19 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             local("sudo rm %s/vnswad.conf*" %(self._temp_dir_name))
 
             self.fixup_vhost0_interface_configs()
+
+    def fixup_contrail_lbaas(self):
+        auth_url = self._args.keystone_auth_protocol + '://' + self._args.keystone_ip
+        auth_url += ':' + self._args.keystone_auth_port
+        auth_url += '/' + 'v2.0'
+        template_vals = {'__admin_tenant_name__' : 'service',
+                         '__admin_user__' : 'neutron',
+                         '__admin_password__' : self._args.neutron_password,
+                         '__auth_url__': auth_url
+                       }
+        self._template_substitute_write(contrail_lbaas_auth_conf.template,
+                                        template_vals, self._temp_dir_name + '/contrail-lbaas-auth.conf')
+        local("sudo mv %s/contrail-lbaas-auth.conf /etc/contrail/contrail-lbaas-auth.conf" %(self._temp_dir_name))
 
     def fixup_vhost0_interface_configs(self):
         if self.pdist in ['centos', 'fedora', 'redhat']:
