@@ -42,7 +42,7 @@ fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
     is_ubuntu=1
-    keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}'`
+    keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}' | cut -d':' -f2 | cut -d'-' -f1`
 fi
 CONTROLLER=${INTERNAL_VIP:-$CONTROLLER}
 
@@ -203,7 +203,8 @@ fi
 
 ubuntu_liberty=0
 if [ $is_ubuntu -eq 1 ]; then
-    if [[ $keystone_version == *"8.0.0"* ]]; then
+    dpkg --compare-versions $keystone_version ge 8.0.0
+    if [ $? -eq 0 ]; then
         ubuntu_liberty=1
     fi
 fi
