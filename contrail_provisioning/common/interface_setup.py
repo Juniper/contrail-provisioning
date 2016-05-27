@@ -22,6 +22,10 @@ import subprocess
 from netaddr import IPNetwork
 from tempfile import NamedTemporaryFile
 from distutils.version import LooseVersion
+try:
+    import lsb_release
+except ImportError:
+    pass
 
 logging.basicConfig(format='%(asctime)-15s:: %(funcName)s:%(levelname)s::\
                             %(message)s',
@@ -263,14 +267,23 @@ class UbuntuInterface(BaseInterface):
             # Otherwise, the addition of the VF to a bond fails (probably due to
             # a bug in the ixgbe driver)
             if self.no_ip:
-                subprocess.call('sudo ifdown %s && ifup %s' %(self.device, \
+                subprocess.call('sudo ifdown %s && ifup %s' % (self.device,
                                 self.device), shell=True)
             else:
                 output = os.popen("sudo ifquery -l --allow=auto").read()
                 intfs = output.split()
-                for intf in intfs:
-                    subprocess.call('sudo ifdown %s && ifup -a' %(intf), \
-                                    shell=True)
+                lsb_info = lsb_release.get_lsb_information()
+                lsb_version = lsb_info['DESCRIPTION'].split()[1]
+                if LooseVersion(lsb_version) >= LooseVersion('14.04.4'):
+                    for intf in intfs:
+                        subprocess.call('sudo ifdown %s && ifup %s' %
+                                        (intf, intf), shell=True)
+                    subprocess.call('sudo ifup -a', shell=True)
+
+                else:
+                    for intf in intfs:
+                        subprocess.call('sudo ifdown %s && ifup -a' % (intf),
+                                        shell=True)
         time.sleep(5)
 
     def remove_lines(self, ifaces, filename):
