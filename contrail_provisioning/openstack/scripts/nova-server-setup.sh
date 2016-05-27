@@ -155,6 +155,10 @@ EOF
 
 # must set SQL connection before running nova-manage
 openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova
+#if [ $is_mitaka=1 ];then
+#    openstack-config --set /etc/nova/nova.conf database connection mysql+pymysql://nova:$SERVICE_DBPASS@127.0.0.1/nova
+#    openstack-config --set /etc/nova/nova.conf api_database connection mysql+pymysql://nova:$SERVICE_DBPASS@127.0.0.1/nova-api
+#fi
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
@@ -170,6 +174,10 @@ for APP in nova; do
         openstack-db -y --init --service $APP --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
     fi
 done
+
+#if [ $is_mitaka=1 ]; then
+#    openstack-db -y --init --service nova-api --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
+#fi
 
 export ADMIN_TOKEN
 export SERVICE_TOKEN
@@ -216,14 +224,25 @@ openstack-config --set /etc/nova/nova.conf DEFAULT quota_cores 100000
 openstack-config --set /etc/nova/nova.conf DEFAULT quota_ram 10000000
 
 openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
+
 if [ $is_ubuntu -eq 1 ] ; then
-    if [[ $nova_api_version == *"2013.2"* ]] || [[ $nova_api_version == *"2015"* ]] || [[ $nova_api_version == *"12.0."* ]]; then
+    if [[ $nova_api_version == *"2013.2"* ]] || [[ $nova_api_version == *"2015"* ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-    else
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
+    else 
+        if [ is_liberty_or_above=1 ]; then
+            is_liberty_or_above=1
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+        else
+            if [ $is_mitaka=1 ]; then
+                openstack-config --delete /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+                openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron True
+            else
+                openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
+            fi
+        fi
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
-    if [[ $nova_api_version == *"2015"* ]] || [[ $nova_api_version == *"12.0."* ]]; then
+    if [[ $nova_api_version == *"2015"* ]] || [[ is_liberty_or_above=1 ]]; then
         openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
         openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
