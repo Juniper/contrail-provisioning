@@ -88,6 +88,24 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    fi
 fi
 
+function is_installed_rpm_greater() {
+    package_name=$1
+    read ref_epoch ref_version ref_release <<< $2
+    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
+    if [ $? != 0 ]; then
+        echo "ERROR: Seems $package_name is not installed"
+        return 2
+    fi
+    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
+    verdict=$(python -c "import sys,rpm; \
+        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
+    if [[ $verdict -ge 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function error_exit
 {
     echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
@@ -235,8 +253,7 @@ if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit heartbeat_timeout_threshold 0
     fi
 else
-    is_icehouse_or_latest=$(python -c "from distutils.version import LooseVersion; \
-                            print LooseVersion('$nova_api_ver') >= LooseVersion('2014.1.1')")
+    is_icehouse_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2014.1.1 1.el7" && echo True)
     if [ "$is_icehouse_or_latest" == "True" ]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
@@ -248,10 +265,8 @@ else
         chown -R nova:nova /var/lib/nova
     fi
 
-    is_kilo_or_latest=$(python -c "from distutils.version import LooseVersion; \
-              print LooseVersion('$nova_api_ver') >= LooseVersion('2015.1.1')")
-    is_juno_or_latest=$(python -c "from distutils.version import LooseVersion; \
-                        print LooseVersion('$nova_api_ver') >= LooseVersion('2014.2.1')")
+    is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2015.1.1 1.el7" && echo True)
+    is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2014.2.1 1.el7" && echo True)
 
     # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
     if [ "$is_kilo_or_latest" == "True" ]; then
