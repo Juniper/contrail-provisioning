@@ -120,8 +120,8 @@ if [ -d /etc/neutron ]; then
 
     is_liberty_or_latest=0
     if [ $is_ubuntu -eq 1 ] ; then
-        neutron_server_version=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'` 
-        if [[ $neutron_server_version == *".0.0"* ]]; then
+        neutron_server_top_ver=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'  | cut -d ":" -f 1`
+        if [ "$neutron_server_top_ver" -gt "1" ]; then
             is_liberty_or_latest=1
         fi
     elif [ $is_redhat -eq 1 ]; then
