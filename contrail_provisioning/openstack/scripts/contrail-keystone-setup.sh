@@ -225,9 +225,22 @@ keystone user-role-add --tenant-id $SERVICE_TENANT \
 fi
 
 ubuntu_liberty_and_above=0
-if [ $is_ubuntu -eq 1 ]; then
-    if [[ $keystone_version == *".0.0"* ]]; then
+ubuntu_mitaka=0
+if [ $is_ubuntu -eq 1 ] ; then
+    ubuntu_kilo_or_above=0
+    if [[ $keystone_version == *":"* ]]; then
+        keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2 | cut -d'-' -f1`
+        keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
+    else
+        keystone_version_without_epoch=`echo $keystone_version`
+    fi
+
+    if [ $keystone_top_ver -gt 1 ]; then
         ubuntu_liberty_and_above=1
+        dpkg --compare-versions $keystone_version_without_epoch eq 9.0.0
+        if [ $? -eq 0 ]; then
+            ubuntu_mitaka=1
+        fi
     fi
 elif [ $is_ubuntu -eq 0 ]; then
     is_rpm_liberty_or_latest=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo True)
@@ -243,10 +256,17 @@ source /etc/contrail/openstackrc
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
         if [ $ubuntu_liberty_and_above -eq 1 ]; then
-            openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
-                --publicurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s \
-                --adminurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s  \
-                --internalurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s
+            if [ $ubuntu_mitaka -eq 1 ]; then
+                openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
+                    --publicurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s \
+                    --adminurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s  \
+                    --internalurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s
+            else
+                openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
+                    --publicurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s \
+                    --adminurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s  \
+                    --internalurl http://$CONTROLLER:8774/v1.1/%\(tenant_id\)s
+            fi
         else
             keystone endpoint-create --region $OS_REGION_NAME --service-id $NOVA_SERVICE \
                 --publicurl 'http://'$CONTROLLER':$(compute_port)s/v1.1/$(tenant_id)s' \
@@ -277,10 +297,17 @@ fi
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $GLANCE_SERVICE) ]; then
-    keystone endpoint-create --region $OS_REGION_NAME --service-id $GLANCE_SERVICE \
-        --publicurl http://$CONTROLLER:9292/v1 \
-        --adminurl http://$CONTROLLER:9292/v1 \
-        --internalurl http://$CONTROLLER:9292/v1
+        if [ $ubuntu_mitaka -eq 1 ]; then
+            keystone endpoint-create --region $OS_REGION_NAME --service-id $GLANCE_SERVICE \
+               --publicurl http://$CONTROLLER:9292 \
+               --adminurl http://$CONTROLLER:9292 \
+               --internalurl http://$CONTROLLER:9292
+        else
+           keystone endpoint-create --region $OS_REGION_NAME --service-id $GLANCE_SERVICE \
+              --publicurl http://$CONTROLLER:9292/v1 \
+              --adminurl http://$CONTROLLER:9292/v1 \
+              --internalurl http://$CONTROLLER:9292/v1
+        fi
     fi
 fi
 

@@ -36,7 +36,11 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    web_svc=apache2
    mysql_svc=mysql
    mysql_pkg_chk='expr 1'
-   dbmanage_cmd='"$APP-manage $db_sync"'
+   if [ "${APP}" = "nova_api" ];then
+       dbmanage_cmd='"nova-manage api_db sync"'
+   else
+       dbmanage_cmd='"$APP-manage $db_sync"'
+   fi
 fi
 
 usage() {
@@ -99,10 +103,10 @@ if [ ! "$MODE" ] || [ ! "$APP" ]; then
 fi
 
 case "$APP" in
-  nova|glance|keystone|cinder|heat) ;;
+  nova|nova_api|glance|keystone|cinder|heat) ;;
   *)
     printf "Unrecognized --service $APP\n" >&2
-    printf "Please specify nova|glance|keystone|cinder|heat\n" >&2
+    printf "Please specify nova|nova_api|glance|keystone|cinder|heat\n" >&2
     exit 1 ;;
 esac
 
@@ -134,6 +138,8 @@ MYSQL_APP_PW_DEFAULT="$APP"
 : ${MYSQL_APP_PW=$MYSQL_APP_PW_DEFAULT}
 if [ "${APP}" = "glance" ]; then
   APP_CONFIG="/etc/$APP/$APP-registry.conf /etc/$APP/$APP-api.conf"
+elif [ "${APP}" = "nova_api" ]; then
+  APP_CONFIG="/etc/nova/nova.conf"
 else
   APP_CONFIG="/etc/$APP/$APP.conf"
 fi
@@ -246,12 +252,13 @@ if [ "$MODE" = 'init' ]; then
     echo "$0 --drop --service $APP" >&2
     exit 1
   fi
+
   users=$(echo "SELECT COUNT(*) FROM mysql.user WHERE User = '$APP';" |
-          mysql -u root ${MYSQL_ROOT_PW_ARG} | tail -n+2)
+         mysql -u root ${MYSQL_ROOT_PW_ARG} | tail -n+2)
   if [ "$users" != 0 ]; then
-    echo "User '$APP' already exists. Please consider first running:" >&2
-    echo "$0 --drop --service $APP" >&2
-    exit 1
+      echo "User '$APP' already exists. Please consider first running:" >&2
+      echo "$0 --drop --service $APP" >&2
+      exit 1
   fi
 fi
 
@@ -259,6 +266,14 @@ fi
 
 if [ "$MODE" = 'init' ]; then
   echo "Creating '$APP' database." >&2
+  if [ "$APP" = "nova_api" ]; then
+cat << EOF
+CREATE DATABASE $APP;
+GRANT ALL ON $APP.* TO 'nova'@'localhost';
+GRANT ALL ON $APP.* TO 'nova'@'%';
+flush privileges;
+EOF
+  else
 cat << EOF
 CREATE DATABASE $APP;
 CREATE USER '$APP'@'localhost' IDENTIFIED BY '${MYSQL_APP_PW}';
@@ -267,6 +282,7 @@ GRANT ALL ON $APP.* TO '$APP'@'localhost';
 GRANT ALL ON $APP.* TO '$APP'@'%';
 flush privileges;
 EOF
+  fi
 else
   echo "Dropping '$APP' database." >&2
 drop_users=$(
@@ -288,26 +304,42 @@ if [ "$MODE" = 'init' ]; then
   # Make sure $APP configuration has the right MySQL password.
   if [ "${MYSQL_APP_PW}" != "${MYSQL_APP_PW_DEFAULT}" ]; then
     echo "Updating '$APP' database password in ${APP_CONFIG}"
-    sed -i -e "s|^#* *\(\(sql_\)*connection *= *mysql://$APP\):.*@|\1:${MYSQL_APP_PW}@|" ${APP_CONFIG}
+    if [ "$APP" = "nova_api" ]; then
+        sed -i -e "s|^#* *\(\(sql_\)*connection *= *mysql://nova\):.*@|\1:${MYSQL_APP_PW}@|" ${APP_CONFIG}
+    else
+        sed -i -e "s|^#* *\(\(sql_\)*connection *= *mysql://$APP\):.*@|\1:${MYSQL_APP_PW}@|" ${APP_CONFIG}
+    fi
   fi
 
   # Ask openstack-$APP to sync the db.
   echo "Initializing the $APP database, please wait..."
   if [ "${APP}" = "nova" ] || [ "${APP}" = "cinder" ]; then
-    db_sync='db sync'
+      db_sync='db sync'
+  elif [ "${APP}" = "nova_api" ];then 
+      db_sync='api_db sync'
   else
-    db_sync='db_sync'
+      db_sync='db_sync'
   fi
+
   if [ $is_redhat -eq 1 ]; then
       runuser -s /bin/sh -u $APP -c "$APP-manage $db_sync"
   fi
   if [ $is_ubuntu -eq 1 ]; then
-      $APP-manage $db_sync
+      if [ "${APP}" = "nova_api" ];then
+          nova-manage $db_sync
+      else
+          $APP-manage $db_sync
+      fi
   fi
 
   # Do a final sanity check on the database.
+  if [ "${APP}" = "nova_api" ];then
+      user="nova"
+  else
+      user=$APP
+  fi
   if ! echo "SELECT * FROM migrate_version;" |
-     mysql -u $APP --password=${MYSQL_APP_PW} $APP > /dev/null; then
+         mysql -u $user --password=${MYSQL_APP_PW} $APP > /dev/null; then
     echo "Final sanity check failed." >&2
     echo "Please file a bug report on bugzilla.redhat.com against the openstack-$APP package." >&2
     exit 1

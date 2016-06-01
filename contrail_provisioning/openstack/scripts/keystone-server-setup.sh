@@ -49,7 +49,7 @@ function is_installed_rpm_greater() {
 if [ $is_ubuntu -eq 1 ] ; then
     keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}'`
 else
-   keystone_version=$(rpm -q --queryformat="%{VERSION}" openstack-keystone)
+    keystone_version=$(rpm -q --queryformat="%{VERSION}" openstack-keystone)
 fi
 
 # Exclude port 35357 from the available ephemeral port range
@@ -196,22 +196,24 @@ while [ $tries -lt 10 ]; do
 done
 
 if [ $is_ubuntu -eq 1 ] ; then
-    ubuntu_liberty_or_above=0
+    ubuntu_kilo_or_above=0
     if [[ $keystone_version == *":"* ]]; then
         keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
+        keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
     else
         keystone_version_without_epoch=`echo $keystone_version`
     fi
-    dpkg --compare-versions $keystone_version_without_epoch ge 2015
-    if [ $? -eq 0 ]; then
-        ubuntu_liberty_or_above=1
-    else
-        # starting liberty package versioning is changed to x.y.z from 2015.x.y
-        if [[ $keystone_version_without_epoch == *".0.0"* ]]; then
-            ubuntu_liberty_or_above=1
-        else
-            ubuntu_liberty_or_above=0
+
+    if [ $keystone_top_ver -eq 1 ]; then
+        dpkg --compare-versions $keystone_version_without_epoch ge 2015
+        if [ $? -eq 0 ]; then
+            ubuntu_kilo_or_above=1
         fi
+    fi
+
+    #For liberty and above
+    if [ $keystone_top_ver -gt 1 ]; then
+        ubuntu_kilo_or_above=1
     fi
 else
     is_kilo_or_latest=$(is_installed_rpm_greater openstack-keystone "0 2015.1.1 1.el7" && echo True)
@@ -230,7 +232,7 @@ for svc in keystone; do
     openstack-config --set /etc/$svc/$svc.conf identity driver keystone.identity.backends.sql.Identity
 
     if [ $is_ubuntu -eq 1 ] ; then
-        if [ $ubuntu_liberty_or_above -eq 1 ] ; then
+        if [ $ubuntu_kilo_or_above -eq 1 ] ; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
@@ -258,7 +260,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     # Openstack HA specific config
     openstack-config --set /etc/keystone/keystone.conf database connection mysql://keystone:$SERVICE_DBPASS@$CONTROLLER:3306/keystone
     if [ $is_ubuntu -eq 1 ] ; then
-        if [ $ubuntu_liberty_or_above -eq 1 ] ; then
+        if [ $ubuntu_kilo_or_above -eq 1 ] ; then
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.sql.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.sql.Token
