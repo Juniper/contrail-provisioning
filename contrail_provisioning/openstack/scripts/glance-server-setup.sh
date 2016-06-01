@@ -201,6 +201,10 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $INTERNAL_VIP:5000/v2.0/
 fi
 
+if [ $is_ubuntu -eq 1 ] ; then
+    chown glance:glance /var/log/glance/api.log
+fi
+
 if [ "$OPENSTACK_INDEX" -eq 1 ]; then
     glance-manage db_sync
 fi
