@@ -146,6 +146,8 @@ class CollectorSetup(ContrailSetup):
                         'command',
                         '/usr/bin/contrail-topology --conf_file ' + \
                         conf_fl)
+        if self._args.interval_vip:
+               self.set_config(conf_fl, 'DEFAULTS', 'analytics_api', '%:8081' %(self._args.interval_vip))
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
