@@ -199,19 +199,13 @@ if [ $is_ubuntu -eq 1 ] ; then
     ubuntu_liberty_or_above=0
     if [[ $keystone_version == *":"* ]]; then
         keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
+        keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
     else
         keystone_version_without_epoch=`echo $keystone_version`
     fi
-    dpkg --compare-versions $keystone_version_without_epoch ge 2015
-    if [ $? -eq 0 ]; then
+
+    if [ $keystone_top_ver -gt 1 ]; then
         ubuntu_liberty_or_above=1
-    else
-        # starting liberty package versioning is changed to x.y.z from 2015.x.y
-        if [[ $keystone_version_without_epoch == *".0.0"* ]]; then
-            ubuntu_liberty_or_above=1
-        else
-            ubuntu_liberty_or_above=0
-        fi
     fi
 else
     is_kilo_or_latest=$(is_installed_rpm_greater openstack-keystone "0 2015.1.1 1.el7" && echo True)

@@ -103,17 +103,24 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
         if [[ $nova_compute_version == *":"* ]]; then
-            nova_compute_version_without_epoch=`echo $nova_compute_version | cut -d':' -f2`
+            nova_compute_version_without_epoch=`echo $nova_compute_version | cut -d':' -f2 | cut -d'-' -f1`
+            nova_compute_top_ver=`echo $nova_compute_version | cut -d':' -f1`
         else
             nova_compute_version_without_epoch=`echo $nova_compute_version`
         fi
 
         kilo_or_above=0
-        dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
-        if [ $? -eq 0 ]; then
-            kilo_or_above=1
+        # for juno and kilo versions
+        if [ "$nova_compute_top_ver" -eq "1" ]; then
+            # for kilo
+            dpkg --compare-versions $nova_compute_version_without_epoch eq 2015
+            if [ $? -eq 0 ]; then
+                kilo_or_above=1
+            fi
         else
-            if [[ $nova_compute_version == *"12.0."* ]]; then
+            #Starting liberty the package versioning has changed to x.y.z format
+            dpkg --compare-versions $nova_compute_version_without_epoch ge 12.0.0
+            if [ $? -eq 0 ]; then
                 kilo_or_above=1
             fi
         fi
