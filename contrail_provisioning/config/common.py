@@ -282,7 +282,11 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
+            svc_bin_path = '/usr/sbin/service'
+            if self.pdist == 'centos' or self.pdist == 'redhat':
+               svc_bin_path = '/sbin/service'
             template_vals = {
+                             '__service_bin_path__':svc_bin_path,
                             }
             self._template_substitute_write(contrail_sudoers.template,
                                             template_vals, self._temp_dir_name + '/contrail_sudoers')
