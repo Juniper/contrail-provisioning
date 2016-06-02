@@ -150,9 +150,7 @@ for cfg in api; do
             openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT db_enforce_mysql_charset False
         fi
     fi
-    if [ $is_ubuntu -eq 1 ] ; then
-        openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
-    fi
+    openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
 done
 
 for cfg in api registry; do
@@ -162,15 +160,16 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol http
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
+    openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT log_file /var/log/glance/$cfg.log
+
     if [ $is_ubuntu -eq 1 ] ; then
-        openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT log_file /var/log/glance/$cfg.log
         if [[ $glance_api_ver == *"11.0.0"* ]]; then
             openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
         fi
     elif [ $is_redhat -eq 1 ] ; then
         is_liberty_or_latest=$(is_installed_rpm_greater openstack-glance "1 11.0.1 1.el7" && echo True)
         if [ "$is_liberty_or_latest" == "True" ]; then
-            openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
+            openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
         fi
     else
         echo "Unrecognized OS"
@@ -201,9 +200,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/glance/glance-api.conf DEFAULT swift_store_auth_address $INTERNAL_VIP:5000/v2.0/
 fi
 
-if [ $is_ubuntu -eq 1 ] ; then
-    chown glance:glance /var/log/glance/api.log
-fi
+chown glance:glance /var/log/glance/api.log
 
 if [ "$OPENSTACK_INDEX" -eq 1 ]; then
     glance-manage db_sync
