@@ -169,6 +169,7 @@ class OpenstackSetup(ContrailSetup):
         nova_conf_file = "/etc/nova/nova.conf"
         cinder_conf_file = "/etc/cinder/cinder.conf"
         barbican_file = "/etc/barbican/barbican-api-paste.ini"
+        barbican_ini_file = "/etc/barbican/vassals/barbican-api.ini"
 
         # TODO till post of openstack-horizon.spec is fixed...
         if (os.path.isdir("/etc/openstack_dashboard")):
@@ -197,6 +198,9 @@ class OpenstackSetup(ContrailSetup):
                    %(barbican_file))
             local("sudo sed -i 's/#pipeline = keystone_authtoken context apiapp/pipeline = keystone_authtoken context apiapp/g' %s" \
                    %(barbican_file))
+        if self._args.internal_vip:
+            if os.path.exists(barbican_ini_file):
+                local("sudo sed -i 's/socket = :9311/socket = :9322/g' %s" %(barbican_ini_file)) 
 
         local('sed -i -e "s/bind-address/#bind-address/" %s' % self.mysql_conf)
         self.service_token = self._args.service_token
