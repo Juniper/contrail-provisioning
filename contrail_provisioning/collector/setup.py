@@ -202,7 +202,7 @@ class CollectorSetup(ContrailSetup):
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
         if self._args.internal_vip:
-               self.set_config(conf_fl, 'DEFAULTS', 'analytics_api', '%:8081' %(self._args.internal_vip))
+               self.set_config(conf_fl, 'DEFAULTS', 'analytics_api', '%s:8081' %(self._args.internal_vip))
 
     def fixup_contrail_collector(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
