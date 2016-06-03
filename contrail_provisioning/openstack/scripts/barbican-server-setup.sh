@@ -129,7 +129,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
      openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_max_retries 0
      openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_ha_queues True
 
-     openstack-config --set /etc/barbican/barbican.conf bind_port 9322
+     openstack-config --set /etc/barbican/barbican.conf DEFAULT bind_port 9322
 fi
 
 echo "======= Enabling the services ======"
