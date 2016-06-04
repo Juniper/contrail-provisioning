@@ -165,6 +165,14 @@ export OS_SERVICE_ENDPOINT=$SERVICE_ENDPOINT
 export OS_REGION_NAME=$REGION_NAME
 EOF
 
+if [ $is_redhat == 1 ]; then
+    is_liberty_or_latest=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo True)
+    if [ "$is_liberty_or_latest" == "True" ]; then
+        echo "export OS_TOKEN=$SERVICE_TOKEN"  >> $CONF_DIR/keystonerc
+        echo "export OS_URL=$SERVICE_ENDPOINT" >> $CONF_DIR/keystonerc
+    fi
+fi
+
 export ADMIN_PASSWORD
 export SERVICE_PASSWORD
 
