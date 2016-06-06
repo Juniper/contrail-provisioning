@@ -48,6 +48,10 @@ class CollectorSetup(ContrailSetup):
         if self._args.zookeeper_ip_list:
             self.zookeeper_server_list = [(zookeeper_server_ip, zookeeper_port) for \
                 zookeeper_server_ip in self._args.zookeeper_ip_list]
+        self.rabbitmq_servers = None
+        if self._args.amqp_ip_list:
+            self.rabbitmq_servers = ' '.join(['%s:%s' % (ip, self._args.amqp_port)\
+                for ip in self._args.amqp_ip_list])
 
     def parse_args(self, args_str):
         '''
@@ -94,6 +98,9 @@ class CollectorSetup(ContrailSetup):
             default= None)
         parser.add_argument("--cassandra_password", help="Cassandra password",
             default= None)
+        parser.add_argument("--amqp_ip_list",
+            help="List of IP addresses of AMQP servers", nargs="+", type=str)
+        parser.add_argument("--amqp_port", help="Port number of AMQP server")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -154,9 +161,23 @@ class CollectorSetup(ContrailSetup):
         zk_list = [server[0] + ":2181" for server in self.cassandra_server_list]
         zk_list_str = ' '.join(map(str, zk_list))
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#zk_list', 'zk_list = ' + zk_list_str)
-        #prepare alarm gen conf file
+        if self.rabbitmq_servers is not None:
+            self.replace_in_file(ALARM_GEN_CONF_FILE, '#rabbitmq_server_list',
+                'rabbitmq_server_list = ' + self.rabbitmq_servers)
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_ip', 'disc_server_ip = ' + self._args.cfgm_ip)
         self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_port', 'disc_server_port = 5998')
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#auth_host',
+            'auth_host = ' + self._args.keystone_ip)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#auth_port',
+            'auth_port = ' + self._args.keystone_auth_port)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#auth_protocol',
+            'auth_protocol = ' + self._args.keystone_auth_protocol)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#admin_user',
+            'admin_user = ' + self._args.keystone_admin_user)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#admin_password',
+            'admin_password = ' + self._args.keystone_admin_passwd)
+        self.replace_in_file(ALARM_GEN_CONF_FILE, '#admin_tenant_name',
+            'admin_tenant_name = ' + self._args.keystone_admin_tenant_name)
 
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
