@@ -33,7 +33,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   os_cinder=$(dpkg-query -W -f='${Version}' cinder-api | cut -d ':' -f 2)
+   os_cinder=$(dpkg-query -W -f='${Version}' cinder-api)
    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1')")
 fi
