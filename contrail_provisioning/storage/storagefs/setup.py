@@ -1957,51 +1957,11 @@ class SetupCeph(object):
     def do_configure_ceph_cache_tier(self):
         global ceph_pool_list
         global ceph_tier_list
-        num_hdd_pool = len(ceph_tier_list)
-        if num_hdd_pool == 0:
-            return
-        index = 0
-        for entry in ceph_pool_list:
-            if index >= num_hdd_pool:
-                return
-            total_ssd_size_st = local('sudo ceph df | grep -w %s | \
-                                awk \'{print $5}\''
-                                %(ceph_tier_list[index]), capture=True,
-                                shell='/bin/bash')
-            size_mult_st = total_ssd_size_st[len(total_ssd_size_st) - 1]
-            if size_mult_st == 'T':
-                size_mult = 1024 * 1024 * 1024 * 1024
-            elif size_mult_st == 'G':
-                size_mult = 1024 * 1024 * 1024
-            elif size_mult_st == 'M':
-                size_mult = 1024 * 1024
-            elif size_mult_st == 'K':
-                size_mult = 1024
-            total_ssd_size = int(total_ssd_size_st[:-1])
-            total_ssd_size = total_ssd_size * size_mult
-            if self._args.storage_replica_size != 'None':
-                replica_size = int(self._args.storage_replica_size)
-            else:
-                replica_size = 2
-            cache_size = total_ssd_size / replica_size
-            local('sudo ceph osd tier add %s %s'
-                    %(ceph_pool_list[index], ceph_tier_list[index]))
-            local('sudo ceph osd tier cache-mode %s writeback'
-                    %(ceph_tier_list[index]))
-            local('sudo ceph osd tier set-overlay %s %s'
-                    %(ceph_pool_list[index], ceph_tier_list[index]))
-            local('sudo ceph osd pool set %s hit_set_type bloom'
-                    %(ceph_tier_list[index]))
-            local('sudo ceph osd pool set %s hit_set_count 1'
-                    %(ceph_tier_list[index]))
-            local('sudo ceph osd pool set %s hit_set_period 3600'
-                    %(ceph_tier_list[index]))
-            local('sudo ceph osd pool set %s target_max_bytes %s'
-                    %(ceph_tier_list[index], cache_size))
-            local('ceph osd pool set %s min_read_recency_for_promote 1'
-                    %(ceph_tier_list[index]))
-            index += 1
-        return
+
+        ceph_utils = SetupCephUtils()
+        ceph_utils.do_configure_ceph_cache_tier(ceph_pool_list,
+                                        ceph_tier_list,
+                                        self._args.storage_replica_size)
     #end do_configure_ceph_cache_tier
 
     # Function for Virsh/Cinder configurations for Ceph
