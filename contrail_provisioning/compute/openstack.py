@@ -150,9 +150,12 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         self.build_ctrl_details()
         if self._args.vcenter_server:
             self.fixup_nova_conf()
+            self.run_services()
+        elif self._args.vmware:
+            self.add_vnc_config()
+            self.run_services()
         else:
-            if not self._args.vmware:
-                self.fixup_config_files()
+            self.fixup_config_files()
             self.add_vnc_config()
             self.run_services()
 
