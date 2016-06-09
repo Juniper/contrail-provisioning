@@ -16,7 +16,6 @@ log_level=SYS_NOTICE
 disc_server_ip=$__contrail_disc_server_ip__
 disc_server_port=$__contrail_disc_server_port__
 zk_server_ip=$__contrail_zookeeper_server_ip__
-redis_server_ip=$__contrail_redis_ip__
 rabbit_server=$__rabbit_server_ip__
 list_optimization_enabled=True
 
