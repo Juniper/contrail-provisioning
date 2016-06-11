@@ -12,9 +12,6 @@ from contrail_provisioning.collector.templates import contrail_analytics_api_con
 from contrail_provisioning.collector.templates import contrail_analytics_nodemgr_template
 from contrail_provisioning.collector.templates import redis_server_conf_template
 from contrail_provisioning.common.templates import contrail_database_template
-from contrail_provisioning.collector.templates import contrail_collector_ini
-from contrail_provisioning.collector.templates import contrail_query_engine_ini
-from contrail_provisioning.collector.templates import contrail_analytics_api_ini
 
 class CollectorSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -34,7 +31,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_service_tenant_name' : 'service',
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
-            'multi_tenancy': True,
+            'no_multi_tenancy': False,
         }
 
         self.parse_args(args_str)
@@ -88,7 +85,7 @@ class CollectorSetup(ContrailSetup):
             help = "Connect to keystone in secure or insecure mode if in" + \
                     "https mode",
             default = 'False')
-        parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
+        parser.add_argument("--no_multi_tenancy", help = "Allow unauthenticated access (implies no token validation)",
             action="store_true")
         parser.add_argument("--cassandra_user", help="Cassandra user name",
             default= None)
@@ -106,27 +103,42 @@ class CollectorSetup(ContrailSetup):
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
             self.fixup_keystone_auth_config_file()
         self.fixup_contrail_alarm_gen()
-        if self._args.cassandra_user is not None:
-            self.fixup_cassandra_config()
-            self.fixup_ini_files()
+        self.fixup_cassandra_config()
+        self.fixup_ini_files()
 
     def fixup_ini_files(self):
-        collector_conf_files = ['/etc/contrail/contrail-collector.conf','/etc/contrail/contrail-database.conf']
-        query_engine_conf_files = ['/etc/contrail/contrail-query-engine.conf','/etc/contrail/contrail-database.conf']
-        analytics_api_conf_files = ['/etc/contrail/contrail-analytics-api.conf','/etc/contrail/contrail-database.conf']
-        collector_template_vals = {'__contrail_collector_conf__': ' --conf_file '.join(collector_conf_files)}
-        query_engine_template_vals = {'__contrail_query_engine_conf__': ' --conf_file '.join(query_engine_conf_files)}
-        analytics_api_template_vals = {'__contrail_analytics_api_conf__': ' --conf_file '.join(analytics_api_conf_files)}
-        self._template_substitute_write(contrail_collector_ini.template,
-                                        collector_template_vals, self._temp_dir_name + '/contrail-collector.ini')
-        local("sudo mv %s/contrail-collector.ini /etc/contrail/supervisord_analytics_files/contrail-collector.ini" %(self._temp_dir_name))
-        self._template_substitute_write(contrail_query_engine_ini.template,
-                                        query_engine_template_vals, self._temp_dir_name + '/contrail-query-engine.ini')
-        local("sudo mv %s/contrail-query-engine.ini /etc/contrail/supervisord_analytics_files/contrail-query-engine.ini" %(self._temp_dir_name))
-        self._template_substitute_write(contrail_analytics_api_ini.template,
-                                        analytics_api_template_vals, self._temp_dir_name + '/contrail-analytics-api.ini')
-        local("sudo mv %s/contrail-analytics-api.ini /etc/contrail/supervisord_analytics_files/contrail-analytics-api.ini" %(self._temp_dir_name))
-
+        collector_conf_files = ['/etc/contrail/contrail-collector.conf']
+        query_engine_conf_files = ['/etc/contrail/contrail-query-engine.conf']
+        analytics_api_conf_files = ['/etc/contrail/contrail-analytics-api.conf',
+                                    '/etc/contrail/contrail-keystone-auth.conf']
+        if self._args.cassandra_user:
+            database_conf = '/etc/contrail/contrail-database.conf'
+            collector_conf_files.append(database_conf)
+            query_engine_conf_files.append(database_conf)
+            analytics_api_conf_files.append(database_conf)
+        collector_ini_conf_cmd = ''.join([' --conf_file ' + conf_file for \
+            conf_file in collector_conf_files])
+        query_engine_ini_conf_cmd = ''.join([' --conf_file ' + conf_file for \
+            conf_file in query_engine_conf_files])
+        analytics_api_ini_conf_cmd = ''.join([' --conf_file ' + conf_file for \
+            conf_file in analytics_api_conf_files])
+        supervisor_dir = '/etc/contrail/supervisord_analytics_files'
+        bin_dir = '/usr/bin'
+        self.set_config(os.path.join(supervisor_dir, 'contrail-collector.ini'),
+            'program:contrail-collector', 'command',
+            os.path.join(bin_dir, 'contrail-collector') + \
+            collector_ini_conf_cmd)
+        self.set_config(
+            os.path.join(supervisor_dir, 'contrail-query-engine.ini'),
+            'program:contrail-query-engine', 'command',
+            os.path.join(bin_dir, 'contrail-query-engine') + \
+            query_engine_ini_conf_cmd)
+        self.set_config(
+            os.path.join(supervisor_dir, 'contrail-analytics-api.ini'),
+            'program:contrail-analytics-api', 'command',
+            os.path.join(bin_dir, 'contrail-analytics-api') + \
+            analytics_api_ini_conf_cmd)
+    # end fixup_ini_files
 
     def fixup_cassandra_config(self):
         if self._args.cassandra_user:
@@ -138,7 +150,7 @@ class CollectorSetup(ContrailSetup):
                  self._template_substitute_write(contrail_database_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-collector-database.conf')
                  local("sudo mv %s/contrail-collector-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
- 
+    # end fixup_cassandra_config
 
     def fixup_contrail_alarm_gen(self):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
@@ -255,31 +267,44 @@ class CollectorSetup(ContrailSetup):
         local("sudo mv %s/contrail-query-engine.conf /etc/contrail/contrail-query-engine.conf" %(self._temp_dir_name))
 
     def fixup_contrail_analytics_api(self):
+        conf_file = '/etc/contrail/contrail-analytics-api.conf'
+        with settings(warn_only=True):
+            local("[ -f %s ] || > %s" % (conf_file, conf_file))
         rest_api_port = '8081'
         if self._args.internal_vip:
             rest_api_port = '9081'
-        template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-analytics-api.log',
-                         '__contrail_log_local__': '1',
-                         '__contrail_log_category__': '',
-                         '__contrail_log_level__': 'SYS_NOTICE',
-                         '__contrail_redis_server_port__' : '6379',
-                         '__contrail_redis_query_port__' : '6379',
-                         '__contrail_http_server_port__' : '8090',
-                         '__contrail_rest_api_port__' : rest_api_port,
-                         '__contrail_host_ip__' : self._args.self_collector_ip,
-                         '__contrail_discovery_ip__' : self._args.cfgm_ip,
-                         '__contrail_discovery_port__' : 5998,
-                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_analytics_data_ttl__' : self._args.analytics_data_ttl,
-                         '__contrail_config_audit_ttl__' : self._args.analytics_config_audit_ttl,
-                         '__contrail_statistics_ttl__' : self._args.analytics_statistics_ttl,
-                         '__contrail_flow_ttl__' : self._args.analytics_flow_ttl,
-                         '__contrail_redis_password__' : ''}
+        config_vals = \
+        { 'DEFAULTS' : {
+            'log_file' : '/var/log/contrail/contrail-analytics-api.log',
+            'log_local': 1,
+            'log_category': '',
+            'log_level': 'SYS_NOTICE',
+            'http_server_port' : 8090,
+            'rest_api_port' : rest_api_port,
+            'host_ip' : self._args.self_collector_ip,
+            'cassandra_server_list' : ' '.join('%s:%s' % cassandra_server for \
+                cassandra_server in self.cassandra_server_list),
+            'analytics_data_ttl' : self._args.analytics_data_ttl,
+            'analytics_config_audit_ttl' : self._args.analytics_config_audit_ttl,
+            'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
+            'analytics_flow_ttl' : self._args.analytics_flow_ttl,
+            'api_server' : self._args.cfgm_ip,
+            'cloud_admin_access_only' : not self._args.no_multi_tenancy,
+            },
+          'REDIS' : {
+            'redis_server_port' : 6379,
+            'redis_query_port' : 6379,
+            },
+          'DISCOVERY' : {
+            'disc_server_ip' : self._args.cfgm_ip,
+            'disc_server_port' : 5998,
+            },
+        }
         if self._args.redis_password:
-            template_vals['__contrail_redis_password__'] = 'redis_password = '+ self._args.redis_password
-        self._template_substitute_write(contrail_analytics_api_conf.template,
-                                        template_vals, self._temp_dir_name + '/contrail-analytics-api.conf')
-        local("sudo mv %s/contrail-analytics-api.conf /etc/contrail/contrail-analytics-api.conf" %(self._temp_dir_name))
+            config_vals['REDIS']['redis_password'] = self._args.redis_password
+        for section, parameter_values in config_vals.items():
+            for parameter, value in parameter_values.items():
+                self.set_config(conf_file, section, parameter, value)
 
     def load_redis_upstart_file(self):
         #copy the redis-server conf to init
