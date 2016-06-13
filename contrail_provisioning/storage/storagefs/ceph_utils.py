@@ -35,12 +35,28 @@ class SetupCephUtils(object):
     CS_CRUSH_MAP_MOD_TMP_TXT = '/tmp/ma-crush-map-cs-mod-tmp.txt'
     global CEPH_ADMIN_KEYRING
     CEPH_ADMIN_KEYRING = '/etc/ceph/ceph.client.admin.keyring'
+    global RADOS_KEYRING
+    RADOS_KEYRING = '/etc/ceph/ceph.client.radosgw.keyring'
     global CINDER_PATCH_FILE
     CINDER_PATCH_FILE = '/tmp/manager.patch'
     global CINDER_VOLUME_MGR_PY
     CINDER_VOLUME_MGR_PY = '/usr/lib/python2.7/dist-packages/cinder/volume/manager.py'
     global CEPH_DEPLOY_PATCH_FILE
     CEPH_DEPLOY_PATCH_FILE = '/tmp/ceph_deploy.patch'
+    global ETC_CEPH_CONF
+    ETC_CEPH_CONF = '/etc/ceph/ceph.conf'
+    global RADOS_GW_LOG_FILE
+    RADOS_GW_LOG_FILE = '/var/log/radosgw/client.radosgw.gateway.log'
+    global RADOS_GW_FRONT_END
+    RADOS_GW_FRONT_END = 'fastcgi socket_port=9000 socket_host=0.0.0.0'
+    global RADOS_GW_SOCKET_PATH
+    RADOS_GW_SOCKET_PATH =  '/var/run/ceph/ceph.radosgw.gateway.fastcgi.sock'
+    global LIB_RADOS_GW
+    LIB_RADOS_GW = '/var/lib/ceph/radosgw/ceph-radosgw.gateway'
+    global APACHE_RGW_CONF
+    APACHE_RGW_CONF = '/etc/apache2/conf-available/rgw.conf'
+    global OBJECT_STORAGE_USER_FILE
+    OBJECT_STORAGE_USER_FILE = '/etc/contrail/object_storage_swift_s3_auth.txt'
     global TRUE
     TRUE = 1
     global FALSE
@@ -79,6 +95,21 @@ class SetupCephUtils(object):
     ceph_pool_list = []
     global ceph_tier_list
     ceph_tier_list = []
+    global ceph_object_store_pools
+    ceph_object_store_pools = ['.rgw.root',
+                                '.rgw.control',
+                                '.rgw.gc',
+                                '.rgw.buckets',
+                                '.rgw.buckets.index',
+                                '.rgw.buckets.extra',
+                                '.log',
+                                '.intent-log',
+                                '.usage',
+                                '.users',
+                                '.users.email',
+                                '.users.swift',
+                                '.users.uid',
+                                '.rgw']
 
     # Function to check if Chassis configuration is disabled or not
     # Returns False if enabled
@@ -1392,6 +1423,45 @@ class SetupCephUtils(object):
 
     #end do_pool_config()
 
+    # Function to configure Ceph Object storage
+    def do_configure_object_storage_pools(self, object_store_pool):
+
+        parent_pool_list = ['%s' %(object_store_pool),
+                            'volumes_%s' %(object_store_pool),
+                            'volumes_hdd_%s' %(object_store_pool),
+                            'volumes_ssd_%s' %(object_store_pool),
+                            'volumes']
+
+        for pool in parent_pool_list:
+            pool_available = self.exec_local('rados lspools | grep -w %s$ | wc -l'
+                                            %(object_store_pool))
+            if pool_available != '0':
+                crush_ruleset =  self.exec_local('sudo ceph osd pool get %s \
+                                    crush_ruleset | awk \'{print $2}\'' %(pool))
+                replica =  self.exec_local('sudo ceph osd pool get %s \
+                                    size | awk \'{print $2}\'' %(pool))
+                pg_num =  self.exec_local('sudo ceph osd pool get %s \
+                                    pg_num | awk \'{print $2}\'' %(pool))
+                osd_count = int(pg_num)/30
+                break
+
+        for pool in ceph_object_store_pools:
+            pool_present = self.exec_local('sudo rados lspools | grep -w "%s$" | \
+                                            wc -l' %(pool))
+            if pool_present == '0':
+                self.exec_local('sudo rados mkpool %s' %(pool))
+            self.exec_local('sudo ceph osd pool set %s crush_ruleset %s'
+                                    %(pool, crush_ruleset))
+            self.exec_local('sudo ceph osd pool set %s size %s'
+                                    %(pool, replica))
+            if pool != '.rgw':
+                osd_ncount = osd_count/2
+            else:
+                osd_ncount = osd_count
+            self.set_pg_pgp_count(osd_ncount, pool, 0)
+        return
+    #end do_configure_object_storage_pools()
+
     # Function for pool configuration
     # Removes unwanted pools
     # Create default images/volumes pool
@@ -1400,7 +1470,9 @@ class SetupCephUtils(object):
     # Sets ruleset based on pool/chassis configuration
     def do_configure_pools(self, storage_hostnames, storage_disk_config,
                             storage_ssd_disk_config, chassis_config,
-                            replica_size = None, ssd_cache_tier = False):
+                            replica_size = None, ssd_cache_tier = False,
+                            ceph_object_storage = False,
+                            object_store_pool = 'volumes'):
         global host_hdd_dict
         global host_ssd_dict
         global hdd_pool_count
@@ -1739,6 +1811,8 @@ class SetupCephUtils(object):
             else:
                 self.exec_local('sudo ceph osd pool set images crush_ruleset 0')
                 self.exec_local('sudo ceph osd pool set volumes crush_ruleset 0')
+        if ceph_object_storage == 'True':
+            self.do_configure_object_storage_pools(object_store_pool)
         return {'ceph_pool_list': ceph_pool_list, 'ceph_tier_list': ceph_tier_list}
     #end do_configure_pools()
 
@@ -1879,3 +1953,207 @@ class SetupCephUtils(object):
             index += 1
         return
     #end do_configure_ceph_cache_tier
+
+# Function to configure Object storage
+# Specifically defined outside of class so that it can be called
+# from fab and SM.
+def configure_object_storage(is_master, is_os_host, new_apache,
+                               storage_os_hosts, storage_master,
+                               curr_hostname):
+    storage_os_hosts = storage_os_hosts.split()
+    ceph_utils = SetupCephUtils()
+    if storage_os_hosts[0] == 'none':
+        ceph_utils.exec_local('sudo ceph auth get-or-create \
+                        client.radosgw.gateway osd \
+                        \'allow rwx\' mon \'allow rwx\' -o %s'
+                        %(RADOS_KEYRING))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway host %s'
+                %(ETC_CEPH_CONF, storage_master))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway keyring %s'
+                %(ETC_CEPH_CONF, RADOS_KEYRING))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway \'log file\' %s'
+                %(ETC_CEPH_CONF, RADOS_GW_LOG_FILE))
+        if new_apache == 0:
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway \'rgw socket path\' \"\"'
+                    %(ETC_CEPH_CONF))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway \'rgw frontends\' \'%s\''
+                    %(ETC_CEPH_CONF, RADOS_GW_FRONT_END))
+        else:
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway \'rgw socket path\' %s'
+                    %(ETC_CEPH_CONF, RADOS_GW_SOCKET_PATH))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway \'rgw print continue\' false'
+                %(ETC_CEPH_CONF))
+        if is_master == 1 or is_os_host == 1:
+            ceph_utils.exec_local('sudo mkdir -p %s' %(LIB_RADOS_GW))
+            ceph_utils.exec_local('sudo touch %s/done' %(LIB_RADOS_GW))
+    else:
+
+        ceph_utils.exec_local('sudo ceph auth get-or-create \
+                        client.radosgw.gateway_%s osd \
+                        \'allow rwx\' mon \'allow rwx\' -o %s_%s'
+                        %(storage_master, RADOS_KEYRING, storage_master))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway_%s host %s'
+                %(ETC_CEPH_CONF, storage_master, storage_master))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway_%s keyring %s_%s'
+                %(ETC_CEPH_CONF, storage_master, RADOS_KEYRING, storage_master))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway_%s \'log file\' %s'
+                %(ETC_CEPH_CONF, storage_master, RADOS_GW_LOG_FILE))
+        if new_apache == 0:
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s \'rgw socket path\' \"\"'
+                    %(ETC_CEPH_CONF, storage_master))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s \'rgw frontends\' \'%s\''
+                    %(ETC_CEPH_CONF, storage_master, RADOS_GW_FRONT_END))
+        else:
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s \'rgw socket path\' %s'
+                    %(ETC_CEPH_CONF, storage_master, RADOS_GW_SOCKET_PATH))
+        ceph_utils.exec_local('sudo openstack-config --set \
+                %s client.radosgw.gateway_%s \'rgw print continue\' false'
+                %(ETC_CEPH_CONF, storage_master))
+
+        for entry in storage_os_hosts:
+            ceph_utils.exec_local('sudo ceph auth get-or-create \
+                        client.radosgw.gateway_%s osd \
+                        \'allow rwx\' mon \'allow rwx\' -o %s_%s'
+                        %(entry, RADOS_KEYRING, entry))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s host %s'
+                    %(ETC_CEPH_CONF, entry, entry))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s keyring %s_%s'
+                    %(ETC_CEPH_CONF, entry, RADOS_KEYRING, entry))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s \'log file\' %s'
+                    %(ETC_CEPH_CONF, entry, RADOS_GW_LOG_FILE))
+            if new_apache == 0:
+                ceph_utils.exec_local('sudo openstack-config --set \
+                        %s client.radosgw.gateway_%s \'rgw socket path\' \"\"'
+                        %(ETC_CEPH_CONF, entry))
+                ceph_utils.exec_local('sudo openstack-config --set \
+                        %s client.radosgw.gateway_%s \'rgw frontends\' \'%s\''
+                        %(ETC_CEPH_CONF, entry, RADOS_GW_FRONT_END))
+            else:
+                ceph_utils.exec_local('sudo openstack-config --set \
+                        %s client.radosgw.gateway_%s \'rgw socket path\' %s'
+                        %(ETC_CEPH_CONF, entry, RADOS_GW_SOCKET_PATH))
+            ceph_utils.exec_local('sudo openstack-config --set \
+                    %s client.radosgw.gateway_%s \'rgw print continue\' false'
+                    %(ETC_CEPH_CONF, entry))
+        if is_master == 1 or is_os_host == 1:
+            ceph_utils.exec_local('sudo mkdir -p %s_%s'
+                                    %(LIB_RADOS_GW, curr_hostname))
+            ceph_utils.exec_local('sudo touch %s_%s/done'
+                                    %(LIB_RADOS_GW, curr_hostname))
+
+    if is_master == 1 or is_os_host == 1:
+        ceph_utils.exec_local('sudo service radosgw-all restart')
+        # Apache configurations
+        ceph_utils.exec_local('sudo a2enmod rewrite')
+        ceph_utils.exec_local('sudo a2enmod proxy_http')
+        ceph_utils.exec_local('sudo a2enmod proxy_fcgi')
+        ceph_utils.exec_locals('sudo echo \"<VirtualHost *:80>\" > %s'
+                                %(APACHE_RGW_CONF))
+        #ceph_utils.exec_local('sudo echo "ServerName localhost" >> %s'
+        #                        %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"DocumentRoot /var/www/html\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"ErrorLog /var/log/apache2/rgw_error.log\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"CustomLog /var/log/apache2/rgw_access.log combined\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"# LogLevel debug\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"RewriteEngine On\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"RewriteRule .* - [E=HTTP_AUTHORIZATION:%%{HTTP:Authorization},L]\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"SetEnv proxy-nokeepalive 1\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        if new_apache == 0:
+            ceph_utils.exec_locals('sudo echo \"ProxyPass / fcgi://localhost:9000/\" >> %s'
+                                    %(APACHE_RGW_CONF))
+        else:
+            ceph_utils.exec_locals('sudo echo \"ProxyPass / unix:///var/run/ceph/ceph.radosgw.gateway.fastcgi.sock|fcgi://localhost:9000/\" >> %s'
+                                    %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"</VirtualHost>\" >> %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_local('sudo a2enconf rgw')
+        ceph_utils.exec_local('service apache2 restart')
+    if is_master == 1:
+        contrail_user = ceph_utils.exec_local('radosgw-admin --uid contrail user \
+                                              info 2>/dev/null | grep contrail | \
+                                              wc -l')
+        print contrail_user
+        if contrail_user == '0':
+            ceph_utils.exec_local('sudo radosgw-admin user create --uid="contrail" \
+                                   --display-name="Demo User"')
+            ceph_utils.exec_local('sudo radosgw-admin subuser create --uid=contrail \
+                                   --subuser=contrail:swift --access=full')
+            ceph_utils.exec_local('sudo radosgw-admin key create \
+                                   --subuser=contrail:swift --key-type=swift \
+                                   --gen-secret')
+        access_key = ceph_utils.exec_locals('sudo radosgw-admin --uid contrail \
+                                   user info | \
+                                   grep -A 2 \"\\\"user\\\": \\\"contrail\\\"\" | \
+                                   grep access_key | awk \'{print $2}\' | \
+                                   cut -d \'\"\' -f 2')
+        secret_key = ceph_utils.exec_locals('sudo radosgw-admin --uid contrail \
+                                   user info | \
+                                   grep -A 2 \"\\\"user\\\": \\\"contrail\\\"\" | \
+                                   grep secret_key | awk \'{print $2}\' | \
+                                   cut -d \'\"\' -f 2')
+        swift_key = ceph_utils.exec_locals('sudo radosgw-admin --uid contrail \
+                                   user info | \
+                                   grep -A 3 swift_keys | \
+                                   grep secret_key | awk \'{print $2}\' | \
+                                   cut -d \'\"\' -f 2')
+        ceph_utils.exec_locals('sudo echo S3 Authentication > %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo ----------------- >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo username: contrail >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo S3 access_key: %s >> %s'
+                               %(access_key, OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo S3 secret_key: %s >> %s'
+                               %(secret_key, OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo "" >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo Swift Authentication >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo -------------------- >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo username: contrail:swift >> %s'
+                               %(OBJECT_STORAGE_USER_FILE))
+        ceph_utils.exec_locals('sudo echo Swift secret_key = %s >> %s'
+                               %(swift_key, OBJECT_STORAGE_USER_FILE))
+
+#end configure_object_storage
