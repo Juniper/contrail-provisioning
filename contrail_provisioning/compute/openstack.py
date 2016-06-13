@@ -150,10 +150,15 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         self.setup_sriov_vfs()
         self.build_ctrl_details()
         if self._args.vcenter_server:
+            #vcenter-compute node runs only nova, and no vrouter
             self.fixup_nova_conf()
+            self.run_services()
+        elif self._args.vmware:
+            #ContrailVM in the ESXi runs only vrouter, and no nova
+            self.add_vnc_config()
         else:
-            if not self._args.vmware:
-                self.fixup_config_files()
+            #Contrail compute node
+            self.fixup_config_files()
             self.add_vnc_config()
             self.run_services()
 
