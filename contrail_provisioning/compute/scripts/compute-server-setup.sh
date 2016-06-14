@@ -225,35 +225,57 @@ fi
 
 get_pci_whitelist_addresses() {
     orig_ifs=$IFS
-    IFS=$'\n'
+    IFS=' '
 
     # Function arguments
     dpdk_iface=$1
     sriov_iface=$2
 
-    # If the DPDK vRouter is not a virtual function, there is nothing to do
-    if [ ! -e "/sys/class/net/${dpdk_iface}/device/physfn" ]; then
-        return 0
-    fi
-
-    # Also, if the physical parent interface of the VF used by the DPDK vRouter
-    # is different than the SRIOV interface, there is nothing to do
-    dpdk_parent=$(basename /sys/class/net/${dpdk_iface}/device/physfn/net/*)
-    if [ $dpdk_parent != $sriov_iface ]; then
-        return 0
-    fi
-
-    # Get the PCI address of the DPDK vRouter interface
-    dpdk_pci=$(basename $(readlink /sys/class/net/${dpdk_iface}/device))
-
-    # Loop through the VFs of the SRIOV interface and whitelist all but the one
-    # used by the DPDK vRouter
-    pci_to_whitelist=()
-    pcis=($(readlink /sys/class/net/${sriov_iface}/device/virtfn*))
-    for pci in ${pcis[@]}; do
-        if [ $dpdk_pci != ${pci##*/} ]; then
-            pci_to_whitelist[${#pci_to_whitelist[@]}]="${pci##*/}"
+    ## check for VLANs
+    _vlan_file="/proc/net/vlan/${dpdk_iface}"
+    if [ -f "${_vlan_file}" ]; then
+        dpdk_vlan_dev=`cat ${_vlan_file} | grep "Device:" | head -1 | awk '{print $2}'`
+        if [ -n "${dpdk_vlan_dev}" ]; then
+            ## use raw device and pass VLAN ID as a parameter
+            dpdk_iface="${dpdk_vlan_dev}"
         fi
+    fi
+
+    ## check for Bonding
+    bond_dir="/sys/class/net/${dpdk_iface}/bonding"
+    if [ -d ${bond_dir} ]; then
+        dpdk_ifaces=`cat ${bond_dir}/slaves | tr ' ' '\n' | sort | tr '\n' ' '`
+    else
+        dpdk_ifaces=(${dpdk_iface% })
+    fi
+
+    for dpdk_iface in $dpdk_ifaces; do
+        # If the DPDK vRouter is not a virtual function, there is nothing to do
+        if [ ! -e "/sys/class/net/${dpdk_iface}/device/physfn" ]; then
+           continue
+        fi
+
+        # Also, if the physical parent interface of the VF used by the DPDK vRouter
+        # is different than the SRIOV interface, there is nothing to do
+        dpdk_parent=$(basename /sys/class/net/${dpdk_iface}/device/physfn/net/*)
+        if [ $dpdk_parent != $sriov_iface ]; then
+            continue
+        fi
+
+        # Get the PCI address of the DPDK vRouter interface
+        dpdk_pci=$(basename $(readlink /sys/class/net/${dpdk_iface}/device))
+
+        # Loop through the VFs of the SRIOV interface and whitelist all but the one
+        # used by the DPDK vRouter
+        IFS=$'\n'
+        pci_to_whitelist=()
+        pcis=($(readlink /sys/class/net/${sriov_iface}/device/virtfn*))
+        for pci in ${pcis[@]}; do
+            if [ $dpdk_pci != ${pci##*/} ]; then
+                pci_to_whitelist[${#pci_to_whitelist[@]}]="${pci##*/}"
+            fi
+        done
+        IFS=' '
     done
 
     echo ${pci_to_whitelist[@]}
