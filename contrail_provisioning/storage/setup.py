@@ -45,6 +45,9 @@ class StorageSetup(ContrailSetup):
                 --storage-compute-hostnames cmbu-dt05 cmbu-ixs6-2
                 --service-dbpass c0ntrail123
                 --region-name RegionOne
+                --ssd-cache-tier False
+                --object-storage False
+                --object-storage-pool volumes
         '''
 
         parser = self._parse_args(args_str)
@@ -82,7 +85,8 @@ class StorageSetup(ContrailSetup):
         parser.add_argument("--service-dbpass", help = "DB password for Openstack cinder db user")
         parser.add_argument("--region-name", help = "Region name of the cinder service")
         parser.add_argument("--ssd-cache-tier", help = "Enable SSD cache tier")
-
+        parser.add_argument("--object-storage", help = "Enable Ceph Object Storage")
+        parser.add_argument("--object-storage-pool", help = "Ceph Object Storage Pool")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -149,6 +153,8 @@ class StorageSetup(ContrailSetup):
         storage_setup_args = storage_setup_args + " --service-dbpass %s" % self._args.service_dbpass
         storage_setup_args = storage_setup_args + " --region-name %s" % self._args.region_name
         storage_setup_args = storage_setup_args + " --ssd-cache-tier %s" % self._args.ssd_cache_tier
+        storage_setup_args = storage_setup_args + " --object-storage %s" % self._args.object_storage
+        storage_setup_args = storage_setup_args + " --object-storage-pool %s" % self._args.object_storage_pool
 
         #Setup storage if storage is defined in testbed.py
         with settings(host_string=self._args.storage_master, password=storage_master_passwd):
