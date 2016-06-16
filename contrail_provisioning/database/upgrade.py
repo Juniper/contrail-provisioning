@@ -24,12 +24,7 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
              '/etc/contrail/contrail-database-nodemgr.conf')
 
     def upgrade(self):
-        # pre-3.0 we are running cassandra 1.2.11, for post-3.0 we want 2.1.x,
-        # but we cannot go directly from 1.2.11 to 2.1.x,
-        # we first need to go to 2.0.x hence the below steps...
-        if (self._args.from_rel < LooseVersion('3.00') and
-                self._args.to_rel >= LooseVersion('3.00')):
-            self.migrate(self._args.inter_pkg, self._args.final_ver)
+        self.migrate()
 
         self._upgrade()
 
