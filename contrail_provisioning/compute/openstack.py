@@ -21,11 +21,12 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
 
     def fixup_nova_conf(self):
         with settings(warn_only = True):
-            if self.pdist in ['Ubuntu']:
-                cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
-                nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-                if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
-                    local("openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://%s:5000/v2.0" % self._args.keystone_ip)
+            if not self._args.vmware:
+                if self.pdist in ['Ubuntu']:
+                    cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
+                    nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                    if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
+                        local("openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://%s:5000/v2.0" % self._args.keystone_ip)
 
         nova_conf_file = "/etc/nova/nova.conf"
         if os.path.exists(nova_conf_file):
@@ -153,11 +154,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
             #vcenter-compute node runs only nova, and no vrouter
             self.fixup_nova_conf()
             self.run_services()
-        elif self._args.vmware:
-            #ContrailVM in the ESXi runs only vrouter, and no nova
-            self.add_vnc_config()
         else:
-            #Contrail compute node
             self.fixup_config_files()
             self.add_vnc_config()
             self.run_services()
