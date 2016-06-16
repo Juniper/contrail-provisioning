@@ -1589,7 +1589,7 @@ class SetupCeph(object):
                                     netaddr.IPNetwork(ip_cidr).prefixlen))
                             time.sleep(5)
                             local('cd /etc/ceph && sudo ceph-deploy --overwrite-conf mon \
-                                       create-initial %s' % (hostname))
+                                       create %s' % (hostname))
                         else:
                             # Storage master, create a new mon
                             local('cd /etc/ceph && sudo ceph-deploy new %s' % (hostname))
@@ -2867,8 +2867,6 @@ class SetupCeph(object):
                         osd = osdl.readline()
     #end do_osd_restarts
 
-
-
     # Function for first set of restarts.
     # This is done after all the cinder/nova/glance configurations
     def do_service_restarts_1(self):
@@ -2928,9 +2926,24 @@ class SetupCeph(object):
                     local('sudo apparmor_parser -r %s'
                                     %(LIBVIRT_AA_HELPER_FILE))
             local('sudo /sbin/chkconfig cinder-api on')
-            local('sudo service cinder-api restart')
+            local('sudo service cinder-api stop')
+            time.sleep(2)
+            cinder_api = local('ps -ef | grep cinder-api | grep -v grep | wc -l',
+                        capture=True)
+            if cinder_api != '0':
+                local('sudo pkill -9 -f \"/usr/bin/cinder-api\"',
+                        shell='/bin/bash', warn_only=True)
+            local('sudo service cinder-api start')
             local('sudo /sbin/chkconfig cinder-scheduler on')
-            local('sudo service cinder-scheduler restart')
+            local('sudo service cinder-scheduler stop')
+            time.sleep(2)
+            cinder_scheduler = local('ps -ef | grep cinder-scheduler | \
+                                    grep -v grep | wc -l',
+                                    capture=True)
+            if cinder_scheduler != '0':
+                local('sudo pkill -9 -f \"/usr/bin/cinder-scheduler\"',
+                        shell='/bin/bash', warn_only=True)
+            local('sudo service cinder-scheduler start')
             if configure_with_ceph == 1:
                 bash_cephargs = local('grep "CEPH_ARGS" \
                                         /etc/init.d/cinder-volume | \
@@ -2987,9 +3000,23 @@ class SetupCeph(object):
                                 sudo('apparmor_parser -r %s'
                                     %(LIBVIRT_AA_HELPER_FILE))
                         run('sudo /sbin/chkconfig cinder-api on')
-                        run('sudo service cinder-api restart')
+                        run('sudo service cinder-api stop')
+                        time.sleep(2)
+                        cinder_api = run('ps -ef | grep cinder-api | \
+                                           grep -v grep | wc -l')
+                        if cinder_api != '0':
+                            run('sudo pkill -9 -f /usr/bin/cinder-api',
+                                warn_only=True)
+                        run('sudo service cinder-api start')
                         run('sudo /sbin/chkconfig cinder-scheduler on')
-                        run('sudo service cinder-scheduler restart')
+                        run('sudo service cinder-scheduler stop')
+                        time.sleep(2)
+                        cinder_scheduler = run('ps -ef | grep cinder-scheduler | \
+                                                grep -v grep | wc -l')
+                        if cinder_scheduler != '0':
+                            run('sudo pkill -9 -f /usr/bin/cinder-scheduler',
+                                warn_only=True)
+                        run('sudo service cinder-scheduler start')
                         if configure_with_ceph == 1:
                             bash_cephargs = run('grep "CEPH_ARGS" \
                                                 /etc/init.d/cinder-volume | \
