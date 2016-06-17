@@ -219,9 +219,12 @@ keystone user-role-add --tenant-id $SERVICE_TENANT \
 fi
 
 liberty=0
+ubuntu_liberty=0
+
 if [ $is_ubuntu -eq 1 ]; then
     if [[ $keystone_version == *"8.0.0"* ]]; then
         liberty=1
+        ubuntu_liberty=1
     fi
 elif [ $is_ubuntu -eq 0 ]; then
     is_liberty_or_latest=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo True)
