@@ -4,6 +4,7 @@ import os
 import sys, select
 import subprocess
 import time
+from distutils.version import LooseVersion
 
 class SetupCephUtils(object):
 
@@ -1847,15 +1848,24 @@ class SetupCephUtils(object):
     #end create_and_apply_cinder_patch
 
     def create_and_apply_ceph_deploy_patch(self):
+        ceph_dep_version = self.exec_locals('dpkg-query -W -f=\'${Version}\' ceph-deploy')
+        if LooseVersion(ceph_dep_version) >= LooseVersion('1.5.0'):
+            ceph_new_version = True
         self.exec_locals('echo \"diff -Naur ceph_deploy/hosts/debian/mon/create.py ceph_deploy.new/hosts/debian/mon/create.py" \
                 > %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"--- ceph_deploy/hosts/debian/mon/create.py      2013-10-07 11:50:13.000000000 -0700" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"+++ ceph_deploy.new/hosts/debian/mon/create.py  2015-11-10 17:17:02.784241000 -0800" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
-        self.exec_locals('echo \"@@ -2,9 +2,9 @@" \
+        if ceph_new_version == True:
+            self.exec_locals('echo \"@@ -3,7 +3,7 @@" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
-        self.exec_locals('echo \" from ceph_deploy.lib.remoto import process" \
+            self.exec_locals('echo \" from ceph_deploy.lib import remoto" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+        else:
+            self.exec_locals('echo \"@@ -2,9 +2,9 @@" \
+                >> %s' %(CEPH_DEPLOY_PATCH_FILE))
+            self.exec_locals('echo \" from ceph_deploy.lib.remoto import process" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
@@ -1865,7 +1875,8 @@ class SetupCephUtils(object):
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"+def create(distro, args, monitor_keyring, hostname):" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
-        self.exec_locals('echo \"     logger = distro.conn.logger" \
+        if ceph_new_version != True:
+            self.exec_locals('echo \"     logger = distro.conn.logger" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"-    hostname = distro.conn.remote_module.shortname()" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
@@ -1873,7 +1884,8 @@ class SetupCephUtils(object):
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"     common.mon_create(distro, args, monitor_keyring, hostname)" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
-        self.exec_locals('echo \"     service = distro.conn.remote_module.which_service()" \
+        if ceph_new_version != True:
+            self.exec_locals('echo \"     service = distro.conn.remote_module.which_service()" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"" \
                 >> %s' %(CEPH_DEPLOY_PATCH_FILE))
