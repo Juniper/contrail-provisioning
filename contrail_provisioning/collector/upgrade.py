@@ -123,6 +123,22 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 ' '.join('%s:%s' % (server.split(':')[0], '9042') for server \
                 in analytics_api_cass_server_list.split()))
 
+        # From 3.10:
+        # 1. contrail-analytics-api.conf provides access to only cloud admin
+        #    role, API server VIP needs to be specified
+        # 2. contrail-keystone-auth.conf needs to be passed to
+        #    contrail-analytics-api via contrail-analytics-api.ini
+        if (self._args.from_rel < LooseVersion('3.1') and
+                self._args.to_rel >= LooseVersion('3.1')):
+            analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
+            self.set_config(analytics_api_conf, 'DEFAULTS',
+                'multi_tenancy', self._args.multi_tenancy)
+            self.set_config(analytics_api_conf, 'DEFAULTS', 'api_server',
+                self._args.cfgm_ip + ':8082')
+            self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
+                ['/etc/contrail/contrail-keystone-auth.conf'])
+    # end update_config
+
 def main():
     collector = CollectorUpgrade()
     collector.upgrade()
