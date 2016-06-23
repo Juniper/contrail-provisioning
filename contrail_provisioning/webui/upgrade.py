@@ -24,6 +24,10 @@ class WebuiUpgrade(ContrailUpgrade, WebuiSetup):
                                 '/etc/contrail/config.global.js')
         self.upgrade_data['restore'].append(
                                 '/etc/contrail/contrail-webui-userauth.js')
+        self.upgrade_data['restore'].append(
+                                '/etc/contrail/webui_ssl/cs-key.pem')
+        self.upgrade_data['restore'].append(
+                                '/etc/contrail/webui_ssl/cs-cert.pem')
 
     def restart(self):
         local('service supervisor-webui restart')
