@@ -7,11 +7,11 @@
 import os
 from time import sleep
 
-from fabric.state import env
 from fabric.api import local
 from fabric.context_managers import settings
 
 from contrail_provisioning.common.base import ContrailSetup
+from contrail_provisioning.database.base import DatabaseCommon
 from contrail_provisioning.config.templates import ifmap_log4j
 from contrail_provisioning.config.templates import ifmap_authorization
 from contrail_provisioning.config.templates import ifmap_basicauthusers
@@ -20,7 +20,6 @@ from contrail_provisioning.config.templates import contrail_api_conf
 from contrail_provisioning.config.templates import contrail_api_ini
 from contrail_provisioning.config.templates import contrail_api_ini_centos
 from contrail_provisioning.config.templates import contrail_api_svc
-from contrail_provisioning.config.templates import contrail_plugin_ini
 from contrail_provisioning.config.templates import contrail_schema_transformer_conf
 from contrail_provisioning.config.templates import contrail_device_manager_conf
 from contrail_provisioning.config.templates import contrail_svc_monitor_conf
@@ -378,9 +377,22 @@ class ConfigBaseSetup(ContrailSetup):
                 print "[contrail-api and rabbitmq] started by supervisor config, continue to provision."
                 return
 
+    def setup_cassandra(self):
+        if self._args.manage_db:
+            db = DatabaseCommon()
+            db.fixup_etc_hosts_file(self._args.self_ip, self.hostname)
+            db.fixup_cassandra_config_file(self._args.self_ip,
+                                           self._args.seed_list,
+                                           self._args.data_dir,
+                                           self._args.ssd_data_dir,
+                                           cluster_name='ContrailConfigDB')
+            db.fixup_cassandra_env_config()
+            local('sudo service contrail-database restart')
+
     def setup(self):
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
+        self.setup_cassandra()
         self.fixup_config_files()
         self.run_services()
