@@ -128,6 +128,10 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         #    role, API server VIP needs to be specified
         # 2. contrail-keystone-auth.conf needs to be passed to
         #    contrail-analytics-api via contrail-analytics-api.ini
+        # 3. Provision rabbitmq_server_list  and rabbitmq_port in
+        #    contrail-alarm-gen.conf
+        # 4. contrail-keystone-auth.conf needs to be passed to
+        #    contrail-alarm-gen via contrail-alarm-gen.ini
         if (self._args.from_rel < LooseVersion('3.1') and
                 self._args.to_rel >= LooseVersion('3.1')):
             analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
@@ -136,6 +140,13 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             self.set_config(analytics_api_conf, 'DEFAULTS', 'api_server',
                 self._args.cfgm_ip + ':8082')
             self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
+                ['/etc/contrail/contrail-keystone-auth.conf'])
+            alarm_gen_conf = '/etc/contrail/contrail-alarm-gen.conf'
+            self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_server_list',
+                ','.join(self._args.amqp_ip_list))
+            self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_port',
+                self._args.amqp_port)
+            self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
                 ['/etc/contrail/contrail-keystone-auth.conf'])
     # end update_config
 
