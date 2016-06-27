@@ -28,6 +28,7 @@ class WebuiSetup(ContrailSetup):
             'admin_user': 'admin',
             'admin_password': 'contrail123',
             'admin_tenant_name': 'admin',
+            'keystone_version': 'v2.0',
         }
         self.parse_args(args_str)
 
@@ -62,6 +63,8 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--admin_tenant_name",
                             help = "Identity Manager admin tenant name.")
         parser.add_argument("--redis_password", help = "Redis password")
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):

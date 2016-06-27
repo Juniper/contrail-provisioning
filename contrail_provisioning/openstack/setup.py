@@ -31,6 +31,7 @@ class OpenstackSetup(ContrailSetup):
             'nova_password': None,
             'neutron_password': None,
             'keystone_service_tenant_name': 'service',
+            'keystone_version': 'v2.0',
             'amqp_server_ip':'127.0.0.1',
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
@@ -77,6 +78,8 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of services like nova, neutron...etc")
         parser.add_argument("--keystone_auth_protocol", help = "Protocol to use while talking to Keystone")
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
         parser.add_argument("--internal_vip", help = "Control network VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "Management network VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "Control VIP Address of config  nodes")
@@ -113,6 +116,7 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('API_SERVER=%s' % self._args.cfgm_ip)
         ctrl_infos.append('OSAPI_COMPUTE_WORKERS=%s' % self._args.osapi_compute_workers)
         ctrl_infos.append('CONDUCTOR_WORKERS=%s' % self._args.conductor_workers)
+        ctrl_infos.append('KEYSTONE_VERSION=%s' % self._args.keystone_version)
         if self._args.mgmt_self_ip:
             ctrl_infos.append('SELF_MGMT_IP=%s' % self._args.mgmt_self_ip)
         if self._args.openstack_ip_list:

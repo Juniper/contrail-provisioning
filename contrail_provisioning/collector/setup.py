@@ -31,6 +31,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
             'multi_tenancy': False,
+            'keystone_version': 'v2.0',
         }
 
         self.parse_args(args_str)
@@ -88,6 +89,8 @@ class CollectorSetup(ContrailSetup):
             help = "Connect to keystone in secure or insecure mode if in" + \
                     "https mode",
             default = 'False')
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies token validation)",
             action="store_true")
         parser.add_argument("--cassandra_user", help="Cassandra user name",
