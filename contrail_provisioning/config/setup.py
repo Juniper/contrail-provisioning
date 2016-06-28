@@ -39,6 +39,7 @@ class ConfigSetup(ContrailSetup):
             'region_name': None,
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
+            'keystone_version': 'v2.0',
             'amqp_server_ip': '127.0.0.1',
             'quantum_port': '9696',
             'quantum_service_protocol': 'http',
@@ -89,6 +90,8 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--keystone_insecure", 
             help = "Connect to keystone in secure or insecure mode if in https mode",
             default = 'False')
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
 
         parser.add_argument("--nworkers",
             help = "Number of worker processes for api and discovery services",
