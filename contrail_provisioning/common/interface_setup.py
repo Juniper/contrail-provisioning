@@ -185,12 +185,15 @@ class BaseInterface(object):
         # create slave interface
         self.get_mac_from_bond_intf()
         self.create_bond_members()
-        log.info('Creating bond master: %s' %self.device)
+        bond_mac = self.get_mac_addr(self.members[0])
+        log.info('Creating bond master: %s with Mac Addr: %s' %
+                (self.device, bond_mac))
         cfg = {'DEVICE'        : self.device,
                'ONBOOT'        : 'yes',
                'BOOTPROTO'     : 'none',
                'NM_CONTROLLED' : 'no',
                'BONDING_MASTER': 'yes',
+               'MACADDR'        : bond_mac,
                'BONDING_OPTS'  : "\"%s\""%self.bond_opts_str.strip(),
                'SUBCHANNELS'   : '1,2,3'
               }
