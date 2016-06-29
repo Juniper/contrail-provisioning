@@ -152,23 +152,32 @@ class CollectorSetup(ContrailSetup):
         cnd = os.path.exists(ALARM_GEN_CONF_FILE)
         if not cnd:
             raise RuntimeError('%s does not exist' % ALARM_GEN_CONF_FILE)
-        self.replace_in_file(ALARM_GEN_CONF_FILE, '#host_ip',
-                             'host_ip = ' + self._args.self_collector_ip)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'host_ip',
+                        self._args.self_collector_ip)
+
         kafka_broker_list = [server[0] + ":9092" for server in self.cassandra_server_list]
         kafka_broker_list_str = ' '.join(map(str, kafka_broker_list))
-        self.replace_in_file(ALARM_GEN_CONF_FILE, '#kafka_broker_list', 'kafka_broker_list = ' + kafka_broker_list_str)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'kafka_broker_list',
+                        kafka_broker_list_str)
+
         #prepare zklist
         zk_list = [server[0] + ":2181" for server in self.cassandra_server_list]
         zk_list_str = ' '.join(map(str, zk_list))
-        self.replace_in_file(ALARM_GEN_CONF_FILE, '#zk_list', 'zk_list = ' + zk_list_str)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'zk_list',
+                        zk_list_str)
+
         if self._args.amqp_ip_list:
-            self.replace_in_file(ALARM_GEN_CONF_FILE, '#rabbitmq_server_list',
-                'rabbitmq_server_list = ' + ','.join(self._args.amqp_ip_list))
+            self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_server_list',
+                            ','.join(self._args.amqp_ip_list))
+
         if self._args.amqp_port:
-            self.replace_in_file(ALARM_GEN_CONF_FILE, '#rabbitmq_port',
-                'rabbitmq_port = ' + self._args.amqp_port)
-        self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_ip', 'disc_server_ip = ' + self._args.cfgm_ip)
-        self.replace_in_file(ALARM_GEN_CONF_FILE, '#disc_server_port', 'disc_server_port = 5998')
+            self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_port',
+                            self._args.amqp_port)
+
+        self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_ip',
+                        self._args.cfgm_ip)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_port',
+                        '5998')
 
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
