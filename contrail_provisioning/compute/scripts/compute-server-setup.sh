@@ -113,7 +113,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         # for juno and kilo versions
         if [ "$nova_compute_top_ver" -eq "1" ]; then
             # for kilo
-            dpkg --compare-versions $nova_compute_version_without_epoch eq 2015
+            dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
             if [ $? -eq 0 ]; then
                 kilo_or_above=1
             fi
