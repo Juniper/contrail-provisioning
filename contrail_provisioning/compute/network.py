@@ -176,7 +176,7 @@ HWADDR=%s
         new_f_lines.append('NM_CONTROLLED=no\n')
         if bond:
             new_f_lines.append('SUBCHANNELS=1,2,3\n')
-        else:
+        elif not vlan:
             new_f_lines.append('HWADDR=%s\n' % mac)
 
         fdw=open(filename,'w')
