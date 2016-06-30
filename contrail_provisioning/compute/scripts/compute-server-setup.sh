@@ -86,6 +86,7 @@ function is_installed_rpm_greater() {
 
 source /etc/contrail/ctrl-details
 HYPERVISOR=${HYPERVISOR:-"libvirt"}
+
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --del /etc/nova/nova.conf database connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
@@ -123,6 +124,11 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             if [ $? -eq 0 ]; then
                 kilo_or_above=1
             fi
+            #For mitaka, the nova-compute version is 13.y.z
+            dpkg --compare-versions $nova_compute_version_without_epoch ge 13.0.0
+            if [ $? -eq 0 ]; then
+                mitaka_or_above=1
+            fi
         fi
 
         if [ $kilo_or_above -eq 1 ] ; then
@@ -135,6 +141,14 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
             openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
             openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+        fi
+
+        if [ $mitaka_or_above -eq 1 ]; then
+            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+            openstack-config --set /etc/nova/nova.conf neutron auth_type password
+            openstack-config --set /etc/nova/nova.conf neutron project_name service
+            openstack-config --set /etc/nova/nova.conf neutron username $OS_NET
+            openstack-config --set /etc/nova/nova.conf neutron password $ADMIN_TOKEN
         fi
     else
         if [ ${nova_compute_ver%%.*} -ge 2014 ]; then

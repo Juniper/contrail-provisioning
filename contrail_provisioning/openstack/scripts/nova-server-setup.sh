@@ -89,7 +89,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
 fi
 
 is_liberty_or_above=0
-is_mitaka=0
+is_mitaka_or_above=0
 nova_version=`echo $nova_api_version | cut -d':' -f2 | cut -d'-' -f1`
 nova_top_ver=`echo $nova_api_version | cut -d':' -f1`
 if [ $is_ubuntu -eq 1 ]; then
@@ -97,7 +97,7 @@ if [ $is_ubuntu -eq 1 ]; then
         is_liberty_or_above=1
         dpkg --compare-versions $nova_version eq 13.0.0
         if [ $? -eq 0 ]; then
-            is_mitaka=1
+            is_mitaka_or_above=1
         fi
     fi
 fi
@@ -187,7 +187,7 @@ EOF
 
 # must set SQL connection before running nova-manage
 openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova
-if [ $is_mitaka -eq 1 ];then
+if [ $is_mitaka_or_above -eq 1 ];then
     openstack-config --set /etc/nova/nova.conf api_database connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova_api
 fi
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
@@ -206,7 +206,7 @@ for APP in nova; do
     fi
 done
 
-if [ $is_mitaka -eq 1 ]; then
+if [ $is_mitaka_or_above -eq 1 ]; then
     openstack-db -y --init --service nova_api --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
 fi
 
@@ -222,13 +222,6 @@ for svc in nova; do
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host 127.0.0.1
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
-    if [ $is_mitaka -eq 1 ]; then
-        openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357      
-        openstack-config --set /etc/nova/nova.conf neutron auth_type password
-        openstack-config --set /etc/nova/nova.conf neutron project_name service
-        openstack-config --set /etc/nova/nova.conf neutron username $svc
-        openstack-config --set /etc/nova/nova.conf neutron password $ADMIN_TOKEN
-   fi
 done
 
 openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
@@ -269,7 +262,7 @@ if [ $is_ubuntu -eq 1 ] ; then
         if [ $is_liberty_or_above -eq 1 ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         else 
-            if [ $is_mitaka -eq 1 ]; then
+            if [ $is_mitaka_or_above -eq 1 ]; then
                 openstack-config --delete /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
                 openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron True
             else
@@ -286,7 +279,7 @@ if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
         openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
-        if [ $is_mitaka -eq 1 ]; then
+        if [ $is_mitaka_or_above -eq 1 ]; then
             openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
             openstack-config --set /etc/nova/nova.conf neutron auth_type password
             openstack-config --set /etc/nova/nova.conf neutron project_name service
