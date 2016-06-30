@@ -29,6 +29,9 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             '/etc/contrail/contrail-query-engine.conf',
                                         ]
 
+        if (self._args.from_rel >= LooseVersion('3.00')):
+            self.upgrade_data['restore'].append('/etc/contrail/contrail-alarm-gen.conf')
+
         if (self._args.from_rel >= LooseVersion('2.20')):
             self.upgrade_data['restore'].append('/etc/contrail/contrail-analytics-nodemgr.conf')
 
