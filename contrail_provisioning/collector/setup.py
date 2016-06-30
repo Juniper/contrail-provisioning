@@ -227,6 +227,8 @@ class CollectorSetup(ContrailSetup):
                         '/etc/contrail/contrail-keystone-auth.conf')
 
     def fixup_contrail_collector(self):
+        ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
+        COLLECTOR_CONF_FILE = '/etc/contrail/contrail-collector.conf'
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
                          '__contrail_discovery_ip__' : self._args.cfgm_ip,
                          '__contrail_host_ip__' : self._args.self_collector_ip,
@@ -261,7 +263,17 @@ class CollectorSetup(ContrailSetup):
         template_vals['__contrail_kafka_broker_list__'] = kafka_broker_list_str
         self._template_substitute_write(contrail_collector_conf.template,
                                    template_vals, self._temp_dir_name + '/contrail-collector.conf')
-        local("sudo mv %s/contrail-collector.conf /etc/contrail/contrail-collector.conf" %(self._temp_dir_name))
+        local("sudo mv %s/contrail-collector.conf %s" % \
+              (self._temp_dir_name, COLLECTOR_CONF_FILE))
+
+        # pickup the number of partitions from alarmgen conf
+        # if it isn't there, collector conf should use defaults too
+        try:
+            pstr = self.get_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'partitions')
+            pint = int(pstr)
+            self.set_config(COLLECTOR_CONF_FILE, 'DEFAULT', 'partitions', pstr)
+        except:
+            self.replace_in_file(COLLECTOR_CONF_FILE, 'partitions', '')
 
     def fixup_contrail_query_engine(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
@@ -280,6 +292,7 @@ class CollectorSetup(ContrailSetup):
 
     def fixup_contrail_analytics_api(self):
         conf_file = '/etc/contrail/contrail-analytics-api.conf'
+        ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
         with settings(warn_only=True):
             local("[ -f %s ] || > %s" % (conf_file, conf_file))
         rest_api_port = '8081'
@@ -317,6 +330,15 @@ class CollectorSetup(ContrailSetup):
         for section, parameter_values in config_vals.items():
             for parameter, value in parameter_values.items():
                 self.set_config(conf_file, section, parameter, value)
+
+        # pickup the number of partitions from alarmgen conf
+        # if it isn't there, analytics-api conf should use defaults too
+        try:
+            pstr = self.get_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'partitions')
+            pint = int(pstr)
+            self.set_config(conf_file, 'DEFAULTS', 'partitions', pstr)
+        except:
+            self.replace_in_file(conf_file, 'partitions', '')
 
     def load_redis_upstart_file(self):
         #copy the redis-server conf to init
