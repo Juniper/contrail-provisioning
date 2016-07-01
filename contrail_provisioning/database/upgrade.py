@@ -29,7 +29,11 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
         self._upgrade()
 
         # Accomodate cassandra upgrade, if needed
-        self.fixup_cassandra_config_files()
+        self.fixup_cassandra_config_file(self.database_listen_ip,
+                                         self.database_seed_list,
+                                         self._args.data_dir,
+                                         self._args.ssd_data_dir,
+                                         cluster_name='Contrail')
 
         # Accomodate Kafka upgrade, if needed
         self.fixup_kafka_server_properties(self._args.self_ip)
