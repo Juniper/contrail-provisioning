@@ -374,9 +374,22 @@ if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
 fi
 
 if [ "$SRIOV_ENABLED" == "True" ] ; then
+
     openstack-config --del /etc/nova/nova.conf DEFAULT scheduler_default_filters
     openstack-config --del /etc/nova/nova.conf DEFAULT scheduler_available_filters
-    openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_default_filters PciPassthroughFilter
+
+    if [ $is_liberty_or_above -eq 1 ]; then
+        DEFAULT_FILTERS="RetryFilter, AvailabilityZoneFilter, RamFilter, DiskFilter,
+                            ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter,
+                            ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, PciPassthroughFilter"
+    else
+        DEFAULT_FILTERS="RetryFilter, AvailabilityZoneFilter, RamFilter,
+                            ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter,
+                            ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, PciPassthroughFilter"
+    fi
+
+    openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_default_filters "$DEFAULT_FILTERS"
+
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_available_filters nova.scheduler.filters.all_filters
     sed -i "/scheduler_available_filters/a \
            scheduler_available_filters = nova.scheduler.filters.pci_passthrough_filter.PciPassthroughFilter"  /etc/nova/nova.conf
