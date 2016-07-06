@@ -111,6 +111,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         fi
 
         kilo_or_above=0
+        mitaka_or_above=0
         # for juno and kilo versions
         if [ "$nova_compute_top_ver" -eq "1" ]; then
             # for kilo
