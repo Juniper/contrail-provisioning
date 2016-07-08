@@ -22,6 +22,7 @@ class VcenterPluginSetup(ContrailSetup):
             'api_port': 8082,
             'zookeeper_serverlist': '127.0.0.1:2181',
             'introspect_port': 8234,
+            'keystone_version': 'v2.0',
         }
 
         self.parse_args(args_str)
@@ -45,6 +46,7 @@ class VcenterPluginSetup(ContrailSetup):
         parser.add_argument("--zookeeper_serverlist", help = "List of zookeeper ip:port")
         parser.add_argument("--vcenter_mode", help = "vcenter as compute mode value")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'], help = "Keystone Version")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
         parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
         parser.add_argument("--keystone_admin_tenant_name", help = "Keystone admin tenant name.")
@@ -59,6 +61,7 @@ class VcenterPluginSetup(ContrailSetup):
     def fixup_contrail_vcenter_plugin(self):
         vcenter_full_url = "https://"+self._args.vcenter_url+"/sdk"
         keystone_ip = ""
+        keystone_version = ""
         ks_auth_protocol = ""
         ks_auth_port = ""
         ks_admin_user = ""
@@ -68,12 +71,13 @@ class VcenterPluginSetup(ContrailSetup):
 
         if self._args.vcenter_mode == "vcenter-as-compute":
            keystone_ip = self._args.keystone_ip
+           keystone_version = self._args.keystone_version
            ks_auth_protocol = self._args.keystone_auth_protocol
            ks_auth_port =  self._args.keystone_auth_port
            ks_admin_user = self._args.keystone_admin_user
            ks_admin_passwd = self._args.keystone_admin_passwd
            ks_admin_tenant_name = self._args.keystone_admin_tenant_name
-           ks_auth_url = ks_auth_protocol+"://"+keystone_ip+":"+ks_auth_port+"/v2.0"
+           ks_auth_url = ks_auth_protocol+"://"+keystone_ip+":"+ks_auth_port+"/"+keystone_version
 
         template_vals = {'__contrail_vcenter_url__' : vcenter_full_url,
                          '__contrail_vcenter_username__' : self._args.vcenter_username,
