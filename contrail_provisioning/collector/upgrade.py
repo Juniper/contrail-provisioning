@@ -145,6 +145,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 self._args.amqp_port)
             self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
                 ['/etc/contrail/contrail-keystone-auth.conf'])
+            self.fixup_analytics_daemon_ini_file('contrail-collector',
+                ['/etc/contrail/contrail-keystone-auth.conf'])
     # end update_config
 
 def main():
