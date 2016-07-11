@@ -46,6 +46,7 @@ class ConfigSetup(ContrailSetup):
             'manage_neutron': 'yes',
             'orchestrator' : 'openstack',
             'amqp_port': '5672',
+            'control_ip_list': '',
         }
         self.parse_args(args_str)
 
@@ -77,7 +78,7 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--control_ip_list", help = "List of IP Addresses of Control nodes",
-                            nargs='+', type=str)
+                            type=str)
         parser.add_argument("--quantum_port", help = "Quantum Server port")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ")
         parser.add_argument("--keystone_auth_protocol", 
