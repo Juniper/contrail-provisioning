@@ -30,7 +30,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_service_tenant_name' : 'service',
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
-            'multi_tenancy': False,
+            'aaa_mode': 'no-auth',
             'keystone_version': 'v2.0',
         }
 
@@ -87,8 +87,8 @@ class CollectorSetup(ContrailSetup):
             default = 'False')
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
-        parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies token validation)",
-            action="store_true")
+        parser.add_argument("--aaa_mode", help="AAA mode",
+            choices=['no-auth', 'cloud-admin-only'])
         parser.add_argument("--cassandra_user", help="Cassandra user name",
             default= None)
         parser.add_argument("--cassandra_password", help="Cassandra password",
@@ -314,7 +314,7 @@ class CollectorSetup(ContrailSetup):
             'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
-            'multi_tenancy' : self._args.multi_tenancy,
+            'aaa_mode' : self._args.aaa_mode,
             },
           'REDIS' : {
             'redis_server_port' : 6379,
