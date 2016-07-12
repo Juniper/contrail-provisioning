@@ -78,6 +78,16 @@ class WebuiSetup(ContrailSetup):
         admin_user = self._args.admin_user
         admin_password = self._args.admin_password
         admin_tenant_name = self._args.admin_tenant_name
+        keys_path = '/etc/contrail/webui_ssl/'
+        keys_re_path = '\/etc\/contrail\/webui_ssl\/'
+
+        #Dynamically create keys
+        local("sudo mkdir -p %s" %(keys_path))
+        key_cmd = ('sudo openssl req -new -newkey rsa:2048 -nodes -out %s%s -keyout %s%s -subj "/C=US/ST=CA/L=Sunnyvale/O=Juniper Networks/OU=Juniper CA/CN=ContrailCA"') %(keys_path, 'certrequest.csr', keys_path, 'cs-key.pem')
+        local(key_cmd)
+        cert_cmd = ('sudo openssl x509 -req -days 730 -in %s%s -signkey %s%s -out %s%s') %(keys_path, 'certrequest.csr', keys_path, 'cs-key.pem', keys_path, 'cs-crt.crt',)
+        local (cert_cmd)
+        local('sudo cat %s%s %s%s > %s%s' %(keys_path, 'cs-key.pem', keys_path, 'cs-crt.crt', keys_path, 'cs-cert.pem'))
 
         local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
@@ -110,6 +120,25 @@ class WebuiSetup(ContrailSetup):
         if self._args.redis_password:
             local("sudo sed \"s/config.redis_password.*/config.redis_password = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.redis_password))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        with settings(warn_only=True):
+            server_options = local('cat /etc/contrail/config.global.js | grep config.server_options', capture=True)
+            keys_path_specified = local('cat /etc/contrail/config.global.js | grep config.server_options.key_file', capture=True)
+            cert_path_specified = local('cat /etc/contrail/config.global.js | grep config.server_options.cert_file', capture=True)
+            if not server_options:
+                local("sudo sed \"/config.getDomainsFromApiServer/ a \\\n// server_options\\nconfig.server_options = {};\" /etc/contrail/config.global.js > config.global.js.new")
+                local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+            if keys_path_specified:
+                local("sudo sed \"s/config.server_options.key_file.*/config.server_options.key_file = '" + keys_re_path + "cs-key.pem';/g\" /etc/contrail/config.global.js > config.global.js.new")
+                local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+            else:
+                local("sudo sed \"/config.server_options/ a \\\n// key_file \\nconfig.server_options.key_file = '" + keys_path + "cs-key.pem';\" /etc/contrail/config.global.js > config.global.js.new")
+                local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+            if cert_path_specified:
+                local("sudo sed \"s/config.server_options.cert_file.*/config.server_options.cert_file = '" + keys_re_path + "cs-cert.pem';/g\" /etc/contrail/config.global.js > config.global.js.new")
+                local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+            else:
+                local("sudo sed \"/config.server_options.key_file/ a \\\n// cert_file \\nconfig.server_options.cert_file = '" + keys_path + "cs-cert.pem';\" /etc/contrail/config.global.js > config.global.js.new")
+                local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.vcenter_ip:
             orchestrator = 'vcenter'
             local("sudo sed \"s/config.vcenter.server_ip.*/config.vcenter.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_ip))
@@ -128,6 +157,7 @@ class WebuiSetup(ContrailSetup):
         if self._args.vcenter_dvswitch:
             local("sudo sed \"s/config.vcenter.dvsswitch.*/config.vcenter.dvsswitch = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.vcenter_dvswitch))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+
         if self._args.orchestrator == 'vcenter':
            with settings(warn_only=True):
               mt_enable_variable = local('cat /etc/contrail/config.global.js | grep config.multi_tenancy', capture=True);
@@ -135,7 +165,7 @@ class WebuiSetup(ContrailSetup):
               local("sudo sed \"s/config.multi_tenancy.enabled.*/config.multi_tenancy.enabled = false;/g\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
            else:
-              local("sudo sed \"/config.vcenter.ca/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enabled = false;\" /etc/contrail/config.global.js > config.global.js.new")
+              local("sudo sed \"/config.vcenter.wsdl/ a \\\n// multi_tenancy\\nconfig.multi_tenancy = {};\\nconfig.multi_tenancy.enabled = false;\" /etc/contrail/config.global.js > config.global.js.new")
               local("sudo mv config.global.js.new /etc/contrail/config.global.js")
            with settings(warn_only=True):
                static_auth = local('cat /etc/contrail/config.global.js | grep config.staticAuth', capture=True)
