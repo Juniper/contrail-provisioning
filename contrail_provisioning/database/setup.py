@@ -33,6 +33,9 @@ class DatabaseSetup(DatabaseCommon):
         self.database_listen_ip = self._args.self_ip
         self.database_seed_list = self._args.seed_list
         self.database_dir = self._args.dir
+        self.zoo_conf_dir = '/etc/zookeeper/conf/'
+        if not os.path.isdir(self.zoo_conf_dir):
+            self.zoo_conf_dir = '/etc/zookeeper/'
 
     def parse_args(self, args_str):
         '''
@@ -131,14 +134,14 @@ class DatabaseSetup(DatabaseCommon):
         self.fixup_contrail_database_nodemgr()
 
         # set high session timeout to survive glance led disk activity
-        local('sudo echo "maxSessionTimeout=120000" >> /etc/zookeeper/conf/zoo.cfg')
-        local('sudo echo "autopurge.purgeInterval=3" >> /etc/zookeeper/conf/zoo.cfg')
-        local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' /etc/zookeeper/conf/log4j.properties > log4j.properties.new")
-        local("sudo mv log4j.properties.new /etc/zookeeper/conf/log4j.properties")
+        local('sudo echo "maxSessionTimeout=120000" >> %s/zoo.cfg' % self.zoo_conf_dir)
+        local('sudo echo "autopurge.purgeInterval=3" >> %s/zoo.cfg' % self.zoo_conf_dir)
+        local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' %s/log4j.properties > log4j.properties.new" % self.zoo_conf_dir)
+        local("sudo mv log4j.properties.new %s/log4j.properties" % self.zoo_conf_dir)
         if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
             local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
         if self.pdist == 'Ubuntu':
-            local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /etc/zookeeper/conf/environment')
+            local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> %s/environment' % self.zoo_conf_dir)
 
         self.fix_zookeeper_servers_config()
         self.fixup_kafka_server_properties(self.database_listen_ip)
@@ -237,10 +240,10 @@ class DatabaseSetup(DatabaseCommon):
         zk_index = 1
         # Instead of inserting/deleting config, remove all the zoo keeper servers
         # and re-generate.
-        local("sudo sed -i '/server.[1-9]*=/d' /etc/zookeeper/conf/zoo.cfg")
+        local("sudo sed -i '/server.[1-9]*=/d' %s/zoo.cfg" % self.zoo_conf_dir)
 
         for zk_ip in self._args.zookeeper_ip_list:
-            local('sudo echo "server.%d=%s:2888:3888" >> /etc/zookeeper/conf/zoo.cfg' %(zk_index, zk_ip))
+            local('sudo echo "server.%d=%s:2888:3888" >> %s/zoo.cfg' %(zk_index, zk_ip, self.zoo_conf_dir))
             zk_index = zk_index + 1
 
         #put cluster-unique zookeeper's instance id in myid
