@@ -197,6 +197,9 @@ openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
     openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
+    if [ $is_mitaka_or_above -eq 1 ];then
+        openstack-config --set /etc/nova/nova.conf api_database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova_api
+    fi
 fi
 
 for APP in nova; do
