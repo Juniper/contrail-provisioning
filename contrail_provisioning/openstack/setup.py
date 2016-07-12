@@ -52,6 +52,8 @@ class OpenstackSetup(ContrailSetup):
         elif self.pdist in ['centos', 'redhat']:
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
+            if os.path.isfile('/usr/lib/systemd/system/mariadb.service'):
+                self.mysql_svc = 'mariadb'
         self.mysql_redo_log_sz='5242880'
 
     def parse_args(self, args_str):

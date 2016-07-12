@@ -23,6 +23,8 @@ if [ -f /etc/redhat-release ]; then
    is_ubuntu=0
    web_svc=httpd
    mysql_svc=mysqld
+   if  [ -e /usr/lib/systemd/system/mariadb.service ]; then
+       mysql_svc=mariadb
    glance_ver=`rpm -q --qf  "%{VERSION}\n" openstack-glance`
 fi
 
