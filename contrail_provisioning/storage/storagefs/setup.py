@@ -2015,6 +2015,8 @@ class SetupCeph(object):
                 if os_entry == entry:
                     storage_os_hostnames.append(hostname)
                     break
+        if storage_os_hostnames == []:
+            storage_os_hostnames = 'none'
         new_apache = 0
         apache_ver = local('dpkg-query -W -f=\'${Version}\' apache2',
                             capture=True)
