@@ -1851,6 +1851,8 @@ class SetupCephUtils(object):
         ceph_dep_version = self.exec_locals('dpkg-query -W -f=\'${Version}\' ceph-deploy')
         if LooseVersion(ceph_dep_version) >= LooseVersion('1.5.0'):
             ceph_new_version = True
+        else:
+            ceph_new_version = False
         self.exec_locals('echo \"diff -Naur ceph_deploy/hosts/debian/mon/create.py ceph_deploy.new/hosts/debian/mon/create.py" \
                 > %s' %(CEPH_DEPLOY_PATCH_FILE))
         self.exec_locals('echo \"--- ceph_deploy/hosts/debian/mon/create.py      2013-10-07 11:50:13.000000000 -0700" \
