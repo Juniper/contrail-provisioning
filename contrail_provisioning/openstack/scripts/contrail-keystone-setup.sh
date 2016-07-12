@@ -243,9 +243,15 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
 elif [ $is_ubuntu -eq 0 ]; then
+    liberty=0
+    mitaka=0
     is_rpm_liberty_or_latest=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo True)
     if [[ "$is_rpm_liberty_or_latest" == "True" ]]; then
         liberty=1
+    fi
+    is_rpm_mitaka_or_later=$(is_installed_rpm_greater openstack-keystone "1 9.0.2 1.el7" && echo True)
+    if [[ "$is_rpm_mitaka_or_later" == "True" ]]; then
+        mitaka=1
     fi
 else
     echo "Unrecognized OS"
@@ -256,7 +262,7 @@ source /etc/contrail/openstackrc
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
         if [ $ubuntu_liberty_and_above -eq 1 ] || [ $liberty -eq 1 ]; then
-            if [ $ubuntu_mitaka -eq 1 ]; then
+            if [ $ubuntu_mitaka -eq 1 ] || [ "$mitaka" -eq 1 ] ; then
                 openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                     --publicurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s \
                     --adminurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s  \
