@@ -29,6 +29,11 @@ class DatabaseCommon(ContrailSetup):
         super(DatabaseCommon, self).__init__()
         self.cassandra = CassandraInfo(self.pdist)
 
+    def create_data_dir(self, data_dir):
+        if not os.path.exists(data_dir):
+            local("sudo mkdir -p %s" % (data_dir))
+            local("sudo chown -R cassandra: %s" % (data_dir))
+
     def fixup_etc_hosts_file(self, listen_ip, hostname):
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution
         # failing at bootup (Cassandra can fail)
