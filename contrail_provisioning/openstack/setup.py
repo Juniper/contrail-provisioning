@@ -174,6 +174,7 @@ class OpenstackSetup(ContrailSetup):
         cinder_conf_file = "/etc/cinder/cinder.conf"
         barbican_file = "/etc/barbican/barbican-api-paste.ini"
         barbican_ini_file = "/etc/barbican/vassals/barbican-api.ini"
+        barbican_apache_file = "/etc/apache2/conf-available/barbican-api.conf"
 
         # TODO till post of openstack-horizon.spec is fixed...
         if (os.path.isdir("/etc/openstack_dashboard")):
@@ -205,6 +206,8 @@ class OpenstackSetup(ContrailSetup):
         if self._args.internal_vip:
             if os.path.exists(barbican_ini_file):
                 local("sudo sed -i 's/socket = :9311/socket = :9322/g' %s" %(barbican_ini_file)) 
+            if os.path.exists(barbican_apache_file):
+                local("sudo sed -i 's/Listen 9311/Listen 9322/g' %s" %(barbican_apache_file))
 
         local('sed -i -e "s/bind-address/#bind-address/" %s' % self.mysql_conf)
         self.service_token = self._args.service_token
