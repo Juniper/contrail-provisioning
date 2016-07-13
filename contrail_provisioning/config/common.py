@@ -377,6 +377,7 @@ class ConfigBaseSetup(ContrailSetup):
                                    self._args.cfgm_index)
         db_services = ['zookeeper']
         if self._args.manage_db:
+            db.create_data_dir(self._args.data_dir)
             db.fixup_etc_hosts_file(self._args.self_ip, self.hostname)
             db.fixup_cassandra_config_file(self._args.self_ip,
                                            self._args.seed_list,
