@@ -106,7 +106,7 @@ openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_auth
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_tenant_name service
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_user barbican
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_password $ADMIN_TOKEN
-openstack-config --set /etc/barbican/barbican-api-paste.ini fliter:keystone_authtoken auth_version v2.0
+openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken auth_version v2.0
 openstack-config --set /etc/barbican/barbican.conf DEFAULT host_href http://$CONTROLLER:9311
 openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_hosts $AMQP_SERVER:$AMQP_PORT
 
