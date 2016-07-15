@@ -33,6 +33,10 @@ ttl_short=1
 [DNS-SERVER]
 policy = fixed
 
+# Use consistent hashing for Collector for better handling of HA events
+[Collector]
+policy = chash
+
 ######################################################################
 # Other service specific knobs ...
  
@@ -40,6 +44,6 @@ policy = fixed
 # ttl_short=1
  
 # specify policy to use when assigning services
-# policy = [load-balance | round-robin | fixed]
+# policy = [load-balance | round-robin | fixed | chash]
 ######################################################################
 """)
