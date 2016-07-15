@@ -42,6 +42,14 @@ class DatabaseCommon(ContrailSetup):
             local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %
                   (listen_ip, hosts_entry))
 
+    def fixup_datastax_config_file(self, opscenter_ip):
+        DATASTAX_CONF = '/var/lib/datastax-agent/conf'
+        DATASTAX_CONF_FILE = 'address.yaml'
+        conf_file = os.path.join(DATASTAX_CONF,DATASTAX_CONF_FILE)
+        local("sudo mkdir -p %s" % DATASTAX_CONF)
+        local("sudo echo \"stomp_interface: %s\" > %s" % (opscenter_ip,conf_file))
+        local("sudo echo \"use_ssl: 0\" >> %s", conf_file)
+    
     def fixup_cassandra_config_file(self, listen_ip, seed_list, data_dir,
                                     ssd_data_dir, cluster_name='Contrail',
                                     user=None):
