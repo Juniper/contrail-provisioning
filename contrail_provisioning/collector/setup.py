@@ -130,7 +130,8 @@ class CollectorSetup(ContrailSetup):
     # end fixup_analytics_daemon_ini_file
 
     def fixup_ini_files(self):
-        self.fixup_analytics_daemon_ini_file('contrail-collector')
+        self.fixup_analytics_daemon_ini_file('contrail-collector',
+            ['/etc/contrail/contrail-keystone-auth.conf'])
         self.fixup_analytics_daemon_ini_file('contrail-query-engine')
         self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
             ['/etc/contrail/contrail-keystone-auth.conf'])
