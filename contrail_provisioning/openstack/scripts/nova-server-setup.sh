@@ -197,6 +197,9 @@ openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
 if [ "$INTERNAL_VIP" != "none" ]; then
     # must set SQL connection before running nova-manage
     openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
+    if [ $is_mitaka_or_above -eq 1 ];then
+        openstack-config --set /etc/nova/nova.conf api_database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova_api
+    fi
 fi
 
 for APP in nova; do
@@ -218,10 +221,10 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_protocol http
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host 127.0.0.1
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
-    openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol http
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host 127.0.0.1
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 done
 
 openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
@@ -263,7 +266,7 @@ if [ $is_ubuntu -eq 1 ] ; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         else 
             if [ $is_mitaka_or_above -eq 1 ]; then
-                openstack-config --delete /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+                openstack-config --del /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
                 openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron True
             else
                 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
@@ -352,7 +355,6 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_max_attempts 10
-    openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SERVICE_DBPASS@$INTERNAL_VIP:33306/nova
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
     openstack-config --set /etc/nova/nova.conf database min_pool_size 100
     openstack-config --set /etc/nova/nova.conf database max_pool_size 350
