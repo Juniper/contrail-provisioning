@@ -175,10 +175,10 @@ class WebuiSetup(ContrailSetup):
                  local("sudo mv config.global.js.new /etc/contrail/config.global.js")
                  local("sudo sed \"s/config.staticAuth\[0].password.*/config.staticAuth\[0].password = '" + admin_password + "';/g\" /etc/contrail/config.global.js > config.global.js.new")
                  local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-                 local("sudo sed \"s/config.staticAuth\[0].roles.*/config.staticAuth\[0].roles = ['superAdmin'];/g\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo sed \"s/config.staticAuth\[0].roles.*/config.staticAuth\[0].roles = ['cloudAdmin'];/g\" /etc/contrail/config.global.js > config.global.js.new")
                  local("sudo mv config.global.js.new /etc/contrail/config.global.js")
               else:
-                 local("sudo sed \"/config.multi_tenancy.enable/ a \\\n// staticAuth\\nconfig.staticAuth = [];\\nconfig.staticAuth[0] = {};\\nconfig.staticAuth[0].username = '" + admin_user + "';\\nconfig.staticAuth[0].password = '" + admin_password + "';\\nconfig.staticAuth[0].roles = ['superAdmin'];\" /etc/contrail/config.global.js > config.global.js.new")
+                 local("sudo sed \"/config.multi_tenancy.enable/ a \\\n// staticAuth\\nconfig.staticAuth = [];\\nconfig.staticAuth[0] = {};\\nconfig.staticAuth[0].username = '" + admin_user + "';\\nconfig.staticAuth[0].password = '" + admin_password + "';\\nconfig.staticAuth[0].roles = ['cloudAdmin'];\" /etc/contrail/config.global.js > config.global.js.new")
                  local("sudo mv config.global.js.new /etc/contrail/config.global.js")
 
         if self._args.orchestrator == 'none':
