@@ -199,7 +199,11 @@ class DatabaseMigrate(ContrailSetup):
                 self.force_stop_cassandra()
                 local('sleep 5')
 
-            self.fixup_cassandra_config_files()
+            self.fixup_cassandra_config_file(self.database_listen_ip,
+                                             self.database_seed_list,
+                                             self._args.data_dir,
+                                             self._args.ssd_data_dir,
+                                             cluster_name='Contrail')
             local('chown -R cassandra: /var/lib/cassandra/')
             local('chown -R cassandra: /var/log/cassandra/')
             local('service cassandra start;sleep 5')
