@@ -15,6 +15,7 @@
 # under the License.
 
 
+source /opt/contrail/bin/contrail-lib.sh
 CONF_DIR=/etc/contrail
 set -x
 
@@ -22,10 +23,12 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   mysql_svc=mysqld
+   mysql_svc=$(get_mysql_service_name)
    os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
+   openstack_services_contrail=''
+   openstack_services_cinder='openstack-cinder-api openstack-cinder-scheduler'
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -36,28 +39,14 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    os_cinder=$(dpkg-query -W -f='${Version}' cinder-api)
    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1')")
+   openstack_services_contrail='supervisor-openstack'
+   openstack_services_cinder='cinder-api cinder-scheduler'
 fi
 echo "$0: Openstack Cinder Version: ( $os_cinder )"
 
-function error_exit
-{
-    echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
-    exit ${3:-1}
-}
-
-chkconfig $mysql_svc 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
-    echo "MySQL is not enabled, enabling ..."
-    chkconfig $mysql_svc on 2>/dev/null
-fi
-
-mysql_status=`service $mysql_svc status 2>/dev/null`
-if [[ $mysql_status != *running* ]]; then
-    echo "MySQL is not active, starting ..."
-    service $mysql_svc restart 2>/dev/null
-fi
-
+# Make sure mysql service is enabled
+update_services enable $mysql_svc
+update_services start $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -147,35 +136,13 @@ for svc in cinder; do
 done
 
 echo "======= Enabling the services ======"
-
-for svc in $web_svc memcached; do
-    chkconfig $svc on
-done
-
-for svc in supervisor-openstack; do
-    chkconfig $svc on
-done
+update_services enable $web_svc memcached $openstack_services_contrail $openstack_services_cinder
 
 echo "======= Starting the services ======"
-
-for svc in $web_svc memcached; do
-    service $svc restart
-done
+update_services start $web_svc memcached
 
 # Listen at supervisor-openstack port
-status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
-if [ $status == 'stopped' ]; then
-    service supervisor-openstack start
-    sleep 5
-    if [ -e /tmp/supervisord_openstack.sock ]; then
-        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
-    else
-        supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
-    fi
-fi
+listen_on_supervisor_openstack_port
 
 # Start cinder services
-for svc in cinder-api cinder-scheduler; do
-    service $svc restart
-done
-
+update_services restart $openstack_services_cinder

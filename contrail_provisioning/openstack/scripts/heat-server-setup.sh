@@ -15,6 +15,7 @@
 # under the License.
 
 
+source /opt/contrail/bin/contrail-lib.sh
 CONF_DIR=/etc/contrail
 set -x
 
@@ -22,7 +23,9 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   mysql_svc=mysqld
+   mysql_svc=$(get_mysql_service_name)
+   openstack_services_contrail=''
+   openstack_services_heat='openstack-heat-api openstack-heat-api-cfn openstack-heat-engine'
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -30,27 +33,13 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
+   openstack_services_contrail='supervisor-openstack'
+   openstack_services_heat='heat-api heat-api-cfn heat-engine'
 fi
 
-function error_exit
-{
-    echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
-    exit ${3:-1}
-}
-
-chkconfig $mysql_svc 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
-    echo "MySQL is not enabled, enabling ..."
-    chkconfig $mysql_svc on 2>/dev/null
-fi
-
-mysql_status=`service $mysql_svc status 2>/dev/null`
-if [[ $mysql_status != *running* ]]; then
-    echo "MySQL is not active, starting ..."
-    service $mysql_svc restart 2>/dev/null
-fi
-
+# Make sure mysql service is enabled
+update_services enable $mysql_svc
+update_services start $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -166,25 +155,11 @@ for APP in heat; do
 done
 
 echo "======= Enabling the services ======"
-for svc in supervisor-openstack; do
-    chkconfig $svc on
-done
+update_services enable $openstack_services_contrail $openstack_services_heat
 
 # Listen at supervisor-openstack port
-status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
-if [ $status == 'stopped' ]; then
-    service supervisor-openstack start
-    sleep 5
-    if [ -e /tmp/supervisord_openstack.sock ]; then
-        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
-    else
-        supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
-    fi
-fi
+listen_on_supervisor_openstack_port
 
 # Start heat services
 echo "======= Starting the services ======"
-for svc in heat-api heat-api-cfn heat-engine; do
-    service $svc restart
-done
-
+update_services restart $openstack_services_heat
