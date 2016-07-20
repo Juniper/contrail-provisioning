@@ -69,6 +69,7 @@ setup(
     },
     scripts = [
                # Common executables
+               'contrail_provisioning/common/scripts/contrail-lib.sh',
                'contrail_provisioning/common/scripts/setup-pki.sh',
                'contrail_provisioning/common/scripts/contrail-rmq-monitor.sh',
                'contrail_provisioning/common/scripts/contrail-ha-check.sh',
