@@ -19,6 +19,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         OpenstackSetup.__init__(self)
 
         self.update_upgrade_data()
+        if self.pdist not in ['Ubuntu']:
+            self.openstack_services = ['supervisor-openstack']
+        else:
+            self.openstack_services = ['openstack-cinder-api', 'openstack-cinder-scheduler',
+                                       'openstack-glance-api', 'openstack-glance-registry',
+                                       'openstack-heat-api', 'openstack-heat-engine',
+                                       'openstack-keystone', 'openstack-nova-api',
+                                       'openstack-nova-conductor', 'openstack-nova-consoleauth',
+                                       'openstack-nova-novncproxy', 'openstack-nova-scheduler']
 
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
@@ -44,13 +53,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
 
     def stop(self):
         with settings(warn_only=True):
-            if ('running' in
-                    local('service supervisor-openstack status',
-                          capture=True)):
-                local('service supervisor-openstack stop')
+            for service in self.openstack_services:
+                if ('running' in
+                        local('service %s status' % service,
+                              capture=True)):
+                    local('service %s stop' % service)
 
     def restart(self):
-        local('service supervisor-openstack restart')
+        for service in self.openstack_services:
+            local('service %s restart' % service)
 
     def fix_cmon_param_file(self):
         with settings(warn_only=True):
