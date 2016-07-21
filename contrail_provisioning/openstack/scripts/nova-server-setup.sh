@@ -367,6 +367,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf database pool_timeout 120
     openstack-config --set /etc/nova/nova.conf DEFAULT disable_process_locking True
     openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
+    openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
 fi
 
 # Openstack and contrail in different nodes.
