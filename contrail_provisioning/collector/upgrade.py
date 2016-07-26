@@ -54,7 +54,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             self.fixup_contrail_topology()
             # Create contrail-keystone-auth.conf
             if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
-                self.fixup_keystone_auth_config_file()
+                self.fixup_keystone_auth_config_file(False)
 
         # From 3.0:
         # 1. Alarmgen is enabled by default.
