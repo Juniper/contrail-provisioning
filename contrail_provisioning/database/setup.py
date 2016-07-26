@@ -66,6 +66,7 @@ class DatabaseSetup(DatabaseCommon):
         parser.add_argument("--node_to_delete", help = "The DB node to remove from the cluster")
         parser.add_argument("--cassandra_user", help = "Cassandra user name if provided")
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
+        parser.add_argument("--opscenter_ip", help = "IP Address of webui/opscenter node")
         self._args = parser.parse_args(self.remaining_argv)
 
     def create_analytics_data_dir(self, data_dir, cass_data_dir,
@@ -125,6 +126,7 @@ class DatabaseSetup(DatabaseCommon):
                                          self._args.data_dir,
                                          self._args.ssd_data_dir,
                                          cluster_name='Contrail')
+        self.fixup_datastax_config_file(self._args.opscenter_ip)
         self.setup_analytics_data_dir()
         self.fixup_cassandra_env_config()
 
