@@ -34,7 +34,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_keyfile': None,
             'keystone_cafile': None,
             'keystone_auth_port': '35357',
-            'aaa_mode': 'cloud-admin-only',
+            'aaa_mode': 'cloud-admin',
             'keystone_version': 'v2.0',
             'apiserver_insecure': False,
             'apiserver_certfile': None,
@@ -110,7 +110,9 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--keystone_keyfile", help="")
         parser.add_argument("--keystone_cafile", help="")
         parser.add_argument("--aaa_mode", help="AAA mode",
-            choices=['no-auth', 'cloud-admin-only'])
+            choices=['no-auth', 'cloud-admin', 'cloud-admin-only'])
+        parser.add_argument("--cloud_admin_role",
+            help="Name of cloud-admin role")
         parser.add_argument("--cassandra_user", help="Cassandra user name",
             default= None)
         parser.add_argument("--cassandra_password", help="Cassandra password",
@@ -134,7 +136,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_topology()
         self.fixup_contrail_analytics_nodemgr()
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
-            self.fixup_keystone_auth_config_file()
+            self.fixup_keystone_auth_config_file(False)
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_alarm_gen()
         self.fixup_cassandra_config()
@@ -346,7 +348,7 @@ class CollectorSetup(ContrailSetup):
             'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
-            'aaa_mode' : self._args.aaa_mode,
+            'aaa_mode' : 'cloud-admin' if self._args.aaa_mode == 'cloud-admin-only' else self._args.aaa_mode,
             'api_server_use_ssl': 'True' if self.api_ssl_enabled else 'False',
             },
           'REDIS' : {
@@ -360,6 +362,8 @@ class CollectorSetup(ContrailSetup):
         }
         if self._args.redis_password:
             config_vals['REDIS']['redis_password'] = self._args.redis_password
+        if self._args.cloud_admin_role:
+            config_vals['DEFAULTS']['cloud_admin_role'] = self._args.cloud_admin_role
         for section, parameter_values in config_vals.items():
             for parameter, value in parameter_values.items():
                 self.set_config(conf_file, section, parameter, value)
