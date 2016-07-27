@@ -49,9 +49,16 @@ class OpenstackSetup(ContrailSetup):
         if self.pdist in ['Ubuntu']:
             self.mysql_conf = '/etc/mysql/my.cnf'
             self.mysql_svc = 'mysql'
-        elif self.pdist in ['centos', 'redhat']:
+            self.openstack_services = ['supervisor-openstack']
+        elif self.pdist in ['centos', 'redhat', 'centoslinux']:
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
+            self.openstack_services = ['openstack-cinder-api', 'openstack-cinder-scheduler',
+                                      'openstack-glance-api', 'openstack-glance-registry',
+                                      'openstack-heat-api', 'openstack-heat-engine',
+                                      'openstack-keystone', 'openstack-nova-api',
+                                      'openstack-nova-conductor', 'openstack-nova-consoleauth',
+                                      'openstack-nova-novncproxy', 'openstack-nova-scheduler']
         self.mysql_redo_log_sz='5242880'
 
     def parse_args(self, args_str):
@@ -246,7 +253,8 @@ class OpenstackSetup(ContrailSetup):
                 local("dpkg -l | grep contrail-heat").succeeded):
                 local("sudo heat-server-setup.sh")
         local("service %s restart" % self.mysql_svc)
-        local("service supervisor-openstack restart")
+        for service in self.openstack_services:
+            local("service %s restart" % service)
 
     def setup(self):
         self.disable_selinux()
