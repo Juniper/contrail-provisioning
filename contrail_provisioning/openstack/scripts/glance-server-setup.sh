@@ -15,6 +15,7 @@
 # under the License.
 
 
+source /opt/contrail/bin/contrail-lib.sh
 CONF_DIR=/etc/contrail
 set -x
 
@@ -22,8 +23,10 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   mysql_svc=mysqld
+   mysql_svc=$(get_mysql_service_name)
    glance_ver=`rpm -q --qf  "%{VERSION}\n" openstack-glance`
+   openstack_services_contrail=''
+   openstack_services_glance='openstack-glance-api openstack-glance-registry'
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -33,45 +36,13 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    mysql_svc=mysql
    glance_api_ver=`dpkg -l | grep 'ii' | grep glance-api | awk '{print $3}'`
    echo $glance_api_ver
+   openstack_services_contrail='supervisor-openstack'
+   openstack_services_glance='glance-api glance-registry'
 fi
 
-function is_installed_rpm_greater() {
-    package_name=$1
-    read ref_epoch ref_version ref_release <<< $2
-    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
-    if [ $? != 0 ]; then
-        echo "ERROR: Seems $package_name is not installed"
-        return 2
-    fi
-    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
-    verdict=$(python -c "import sys,rpm; \
-        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
-    if [[ $verdict -ge 0 ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-function error_exit
-{
-    echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
-    exit ${3:-1}
-}
-
-chkconfig $mysql_svc 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
-    echo "MySQL is not enabled, enabling ..."
-    chkconfig $mysql_svc on 2>/dev/null
-fi
-
-mysql_status=`service $mysql_svc status 2>/dev/null`
-if [[ $mysql_status != *running* ]]; then
-    echo "MySQL is not active, starting ..."
-    service $mysql_svc restart 2>/dev/null
-fi
-
+# Make sure mysql service is enabled
+update_services enable $mysql_svc
+update_services restart $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -207,34 +178,13 @@ if [ "$OPENSTACK_INDEX" -eq 1 ]; then
 fi
 
 echo "======= Enabling the services ======"
-
-for svc in $web_svc memcached; do
-    chkconfig $svc on
-done
-
-for svc in supervisor-openstack; do
-    chkconfig $svc on
-done
+update_services enable $web_svc memcached $openstack_services_contrail $openstack_services_glance
 
 echo "======= Starting the services ======"
-
-for svc in $web_svc memcached; do
-    service $svc restart
-done
+update_services restart $web_svc memcached
 
 # Listen at supervisor-openstack port
-status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
-if [ $status == 'stopped' ]; then
-    service supervisor-openstack start
-    sleep 5
-    if [ -e /tmp/supervisord_openstack.sock ]; then
-        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
-    else
-        supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
-    fi
-fi
+listen_on_supervisor_openstack_port
 
 # Start glance services
-for svc in glance-api glance-registry; do
-    service $svc restart
-done
+update_services restart $openstack_services_glance
