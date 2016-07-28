@@ -176,6 +176,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
+        self.setup_cassandra()
         self.fixup_config_files()
         self.build_ctrl_details()
         self.run_services()
