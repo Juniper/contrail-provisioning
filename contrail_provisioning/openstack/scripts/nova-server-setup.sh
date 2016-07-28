@@ -93,8 +93,8 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
         openstack-config --del /etc/nova/nova.conf DEFAULT quantum_url
    fi
    openstack_services_contrail='supervisor-openstack'
-   openstack_services_nova='nova-api nova-objectstore nova-scheduler
-                            nova-cert nova-console nova-consoleauth
+   openstack_services_nova='nova-api nova-scheduler
+                            nova-console nova-consoleauth
                             nova-novncproxy nova-conductor'
 fi
 
