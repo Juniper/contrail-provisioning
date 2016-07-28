@@ -5,20 +5,17 @@
 
 import os
 import sys
-import argparse
-import ConfigParser
 import re
 import time
 import subprocess
 
 from fabric.api import *
 
-from contrail_provisioning.common.base import ContrailSetup
+from contrail_provisioning.database.base import DatabaseCommon
 from contrail_provisioning.database.templates import contrail_database_nodemgr_template
-from contrail_provisioning.database.templates import database_nodemgr_param_template
 from contrail_provisioning.database.templates import cassandra_create_user_template
  
-class DatabaseSetup(ContrailSetup):
+class DatabaseSetup(DatabaseCommon):
     def __init__(self, args_str = None):
         super(DatabaseSetup, self).__init__()
         self._args = None
@@ -71,141 +68,65 @@ class DatabaseSetup(ContrailSetup):
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         self._args = parser.parse_args(self.remaining_argv)
 
-    def fixup_cassandra_config_files(self):
-        if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
-            CASSANDRA_CONF = '/etc/cassandra/conf'
-            CASSANDRA_CONF_FILE = 'cassandra.yaml'
-            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
-        if self.pdist == 'Ubuntu':
-            CASSANDRA_CONF = '/etc/cassandra/'
-            CASSANDRA_CONF_FILE = 'cassandra.yaml'
-            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
+    def create_analytics_data_dir(self, data_dir, cass_data_dir,
+                                  analytics_dir, analytics_dir_link=None):
+        if analytics_dir_link:
+            verify_dir = analytics_dir_link
+        else:
+            verify_dir = analytics_dir
+        if not os.path.exists(verify_dir):
+            if not os.path.exists(data_dir):
+                local("sudo mkdir -p %s" % (data_dir))
+                local("sudo chown -R cassandra: %s" % (data_dir))
+            if not os.path.exists(cass_data_dir):
+                local("sudo mkdir -p %s" % (cass_data_dir))
+                local("sudo chown -R cassandra: %s" % (cass_data_dir))
+            if not os.path.exists(analytics_dir):
+                local("sudo mkdir -p %s" % (analytics_dir))
+                local("sudo chown -R cassandra: %s" % (analytics_dir))
+            if analytics_dir_link:
+                local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
+                local("sudo chown -h cassandra: %s" % (analytics_dir_link))
+
+    def setup_analytics_data_dir(self):
+        data_dir = self._args.data_dir
+        analytics_data_dir = self._args.analytics_data_dir
         if self.is_cql_supported():
             CASSANDRA_ANALYTICS_KEYSPACE = 'ContrailAnalyticsCql'
         else:
             CASSANDRA_ANALYTICS_KEYSPACE = 'ContrailAnalytics'
-        listen_ip = self.database_listen_ip
-        cassandra_dir = self.database_dir
-        initial_token = self._args.initial_token
-        seed_list = self.database_seed_list
-        data_dir = self._args.data_dir
-        analytics_data_dir = self._args.analytics_data_dir
-        ssd_data_dir = self._args.ssd_data_dir
-        if not cassandra_dir:
-            raise RuntimeError('Undefined cassandra directory')
-        conf_dir = CASSANDRA_CONF
-        cnd = os.path.exists(conf_dir)
-        conf_file = os.path.join(conf_dir, CASSANDRA_CONF_FILE)
-        cnd = cnd and os.path.exists(conf_file)
-        if not cnd:
-            raise RuntimeError('%s does not appear to be a cassandra source directory' % cassandra_dir)
-
-        self.replace_in_file(conf_file, 'listen_address: ', 'listen_address: ' + listen_ip)
-        self.replace_in_file(conf_file, 'cluster_name: ', 'cluster_name: \'Contrail\'')
-        self.replace_in_file(conf_file, 'rpc_address: ', 'rpc_address: ' + listen_ip)
-        self.replace_in_file(conf_file, '# num_tokens: 256', 'num_tokens: 256')
-        self.replace_in_file(conf_file, 'initial_token:', '# initial_token:')
-        self.replace_in_file(conf_file, 'compaction_throughput_mb_per_sec: 16', 'compaction_throughput_mb_per_sec: 96')
-        if self._args.cassandra_user is not None:
-            self.replace_in_file(conf_file,'authenticator: AllowAllAuthenticator','authenticator: PasswordAuthenticator')
-        if data_dir:
-            saved_cache_dir = os.path.join(data_dir, 'saved_caches')
-            self.replace_in_file(conf_file, 'saved_caches_directory:', 'saved_caches_directory: ' + saved_cache_dir)
-            commit_log_dir = os.path.join(data_dir, 'commitlog')
-            self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
+        if not data_dir:
+            data_dir = '/var/lib/cassandra'
             cass_data_dir = os.path.join(data_dir, 'data')
-            self.replace_in_file(conf_file, '    - /var/lib/cassandra/data', '    - ' + cass_data_dir)
-        if ssd_data_dir:
-            commit_log_dir = os.path.join(ssd_data_dir, 'commitlog')
-            self.replace_in_file(conf_file, 'commitlog_directory:', 'commitlog_directory: ' + commit_log_dir)
-            if not os.path.exists(ssd_data_dir):
-                local("sudo mkdir -p %s" % (ssd_data_dir))
-                local("sudo chown -R cassandra: %s" % (ssd_data_dir))
-        if analytics_data_dir:
-            if not data_dir:
-                data_dir = '/var/lib/cassandra'
-                cass_data_dir = os.path.join(data_dir, 'data')
-            else:
-                cass_data_dir = data_dir
-            analytics_dir_link = os.path.join(cass_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
-            analytics_dir = os.path.join(analytics_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
-            if not os.path.exists(analytics_dir_link):
-                if not os.path.exists(data_dir):
-                    local("sudo mkdir -p %s" % (data_dir))
-                    local("sudo chown -R cassandra: %s" % (data_dir))
-                if not os.path.exists(cass_data_dir):
-                    local("sudo mkdir -p %s" % (cass_data_dir))
-                    local("sudo chown -R cassandra: %s" % (cass_data_dir))
-                if not os.path.exists(analytics_dir):
-                    local("sudo mkdir -p %s" % (analytics_dir))
-                    local("sudo chown -R cassandra: %s" % (analytics_dir))
-                local("sudo ln -s %s %s" % (analytics_dir, analytics_dir_link))
-                local("sudo chown -h cassandra: %s" % (analytics_dir_link))
         else:
-            if not data_dir:
-                data_dir = '/var/lib/cassandra'
-                cass_data_dir = os.path.join(data_dir, 'data')
-            else:
-                cass_data_dir = data_dir
-            analytics_dir = os.path.join(cass_data_dir, CASSANDRA_ANALYTICS_KEYSPACE)
-            if not os.path.exists(analytics_dir):
-                if not os.path.exists(data_dir):
-                    local("sudo mkdir -p %s" % (data_dir))
-                    local("sudo chown -R cassandra: %s" % (data_dir))
-                if not os.path.exists(cass_data_dir):
-                    local("sudo mkdir -p %s" % (cass_data_dir))
-                    local("sudo chown -R cassandra: %s" % (cass_data_dir))
-                local("sudo mkdir -p %s" % (analytics_dir))
-                local("sudo chown -R cassandra: %s" % (analytics_dir))
+            cass_data_dir = data_dir
+        if analytics_data_dir:
+            analytics_dir_link = os.path.join(cass_data_dir,
+                                              CASSANDRA_ANALYTICS_KEYSPACE)
+            analytics_dir = os.path.join(analytics_data_dir,
+                                         CASSANDRA_ANALYTICS_KEYSPACE)
+            self.create_analytics_data_dir(data_dir, cass_data_dir,
+                                           analytics_dir, analytics_dir_link)
+        else:
+            analytics_dir = os.path.join(cass_data_dir,
+                                         CASSANDRA_ANALYTICS_KEYSPACE)
+            self.create_analytics_data_dir(data_dir, cass_data_dir,
+                                           analytics_dir)
 
         disk_cmd = "df -Pk " + analytics_dir + " | grep % | awk '{print $2}'"
         total_disk = local(disk_cmd, capture = True).strip()
         if (int(total_disk)/(1024*1024) < int(self._args.minimum_diskGB)):
             raise RuntimeError('Minimum disk space for analytics db is not met')
 
-        if seed_list:
-            self.replace_in_file(conf_file, '          - seeds: ', '          - seeds: "' + ", ".join(seed_list) + '"')
-
-        env_file = os.path.join(conf_dir, CASSANDRA_ENV_FILE)
-        cnd = os.path.exists(env_file)
-        if not cnd:
-            raise RuntimeError('%s does not appear to be a cassandra source directory' % cassandra_dir)
-
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDetails\"/g' %s" \
-              % (env_file))
-        if  (self.pdist == 'centos' and self.pdistversion >= '6.5') or self.pdist == 'redhat':
-            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss.*\"/JVM_OPTS=\"\$JVM_OPTS -Xss228k\"/g' %s" \
-              % (env_file))
-        else:
-            local("sudo sed -i 's/JVM_OPTS=\"\$JVM_OPTS -Xss.*\"/JVM_OPTS=\"\$JVM_OPTS -Xss512k\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCDateStamps\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintHeapAtGC\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintTenuringDistribution\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintGCApplicationStoppedTime\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/JVM_OPTS=\"\$JVM_OPTS -XX:+PrintPromotionFailure\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/JVM_OPTS=\"\$JVM_OPTS -XX:PrintFLSStatistics=1\"/g' %s" \
-              % (env_file))
-        local("sudo sed -i 's/# JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/JVM_OPTS=\"\$JVM_OPTS -Xloggc:\/var\/log\/cassandra\/gc-`date +%%s`.log\"/g' %s" \
-              % (env_file))
-        # change < to -lt for numeric comparison
-        local("sudo sed -i 's/if \\[ \\\"\\$JVM_VERSION\\\" \\\\< \\\"1.8\\\" \\] && \\[ \\\"\\$JVM_PATCH_VERSION\\\" \\\\< \\\"25\\\" \\] ; \
-then/if [ \"\\$JVM_VERSION\" \\\\< \"1.8\" ] \\&\\& [ \"\\$JVM_PATCH_VERSION\" -lt \"25\" ] ; then/g' %s" % (env_file))
-        local("sudo sed -i 's/MaxTenuringThreshold=.*\"/MaxTenuringThreshold=30\"/g' %s" % (env_file))
-
     def fixup_config_files(self):
-        # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution failing at bootup (Cassandra can fail)
-        hosts_entry = '%s %s' %(self.database_listen_ip, self.hostname)
-        with settings( warn_only= True) :
-            local('grep -q \'%s\' /etc/hosts || echo \'%s\' >> /etc/hosts' %(self.database_listen_ip, hosts_entry))
-
-        self.fixup_cassandra_config_files()
-
+        self.fixup_etc_hosts_file(self.database_listen_ip, self.hostname)
+        self.fixup_cassandra_config_file(self.database_listen_ip,
+                                         self.database_seed_list,
+                                         self._args.data_dir,
+                                         self._args.ssd_data_dir,
+                                         cluster_name='Contrail')
+        self.setup_analytics_data_dir()
+        self.fixup_cassandra_env_config()
 
         self.fixup_contrail_database_nodemgr()
 
@@ -329,17 +250,8 @@ then/if [ \"\\$JVM_VERSION\" \\\\< \"1.8\" ] \\&\\& [ \"\\$JVM_PATCH_VERSION\" -
         local('sudo service zookeeper restart')
 
     def update_seed_list(self):
-        if self.pdist == 'fedora' or self.pdist == 'centos' or self.pdist == 'redhat':
-            CASSANDRA_CONF = '/etc/cassandra/conf'
-            CASSANDRA_CONF_FILE = 'cassandra.yaml'
-            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
-        if self.pdist == 'Ubuntu':
-            CASSANDRA_CONF = '/etc/cassandra/'
-            CASSANDRA_CONF_FILE = 'cassandra.yaml'
-            CASSANDRA_ENV_FILE = 'cassandra-env.sh'
-        conf_dir = CASSANDRA_CONF
-        cnd = os.path.exists(conf_dir)
-        conf_file = os.path.join(conf_dir, CASSANDRA_CONF_FILE)
+        conf_dir = self.cassandra.conf_dif
+        conf_file = os.path.join(conf_dir, self.cassandra.conf_file)
 
         if self._args.seed_list:
             self.replace_in_file(conf_file, '          - seeds:*', '          - seeds: "' + ", ".join(self._args.seed_list) + '"')
