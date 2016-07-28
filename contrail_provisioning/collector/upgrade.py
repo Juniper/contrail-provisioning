@@ -133,7 +133,7 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 self._args.to_rel >= LooseVersion('3.1')):
             analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
             self.set_config(analytics_api_conf, 'DEFAULTS',
-                'multi_tenancy', self._args.multi_tenancy)
+                'aaa_mode', self._args.aaa_mode)
             self.set_config(analytics_api_conf, 'DEFAULTS', 'api_server',
                 self._args.cfgm_ip + ':8082')
             self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
