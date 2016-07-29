@@ -30,7 +30,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_service_tenant_name' : 'service',
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
-            'aaa_mode': 'cloud-admin-only',
+            'aaa_mode': 'cloud-admin',
             'keystone_version': 'v2.0',
         }
 
@@ -88,7 +88,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
         parser.add_argument("--aaa_mode", help="AAA mode",
-            choices=['no-auth', 'cloud-admin-only'])
+            choices=['no-auth', 'cloud-admin', 'cloud-admin-only'])
         parser.add_argument("--cassandra_user", help="Cassandra user name",
             default= None)
         parser.add_argument("--cassandra_password", help="Cassandra password",
@@ -315,7 +315,7 @@ class CollectorSetup(ContrailSetup):
             'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
-            'aaa_mode' : self._args.aaa_mode,
+            'aaa_mode' : 'cloud-admin' if self._args.aaa_mode == 'cloud-admin-only' else self._args.aaa_mode,
             },
           'REDIS' : {
             'redis_server_port' : 6379,
