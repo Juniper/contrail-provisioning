@@ -27,6 +27,9 @@ try:
 except ImportError:
     pass
 
+from contrail_provisioning.common.templates import vlan_egress_map
+
+
 logging.basicConfig(format='%(asctime)-15s:: %(funcName)s:%(levelname)s::\
                             %(message)s',
                     level=logging.INFO)
@@ -148,7 +151,8 @@ class BaseInterface(object):
                'NM_CONTROLLED' : 'no',
                'NETMASK'       : self.netmask,
                'IPADDR'        : self.ipaddr,
-               'VLAN'          : 'yes'
+               'VLAN'          : 'yes',
+               'VLAN_EGRESS_PRIORITY_MAP' : '0:0,1:1,2:2,3:3,4:4,5:5,6:6,7:7',
               }
         if self.gw:
             cfg['GATEWAY'] = self.gw
@@ -541,6 +545,18 @@ class UbuntuInterface(BaseInterface):
                            %(self.device, each, each))
             self.write_network_script(each, cfg)
 
+    def get_vlan_egress_map_script(self, interface):
+        vlan_egress_map_config = \
+                vlan_egress_map.template.safe_substitute(
+                        {'__interface__' : interface})
+        egress_map_script = '/opt/contrail/bin/vconfig-%s' % interface
+        with open(egress_map_script, 'w+') as fd:
+            fd.write(vlan_egress_map_config)
+            fd.flush()
+        os.chmod(egress_map_script, 0755)
+
+        return egress_map_script
+
     def create_vlan_interface(self):
         '''Create interface config for vlan sub interface'''
         interface = "%s.%s"%(self.device, self.vlan)
@@ -548,7 +564,8 @@ class UbuntuInterface(BaseInterface):
                'iface %s inet static' %interface,
                'address %s' %self.ipaddr,
                'netmask  %s' %self.netmask,
-               'vlan-raw-device %s' %self.device]
+               'vlan-raw-device %s' %self.device,
+               'post-up %s' % self.get_vlan_egress_map_script(interface)]
         if self.gw:
             cfg.append('gateway %s' %self.gw)
         self.write_network_script(interface, cfg)
