@@ -47,6 +47,7 @@ class ConfigSetup(ContrailSetup):
             'orchestrator' : 'openstack',
             'amqp_port': '5672',
             'control_ip_list': '',
+            'cloud_admin_role': 'admin',
         }
         self.parse_args(args_str)
 
@@ -124,6 +125,8 @@ class ConfigSetup(ContrailSetup):
             default= None)
         parser.add_argument("--cassandra_password", help = "Cassandra password",
             default= None)
+        parser.add_argument("--cloud_admin_role",
+            help="Name of cloud-admin role")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:

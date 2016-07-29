@@ -135,6 +135,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
+                         '__contrail_cloud_admin_role__': self._args.cloud_admin_role,
                         }
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
