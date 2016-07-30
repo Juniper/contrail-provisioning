@@ -113,8 +113,8 @@ if [ $is_ubuntu -eq 1 ]; then
 fi
 
 # Make sure mysql service is enabled
-update_services enable $mysql_svc
-update_services start $mysql_svc
+update_services "action=enable" $mysql_svc
+update_services "action=restart" $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -377,13 +377,13 @@ if [ "$SRIOV_ENABLED" == "True" ] ; then
 fi
 
 echo "======= Enabling the services ======"
-update_services enable $web_svc memcached $openstack_services_contrail $openstack_services_nova
+update_services "action=enable" $web_svc memcached $openstack_services_contrail $openstack_services_nova
 
 echo "======= Starting the services ======"
-update_services restart $web_svc memcached
+update_services "action=restart" $web_svc memcached
 
 # Listen at supervisor-openstack port
 listen_on_supervisor_openstack_port
 
 # Start nova services
-update_services restart $openstack_services_nova
+update_services "action=restart" $openstack_services_nova

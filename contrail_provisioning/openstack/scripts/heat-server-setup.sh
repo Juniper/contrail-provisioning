@@ -38,8 +38,8 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
 fi
 
 # Make sure mysql service is enabled
-update_services enable $mysql_svc
-update_services restart $mysql_svc
+update_services "action=enable" $mysql_svc
+update_services "action=restart" $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -155,11 +155,11 @@ for APP in heat; do
 done
 
 echo "======= Enabling the services ======"
-update_services enable $openstack_services_contrail $openstack_services_heat
+update_services "action=enable" $openstack_services_contrail $openstack_services_heat
 
 # Listen at supervisor-openstack port
 listen_on_supervisor_openstack_port
 
 # Start heat services
 echo "======= Starting the services ======"
-update_services restart $openstack_services_heat
+update_services "action=restart" $openstack_services_heat

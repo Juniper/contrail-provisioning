@@ -39,8 +39,8 @@ else
 fi
 
 # Make sure mysql service is enabled
-update_services enable $mysql_svc
-update_services restart $mysql_svc
+update_services "action=enable" $mysql_svc
+update_services "action=restart" $mysql_svc
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -73,7 +73,7 @@ SERVICE_TOKEN=${SERVICE_TOKEN:-$(setup-service-token.sh; cat $CONF_DIR/service.t
 openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_TOKEN
 
 # Stop keystone if it is already running (to reload the new admin token)
-update_services stop $openstack_services_contrail $openstack_services_keystone
+update_services "action=stop;exit_on_error=false" $openstack_services_contrail $openstack_services_keystone
 
 # Listen at supervisor-openstack port
 listen_on_supervisor_openstack_port
@@ -280,10 +280,10 @@ if [ ! -f /usr/bin/nodejs ]; then
 fi
 
 echo "======= Enabling the keystone services ======"
-update_services enable $web_svc memcached $openstack_services_contrail $openstack_services_keystone
+update_services "action=enable" $web_svc memcached $openstack_services_contrail $openstack_services_keystone
 
 echo "======= Starting the services ======"
-update_services restart $web_svc memcached $openstack_services_contrail $openstack_services_keystone
+update_services "action=restart" $web_svc memcached $openstack_services_contrail $openstack_services_keystone
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
