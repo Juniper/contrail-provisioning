@@ -36,7 +36,8 @@ class ConfigSetup(ContrailSetup):
             'neutron_password': None,
             'service_token': '',
             'use_certs': False,
-            'multi_tenancy': True,
+            'cloud_admin_role': None,
+            'aaa_mode': None,
             'nworkers': '1',
             'haproxy': False,
             'region_name': None,
@@ -58,7 +59,7 @@ class ConfigSetup(ContrailSetup):
             --cassandra_ip_list 10.1.5.11 10.1.5.12 
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --nworkers 1
-            optional: --use_certs, --multi_tenancy --haproxy
+            optional: --use_certs, --aaa_mode --haproxy
                       --region_name <name> --internal_vip 10.1.5.100
         '''
         parser = self._parse_args(args_str)
@@ -72,8 +73,9 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--use_certs", help = "Use certificates for authentication (irond)",
             action="store_true")
-        parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
-            action="store_true")
+        parser.add_argument("--cloud_admin_role", help = "Name of cloud-admin role")
+        parser.add_argument("--aaa_mode", choices=['no-auth', 'cloud-admin', 'rbac'],
+            help = "Enable RBAC")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
