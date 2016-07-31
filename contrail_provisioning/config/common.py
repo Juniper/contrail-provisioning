@@ -115,8 +115,10 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_contrail_api_config_file(self):
         if self._args.orchestrator == 'vcenter':
             multi_tenancy_flag = False
+            aaa_mode = "no-auth"
         else:
             multi_tenancy_flag = self._args.multi_tenancy
+            aaa_mode = self._args.aaa_mode
         # contrail-api.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
@@ -135,6 +137,9 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
+                         '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
+                         '__contrail_aaa_mode__': "aaa_mode=%s" % aaa_mode if aaa_mode else '',
+
                         }
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')

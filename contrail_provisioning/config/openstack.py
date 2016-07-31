@@ -99,6 +99,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                          '__contrail_admin_user__': self._args.keystone_admin_user,
                          '__contrail_admin_password__': self._args.keystone_admin_passwd,
                          '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
+                         '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
+                         '__contrail_aaa_mode__': "aaa_mode=%s" % self._args.aaa_mode if self._args.aaa_mode else '',
+
                     }
         self._template_substitute_write(contrail_plugin_ini.template,
                                         template_vals, self._temp_dir_name + '/contrail_plugin.ini')

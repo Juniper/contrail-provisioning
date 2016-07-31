@@ -25,6 +25,9 @@ class ResetVncCfgm(object):
             setup_args_str = setup_args_str + " --use_certs"
         if self._args.multi_tenancy:
             setup_args_str = setup_args_str + " --multi_tenancy"
+        if self._args.aaa_mode is not None:
+            setup_args_str = setup_args_str + " --aaa_mode %s" % self._args.aaa_mode
+
         
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -77,6 +80,7 @@ class ResetVncCfgm(object):
             action="store_true")
         parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies token validation)",
             action="store_true")
+        parser.add_argument("--aaa_mode", help = "Enforce resource permissions")
 
         self._args = parser.parse_args(remaining_argv)
 

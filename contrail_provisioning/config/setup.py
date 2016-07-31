@@ -30,6 +30,8 @@ class ConfigSetup(ContrailSetup):
             'service_token': '',
             'use_certs': False,
             'multi_tenancy': True,
+            'cloud_admin_role': None,
+            'aaa_mode': None,
             'nworkers': '1',
             'haproxy': False,
             'manage_db': False,
@@ -73,6 +75,10 @@ class ConfigSetup(ContrailSetup):
             action="store_true")
         parser.add_argument("--multi_tenancy", help = "(Deprecated, defaults to True) Enforce resource permissions (implies token validation)",
             action="store_true")
+        parser.add_argument("--cloud_admin_role", help = "Name of cloud-admin role")
+        parser.add_argument("--aaa_mode", choices=['no-auth', 'cloud-admin', 'rbac'],
+            help = "Enable RBAC")
+
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
