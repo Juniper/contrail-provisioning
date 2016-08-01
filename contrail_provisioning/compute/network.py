@@ -52,13 +52,13 @@ class ComputeNetworkSetup(object):
             try:
                 if i == 'pkt1':
                     continue
-                if netifaces.ifaddresses (i).has_key (netifaces.AF_INET):
-                    if ip == netifaces.ifaddresses (i)[netifaces.AF_INET][0][
-                            'addr']:
-                        if i == 'vhost0':
-                             print "vhost0 is already present!"
-    #                        raise RuntimeError, 'vhost0 already running with %s'%ip
-                        return i
+                if netifaces.ifaddresses (i).has_key(netifaces.AF_INET):
+                    for interface in netifaces.ifaddresses(i)[netifaces.AF_INET]:
+                        if ip == interface['addr']:
+                            if i == 'vhost0':
+                                print "vhost0 is already present!"
+                                #raise RuntimeError, 'vhost0 already running with %s' % ip
+                            return i
             except ValueError,e:
                 print "Skipping interface %s" % i
         raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
