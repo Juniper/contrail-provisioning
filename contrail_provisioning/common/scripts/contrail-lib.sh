@@ -47,7 +47,7 @@ function update_services () {
     action=$1
     for service_name in "${@:2}"; do
         if [ $(is_ubuntu) == "False" ]; then
-            systemctl $1 "$service_name"
+            systemctl $action "$service_name"
         else
             if [ "$action" == "enable" ]; then
                 chkconfig $service_name on
