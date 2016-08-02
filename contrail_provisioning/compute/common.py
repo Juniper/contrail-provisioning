@@ -54,6 +54,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         else:
             # Deduce the phy interface from ip, if configured
             self.dev = self.get_device_by_ip(self.vhost_ip)
+        self.config_nova = not(getattr(self._args, 'no_nova_config', False))
 
     def enable_kernel_core(self): 
         self.enable_kernel_core()
@@ -146,7 +147,8 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                     local("sudo sed 's@dev=.*@dev=%s@g;s@vgw_subnet_ip=.*@vgw_subnet_ip=%s@g;s@vgw_intf=.*@vgw_intf=%s@g' /etc/contrail/agent_param.tmpl > agent_param.new" % 
                           (self.dev,vgw_public_subnet_str,vgw_intf_list_str))
                     local("sudo mv agent_param.new /etc/contrail/agent_param")
-                    local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
+                    if self.config_nova:
+                        local("openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver")
             else:
                 with lcd(self._temp_dir_name):
                     local("sudo sed 's/dev=.*/dev=%s/g' /etc/contrail/agent_param.tmpl > agent_param.new" % self.dev)
