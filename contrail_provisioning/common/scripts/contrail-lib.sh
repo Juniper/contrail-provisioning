@@ -57,7 +57,7 @@ function update_services () {
     exit_on_error=$(echo $exit_on_error | tr '[:upper:]' '[:lower:]')
     for service_name in "${@:2}"; do
         if [ $(is_ubuntu) == "False" ]; then
-            systemctl $1 "$service_name"
+            systemctl $action "$service_name"
         else
             if [ "$action" == "enable" ]; then
                 chkconfig $service_name on
