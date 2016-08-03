@@ -416,6 +416,7 @@ if [[ -n "$ENABLE_HEAT" ]]; then
     get_role heat_stack_user
     get_role heat_stack_owner
     HEAT_SERVICE=$(get_service heat orchestration "Orchestration Service")
+    HEAT_CFN_SERVICE=$(get_service heat-cfn cloudformation "Orchestration Service")
     HEAT_USER=$(get_service_user heat)
     if [ -z $(user_role_lookup $HEAT_USER $SERVICE_TENANT admin) ]; then
     keystone user-role-add --tenant-id $SERVICE_TENANT \
@@ -424,12 +425,18 @@ if [[ -n "$ENABLE_HEAT" ]]; then
     fi
 
     if [[ -n "$ENABLE_ENDPOINTS" ]]; then
-	if [ -z $(endpoint_lookup $HEAT_SERVICE) ]; then
+        if [ -z $(endpoint_lookup $HEAT_SERVICE) ]; then
         keystone endpoint-create --region $OS_REGION_NAME --service-id $HEAT_SERVICE \
             --publicurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s' \
             --adminurl 'http://'$CONTROLLER:'8004/v1/%(tenant_id)s' \
             --internalurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s'
-	fi
+        fi
+        if [ -z $(endpoint_lookup $HEAT_CFN_SERVICE) ]; then
+        keystone endpoint-create --region $OS_REGION_NAME --service-id $HEAT_CFN_SERVICE \
+            --publicurl 'http://'$CONTROLLER':8000/v1' \
+            --adminurl 'http://'$CONTROLLER:'8000/v1' \
+            --internalurl 'http://'$CONTROLLER':8000/v1'
+        fi
     fi
 fi
 
