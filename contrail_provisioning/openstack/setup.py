@@ -53,6 +53,8 @@ class OpenstackSetup(ContrailSetup):
         elif self.pdist in ['centos', 'redhat', 'centoslinux']:
             self.mysql_conf = '/etc/my.cnf'
             self.mysql_svc = 'mysqld'
+            if os.path.isfile('/usr/lib/systemd/system/mariadb.service'):
+                self.mysql_svc = 'mariadb'
             self.openstack_services = ['openstack-cinder-api', 'openstack-cinder-scheduler',
                                       'openstack-glance-api', 'openstack-glance-registry',
                                       'openstack-heat-api', 'openstack-heat-engine',
