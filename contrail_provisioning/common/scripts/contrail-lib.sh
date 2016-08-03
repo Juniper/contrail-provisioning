@@ -33,18 +33,28 @@ function listen_on_supervisor_openstack_port () {
 #
 # Update services for the given action with sytemctl or service
 # command based on its initsystem
-# Arguments:
+# Keyword Arguments:
 #     action - action to be applied to the service
 #              eg: enable, start, stop, restart...
+#     exit_on_error - exits the function in case of failure
+#                     Default: true
+# Arguments:
 #     services - one or list of services to be acted on
 #
 # Eg:
-# update_services enable keystone
-#     systemd: will run "systemctl enable keystone"
-#     sysv:    will run "chkconfig keystone on"
+# update_services "action=enable;exit_on_error=false" keystone
+#     systemd: will run "systemctl enable keystone" and ignores systemctl exit status
+#     sysv:    will run "chkconfig keystone on" and ignores systemctl exit status
 #
 function update_services () {
-    action=$1
+    exit_on_error=True
+    eval $1
+    if [[ -z $action ]] || [[ -z $exit_on_error ]]; then
+        echo "ERROR: One or more required params are missing"
+        echo "ERROR: Required Args: action($action) exit_on_error($exit_on_error)"
+        exit 1
+    fi
+    exit_on_error=$(echo $exit_on_error | tr '[:upper:]' '[:lower:]')
     for service_name in "${@:2}"; do
         if [ $(is_ubuntu) == "False" ]; then
             systemctl $1 "$service_name"
@@ -55,7 +65,7 @@ function update_services () {
                 service $service_name $action
             fi
         fi
-        if [ $? != 0 ]; then
+        if [ $? != 0 ] && [ "$exit_on_error" != "false" ] ; then
             echo "ERROR: "$action" service ( $service_name ) failed!"
             exit 1
         fi
