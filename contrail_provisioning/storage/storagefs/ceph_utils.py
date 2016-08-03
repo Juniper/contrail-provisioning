@@ -110,7 +110,15 @@ class SetupCephUtils(object):
                                 '.users.email',
                                 '.users.swift',
                                 '.users.uid',
-                                '.rgw']
+                                '.rgw',
+                                'default.rgw.control',
+                                'default.rgw.data.root',
+                                'default.rgw.gc',
+                                'default.rgw.log',
+                                'default.rgw.users.uid',
+                                'default.rgw.users.keys',
+                                'default.rgw.meta',
+                                'default.rgw.users.swift']
 
     # Function to check if Chassis configuration is disabled or not
     # Returns False if enabled
