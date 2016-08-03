@@ -145,6 +145,14 @@ if [ -d /etc/neutron ]; then
 
     openstack-config --del /etc/neutron/neutron.conf service_providers service_provider
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
+
+    if [ "$AAA_MODE" == "rbac" ]; then
+      ret_val=`grep "user_token" /etc/neutron/api-paste.ini > /dev/null;echo $?`
+      if [ $ret_val == 1 ]; then
+        sed -i 's/keystone =/keystone = user_token/' /etc/neutron/api-paste.ini
+        openstack-config --set /etc/neutron/api-paste.ini filter:user_token paste.filter_factory neutron_plugin_contrail.plugins.opencontrail.neutron_middleware:token_factory
+      fi
+    fi
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
 

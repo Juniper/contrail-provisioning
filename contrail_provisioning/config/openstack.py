@@ -141,6 +141,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         else:
             ctrl_infos.append('QUANTUM=%s' % self.cfgm_ip)
         ctrl_infos.append('QUANTUM_PORT=%s' % self._args.quantum_port)
+        ctrl_infos.append('AAA_MODE=%s' % (self._args.aaa_mode or ''))
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
