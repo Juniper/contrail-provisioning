@@ -87,10 +87,11 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         self.disable_apt_get_auto_start()
         self._upgrade()
         if ((self.pdist not in ['Ubuntu']) and
-            ('running' in local('service supervisor-vrouter status', capture=True))):
+            ('running' in local('service supervisor-vrouter status',
+                                capture=True))):
             local("service supervisor-vrouter stop")
-        nova_config = not(getattr(self._args, 'no_nova_config', False))
-        if (nova_config and self._args.orchestrator == 'openstack'):
+        if (self.compute_setup.config_nova and
+                self._args.orchestrator == 'openstack'):
            if self._args.from_rel == LooseVersion('2.00'):
                self.fix_nova_params()
         # Seperate contrail-<role>-nodemgr.conf is introduced from release 2.20
