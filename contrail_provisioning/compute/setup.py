@@ -41,6 +41,7 @@ class ComputeSetup(ContrailSetup):
             'keystone_admin_user':None,
             'keystone_admin_passwd':None,
             'keystone_version': 'v2.0',
+            'region_name': 'RegionOne',
             'service_tenant_name': 'service',
             'nova_password':None,
             'neutron_password':None,
@@ -139,6 +140,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'], help = "Keystone Version")
         parser.add_argument("--gateway_server_list", help = "Compute nodes acting as gateway",
                             nargs='+', type=str)
+        parser.add_argument("--region_name", help = "Region Name")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied

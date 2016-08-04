@@ -16,6 +16,8 @@
 
 
 source /opt/contrail/bin/contrail-lib.sh
+source /opt/contrail/bin/contrail-openstack-lib.sh
+
 CONF_DIR=/etc/contrail
 set -x
 
@@ -26,6 +28,11 @@ if [ -f /etc/redhat-release ]; then
    mysql_svc=$(get_mysql_service_name)
    nova_api_ver=`rpm -q --qf  "%{VERSION}\n" openstack-nova-api`
    echo $nova_api_ver
+   rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-nova-api "1 13.0.0 1.el7" && echo 1 || echo 0)
+   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-nova-api "1 8.0.1 1.el7" && echo 1 || echo 0)
+   rpm_icehouse_or_higher=$(is_installed_rpm_greater openstack-nova-api "0 2014.1.1 1.el7" && echo 1 || echo 0)
+   rpm_kilo_or_higher=$(is_installed_rpm_greater openstack-nova-api "0 2015.1.1 1.el7" && echo 1 || echo 0)
+   rpm_juno_or_higher=$(is_installed_rpm_greater openstack-nova-api "0 2014.2.1 1.el7" && echo 1 || echo 0)
    if [ "$nova_api_ver" == "2013.1" ]; then
    	OS_NET=quantum
    	TENANT_NAME=quantum_admin_tenant_name
@@ -114,7 +121,11 @@ fi
 
 # Make sure mysql service is enabled
 update_services "action=enable" $mysql_svc
-update_services "action=restart" $mysql_svc
+mysql_status=`service $mysql_svc status 2>/dev/null`
+if [[ "$mysql_status" != *running* ]]; then
+    echo "Service ( $mysql_svc ) is not active. Restarting..."
+    update_services "action=restart" $mysql_svc
+fi
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
@@ -180,6 +191,13 @@ openstack-config --set /etc/nova/nova.conf database connection mysql://nova:$SER
 if [ $is_mitaka_or_above -eq 1 ];then
     openstack-config --set /etc/nova/nova.conf api_database connection mysql://nova:$SERVICE_DBPASS@127.0.0.1/nova_api
 fi
+
+# For Centos, from mitaka onwards set connection variable for database and api_database
+if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+    contrail-config --set /etc/nova/nova.conf api_database connection mysql+pymysql://nova:$SERVICE_DBPASS@$CONTROLLER/nova_api
+    contrail-config --set /etc/nova/nova.conf database connection mysql+pymysql://nova:$SERVICE_DBPASS@$CONTROLLER/nova
+fi
+
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True 
 openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
 openstack-config --set /etc/nova/nova.conf DEFAULT connection_type libvirt
@@ -192,12 +210,32 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     fi
 fi
 
-for APP in nova; do
-    # Required only in first openstack node, as the mysql db is replicated using galera.
-    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        openstack-db -y --init --service $APP --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
+# For Centos7, From Mitaka, Initializing nova_api db
+# Also dont use openstack-db to initialize nova db
+if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+    if [[ $OPENSTACK_INDEX -eq 1 ]]; then
+        contrail_openstack_db "db_user=nova_api; \
+                               db_name=api_db; \
+                               db_username=nova; \
+                               db_root_pw=$(cat /etc/contrail/mysql.token); \
+                               db_user_pw=$SERVICE_DBPASS; \
+                               db_sync_cmd=nova-manage;"
+
+        contrail_openstack_db "db_user=nova; \
+                               db_name=db; \
+                               db_username=nova; \
+                               db_root_pw=$(cat /etc/contrail/mysql.token); \
+                               db_user_pw=$SERVICE_DBPASS; \
+                               db_sync_cmd=nova-manage;"
     fi
-done
+else
+    for APP in nova; do
+        # Required only in first openstack node, as the mysql db is replicated using galera.
+        if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+            openstack-db -y --init --service $APP --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
+        fi
+    done
+fi
 
 if [ $is_mitaka_or_above -eq 1 ]; then
     openstack-db -y --init --service nova_api --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
@@ -290,8 +328,8 @@ if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf oslo_messaging_rabbit heartbeat_timeout_threshold 0
     fi
 else
-    is_icehouse_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2014.1.1 1.el7" && echo True)
-    if [ "$is_icehouse_or_latest" == "True" ]; then
+    # From Icehouse onwards
+    if [[ $rpm_icehouse_or_higher -eq 1 ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
@@ -302,11 +340,14 @@ else
         chown -R nova:nova /var/lib/nova
     fi
 
-    is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2015.1.1 1.el7" && echo True)
-    is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-api "0 2014.2.1 1.el7" && echo True)
+    # From Juno onwards
+    if [[ $rpm_juno_or_higher -eq 1 ]]; then
+        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
+    fi
 
-    # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
-    if [ "$is_kilo_or_latest" == "True" ]; then
+
+    # From Kilo onwards
+    if [[ $rpm_kilo_or_higher -eq 1 ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 
         # Neutron section in nova.conf
@@ -325,8 +366,35 @@ else
         # New configs in keystone section
         openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
         openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
-    elif [ "$is_juno_or_latest" == "True" ]; then
-        openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
+    fi
+
+    # From Mitaka onwards
+    if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+        contrail-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
+        contrail-config --set /etc/nova/nova.conf DEFAULT use_neutron True
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers $CONTROLLER:11211
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_type password
+        #contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
+        #contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
+        contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+        contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+        # Needs to updated
+        # contrail-config --set /etc/nova/nova.conf DEFAULT my_ip MGMT_IP_ADDRESS_OF_CONTROLLER
+        # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_userid openstack
+        # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_password RABBIT_PASSWD
+        # contrail-config --set /etc/nova/nova.conf vnc vncserver_listen MGMT_IP_ADDRESS_OF_CONTROLLER
+        # contrail-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address MGMT_IP_ADDRESS_OF_CONTROLLER
+
+        contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        contrail-config --set /etc/nova/nova.conf neutron auth_type password
+        contrail-config --set /etc/nova/nova.conf neutron region_name $REGION_NAME
+        contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME
+        contrail-config --set /etc/nova/nova.conf neutron username neutron
+        contrail-config --set /etc/nova/nova.conf neutron password $NEUTRON_PASSWORD
+
     fi
 fi
 

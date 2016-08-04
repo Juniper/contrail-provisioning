@@ -31,6 +31,7 @@
 # demo                 demo      Member,sysadmin,netadmin
 # invisible_to_admin   demo      Member
 
+source /opt/contrail/bin/contrail-lib.sh
 set -x
 
 if [ $AUTH_PROTOCOL == 'https' ]; then
@@ -45,6 +46,8 @@ if [ -f /etc/redhat-release ]; then
     rpm -q contrail-heat > /dev/null && ENABLE_HEAT='yes'
     is_ubuntu=0
     keystone_version=$(rpm -q --queryformat='%{VERSION}' openstack-keystone)
+    rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-keystone "1 9.0.2 1.el7" && echo 1 || echo 0)
+    rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo 1 || echo 0)
 fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
     dpkg -l contrail-heat > /dev/null && ENABLE_HEAT='yes'
@@ -66,24 +69,6 @@ CONTROLLER=$1
 if [ -z $CONTROLLER ]; then
     $CONTROLLER="localhost"
 fi
-
-function is_installed_rpm_greater() {
-    package_name=$1
-    read ref_epoch ref_version ref_release <<< $2
-    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
-    if [ $? != 0 ]; then
-        echo "ERROR: Seems $package_name is not installed"
-        return 2
-    fi
-    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
-    verdict=$(python -c "import sys,rpm; \
-        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
-    if [[ $verdict -ge 0 ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
 
 function get_id () {
     echo `"$@" | grep ' id ' | awk '{print $4}'`
@@ -261,21 +246,14 @@ if [ $is_ubuntu -eq 1 ] ; then
             ubuntu_mitaka=1
         fi
     fi
-elif [ $is_ubuntu -eq 0 ]; then
-    is_rpm_liberty_or_latest=$(is_installed_rpm_greater openstack-keystone "1 8.0.1 1.el7" && echo True)
-    if [[ "$is_rpm_liberty_or_latest" == "True" ]]; then
-        liberty=1
-    fi
-else
-    echo "Unrecognized OS"
 fi
 
 source /etc/contrail/openstackrc
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
-        if [ $ubuntu_liberty_and_above -eq 1 ] || [ $liberty -eq 1 ]; then
-            if [ $ubuntu_mitaka -eq 1 ]; then
+        if [ $ubuntu_liberty_and_above -eq 1 ] || [ $rpm_liberty_or_higher -eq 1 ]; then
+            if [ $ubuntu_mitaka -eq 1 ] || [[ $rpm_mitaka_or_higher -eq 1 ]]; then
                 openstack $INSECURE_FLAG endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                     --publicurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s \
                     --adminurl http://$CONTROLLER:8774/v2.1/%\(tenant_id\)s  \
@@ -316,7 +294,7 @@ fi
 
 if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $GLANCE_SERVICE) ]; then
-        if [ $ubuntu_mitaka -eq 1 ]; then
+        if [ $ubuntu_mitaka -eq 1 ] || [[ $rpm_mitaka_or_higher -eq 1 ]]; then
             keystone $INSECURE_FLAG endpoint-create --region $OS_REGION_NAME --service-id $GLANCE_SERVICE \
                --publicurl http://$CONTROLLER:9292 \
                --adminurl http://$CONTROLLER:9292 \

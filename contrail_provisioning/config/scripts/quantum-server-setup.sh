@@ -15,6 +15,7 @@
 # under the License.
 
 
+source /opt/contrail/bin/contrail-lib.sh
 CONF_DIR=/etc/contrail
 set -x
 
@@ -22,7 +23,9 @@ if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
    web_svc=httpd
-   mysql_svc=mysqld
+   mysql_svc=$(get_mysql_service_name)
+   rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-neutron "1 8.1.0 1.el7" && echo 1 || echo 0)
+   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-neutron "1 7.0.3 1.el7" && echo 1 || echo 0)
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -34,36 +37,8 @@ fi
 
 msg_svc=rabbitmq-server
 
-function is_installed_rpm_greater() {
-    package_name=$1
-    read ref_epoch ref_version ref_release <<< $2
-    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
-    if [ $? != 0 ]; then
-        echo "ERROR: Seems $package_name is not installed"
-        return 2
-    fi
-    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
-    verdict=$(python -c "import sys,rpm; \
-        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
-    if [[ $verdict -ge 0 ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-function error_exit
-{
-    echo "${PROGNAME}: ${1:-''} ${2:-'Unknown Error'}" 1>&2
-    exit ${3:-1}
-}
-
-chkconfig $mysql_svc 2>/dev/null
-ret=$?
-if [ $ret -ne 0 ]; then
-    echo "MySQL is not enabled, enabling ..."
-    chkconfig $mysql_svc on 2>/dev/null
-fi
+# Make sure mysql service is enabled
+update_services "action=enable" $mysql_svc
 
 source /etc/contrail/ctrl-details
 
@@ -123,6 +98,11 @@ for svc in $net_svc_name; do
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken keyfile $KEYSTONE_KEYFILE
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken cafile $KEYSTONE_CAFILE
     fi
+    # Additional configs from Centos7/Mitaka onwards
+    if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken username $svc
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken password $NEUTRON_PASSWORD
+    fi
 done
 
 openstack-config --set /etc/$net_svc_name/$net_svc_name.conf quotas quota_driver neutron_plugin_contrail.plugins.opencontrail.quota.driver.QuotaDriver
@@ -141,16 +121,9 @@ if [ -d /etc/neutron ]; then
         if [ "$neutron_server_top_ver" -gt "1" ]; then
             is_liberty_or_latest=1
         fi
-    elif [ $is_redhat -eq 1 ]; then
-        is_rpm_liberty_or_latest=$(is_installed_rpm_greater openstack-neutron "1 7.0.1 8.el7ost" && echo True)
-        if [[ $is_rpm_liberty_or_latest == "True" ]]; then
-            is_liberty_or_latest=1
-        fi
-    else
-        echo "ERROR: Unrecognized OS Type"
     fi
 
-    if [ $is_liberty_or_latest -eq 1 ] ; then
+    if [ $is_liberty_or_latest -eq 1 ] || [[ $rpm_liberty_or_higher -eq 1 ]]; then
         # for liberty loadbalanacer plugin would be V2 by default and
         # neutron_lbaas extensions would be needed in api_extensions_path
         openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions:${PYDIST}/neutron_lbaas/extensions
@@ -206,20 +179,7 @@ if [ -f $net_svc_upstart ]; then
 fi
 
 echo "======= Enabling the services ======"
-
-for svc in $msg_svc $web_svc memcached; do
-    chkconfig $svc on
-done
-
-for svc in $net_svc_name-server; do
-    chkconfig $svc on
-done
+update_services "action=enable" $msg_svc $web_svc memcached $net_svc_name-server
 
 echo "======= Starting the services ======"
-
-for svc in $msg_svc $web_svc memcached; do
-    service $svc restart
-done
-
-service $net_svc_name-server restart
-
+update_services "action=restart" $msg_svc $web_svc memcached $net_svc_name-server

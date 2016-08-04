@@ -47,7 +47,7 @@ function listen_on_supervisor_openstack_port () {
 #     sysv:    will run "chkconfig keystone on" and ignores systemctl exit status
 #
 function update_services () {
-    exit_on_error=True
+    exit_on_error=false
     eval $1
     if [[ -z $action ]] || [[ -z $exit_on_error ]]; then
         echo "ERROR: One or more required params are missing"
