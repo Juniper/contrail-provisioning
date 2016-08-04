@@ -48,6 +48,14 @@ class ConfigSetup(ContrailSetup):
             'orchestrator' : 'openstack',
             'amqp_port': '5672',
             'control_ip_list': '',
+            'keystone_insecure': False,
+            'keystone_certfile': None,
+            'keystone_keyfile': None,
+            'keystone_cafile': None,
+            'apiserver_insecure': False,
+            'apiserver_certfile': None,
+            'apiserver_keyfile': None,
+            'apiserver_cafile': None,
         }
         self.parse_args(args_str)
 
@@ -91,10 +99,17 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of the networking service user - neutron/quantum")
         parser.add_argument("--keystone_insecure", 
-            help = "Connect to keystone in secure or insecure mode if in https mode",
-            default = 'False')
+            help = "Connect to keystone in secure or insecure mode if in https mode")
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
+        parser.add_argument("--keystone_certfile", help="")
+        parser.add_argument("--keystone_keyfile", help="")
+        parser.add_argument("--keystone_cafile", help="")
+        parser.add_argument("--apiserver_insecure", 
+            help = "Connect to apiserver in secure or insecure mode if in https mode")
+        parser.add_argument("--apiserver_certfile", help="")
+        parser.add_argument("--apiserver_keyfile", help="")
+        parser.add_argument("--apiserver_cafile", help="")
 
         parser.add_argument("--nworkers",
             help = "Number of worker processes for api and discovery services",

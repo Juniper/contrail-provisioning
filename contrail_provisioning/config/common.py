@@ -58,6 +58,8 @@ class ConfigBaseSetup(ContrailSetup):
                                         for amqp in amqp_ip_list])
         self.contrail_internal_vip = (self._args.contrail_internal_vip or
                                  self._args.internal_vip)
+        self.api_ssl_enabled = (self._args.apiserver_keyfile and
+                self._args.apiserver_certfile and self._args.apiserver_cafile)
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -137,6 +139,11 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
                          '__contrail_aaa_mode__': "aaa_mode=%s" % aaa_mode if aaa_mode else '',
                         }
+        if self.api_ssl_enabled:
+            template_vals.update({
+                '__contrail_keyfile_location__' : self._args.apiserver_keyfile,
+                '__contrail_certfile_location__' : self._args.apiserver_certfile,
+                '__contrail_cacertfile_location__' : self._args.apiserver_cafile})
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
         local("sudo mv %s/contrail-api.conf /etc/contrail/" %(self._temp_dir_name))
@@ -318,13 +325,22 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {
                          '__contrail_keystone_ip__': '127.0.0.1',
                          '__contrail_authn_url__': authn_url,
+                         '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
                         }
         self._template_substitute_write(vnc_api_lib_ini.template,
                                         template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
         local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
+        conf_file = "/etc/contrail/vnc_api_lib.ini"
+        if self.api_ssl_enabled:
+            configs = {'certfile': self._args.apiserver_certfile,
+                       'keyfile': self._args.apiserver_keyfile,
+                       'cafile': self._args.apiserver_cafile,
+                       'insecure': self._args.apiserver_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'global', param, value)
         # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
         # Orchestrator specific setup if required.
-        local("sudo openstack-config --del /etc/contrail/vnc_api_lib.ini auth")
+        local("sudo contrail-config --del %s auth" % conf_file)
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
