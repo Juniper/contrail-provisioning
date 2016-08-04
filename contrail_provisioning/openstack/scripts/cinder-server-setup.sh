@@ -46,7 +46,11 @@ echo "$0: Openstack Cinder Version: ( $os_cinder )"
 
 # Make sure mysql service is enabled
 update_services "action=enable" $mysql_svc
-update_services "action=restart" $mysql_svc
+mysql_status=`service $mysql_svc status 2>/dev/null`
+if [[ "$mysql_status" != *running* ]]; then
+    echo "Service ( $mysql_svc ) is not active. Restarting..."
+    update_services "action=restart" $mysql_svc
+fi
 
 # Use MYSQL_ROOT_PW from the environment or generate a new password
 if [ ! -f $CONF_DIR/mysql.token ]; then
