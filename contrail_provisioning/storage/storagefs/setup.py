@@ -1560,6 +1560,10 @@ class SetupCeph(object):
                 run('sudo mkdir -p /var/lib/ceph/osd')
                 run('sudo mkdir -p /var/run/ceph/')
                 run('sudo mkdir -p /etc/ceph')
+                ceph_user=run('sudo id ceph 2>/dev/null |grep \'uid=\'|wc -l');
+                if ceph_user != '0':
+                    run('sudo chown -R ceph:ceph /var/lib/ceph')
+                    run('sudo chown -R ceph:ceph /var/run/ceph')
 
         for mon_hostname in ceph_mon_hosts_list:
             for hostname, entry, entry_token in \
