@@ -117,6 +117,7 @@ setup(
                'contrail_provisioning/compute/scripts/vrouter-agent.conf.sh',
                # Tools 
                'tools/openstack-config',
+               'tools/contrail-config',
               ]
 
 )
