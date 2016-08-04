@@ -102,6 +102,7 @@ export ADMIN_TOKEN
 export SERVICE_TOKEN
 
 openstack-config --set /etc/barbican/barbican.conf DEFAULT sql_connection sqlite:////var/lib/barbican/barbican.sqlite 
+openstack-config --set /etc/barbican/barbican-api-paste.ini composite:main /v1 barbican-api-keystone
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri http://localhost:35357
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_tenant_name service
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_user barbican
