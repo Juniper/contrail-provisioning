@@ -101,6 +101,10 @@ class SetupCeph(object):
     LIBVIRT_AA_HELPER_TMP_FILE = '/tmp/usr.lib.libvirt.virt-aa-helper'
     global LIBVIRT_AA_HELPER_FILE
     LIBVIRT_AA_HELPER_FILE = '/etc/apparmor.d/usr.lib.libvirt.virt-aa-helper'
+    global LIBVIRT_QEMU_HELPER_TMP_FILE
+    LIBVIRT_QEMU_HELPER_TMP_FILE = '/tmp/libvirt-qemu'
+    global LIBVIRT_QEMU_HELPER_FILE
+    LIBVIRT_QEMU_HELPER_FILE = '/etc/apparmor.d/abstractions/libvirt-qemu'
     global RBD_WORKERS
     RBD_WORKERS = 120
     global RBD_STORE_CHUNK_SIZE
@@ -2006,6 +2010,9 @@ class SetupCeph(object):
         global ceph_tier_list
         storage_os_hostnames = []
 
+        if self._args.object_storage != 'True':
+            return
+
         # Find master hostname
         for entry, hostname in zip(self._args.storage_hosts,
                                             self._args.storage_hostnames):
@@ -2937,8 +2944,13 @@ class SetupCeph(object):
             cinder_api = local('ps -ef | grep cinder-api | grep -v grep | wc -l',
                         capture=True)
             if cinder_api != '0':
-                local('sudo pkill -9 -f \"/usr/bin/cinder-api\"',
-                        shell='/bin/bash', warn_only=True)
+                for entries, entry_token in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+                    if entries == self._args.storage_master:
+                        with settings(host_string = 'root@%s' %(entries),
+                                            password = entry_token):
+                            run('sudo pkill -9 -f /usr/bin/cinder-api',
+                                warn_only=True)
             local('sudo service cinder-api start')
             local('sudo /sbin/chkconfig cinder-scheduler on')
             local('sudo service cinder-scheduler stop')
@@ -2947,8 +2959,13 @@ class SetupCeph(object):
                                     grep -v grep | wc -l',
                                     capture=True)
             if cinder_scheduler != '0':
-                local('sudo pkill -9 -f \"/usr/bin/cinder-scheduler\"',
-                        shell='/bin/bash', warn_only=True)
+                for entries, entry_token in zip(self._args.storage_hosts,
+                                            self._args.storage_host_tokens):
+                    if entries == self._args.storage_master:
+                        with settings(host_string = 'root@%s' %(entries),
+                                            password = entry_token):
+                            run('sudo pkill -9 -f /usr/bin/cinder-scheduler',
+                                warn_only=True)
             local('sudo service cinder-scheduler start')
             if configure_with_ceph == 1:
                 bash_cephargs = local('grep "CEPH_ARGS" \
@@ -3194,6 +3211,41 @@ class SetupCeph(object):
                                     LIBVIRT_AA_HELPER_FILE))
                                 sudo('apparmor_parser -r %s'
                                     %(LIBVIRT_AA_HELPER_FILE))
+                        virt_qemu_present=sudo('ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE))
+                        if virt_qemu_present != '0':
+                            global_virt_tmp_helper=sudo('cat %s | \
+                                    grep -n "deny \/tmp\/" | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE))
+                            if global_virt_tmp_helper != '0':
+                                snap_lineno=int(sudo('cat %s | \
+                                    grep -n "deny \/tmp\/" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_QEMU_HELPER_FILE)))
+                                sudo('head -n %d %s > %s' %(snap_lineno-1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  capability mknod," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /etc/ceph/* r," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /etc/qemu-ifup ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  /etc/qemu-ifdown ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('echo \
+                                    "  owner /tmp/* rw," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                                sudo('cp -f %s %s'
+                                    %(LIBVIRT_QEMU_HELPER_TMP_FILE,
+                                    LIBVIRT_QEMU_HELPER_FILE))
                         run('sudo /sbin/chkconfig tgt on')
                         run('sudo service tgt restart')
                         run('sudo /sbin/chkconfig cinder-volume on')
