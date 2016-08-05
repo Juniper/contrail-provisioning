@@ -266,8 +266,6 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_discovery_config_file(self):
         # discovery.conf_
         template_vals = {
-                         '__contrail_zk_server_ip__': self.zk_servers,
-                         '__contrail_zk_server_port__': '2181',
                          '__contrail_listen_ip_addr__': '0.0.0.0',
                          '__contrail_listen_port__': '5998',
                          '__contrail_log_local__': 'True',

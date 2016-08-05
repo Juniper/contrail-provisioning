@@ -2,8 +2,6 @@ import string
 
 template = string.Template("""
 [DEFAULTS]
-zk_server_ip=$__contrail_zk_server_ip__
-zk_server_port=$__contrail_zk_server_port__
 listen_ip_addr=$__contrail_listen_ip_addr__
 listen_port=$__contrail_listen_port__
 log_local=$__contrail_log_local__
