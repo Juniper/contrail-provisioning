@@ -2085,7 +2085,9 @@ def configure_object_storage(is_master, is_os_host, new_apache,
         ceph_utils.exec_local('sudo a2enmod rewrite')
         ceph_utils.exec_local('sudo a2enmod proxy_http')
         ceph_utils.exec_local('sudo a2enmod proxy_fcgi')
-        ceph_utils.exec_locals('sudo echo \"<VirtualHost *:80>\" > %s'
+        ceph_utils.exec_locals('sudo echo \"Listen 9001\" > %s'
+                                %(APACHE_RGW_CONF))
+        ceph_utils.exec_locals('sudo echo \"<VirtualHost *:9001>\" >> %s'
                                 %(APACHE_RGW_CONF))
         #ceph_utils.exec_local('sudo echo "ServerName localhost" >> %s'
         #                        %(APACHE_RGW_CONF))
