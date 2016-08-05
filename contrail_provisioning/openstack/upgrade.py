@@ -19,7 +19,7 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         OpenstackSetup.__init__(self)
 
         self.update_upgrade_data()
-        if self.pdist not in ['Ubuntu']:
+        if self.pdist in ['Ubuntu']:
             self.openstack_services = ['supervisor-openstack']
         else:
             self.openstack_services = ['openstack-cinder-api', 'openstack-cinder-scheduler',
