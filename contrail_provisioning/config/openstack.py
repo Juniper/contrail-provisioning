@@ -133,6 +133,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self.rabbit_servers)
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
+        ctrl_infos.append('KEYSTONE_VERSION=%s' % self._args.keystone_version)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:

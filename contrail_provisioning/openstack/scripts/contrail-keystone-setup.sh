@@ -139,6 +139,13 @@ function get_role() {
     echo $id
 }
 
+# add domain level role
+function user_role_add_domain() {
+    # openstack role add --user=$1 --domain $2 $3
+    curl -H"X-Auth-Token: $SERVICE_TOKEN" -X PUT http://localhost:5000/v3/domains/$2/users/$1/roles/$3
+}
+
+
 ADMIN_ROLE=$(get_role admin)
 MEMBER_ROLE=$(get_role Member)
 KEYSTONEADMIN_ROLE=$(get_role KeystoneAdmin)
@@ -154,6 +161,16 @@ function user_role_lookup() {
 # Add Roles to Users in Tenants
 if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT admin) ]; then
 keystone user-role-add --user-id $ADMIN_USER --role-id $ADMIN_ROLE --tenant-id $ADMIN_TENANT
+  if [ "$KEYSTONE_VERSION" == "v3" ]; then
+      user_role_add_domain $ADMIN_USER  "default" $ADMIN_ROLE
+  fi
+fi
+
+if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT $CLOUD_ADMIN_ROLE) ]; then
+keystone user-role-add --user-id $ADMIN_USER --role-id $CLOUD_ADMIN_ROLE --tenant-id $ADMIN_TENANT
+  if [ "$KEYSTONE_VERSION" == "v3" ]; then
+      user_role_add_domain $ADMIN_USER  "default" $CLOUD_ADMIN_ROLE
+  fi
 fi
 
 if [ -z $(user_role_lookup $DEMO_USER $DEMO_TENANT Member) ]; then
