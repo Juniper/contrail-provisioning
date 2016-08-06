@@ -226,6 +226,8 @@ class CollectorSetup(ContrailSetup):
                         '/usr/bin/contrail-topology --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
+        if self._args.internal_vip:
+               self.set_config(conf_fl, 'DEFAULTS', 'analytics_api', '%s:8081' %(self._args.internal_vip))
 
     def fixup_contrail_collector(self):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
