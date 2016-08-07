@@ -192,6 +192,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_ifmap_password__': 'schema-transformer',
                          '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
+                         '__api_server_use_ssl__': 'True' if self.api_ssl_enabled else 'False',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_use_certs__': self._args.use_certs,
                          '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/schema_xfer_key.pem',
@@ -227,6 +228,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {'__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
+                         '__api_server_use_ssl__': 'True' if self.api_ssl_enabled else 'False',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_log_file__' : '/var/log/contrail/contrail-device-manager.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
@@ -247,6 +249,7 @@ class ConfigBaseSetup(ContrailSetup):
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
+                         '__api_server_use_ssl__': 'True' if self.api_ssl_enabled else 'False',
                          '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.collector_ip,
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_use_certs__': self._args.use_certs,
@@ -323,6 +326,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {
                          '__contrail_keystone_ip__': '127.0.0.1',
                          '__contrail_authn_url__': authn_url,
+                         '__auth_protocol__': 'https' if self.api_ssl_enabled else 'http',
                          '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
                         }
         self._template_substitute_write(vnc_api_lib_ini.template,
@@ -336,6 +340,10 @@ class ConfigBaseSetup(ContrailSetup):
                        'insecure': self._args.apiserver_insecure}
             for param, value in configs.items():
                 self.set_config(conf_file, 'global', param, value)
+            config = {'cafile' : self._args.keystone_cafile,
+                      'insecure': self._args.keystone_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
         # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
         # Orchestrator specific setup if required.
         local("sudo contrail-config --del %s auth" % conf_file)
@@ -404,7 +412,11 @@ class ConfigBaseSetup(ContrailSetup):
                                            self._args.ssd_data_dir,
                                            cluster_name='ContrailConfigDB')
             db.fixup_cassandra_env_config()
+            #db.fixup_zookeeper_configs(self._args.zookeeper_ip_list)
+            local('sudo chkconfig contrail-database on')
             local('sudo service contrail-database restart')
+            #local('sudo chkconfig zookeeper on')
+            #local('sudo service zookeeper restart')
 
     def setup(self):
         self.disable_selinux()

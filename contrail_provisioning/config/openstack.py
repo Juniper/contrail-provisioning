@@ -127,15 +127,20 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                          '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
                          '__contrail_authn_url__': authn_url,
+                         '__auth_protocol__': 'https' if self.api_ssl_enabled else 'http',
                         }
         self._template_substitute_write(vnc_api_lib_ini.template,
                                         template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
         local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
         conf_file = "/etc/contrail/vnc_api_lib.ini"
+        configs = {'certfile': self._args.apiserver_certfile,
+                   'keyfile': self._args.apiserver_keyfile,
+                   'cafile': self._args.apiserver_cafile,
+                   'insecure': self._args.apiserver_insecure}
+        for param, value in configs.items():
+            self.set_config(conf_file, 'global', param, value)
         if self.keystone_ssl_enabled:
-            configs = {'certfile': self._args.keystone_certfile,
-                       'keyfile': self._args.keystone_keyfile,
-                       'cafile': self._args.keystone_cafile,
+            configs = {'cafile': self._args.keystone_cafile,
                        'insecure': self._args.keystone_insecure}
             for param, value in configs.items():
                 self.set_config(conf_file, 'auth', param, value)

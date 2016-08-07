@@ -17,13 +17,11 @@ BASE_URL = /
 ; Authentication settings (optional)
 [auth]
 AUTHN_TYPE = keystone
-AUTHN_PROTOCOL = http
+AUTHN_PROTOCOL = $__auth_protocol__
 AUTHN_SERVER=$__contrail_keystone_ip__
 AUTHN_PORT = 35357
 AUTHN_URL = $__contrail_authn_url__
 #insecure=False
-#certfile=/etc/contrail/ssl/certs/keystone.pem
-#keyfile=/etc/contrail/ssl/private/keystone_key.pem
 #cafile=/etc/contrail/ssl/certs/keystone_ca.pem
 """)
 
