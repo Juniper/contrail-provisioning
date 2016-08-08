@@ -28,6 +28,9 @@ class DatabaseCommon(ContrailSetup):
     def __init__(self):
         super(DatabaseCommon, self).__init__()
         self.cassandra = CassandraInfo(self.pdist)
+        self.zoo_conf_dir = '/etc/zookeeper/conf/'
+        if not os.path.isdir(self.zoo_conf_dir):
+            self.zoo_conf_dir = '/etc/zookeeper/'
 
     def fixup_etc_hosts_file(self, listen_ip, hostname):
         # Put hostname/ip mapping into /etc/hosts to avoid DNS resolution
@@ -133,3 +136,31 @@ class DatabaseCommon(ContrailSetup):
 
         for pattern_to_match, str_to_replace in env_file_settings:
             local("sudo sed -i 's/%s/%s/g' %s" % (pattern_to_match, str_to_replace, env_file))
+
+    def fix_zookeeper_servers_config(self):
+        zk_index = 1
+        # Instead of inserting/deleting config, remove all the zoo keeper servers
+        # and re-generate.
+        local("sudo sed -i '/server.[1-9]*=/d' %s/zoo.cfg" % self.zoo_conf_dir)
+
+        for zk_ip in zookeeper_ip_list:
+            local('sudo echo "server.%d=%s:2888:3888" >> %s/zoo.cfg' %(zk_index, zk_ip, self.zoo_conf_dir))
+            zk_index = zk_index + 1
+
+        #put cluster-unique zookeeper's instance id in myid
+        local('sudo echo "%s" > /var/lib/zookeeper/myid' %(self._args.database_index))
+
+    def fixup_zookeeper_configs(self, zookeeper_ip_list=None):
+        if not zookeeper_ip_list:
+            zookeeper_ip_list = self._args.zookeeper_ip_list
+        # set high session timeout to survive glance led disk activity
+        local('sudo echo "maxSessionTimeout=120000" >> %s/zoo.cfg' % self.zoo_conf_dir)
+        local('sudo echo "autopurge.purgeInterval=3" >> %s/zoo.cfg' % self.zoo_conf_dir)
+        local("sudo sed 's/^#log4j.appender.ROLLINGFILE.MaxBackupIndex=/log4j.appender.ROLLINGFILE.MaxBackupIndex=/g' %s/log4j.properties > log4j.properties.new" % self.zoo_conf_dir)
+        local("sudo mv log4j.properties.new %s/log4j.properties" % self.zoo_conf_dir)
+        if self.pdist in ['fedora', 'centos', 'redhat']:
+            local('echo export ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> /usr/lib/zookeeper/bin/zkEnv.sh')
+        if self.pdist == 'Ubuntu':
+            local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> %s/environment' % self.zoo_conf_dir)
+
+        self.fix_zookeeper_servers_config(zookeeper_ip_list)

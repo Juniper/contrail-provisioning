@@ -91,6 +91,7 @@ main() {
    $CP working/"$CERT_FILE_PREFIX".pem $SSL_PATH/certs/
    $CP working/"$CERT_FILE_PREFIX"_ca.pem $SSL_PATH/certs/
    $RM -rf working
+   $CHOWN -R $CERT_FILE_PREFIX:$CERT_FILE_PREFIX $SSL_PATH
 }
 
 creatCFGFile(){
