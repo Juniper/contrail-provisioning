@@ -27,7 +27,6 @@ from contrail_provisioning.config.templates import contrail_discovery_conf
 from contrail_provisioning.config.templates import contrail_discovery_ini
 from contrail_provisioning.config.templates import contrail_discovery_ini_centos
 from contrail_provisioning.config.templates import contrail_discovery_svc
-from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_sudoers
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 from contrail_provisioning.common.templates import contrail_database_template
@@ -58,8 +57,10 @@ class ConfigBaseSetup(ContrailSetup):
                                         for amqp in amqp_ip_list])
         self.contrail_internal_vip = (self._args.contrail_internal_vip or
                                  self._args.internal_vip)
-        self.api_ssl_enabled = (self._args.apiserver_keyfile and
-                self._args.apiserver_certfile and self._args.apiserver_cafile)
+        self.api_ssl_enabled = False
+        if (self._args.apiserver_keyfile and
+                self._args.apiserver_certfile and self._args.apiserver_cafile):
+            self.api_ssl_enabled = True
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -319,34 +320,6 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-discovery')
         local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-discovery")
-
-    def fixup_vnc_api_lib_ini(self):
-        # vnc_api_lib.ini
-        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
-        template_vals = {
-                         '__contrail_keystone_ip__': '127.0.0.1',
-                         '__contrail_authn_url__': authn_url,
-                         '__auth_protocol__': 'https' if self.api_ssl_enabled else 'http',
-                         '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                        }
-        self._template_substitute_write(vnc_api_lib_ini.template,
-                                        template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
-        local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
-        conf_file = "/etc/contrail/vnc_api_lib.ini"
-        if self.api_ssl_enabled:
-            configs = {'certfile': self._args.apiserver_certfile,
-                       'keyfile': self._args.apiserver_keyfile,
-                       'cafile': self._args.apiserver_cafile,
-                       'insecure': self._args.apiserver_insecure}
-            for param, value in configs.items():
-                self.set_config(conf_file, 'global', param, value)
-            config = {'cafile' : self._args.keystone_cafile,
-                      'insecure': self._args.keystone_insecure}
-            for param, value in configs.items():
-                self.set_config(conf_file, 'auth', param, value)
-        # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
-        # Orchestrator specific setup if required.
-        local("sudo contrail-config --del %s auth" % conf_file)
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail

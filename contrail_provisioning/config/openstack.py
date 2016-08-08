@@ -11,7 +11,6 @@ from fabric.api import local
 from fabric.context_managers import settings
 
 from contrail_provisioning.config.common import ConfigBaseSetup
-from contrail_provisioning.config.templates import vnc_api_lib_ini
 from contrail_provisioning.config.templates import contrail_plugin_ini
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 from contrail_provisioning.common.templates import contrail_database_template
@@ -20,8 +19,10 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def __init__(self, config_args, args_str=None):
         super(ConfigOpenstackSetup, self).__init__(config_args)
         self._args = config_args
-        self.keystone_ssl_enabled = (self._args.keystone_keyfile and
-                self._args.keystone_certfile and self._args.keystone_cafile)
+        self.keystone_ssl_enabled = False
+        if (self._args.keystone_keyfile and
+                self._args.keystone_certfile and self._args.keystone_cafile):
+            self.keystone_ssl_enabled = True
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -119,31 +120,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             neutron_def_file = "/etc/default/neutron-server"
             if os.path.exists(neutron_def_file):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
-
-    def fixup_vnc_api_lib_ini(self):
-        # vnc_api_lib.ini
-        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
-        template_vals = {
-                         '__contrail_apiserver_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_keystone_ip__': self._args.keystone_ip,
-                         '__contrail_authn_url__': authn_url,
-                         '__auth_protocol__': 'https' if self.api_ssl_enabled else 'http',
-                        }
-        self._template_substitute_write(vnc_api_lib_ini.template,
-                                        template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
-        local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
-        conf_file = "/etc/contrail/vnc_api_lib.ini"
-        configs = {'certfile': self._args.apiserver_certfile,
-                   'keyfile': self._args.apiserver_keyfile,
-                   'cafile': self._args.apiserver_cafile,
-                   'insecure': self._args.apiserver_insecure}
-        for param, value in configs.items():
-            self.set_config(conf_file, 'global', param, value)
-        if self.keystone_ssl_enabled:
-            configs = {'cafile': self._args.keystone_cafile,
-                       'insecure': self._args.keystone_insecure}
-            for param, value in configs.items():
-                self.set_config(conf_file, 'auth', param, value)
 
     def build_ctrl_details(self):
         ctrl_infos = []

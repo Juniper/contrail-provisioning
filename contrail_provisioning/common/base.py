@@ -16,6 +16,7 @@ import ConfigParser
 
 from fabric.api import *
 from contrail_provisioning.common.templates import contrail_keystone_auth_conf
+from contrail_provisioning.config.templates import vnc_api_lib_ini
 
 class ContrailSetup(object):
     def __init__(self):
@@ -294,13 +295,47 @@ class ContrailSetup(object):
                          '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if configure_memcache else '',
                          '__contrail_ks_auth_url__': '%s://%s:%s/%s' % (self._args.keystone_auth_protocol,
                              self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version),
-                         '__keystone_cert_file_opt__': 'certfile=%s' % self._args.keystone_certfile or '',
-                         '__keystone_key_file_opt__': 'keyfile=%s' % self._args.keystone_keyfile or '',
-                         '__keystone_ca_file_opt__': 'cafile=%s' % self._args.keystone_cafile or '',
+                         '__keystone_cert_file_opt__': 'certfile=%s' % self._args.keystone_certfile if self._args.keystone_certfile else '',
+                         '__keystone_key_file_opt__': 'keyfile=%s' % self._args.keystone_keyfile if self._args.keystone_keyfile else '',
+                         '__keystone_ca_file_opt__': 'cafile=%s' % self._args.keystone_cafile if self._args.keystone_cafile else '',
                         }
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
+
+    def fixup_vnc_api_lib_ini(self):
+        if hasattr(self, 'contrail_internal_vip'):
+            api_server = self.contrail_internal_vip or self.cfgm_ip
+        else:
+            api_server = self._args.cfgm_ip
+        # vnc_api_lib.ini
+        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
+        template_vals = {
+                         '__contrail_apiserver_ip__': api_server,
+                         '__contrail_keystone_ip__': self._args.keystone_ip or '127.0.0.1',
+                         '__contrail_authn_url__': authn_url,
+                         '__auth_protocol__': self._args.keystone_auth_protocol,
+                        }
+        self._template_substitute_write(vnc_api_lib_ini.template,
+                                        template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
+        local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
+        conf_file = "/etc/contrail/vnc_api_lib.ini"
+        if self.api_ssl_enabled:
+            configs = {'certfile': self._args.apiserver_certfile,
+                       'keyfile': self._args.apiserver_keyfile,
+                       'cafile': self._args.apiserver_cafile,
+                       'insecure': self._args.apiserver_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'global', param, value)
+        if self.keystone_ssl_enabled:
+            configs = {'cafile': self._args.keystone_cafile,
+                       'insecure': self._args.keystone_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
+        if self._args.orchestrator == 'vcenter':
+            # Remove the auth setion from /etc/contrail/vnc_api_lib.ini
+            # if orchestrator is not openstack
+            local("sudo contrail-config --del %s auth" % conf_file)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):
