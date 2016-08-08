@@ -53,6 +53,18 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                    ifmap_dir,
                                         ]
 
+        # From R3.1, rabbitmq-server will be run as native systemd service
+        # and not controlled by supervisor-support-service
+        if (self._args.orchestrator != 'vcenter' and
+               self._args.from_rel < LooseVersion('3.1.0.0') and
+               self.pdist in ['redhat', 'centos']):
+            self.upgrade_data['backup'] += ['/usr/lib/systemd/system/rabbitmq-server.service_backup']
+            self.upgrade_data['restore'] += ['/usr/lib/systemd/system/rabbitmq-server.service_backup']
+            self.upgrade_data['rename_config'] += [('/usr/lib/systemd/system/rabbitmq-server.service_backup',
+                                                      '/usr/lib/systemd/system/rabbitmq-server.service')]
+            self.upgrade_data['remove_config'] += ['/etc/rc.d/init.d/rabbitmq-server']
+
+
         if self._args.orchestrator == 'vcenter':
             self.upgrade_data['backup'].remove('/etc/neutron')
             self.upgrade_data['restore'].remove('/etc/neutron')
