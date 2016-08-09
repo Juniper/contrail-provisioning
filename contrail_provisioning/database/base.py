@@ -137,7 +137,7 @@ class DatabaseCommon(ContrailSetup):
         for pattern_to_match, str_to_replace in env_file_settings:
             local("sudo sed -i 's/%s/%s/g' %s" % (pattern_to_match, str_to_replace, env_file))
 
-    def fix_zookeeper_servers_config(self):
+    def fix_zookeeper_servers_config(self, zookeeper_ip_list):
         zk_index = 1
         # Instead of inserting/deleting config, remove all the zoo keeper servers
         # and re-generate.
