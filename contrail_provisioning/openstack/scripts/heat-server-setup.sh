@@ -146,7 +146,7 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs ${PYDIST}/vnc_api/gen/heat/resources,${PYDIST}/contrail_heat/resources
     openstack-config --set /etc/$svc/$svc.conf DEFAULT heat_waitcondition_server_url http://$controller_ip:8000/v1/waitcondition
 
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$controller_ip:5000/$SERVICE_TOKEN
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$controller_ip:5000/$KEYSTONE_VERSION
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $controller_ip
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
