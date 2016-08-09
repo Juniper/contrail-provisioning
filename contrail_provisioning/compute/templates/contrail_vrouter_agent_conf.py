@@ -69,6 +69,9 @@ physical_interface_address=$__pci_dev__
 # MAC address of device used by dpdk
 physical_interface_mac=$__physical_interface_mac__
 
+# UIO driver to use for DPDK
+physical_uio_driver=igb_uio
+
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional
