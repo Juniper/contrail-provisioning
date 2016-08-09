@@ -169,14 +169,14 @@ function user_role_lookup() {
 # Add Roles to Users in Tenants
 if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT admin) ]; then
 keystone $INSECURE_FLAG user-role-add --user-id $ADMIN_USER --role-id $ADMIN_ROLE --tenant-id $ADMIN_TENANT
-  if [ $KEYSTONE_VERSION == 'v3' ]; then
+  if [ "$KEYSTONE_VERSION" == "v3" ]; then
       user_role_add_domain $ADMIN_USER  "default" $ADMIN_ROLE
   fi
 fi
 
 if [ -z $(user_role_lookup $ADMIN_USER $ADMIN_TENANT $CLOUD_ADMIN_ROLE) ]; then
 keystone $INSECURE_FLAG user-role-add --user-id $ADMIN_USER --role-id $CLOUD_ADMIN_ROLE --tenant-id $ADMIN_TENANT
-  if [ $KEYSTONE_VERSION == 'v3' ]; then
+  if [ "$KEYSTONE_VERSION" == "v3" ]; then
       user_role_add_domain $ADMIN_USER  "default" $CLOUD_ADMIN_ROLE
   fi
 fi
