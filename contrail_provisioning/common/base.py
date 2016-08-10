@@ -327,15 +327,15 @@ class ContrailSetup(object):
                        'insecure': self._args.apiserver_insecure}
             for param, value in configs.items():
                 self.set_config(conf_file, 'global', param, value)
-        if self.keystone_ssl_enabled:
-            configs = {'cafile': self._args.keystone_cafile,
-                       'insecure': self._args.keystone_insecure}
-            for param, value in configs.items():
-                self.set_config(conf_file, 'auth', param, value)
         if self._args.orchestrator == 'vcenter':
             # Remove the auth setion from /etc/contrail/vnc_api_lib.ini
             # if orchestrator is not openstack
             local("sudo contrail-config --del %s auth" % conf_file)
+        elif self.keystone_ssl_enabled:
+            configs = {'cafile': self._args.keystone_cafile,
+                       'insecure': self._args.keystone_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):
