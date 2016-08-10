@@ -411,9 +411,9 @@ if [[ -n "$ENABLE_QUANTUM" ]]; then
     if [[ -n "$ENABLE_ENDPOINTS" ]]; then
 	if [ -z $(endpoint_lookup $QUANTUM_SERVICE) ]; then
         keystone $INSECURE_FLAG endpoint-create --region $OS_REGION_NAME --service-id $QUANTUM_SERVICE \
-            --publicurl http://'$CONTROLLER':9696 \
-            --adminurl http://'$CONTROLLER':9696 \
-            --internalurl http://'$CONTROLLER':9696
+            --publicurl $AUTH_PROTOCOL://'$CONTROLLER':9696 \
+            --adminurl $AUTH_PROTOCOL://'$CONTROLLER':9696 \
+            --internalurl $AUTH_PROTOCOL://'$CONTROLLER':9696
 	fi
     fi
 fi

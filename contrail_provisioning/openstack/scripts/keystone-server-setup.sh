@@ -178,10 +178,10 @@ done
 
 if [ "$AUTH_PROTOCOL" == "https" ]; then
     conf_file="/etc/keystone/keystone.conf"
-    openstack-config --set $conf_file ssl enable true
-    openstack-config --set $conf_file ssl certfile $KEYSTONE_CERTFILE
-    openstack-config --set $conf_file ssl keyfile $KEYSTONE_KEYFILE
-    openstack-config --set $conf_file ssl ca_certs $KEYSTONE_CAFILE
+    openstack-config --set $conf_file eventlet_server_ssl enable true
+    openstack-config --set $conf_file eventlet_server_ssl certfile $KEYSTONE_CERTFILE
+    openstack-config --set $conf_file eventlet_server_ssl keyfile $KEYSTONE_KEYFILE
+    openstack-config --set $conf_file eventlet_server_ssl ca_certs $KEYSTONE_CAFILE
 fi
 
 # wait for the keystone service to start

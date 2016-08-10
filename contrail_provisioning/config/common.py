@@ -140,11 +140,6 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
                          '__contrail_aaa_mode__': "aaa_mode=%s" % aaa_mode if aaa_mode else '',
                         }
-        if self.api_ssl_enabled:
-            template_vals.update({
-                '__contrail_keyfile_location__' : self._args.apiserver_keyfile,
-                '__contrail_certfile_location__' : self._args.apiserver_certfile,
-                '__contrail_cacertfile_location__' : self._args.apiserver_cafile})
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
         local("sudo mv %s/contrail-api.conf /etc/contrail/" %(self._temp_dir_name))
