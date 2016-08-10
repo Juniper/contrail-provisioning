@@ -150,6 +150,9 @@ ip=$__contrail_vhost_ip__
 # Gateway IP address for virtual host
 gateway=$__contrail_vhost_gateway__
 
+# Gateway mode : can be server/ vcpe (default is none)
+gateway_mode=$__gateway_mode__
+
 # Physical interface name to which virtual host interface maps to
 physical_interface=$__contrail_physical_intf__
 
