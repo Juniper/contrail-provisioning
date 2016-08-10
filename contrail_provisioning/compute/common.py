@@ -117,6 +117,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         vgw_public_vn_name = self._args.vgw_public_vn_name
         vgw_intf_list = self._args.vgw_intf_list
         vgw_gateway_routes = self._args.vgw_gateway_routes
+        gateway_server_list = self._args.gateway_server_list
 
         self.mac = None
         if self.dev and self.dev != 'vhost0' :
@@ -156,6 +157,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             vmware_dev = ""
             hypervisor_type = "kvm"
             mode=""
+            gateway_mode = ""
             if self._args.mode == 'vcenter':
                 mode="vcenter"
                 vmware_dev = self.get_secondary_device(self.dev)
@@ -165,6 +167,8 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 hypervisor_type = "vmware"
             if self._args.hypervisor == 'docker':
                 hypervisor_type = "docker"
+            if compute_ip in gateway_server_list :
+                gateway_mode = "server"
 
             # Set template options for DPDK mode
             pci_dev = ""
@@ -192,6 +196,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 '__contrail_work_mode__': platform_mode,
                 '__pci_dev__': pci_dev,
                 '__physical_interface_mac__': self.mac,
+                '__gateway_mode__': gateway_mode
             }
             self._template_substitute_write(contrail_vrouter_agent_conf.template,
                     vnswad_conf_template_vals, self._temp_dir_name + '/vnswad.conf')
