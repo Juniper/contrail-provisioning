@@ -156,9 +156,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
         if self.keystone_ssl_enabled:
             certfile, cafile. keyfile = self._get_keystone_certs()
-            ctrl_infos.append('KEYSTONE_CERTFILE=%s' % certfile
-            ctrl_infos.append('KEYSTONE_KEYFILE=%s' % keyfile
-            ctrl_infos.append('KEYSTONE_CAFILE=%s' % cafile
+            ctrl_infos.append('KEYSTONE_CERTFILE=%s' % certfile)
+            ctrl_infos.append('KEYSTONE_KEYFILE=%s' % keyfile)
+            ctrl_infos.append('KEYSTONE_CAFILE=%s' % cafile)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
