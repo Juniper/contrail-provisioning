@@ -155,7 +155,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('AAA_MODE=%s' % (self._args.aaa_mode or ''))
 
         if self.keystone_ssl_enabled:
-            certfile, cafile. keyfile = self._get_keystone_certs()
+            certfile, cafile, keyfile = self._get_keystone_certs()
             ctrl_infos.append('KEYSTONE_CERTFILE=%s' % certfile)
             ctrl_infos.append('KEYSTONE_KEYFILE=%s' % keyfile)
             ctrl_infos.append('KEYSTONE_CAFILE=%s' % cafile)
