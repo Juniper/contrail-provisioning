@@ -282,6 +282,22 @@ class ContrailSetup(object):
             print "Ignoring failure when enabling kdump"
             print "Exception: %s" % str(e)
 
+    def _get_keystone_certs(self):
+        ssl_path = '/etc/contrail/ssl/certs/'
+        cafile = os.path.join(ssl_path,
+                              os.path.basename(self._args.keystone_cafile))
+        certfile = os.path.join(ssl_path,
+                                os.path.basename(self._args.keystone_certfile))
+        keyfile = os.path.join(ssl_path,
+                               os.path.basename(self._args.keystone_certfile))
+        return (certfile, cafile, keyfile)
+
+    def _get_apiserver_certs(self):
+        cafile = self._args.apiserver_cafile
+        certfile = self._args.apiserver_certfile
+        keyfile = self._args.apiserver_keyfile
+        return (certfile, cafile, keyfile)
+
     def fixup_keystone_auth_config_file(self, configure_memcache):
         # Keystone auth config ini
         template_vals = {
@@ -295,9 +311,9 @@ class ContrailSetup(object):
                          '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if configure_memcache else '',
                          '__contrail_ks_auth_url__': '%s://%s:%s/%s' % (self._args.keystone_auth_protocol,
                              self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version),
-                         '__keystone_cert_file_opt__': 'certfile=%s' % self._args.keystone_certfile if self._args.keystone_certfile else '',
-                         '__keystone_key_file_opt__': 'keyfile=%s' % self._args.keystone_keyfile if self._args.keystone_keyfile else '',
-                         '__keystone_ca_file_opt__': 'cafile=%s' % self._args.keystone_cafile if self._args.keystone_cafile else '',
+                         '__keystone_cert_file_opt__': 'certfile=%s' % self._get_keystone_certs()[0] if self._args.keystone_certfile else '',
+                         '__keystone_key_file_opt__': 'keyfile=%s' % self._get_keystone_certs()[2] if self._args.keystone_certfile else '',
+                         '__keystone_ca_file_opt__': 'cafile=%s' % self._get_keystone_certs()[1] if self._args.keystone_cafile else '',
                         }
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
@@ -321,21 +337,25 @@ class ContrailSetup(object):
         local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
         conf_file = "/etc/contrail/vnc_api_lib.ini"
         if self.api_ssl_enabled:
-            configs = {'certfile': self._args.apiserver_certfile,
-                       'keyfile': self._args.apiserver_keyfile,
-                       'cafile': self._args.apiserver_cafile,
+            certfile, cafile, keyfile = self._get_apiserver_certs()
+            configs = {'certfile': certfile,
+                       'keyfile': keyfile,
+                       'cafile': cafile,
                        'insecure': self._args.apiserver_insecure}
             for param, value in configs.items():
                 self.set_config(conf_file, 'global', param, value)
-        if self.keystone_ssl_enabled:
-            configs = {'cafile': self._args.keystone_cafile,
-                       'insecure': self._args.keystone_insecure}
-            for param, value in configs.items():
-                self.set_config(conf_file, 'auth', param, value)
         if self._args.orchestrator == 'vcenter':
             # Remove the auth setion from /etc/contrail/vnc_api_lib.ini
             # if orchestrator is not openstack
             local("sudo contrail-config --del %s auth" % conf_file)
+        elif self.keystone_ssl_enabled:
+            certfile, cafile, keyfile = self._get_keystone_certs()
+            configs = {'cafile': cafile,
+                       'certfile': certfile,
+                       'keyfile': keyfile,
+                       'insecure': self._args.keystone_insecure}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'auth', param, value)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):
