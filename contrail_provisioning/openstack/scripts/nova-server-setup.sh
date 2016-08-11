@@ -169,10 +169,9 @@ fi
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
 export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
-export OS_TENANT_NAME=admin
-export OS_PROJECT_NAME="admin"
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
+export OS_DOMAIN_NAME=Default
 export OS_IDENTITY_API_VERSION="3"
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
