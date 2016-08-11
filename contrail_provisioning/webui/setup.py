@@ -30,6 +30,7 @@ class WebuiSetup(ContrailSetup):
             'admin_tenant_name': 'admin',
             'keystone_version': 'v2.0',
             'keystone_auth_protocol': 'http',
+            'apiserver_auth_protocol': 'http',
         }
         self.parse_args(args_str)
 
@@ -68,6 +69,8 @@ class WebuiSetup(ContrailSetup):
             help = "Keystone Version")
         parser.add_argument("--keystone_auth_protocol",
             help = "Auth protocol used to talk to keystone")
+        parser.add_argument("--apiserver_auth_protocol",
+            help = "Auth protocol used to talk to apiserver/neutron")
         self._args = parser.parse_args(self.remaining_argv)
 
     def  fixup_config_files(self):
@@ -116,9 +119,11 @@ class WebuiSetup(ContrailSetup):
         local("sudo sed \"s/config.identityManager.ip.*/config.identityManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or keystone_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed -si \"s/^config.identityManager.apiVersion.*/config.identityManager.apiVersion = ['%s'];/g\" /etc/contrail/config.global.js" %(keystone_version))
-        local("sudo sed \"s/config.identityManager.authProtocol.*/config.identityManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" % self._args.keystone_auth_protocol)
-        local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-        local("sudo sed -si \"s/^config.identityManager.apiVersion.*/config.identityManager.apiVersion = ['%s'];/g\" /etc/contrail/config.global.js > config.global.js.new" %(keystone_version))
+        local("sudo sed -si \"s/config.identityManager.authProtocol.*/config.identityManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js" % self._args.keystone_auth_protocol)
+        local("sudo sed -si \"s/config.networkManager.authProtocol.*/config.networkManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js" % self._args.apiserver_auth_protocol)
+        local("sudo sed -si \"s/config.cnfg.authProtocol.*/config.cnfg.authProtocol = '%s';/g\" /etc/contrail/config.global.js" % self._args.apiserver_auth_protocol)
+        if self._args.apiserver_auth_protocol == 'https':
+            local("sudo sed -si \"s/config.discoveryService.enable.*/config.discoveryService.enable = false;/g\" /etc/contrail/config.global.js")
         local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if admin_user:
