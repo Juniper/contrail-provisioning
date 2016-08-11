@@ -37,7 +37,8 @@ class QuantumSetup(object):
         self._args_tenant_id = self._args.tenant
         self._args_quant_ip = self._args.quant_server_ip
         self._args_root_password = self._args.root_password
-        self._args_quant_url = "http://%s:9696" % (self._args_quant_ip)
+        self._args_quant_url = "%s://%s:9696" % (self._args.auth_protocol,
+                                                 self._args_quant_ip)
 
         self._args_ks_ip = self._args.ks_server_ip
         self._auth_url = "%s://%s:35357/v2.0" % (self._args.auth_protocol,
