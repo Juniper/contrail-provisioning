@@ -281,6 +281,9 @@ if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
         openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
+        if [ $AUTH_PROTOCOL == "https" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron insecure True
+        fi
         if [ $is_mitaka_or_above -eq 1 ]; then
             openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
             openstack-config --set /etc/nova/nova.conf neutron auth_type password
