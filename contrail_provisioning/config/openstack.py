@@ -121,12 +121,14 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             if os.path.exists(neutron_def_file):
                 local("sudo sed -i 's/NEUTRON_PLUGIN_CONFIG=.*/NEUTRON_PLUGIN_CONFIG=\"\/etc\/neutron\/plugins\/opencontrail\/ContrailPlugin.ini\"/g' %s" %(neutron_def_file))
         if self.api_ssl_enabled:
+            certfile, cafile, keyfile = self._get_apiserver_certs(
+                    '/etc/neutron/ssl/certs/')
             conf_file = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
             conf_vals = {'use_ssl' : True,
                          'insecure': self._args.apiserver_insecure,
-                         'certfile' : self._args.apiserver_certfile,
-                         'keyfile' : self._args.apiserver_keyfile,
-                         'cafile' : self._args.apiserver_cafile,
+                         'certfile' : certfile,
+                         'keyfile' : keyfile,
+                         'cafile' : cafile,
                         }
             for param, value in conf_vals.items():
                 self.set_config(conf_file, 'APISERVER', param, value)
@@ -155,10 +157,11 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('AAA_MODE=%s' % (self._args.aaa_mode or ''))
 
         if self.keystone_ssl_enabled:
-            certfile, cafile, keyfile = self._get_keystone_certs()
+            certfile, cafile, keyfile = self._get_keystone_certs(
+                    '/etc/neutron/ssl/certs/')
             ctrl_infos.append('KEYSTONE_CERTFILE=%s' % certfile)
-            ctrl_infos.append('KEYSTONE_KEYFILE=%s' % keyfile)
-            ctrl_infos.append('KEYSTONE_CAFILE=%s' % cafile)
+            ctrl_infos.append('KEYSTONE_KEYFILE=%s' % certfile)
+            ctrl_infos.append('KEYSTONE_CAFILE=%s' % certfile)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 

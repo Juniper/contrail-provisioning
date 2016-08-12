@@ -137,8 +137,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_contrail_analytics_nodemgr()
         if not os.path.exists('/etc/contrail/contrail-keystone-auth.conf'):
             self.fixup_keystone_auth_config_file(False)
-        if not os.path.exists('/etc/contrail/vnc_api_lib.ini'):
-            self.fixup_vnc_api_lib_ini()
+        self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_alarm_gen()
         self.fixup_cassandra_config()
         self.fixup_ini_files()

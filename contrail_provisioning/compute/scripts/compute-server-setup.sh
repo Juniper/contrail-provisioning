@@ -142,6 +142,9 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
             openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
             openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+            if [ $AUTH_PROTOCOL == "https" ]; then
+                openstack-config --set /etc/nova/nova.conf neutron insecure True
+            fi
         fi
 
         if [ $mitaka_or_above -eq 1 ]; then

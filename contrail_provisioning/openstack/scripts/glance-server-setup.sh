@@ -149,8 +149,8 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
-    if [ $KEYSTONE_INSECURE == "True" ]; then
-        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    if [ $AUTH_PROTOCOL == "https" ]; then
+        openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken insecure True
     fi
     openstack-config --set /etc/glance/glance-$cfg.conf paste_deploy flavor keystone
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT log_file /var/log/glance/$cfg.log

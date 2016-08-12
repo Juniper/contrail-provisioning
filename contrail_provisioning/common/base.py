@@ -282,8 +282,7 @@ class ContrailSetup(object):
             print "Ignoring failure when enabling kdump"
             print "Exception: %s" % str(e)
 
-    def _get_keystone_certs(self):
-        ssl_path = '/etc/contrail/ssl/certs/'
+    def _get_keystone_certs(self, ssl_path='/etc/contrail/ssl/certs/'):
         cafile = os.path.join(ssl_path,
                               os.path.basename(self._args.keystone_cafile))
         certfile = os.path.join(ssl_path,
@@ -292,10 +291,13 @@ class ContrailSetup(object):
                                os.path.basename(self._args.keystone_certfile))
         return (certfile, cafile, keyfile)
 
-    def _get_apiserver_certs(self):
-        cafile = self._args.apiserver_cafile
-        certfile = self._args.apiserver_certfile
-        keyfile = self._args.apiserver_keyfile
+    def _get_apiserver_certs(self, ssl_path='/etc/contrail/ssl/certs/'):
+        cafile = os.path.join(ssl_path,
+                os.path.basename(self._args.apiserver_cafile))
+        certfile = os.path.join(ssl_path,
+                os.path.basename(self._args.apiserver_certfile))
+        keyfile = os.path.join(os.path.dirname(ssl_path).replace('certs', 'private'),
+                os.path.basename(self._args.apiserver_keyfile))
         return (certfile, cafile, keyfile)
 
     def fixup_keystone_auth_config_file(self, configure_memcache):
@@ -356,6 +358,7 @@ class ContrailSetup(object):
                        'insecure': self._args.keystone_insecure}
             for param, value in configs.items():
                 self.set_config(conf_file, 'auth', param, value)
+        local("sudo chown contrail:contrail %s" % conf_file)
 
     def set_config(self, fl, sec, var, val=''):
         with settings(warn_only=True):

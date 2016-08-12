@@ -217,8 +217,9 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
-    if [ $KEYSTONE_INSECURE == "True" ]; then
-        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    if [ $AUTH_PROTOCOL == "https" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure True
+        openstack-config --set /etc/$svc/$svc.conf DEFAULT insecure True
     fi
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host 127.0.0.1
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
@@ -311,6 +312,9 @@ else
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 
         # Neutron section in nova.conf
+        if [ $AUTH_PROTOCOL == "https" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron insecure True
+        fi
         openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
         openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone

@@ -250,12 +250,12 @@ if [[ -n "$ENABLE_ENDPOINTS" ]]; then
     if [ -z $(endpoint_lookup $NOVA_SERVICE) ]; then
         if [ $ubuntu_liberty_and_above -eq 1 ]; then
             if [ $ubuntu_mitaka -eq 1 ]; then
-                openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
+                openstack $INSECURE_FLAG endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                     --publicurl 'http://'$CONTROLLER':8774/v2.1/$(tenant_id)s' \
                     --adminurl 'http://localhost:8774/v2.1/$(tenant_id)s'  \
                     --internalurl 'http://'$CONTROLLER':8774/v2.1/$(tenant_id)s'
             else
-                openstack endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
+                openstack $INSECURE_FLAG endpoint create --region $OS_REGION_NAME $NOVA_SERVICE \
                     --publicurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s' \
                     --adminurl 'http://localhost:8774/v1.1/$(tenant_id)s' \
                     --internalurl 'http://'$CONTROLLER':8774/v1.1/$(tenant_id)s'
