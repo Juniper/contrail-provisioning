@@ -281,7 +281,7 @@ class ContrailSetup(object):
             print "Ignoring failure when enabling kdump"
             print "Exception: %s" % str(e)
 
-    def fixup_keystone_auth_config_file(self):
+    def fixup_keystone_auth_config_file(self, configure_memcache):
         # Keystone auth config ini
         template_vals = {
                          '__contrail_keystone_ip__': self._args.keystone_ip,
@@ -291,7 +291,7 @@ class ContrailSetup(object):
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
                          '__keystone_insecure_flag__': self._args.keystone_insecure,
-                         '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if self._args.multi_tenancy else '',
+                         '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if configure_memcache else '',
                         }
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
