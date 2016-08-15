@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+source /opt/contrail/bin/contrail-lib.sh
+set -x
+
 if [ -f /etc/redhat-release ]; then
    is_redhat=1
    is_ubuntu=0
@@ -21,6 +24,9 @@ if [ -f /etc/redhat-release ]; then
    	OS_URL=neutron_url
    	OS_URL_TIMEOUT=neutron_url_timeout
    fi
+   rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-nova-compute "1 13.0.0 1.el7" && echo 1 || echo 0)
+   rpm_kilo_or_higher=$(is_installed_rpm_greater openstack-nova-compute "0 2015.1.1 1.el7" && echo 1 || echo 0)
+   rpm_juno_or_higher=$(is_installed_rpm_greater openstack-nova-compute "0 2014.2.2 1.el7" && echo 1 || echo 0)
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -65,24 +71,6 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
 fi
-
-function is_installed_rpm_greater() {
-    package_name=$1
-    read ref_epoch ref_version ref_release <<< $2
-    rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name >> /dev/null
-    if [ $? != 0 ]; then
-        echo "ERROR: Seems $package_name is not installed"
-        return 2
-    fi
-    read epoch version release <<< $(rpm -q --qf '%{epochnum} %{V} %{R}\n' $package_name)
-    verdict=$(python -c "import sys,rpm; \
-        print rpm.labelCompare(('$epoch', '$version', '$release'), ('$ref_epoch', '$ref_version', '$ref_release'))")
-    if [[ $verdict -ge 0 ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
 
 source /etc/contrail/ctrl-details
 HYPERVISOR=${HYPERVISOR:-"libvirt"}
@@ -164,13 +152,11 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         fi
 
         if [ $is_redhat -eq 1 ]; then
-            # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
-            is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2015.1.1 1.el7" && echo True)
+            if [[ $rpm_juno_or_higher -eq 1 ]]; then
+                openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
+            fi
 
-            # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
-            # if controller node is compute node so the VIF_TYPE=vrouter is available
-            is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2014.2.2 1.el7" && echo True)
-            if [ "$is_kilo_or_latest" == "True" ]; then
+            if [[ $rpm_kilo_or_higher -eq 1 ]]; then
                 # Neutron section in nova.conf
                 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
                 openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
@@ -189,9 +175,6 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 # New configs in keystone section
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
-
-            elif [ "$is_juno_or_latest" == "True" ]; then
-                openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
             fi
         fi
 
@@ -204,15 +187,12 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/nova/nova.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 else
-    if [ $is_redhat -eq 1 ]; then
-        # For Kilo openstack release, set network_api_class as nova.network.neutronv2.api.API
-        is_kilo_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2015.1.1 1.el7" && echo True)
+    if [[ $is_redhat -eq 1 ]]; then
+        if [[ $rpm_juno_or_higher -eq 1 ]]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
+        fi
 
-        # For Juno, set network_api_class as nova_contrail_vif.contrailvif.ContrailNetworkAPI even
-        # if controller node is compute node so the VIF_TYPE=vrouter is available
-        is_juno_or_latest=$(is_installed_rpm_greater openstack-nova-compute "0 2014.2.2 1.el7" && echo True)
-
-        if [ "$is_kilo_or_latest" == "True" ]; then
+        if [[ $rpm_kilo_or_higher -eq 1 ]]; then
             # Neutron section in nova.conf
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
@@ -228,10 +208,45 @@ else
             # New configs in keystone section
             openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
             openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
-
-        elif [ "$is_juno_or_latest" == "True" ]; then
-            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
         fi
+
+        if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+            contrail-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
+            contrail-config --set /etc/nova/nova.conf DEFAULT use_neutron True
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers $CONTROLLER:11211
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_type password
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken username nova
+            contrail-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
+            contrail-config --set /etc/nova/nova.conf glance api_servers ${AUTH_PROTOCOL}://$CONTROLLER:9292
+            contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+            contrail-config --set /etc/nova/nova.conf vnc enabled True
+            contrail-config --set /etc/nova/nova.conf vnc vncserver_listen 0.0.0.0
+
+            # Needs to updated
+            # contrail-config --set /etc/nova/nova.conf DEFAULT my_ip MGMT_IP_ADDRESS_OF_CONTROLLER
+            # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_userid openstack
+            # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_password RABBIT_PASSWD
+            # contrail-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address MGMT_IP_ADDRESS_OF_CONTROLLER
+
+            contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            contrail-config --set /etc/nova/nova.conf neutron auth_type password
+            contrail-config --set /etc/nova/nova.conf neutron region_name $REGION_NAME
+            contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME
+            contrail-config --set /etc/nova/nova.conf neutron username neutron
+            contrail-config --set /etc/nova/nova.conf neutron password $NEUTRON_PASSWORD
+
+            # virt_type
+            hw_acceleration=$(egrep -c '(vmx|svm)' /proc/cpuinfo)
+            if [[ $hw_acceleration -eq 0 ]]; then
+                contrail-config --set /etc/nova/nova.conf libvirt virt_type qemu
+            fi
+        fi
+
     fi
 fi
 
