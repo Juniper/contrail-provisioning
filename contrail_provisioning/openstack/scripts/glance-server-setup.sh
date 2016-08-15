@@ -27,6 +27,8 @@ if [ -f /etc/redhat-release ]; then
    glance_ver=`rpm -q --qf  "%{VERSION}\n" openstack-glance`
    openstack_services_contrail=''
    openstack_services_glance='openstack-glance-api openstack-glance-registry'
+   rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-glance "1 12.0.0 1.el7" && echo 1 || echo 0)
+   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-glance "1 11.0.1 1.el7" && echo 1 || echo 0)
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -114,6 +116,10 @@ for cfg in api registry; do
     if [ "$INTERNAL_VIP" != "none" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf database connection mysql://glance:$SERVICE_DBPASS@$CONTROLLER:3306/glance
     fi
+    # For Centos/Mitaka, connection variable is not available by default
+    if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+        contrail-config --set /etc/glance/glance-$cfg.conf database connection mysql+pymysql://glance:$SERVICE_DBPASS@$CONTROLLER/glance
+    fi
 done
 
 for APP in glance; do
@@ -143,6 +149,12 @@ for cfg in api; do
     openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
 done
 
+# Additional Configs for Centos Mitaka onwards
+if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+    contrail-config --set /etc/glance/glance-api.conf glance_store stores file,http
+    contrail-config --set /etc/glance/glance-api.conf glance_store default_store file
+fi
+
 for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf DEFAULT sql_idle_timeout 3600
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_tenant_name service
@@ -159,10 +171,22 @@ for cfg in api registry; do
         if [[ $glance_api_ver == *"11.0.0"* ]]; then
             openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadirs /var/lib/glance/images/
         fi
-    elif [ $is_redhat -eq 1 ] ; then
-        is_liberty_or_latest=$(is_installed_rpm_greater openstack-glance "1 11.0.1 1.el7" && echo True)
-        if [ "$is_liberty_or_latest" == "True" ]; then
+    elif [[ $is_redhat -eq 1 ]] ; then
+        if [[ $rpm_liberty_or_higher -eq 1 ]]; then
             openstack-config --set /etc/glance/glance-$cfg.conf glance_store filesystem_store_datadir /var/lib/glance/images/
+        fi
+
+        # Additional Configs for Centos Mitaka onwards
+        if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken memcached_servers $CONTROLLER:11211
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_type password
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken project_domain_name default
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken user_domain_name default
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken username nova
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken password $NOVA_PASSWORD
         fi
     else
         echo "Unrecognized OS"

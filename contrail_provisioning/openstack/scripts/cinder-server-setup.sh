@@ -25,10 +25,10 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=$(get_mysql_service_name)
    os_cinder=$(rpm -q --queryformat="%{VERSION}" openstack-cinder)
-   is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
-                  print LooseVersion('$os_cinder') >= LooseVersion('2015.1.1')")
+   is_kilo_or_above=$(is_installed_rpm_greater openstack-cinder "0 2015.1.1 1.el7" && echo True || echo False)
    openstack_services_contrail=''
    openstack_services_cinder='openstack-cinder-api openstack-cinder-scheduler'
+   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-cinder "1 7.0.1 1.el7" && echo 1 || echo 0)
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -106,6 +106,11 @@ export OS_TENANT_NAME=admin
 export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
+
+
+if [[ $rpm_liberty_or_higher -eq 1 ]]; then
+    contrail-config --set /etc/cinder/cinder.conf database connection mysql+pymysql://cinder:$SERVICE_DBPASS@$CONTROLLER/cinder
+fi
 
 for APP in cinder; do
     # Required only in first openstack node, as the mysql db is replicated using galera.

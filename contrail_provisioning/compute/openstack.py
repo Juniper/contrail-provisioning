@@ -50,6 +50,7 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
         ctrl_infos.append('SERVICE_TENANT_NAME=%s' % self._args.service_tenant_name)
         ctrl_infos.append('KEYSTONE_VERSION=%s' % self._args.keystone_version)
+        ctrl_infos.append('REGION_NAME=%s' % self._args.region_name)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:
