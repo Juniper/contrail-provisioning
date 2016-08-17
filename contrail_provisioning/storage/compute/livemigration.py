@@ -30,7 +30,9 @@ class SetupLivem(object):
         LIBVIRTD_TMP_CONF='/tmp/libvirtd.conf'
         LIBVIRTD_CENTOS_BIN_CONF='/etc/sysconfig/libvirtd'
         LIBVIRTD_UBUNTU_BIN_CONF='/etc/default/libvirt-bin'
+        LIBVIRTD_UBUNTU_INIT_CONF='/etc/init/libvirt-bin.conf'
         LIBVIRTD_TMP_BIN_CONF='/tmp/libvirtd.tmp'
+        LIBVIRTD_TMP_INIT_CONF='/tmp/libvirt-bin.conf'
 
         for hostname, entry, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
            with settings(host_string = 'root@%s' %(entry), password = entry_token):
@@ -51,6 +53,15 @@ class SetupLivem(object):
                    if libvirt_configured == '0':
                        run('cat %s | sed s/"-d"/"-d -l"/ > %s' %(LIBVIRTD_UBUNTU_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
                        run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_UBUNTU_BIN_CONF))
+                       run('service nova-compute restart')
+                       run('service libvirt-bin restart')
+
+               libvirtd = run('ls %s 2>/dev/null |wc -l' %(LIBVIRTD_UBUNTU_INIT_CONF))
+               if libvirtd != '0':
+                   libvirt_configured = run('cat %s |grep "\-d \-l"| wc -l' %(LIBVIRTD_UBUNTU_INIT_CONF))
+                   if libvirt_configured == '0':
+                       run('cat %s | sed s/"-d"/"-d -l"/ > %s' %(LIBVIRTD_UBUNTU_INIT_CONF, LIBVIRTD_TMP_INIT_CONF), shell='/bin/bash')
+                       run('cp -f %s %s' %(LIBVIRTD_TMP_INIT_CONF, LIBVIRTD_UBUNTU_INIT_CONF))
                        run('service nova-compute restart')
                        run('service libvirt-bin restart')
 
