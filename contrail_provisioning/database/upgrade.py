@@ -53,6 +53,15 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         local('nodetool upgradesstables')
         local('service contrail-database stop')
 
+        # first change owner on directories
+        local('chown -R cassandra: /var/lib/cassandra/')
+        local('chown -R cassandra: /var/log/cassandra/')
+        if self._args.data_dir:
+            local('chown -R cassandra: %s' % self._args.data_dir)
+        if self._args.analytics_data_dir:
+            local('chown -R cassandra: %s' % self._args.analytics_data_dir)
+        if self._args.ssd_data_dir:
+            local('chown -R cassandra: %s' % self._args.ssd_data_dir)
         # upgrade cassandra to 2.0.17 first
         if self.pdist in ['Ubuntu']:
             cmd = 'dpkg --force-overwrite --force-confnew --install '
@@ -64,8 +73,6 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         local(cmd)
         local('service cassandra stop')
         self.fixup_cassandra_config_files()
-        local('chown -R cassandra: /var/lib/cassandra/')
-        local('chown -R cassandra: /var/log/cassandra/')
         local('service cassandra start;sleep 5')
 
         cassandra_cli_cmd = "cassandra-cli --host " + self._args.self_ip + \
