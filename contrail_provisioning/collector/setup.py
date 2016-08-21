@@ -31,6 +31,7 @@ class CollectorSetup(ContrailSetup):
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
             'aaa_mode': 'cloud-admin',
+            'keystone_version': 'v2.0',
         }
 
         self.parse_args(args_str)
@@ -88,6 +89,8 @@ class CollectorSetup(ContrailSetup):
             choices=['no-auth', 'cloud-admin'])
         parser.add_argument("--cloud_admin_role",
             help="Name of cloud-admin role")
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
         parser.add_argument("--cassandra_user", help="Cassandra user name",
             default= None)
         parser.add_argument("--cassandra_password", help="Cassandra password",
