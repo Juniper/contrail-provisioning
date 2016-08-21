@@ -23,7 +23,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
-        self.fixup_keystone_auth_config_file(self._args.multi_tenancy)
+        self.fixup_keystone_auth_config_file(True)
         self.fixup_ifmap_config_files()
         self.fixup_contrail_api_config_file()
         config_files = [
@@ -92,13 +92,14 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                          '__contrail_api_server_port__': '8082',
                          '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.self_ip,
                          '__contrail_analytics_server_port__': '8081',
-                         '__contrail_multi_tenancy__': self._args.multi_tenancy,
                          '__contrail_keystone_ip__': self._args.keystone_ip,
                          '__contrail_ks_auth_protocol__': self._args.keystone_auth_protocol,
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
                          '__contrail_admin_user__': self._args.keystone_admin_user,
                          '__contrail_admin_password__': self._args.keystone_admin_passwd,
                          '__contrail_admin_tenant_name__': self._args.keystone_admin_tenant_name,
+                         '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
+                         '__contrail_aaa_mode__': "aaa_mode=%s" % self._args.aaa_mode if self._args.aaa_mode else '',
                     }
         self._template_substitute_write(contrail_plugin_ini.template,
                                         template_vals, self._temp_dir_name + '/contrail_plugin.ini')
@@ -115,8 +116,10 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_vnc_api_lib_ini(self):
         # vnc_api_lib.ini
+        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
         template_vals = {
                          '__contrail_keystone_ip__': self._args.keystone_ip,
+                         '__contrail_authn_url__': authn_url,
                         }
         self._template_substitute_write(vnc_api_lib_ini.template,
                                         template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
@@ -133,11 +136,13 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self.rabbit_servers)
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
+        ctrl_infos.append('KEYSTONE_VERSION=%s' % self._args.keystone_version)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:
             ctrl_infos.append('QUANTUM=%s' % self.cfgm_ip)
         ctrl_infos.append('QUANTUM_PORT=%s' % self._args.quantum_port)
+        ctrl_infos.append('AAA_MODE=%s' % (self._args.aaa_mode or ''))
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 

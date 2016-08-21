@@ -12,6 +12,7 @@ setup(
     name='ContrailProvisioning',
     version='0.1dev',
     packages=find_packages(),
+    include_package_data=True,
     long_description="Contrail VNC Provisioning API Implementation",
     install_requires=requirements('requirements.txt'),
     entry_points = {
