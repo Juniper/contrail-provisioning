@@ -53,6 +53,16 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                    ifmap_dir,
                                         ]
 
+        # From R3.1, zookeeper-3.4.8-0contrail1 is in use
+        # which creates zoo.cfg at /etc/zookeeper/zoo.cfg while the older
+        # version zookeeper-3.4.3-1 created at /etc/zookeeper/conf/zoo.cfg
+        if (self._args.orchestrator != 'vcenter' and
+               self._args.from_rel < LooseVersion('3.1.0.0') and
+               self.pdist in ['redhat']):
+            self.upgrade_data['backup'] += ['/etc/zookeeper/conf/zoo.cfg']
+            self.upgrade_data['restore'] += ['/etc/zookeeper/conf/zoo.cfg']
+            self.upgrade_data['rename_config'] += [('/etc/zookeeper/conf/zoo.cfg', '/etc/zookeeper/zoo.cfg')]
+
         if self._args.orchestrator == 'vcenter':
             self.upgrade_data['backup'].remove('/etc/neutron')
             self.upgrade_data['restore'].remove('/etc/neutron')
