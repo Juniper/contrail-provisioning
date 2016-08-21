@@ -79,6 +79,7 @@ class WebuiSetup(ContrailSetup):
     def fixup_config_global_js(self):
         openstack_ip = self._args.openstack_ip
         keystone_ip = self._args.keystone_ip
+        keystone_version = self._args.keystone_version
         internal_vip = self._args.internal_vip
         contrail_internal_vip = self._args.contrail_internal_vip or internal_vip
         admin_user = self._args.admin_user
@@ -119,6 +120,7 @@ class WebuiSetup(ContrailSetup):
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed -si \"s/config.identityManager.authProtocol.*/config.identityManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js" % self._args.keystone_auth_protocol)
         local("sudo sed -si \"s/config.networkManager.authProtocol.*/config.networkManager.authProtocol = '%s';/g\" /etc/contrail/config.global.js" % self._args.apiserver_auth_protocol)
+        local("sudo sed -si \"s/^config.identityManager.apiVersion.*/config.identityManager.apiVersion = ['%s'];/g\" /etc/contrail/config.global.js" %(keystone_version))
         local("sudo sed \"s/config.storageManager.ip.*/config.storageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if admin_user:

@@ -82,6 +82,19 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     controller_ip=$INTERNAL_VIP
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+cat > $CONF_DIR/openstackrc_v3 <<EOF
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME="admin"
+export OS_USER_DOMAIN_NAME="Default"
+export OS_PROJECT_DOMAIN_NAME="Default"
+export OS_IDENTITY_API_VERSION="3"
+export OS_USERNAME=admin
+export OS_PASSWORD=$ADMIN_TOKEN
+export OS_NO_CACHE=1
+EOF
+fi
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
@@ -129,7 +142,7 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs ${PYDIST}/vnc_api/gen/heat/resources,${PYDIST}/contrail_heat/resources
     openstack-config --set /etc/$svc/$svc.conf DEFAULT heat_waitcondition_server_url http://$controller_ip:8000/v1/waitcondition
 
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$controller_ip:5000/v2.0
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$controller_ip:5000/$KEYSTONE_VERSION
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $controller_ip
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL

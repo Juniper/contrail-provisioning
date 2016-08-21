@@ -1,1 +1,2 @@
 include *.txt
+include contrail_provisioning/openstack/templates/policy.v3cloudsample.json

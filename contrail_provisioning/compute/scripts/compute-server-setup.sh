@@ -97,7 +97,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME $SERVICE_TENANT_NAME
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $NEUTRON_PASSWORD
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$CONTROLLER:35357/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
     if [ $is_ubuntu -eq 1 ] ; then
@@ -133,7 +133,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         fi
 
         if [ $kilo_or_above -eq 1 ] ; then
-            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
             openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
             openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
             openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
@@ -176,7 +176,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
                 openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
                 openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
-                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
                 openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
                 openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
                 openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
@@ -218,7 +218,7 @@ else
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
             openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
             openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
-            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
             openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
             openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
             openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
@@ -448,20 +448,20 @@ fi
 # Openstack and Contrail in different nodes.
 if [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 # Contrail HA.
 elif [ "$INTERNAL_VIP" == "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $CONTROLLER
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$CONTROLLER:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 5999
 # Openstack and Contrail in same nodes.
 elif [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" == "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 fi

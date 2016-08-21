@@ -40,6 +40,7 @@ class CollectorSetup(ContrailSetup):
             'apiserver_keyfile': None,
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
+            'aaa_mode': 'cloud-admin',
         }
 
         self.parse_args(args_str)

@@ -155,6 +155,19 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     controller_ip=$INTERNAL_VIP
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+cat > $CONF_DIR/openstackrc_v3 <<EOF
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME="admin"
+export OS_USER_DOMAIN_NAME="Default"
+export OS_PROJECT_DOMAIN_NAME="Default"
+export OS_IDENTITY_API_VERSION="3"
+export OS_USERNAME=admin
+export OS_PASSWORD=$ADMIN_TOKEN
+export OS_NO_CACHE=1
+EOF
+fi
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
@@ -213,7 +226,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $ADMIN_TOKEN
-openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
@@ -257,7 +270,7 @@ if [ $is_ubuntu -eq 1 ] ; then
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
     if [[ $nova_api_version == *"2015"* ]] || [[ $is_liberty_or_above -eq 1 ]]; then
-        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
         openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
@@ -304,7 +317,7 @@ else
         openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
         openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
-        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/v2.0/
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
         openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
@@ -337,7 +350,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
-    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/v2.0/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292

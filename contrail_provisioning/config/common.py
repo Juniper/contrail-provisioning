@@ -115,9 +115,9 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_contrail_api_config_file(self):
         if self._args.orchestrator == 'vcenter':
-            multi_tenancy_flag = False
+            aaa_mode = "no-auth"
         else:
-            multi_tenancy_flag = self._args.multi_tenancy
+            aaa_mode = self._args.aaa_mode
         # contrail-api.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
@@ -126,13 +126,14 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_listen_ip_addr__': '0.0.0.0',
                          '__contrail_listen_port__': '8082',
                          '__contrail_use_certs__': self._args.use_certs,
-                         '__contrail_multi_tenancy__': multi_tenancy_flag,
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
+                         '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
+                         '__contrail_aaa_mode__': "aaa_mode=%s" % aaa_mode if aaa_mode else '',
                         }
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
@@ -311,6 +312,20 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-discovery')
         local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-discovery")
+
+    def fixup_vnc_api_lib_ini(self):
+        # vnc_api_lib.ini
+        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
+        template_vals = {
+                         '__contrail_keystone_ip__': '127.0.0.1',
+                         '__contrail_authn_url__': authn_url,
+                        }
+        self._template_substitute_write(vnc_api_lib_ini.template,
+                                        template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
+        local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
+        # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
+        # Orchestrator specific setup if required.
+        local("sudo openstack-config --del /etc/contrail/vnc_api_lib.ini auth")
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail

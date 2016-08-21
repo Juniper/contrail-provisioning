@@ -225,6 +225,24 @@ class OpenstackSetup(ContrailSetup):
                 local("sudo sed -i 's/^OPENSTACK_KEYSTONE_URL = \"http:/OPENSTACK_KEYSTONE_URL = \"https:/g' %s" % (dashboard_setting_file))
                 local("sudo sed -i 's/^#OPENSTACK_SSL_NO_VERIFY.*/OPENSTACK_SSL_NO_VERIFY = True/g' %s" % (dashboard_setting_file))
 
+        dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
+        with settings(warn_only=True):
+            is_v3 = local('grep "^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True" %s' % dashboard_setting_file)
+        if self._args.keystone_version == 'v3' and is_v3.failed:
+            local('sudo echo OPENSTACK_API_VERSIONS = { \\\"identity\\\": 3, } >> %s' % (dashboard_setting_file))
+            local("sudo sed -i \"s/^OPENSTACK_KEYSTONE_URL = \(.*\)v2.0\(.*\)/OPENSTACK_KEYSTONE_URL = \\1v3\\2/g\" %s" % (dashboard_setting_file))
+            local("sudo echo SESSION_ENGINE = \\'django.contrib.sessions.backends.cache\\' >> %s" % (dashboard_setting_file))
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            local("sudo cp %s/templates/policy.v3cloudsample.json /etc/keystone" % dir_path)
+            local('sudo sed -i "s/#policy_file = .*/policy_file = policy.v3cloudsample.json/" /etc/keystone/keystone.conf')
+            local("sudo echo OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True >> %s" % (dashboard_setting_file))
+        elif self._args.keystone_version == 'v2.0' and is_v3.succeeded:
+            local('sudo sed -i "/OPENSTACK_API_VERSIONS = { \\\"identity\\\": 3, }/d" %s' % (dashboard_setting_file))
+            local('sudo sed -i "/SESSION_ENGINE.*jango.contrib.sessions.backends.cache/d" %s' % (dashboard_setting_file))
+            local("sudo sed -i \"s/^OPENSTACK_KEYSTONE_URL = \(.*\)v3\(.*\)/OPENSTACK_KEYSTONE_URL = \\1v2.0\\2/g\" %s" % (dashboard_setting_file))
+            local('sudo sed -i "s/policy_file =/#policy_file = /" /etc/keystone/keystone.conf')
+            local('sudo sed -i "/^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/d" %s' % (dashboard_setting_file))
+
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                    % (nova_conf_file))
