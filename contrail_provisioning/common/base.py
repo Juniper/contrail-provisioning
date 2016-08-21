@@ -292,6 +292,8 @@ class ContrailSetup(object):
                          '__contrail_ks_auth_port__': self._args.keystone_auth_port,
                          '__keystone_insecure_flag__': self._args.keystone_insecure,
                          '__contrail_memcached_opt__': 'memcache_servers=127.0.0.1:11211' if configure_memcache else '',
+                         '__contrail_ks_auth_url__': '%s://%s:%s/%s' % (self._args.keystone_auth_protocol,
+                             self._args.keystone_ip, self._args.keystone_auth_port, self._args.keystone_version)
                         }
         self._template_substitute_write(contrail_keystone_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')

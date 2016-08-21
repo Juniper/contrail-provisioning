@@ -90,6 +90,20 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     controller_ip=$INTERNAL_VIP
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+cat > $CONF_DIR/openstackrc_v3 <<EOF
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME="admin"
+export OS_DOMAIN_NAME="Default"
+export OS_USER_DOMAIN_NAME="Default"
+export OS_PROJECT_DOMAIN_NAME="Default"
+export OS_IDENTITY_API_VERSION="3"
+export OS_USERNAME=admin
+export OS_PASSWORD=$ADMIN_TOKEN
+export OS_NO_CACHE=1
+EOF
+fi
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
@@ -106,7 +120,7 @@ openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_auth
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_tenant_name service
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_user barbican
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_password $ADMIN_TOKEN
-openstack-config --set /etc/barbican/barbican-api-paste.ini fliter:keystone_authtoken auth_version v2.0
+openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken auth_version $KEYSTONE_VERSION
 openstack-config --set /etc/barbican/barbican.conf DEFAULT host_href http://$CONTROLLER:9311
 openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_hosts $AMQP_SERVER:$AMQP_PORT
 

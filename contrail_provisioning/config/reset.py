@@ -23,8 +23,8 @@ class ResetVncCfgm(object):
                                                       %(self_ip, collector_ip)
         if self._args.use_certs:
             setup_args_str = setup_args_str + " --use_certs"
-        if self._args.multi_tenancy:
-            setup_args_str = setup_args_str + " --multi_tenancy"
+        if self._args.aaa_mode is not None:
+            setup_args_str = setup_args_str + " --aaa_mode %s" % self._args.aaa_mode
         
         setup_obj = Setup(setup_args_str)
         setup_obj.do_setup()
@@ -34,7 +34,7 @@ class ResetVncCfgm(object):
     def _parse_args(self, args_str):
         '''
         Eg. python setup-vnc-cfgm.py --self_ip 10.1.5.11 --collector_ip 10.1.5.12
-            optional: --use_certs, --multi_tenancy
+            optional: --use_certs, --aaa_mode
         '''
 
         # Source any specified config/ini file
@@ -49,7 +49,6 @@ class ResetVncCfgm(object):
             'self_ip': '127.0.0.1',
             'collector_ip': '127.0.0.1',
             'use_certs': False,
-            'multi_tenancy': False,
         }
 
         if args.conf_file:
@@ -75,8 +74,7 @@ class ResetVncCfgm(object):
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
         parser.add_argument("--use_certs", help = "Use certificates for authentication (irond)",
             action="store_true")
-        parser.add_argument("--multi_tenancy", help = "Enforce resource permissions (implies token validation)",
-            action="store_true")
+        parser.add_argument("--aaa_mode", help = "Enforce resource permissions")
 
         self._args = parser.parse_args(remaining_argv)
 

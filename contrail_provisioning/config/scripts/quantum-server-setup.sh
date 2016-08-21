@@ -79,6 +79,20 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     controller_ip=$INTERNAL_VIP
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+cat > $CONF_DIR/openstackrc_v3 <<EOF
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_TENANT_NAME=admin
+export OS_PROJECT_NAME="admin"
+export OS_DOMAIN_NAME="Default"
+export OS_USER_DOMAIN_NAME="Default"
+export OS_PROJECT_DOMAIN_NAME="Default"
+export OS_IDENTITY_API_VERSION="3"
+export OS_USERNAME=admin
+export OS_PASSWORD=$ADMIN_TOKEN
+export OS_NO_CACHE=1
+EOF
+fi
 cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
@@ -98,7 +112,7 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf DEFAULT allow_overlapping_ips True
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/v2.0/
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
@@ -148,6 +162,14 @@ if [ -d /etc/neutron ]; then
 
     openstack-config --del /etc/neutron/neutron.conf service_providers service_provider
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
+
+    ret_val=`grep "keystone = user_token" /etc/neutron/api-paste.ini > /dev/null;echo $?`
+    if [ "$AAA_MODE" == "rbac" ] && [ $ret_val == 1 ]; then
+        sed -i 's/keystone =/keystone = user_token/' /etc/neutron/api-paste.ini
+        openstack-config --set /etc/neutron/api-paste.ini filter:user_token paste.filter_factory neutron_plugin_contrail.plugins.opencontrail.neutron_middleware:token_factory
+    elif [ "$AAA_MODE" != "rbac" ] && [ $ret_val != 1 ]; then
+        sed -i 's/keystone = user_token/keystone =/' /etc/neutron/api-paste.ini
+    fi
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
 

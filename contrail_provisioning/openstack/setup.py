@@ -31,6 +31,7 @@ class OpenstackSetup(ContrailSetup):
             'nova_password': None,
             'neutron_password': None,
             'keystone_service_tenant_name': 'service',
+            'keystone_version': 'v2.0',
             'amqp_server_ip':'127.0.0.1',
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
@@ -77,6 +78,8 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of services like nova, neutron...etc")
         parser.add_argument("--keystone_auth_protocol", help = "Protocol to use while talking to Keystone")
+        parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
+            help = "Keystone Version")
         parser.add_argument("--internal_vip", help = "Control network VIP Address of openstack nodes")
         parser.add_argument("--external_vip", help = "Management network VIP Address of openstack nodes")
         parser.add_argument("--contrail_internal_vip", help = "Control VIP Address of config  nodes")
@@ -113,6 +116,7 @@ class OpenstackSetup(ContrailSetup):
         ctrl_infos.append('API_SERVER=%s' % self._args.cfgm_ip)
         ctrl_infos.append('OSAPI_COMPUTE_WORKERS=%s' % self._args.osapi_compute_workers)
         ctrl_infos.append('CONDUCTOR_WORKERS=%s' % self._args.conductor_workers)
+        ctrl_infos.append('KEYSTONE_VERSION=%s' % self._args.keystone_version)
         if self._args.mgmt_self_ip:
             ctrl_infos.append('SELF_MGMT_IP=%s' % self._args.mgmt_self_ip)
         if self._args.openstack_ip_list:
@@ -184,6 +188,24 @@ class OpenstackSetup(ContrailSetup):
                     local("sudo sed -i \"s/ALLOWED_HOSTS =.*$/ALLOWED_HOSTS = [\'*\']/g\" %s" % (dashboard_setting_file))
                 else:
                     local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
+
+        dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
+        with settings(warn_only=True):
+            is_v3 = local('grep "^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True" %s' % dashboard_setting_file)
+        if self._args.keystone_version == 'v3' and is_v3.failed:
+            local('sudo echo OPENSTACK_API_VERSIONS = { \\\"identity\\\": 3, } >> %s' % (dashboard_setting_file))
+            local("sudo sed -i \"s/^OPENSTACK_KEYSTONE_URL = \(.*\)v2.0\(.*\)/OPENSTACK_KEYSTONE_URL = \\1v3\\2/g\" %s" % (dashboard_setting_file))
+            local("sudo echo OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True >> %s" % (dashboard_setting_file))
+            local("sudo echo SESSION_ENGINE = \\'django.contrib.sessions.backends.cache\\' >> %s" % (dashboard_setting_file))
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            local("sudo cp %s/templates/policy.v3cloudsample.json /etc/keystone" % dir_path)
+            local('sudo sed -i "s/#policy_file = .*/policy_file = policy.v3cloudsample.json/" /etc/keystone/keystone.conf')
+        elif self._args.keystone_version == 'v2.0' and is_v3.succeeded:
+            local('sudo sed -i "/OPENSTACK_API_VERSIONS = { \\\"identity\\\": 3, }/d" %s' % (dashboard_setting_file))
+            local('sudo sed -i "/^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/d" %s' % (dashboard_setting_file))
+            local('sudo sed -i "/SESSION_ENGINE.*jango.contrib.sessions.backends.cache/d" %s' % (dashboard_setting_file))
+            local("sudo sed -i \"s/^OPENSTACK_KEYSTONE_URL = \(.*\)v3\(.*\)/OPENSTACK_KEYSTONE_URL = \\1v2.0\\2/g\" %s" % (dashboard_setting_file))
+            local('sudo sed -i "s/policy_file =/#policy_file = /" /etc/keystone/keystone.conf')
 
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
