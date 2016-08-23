@@ -176,6 +176,43 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken username nova
                 openstack-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
             fi
+
+            if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
+                contrail-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
+                contrail-config --set /etc/nova/nova.conf DEFAULT use_neutron True
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers $CONTROLLER:11211
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_type password
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken username nova
+                contrail-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
+                contrail-config --set /etc/nova/nova.conf glance api_servers ${AUTH_PROTOCOL}://$CONTROLLER:9292
+                contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
+                contrail-config --set /etc/nova/nova.conf vnc enabled True
+                contrail-config --set /etc/nova/nova.conf vnc vncserver_listen 0.0.0.0
+
+                # Needs to updated
+                # contrail-config --set /etc/nova/nova.conf DEFAULT my_ip MGMT_IP_ADDRESS_OF_CONTROLLER
+                # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_userid openstack
+                # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_password RABBIT_PASSWD
+                # contrail-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address MGMT_IP_ADDRESS_OF_CONTROLLER
+
+                contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+                contrail-config --set /etc/nova/nova.conf neutron auth_type password
+                contrail-config --set /etc/nova/nova.conf neutron region_name $REGION_NAME
+                contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME
+                contrail-config --set /etc/nova/nova.conf neutron username neutron
+                contrail-config --set /etc/nova/nova.conf neutron password $NEUTRON_PASSWORD
+
+                # virt_type
+                hw_acceleration=$(egrep -c '(vmx|svm)' /proc/cpuinfo)
+                if [[ $hw_acceleration -eq 0 ]]; then
+                    contrail-config --set /etc/nova/nova.conf libvirt virt_type qemu
+                fi
+            fi
         fi
 
     fi
