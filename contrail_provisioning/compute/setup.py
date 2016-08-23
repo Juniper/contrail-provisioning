@@ -67,6 +67,7 @@ class ComputeSetup(ContrailSetup):
             'cpu_model': None,
             'dpdk': False,
             'hypervisor' : 'libvirt',
+            'gateway_server_list': None,
         }
 
         self.parse_args(args_str)
@@ -136,6 +137,8 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--dpdk", help = "vRouter/DPDK mode.", action="store_true")
         parser.add_argument("--sriov", help = "sriov configuration")
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'], help = "Keystone Version")
+        parser.add_argument("--gateway_server_list", help = "Compute nodes acting as gateway",
+                            nargs='+', type=str)
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
