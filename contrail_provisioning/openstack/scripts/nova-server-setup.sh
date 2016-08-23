@@ -388,6 +388,14 @@ else
         # contrail-config --set /etc/nova/nova.conf oslo_messaging_rabbit rabbit_password RABBIT_PASSWD
         # contrail-config --set /etc/nova/nova.conf vnc vncserver_listen MGMT_IP_ADDRESS_OF_CONTROLLER
         # contrail-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address MGMT_IP_ADDRESS_OF_CONTROLLER
+
+        contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        contrail-config --set /etc/nova/nova.conf neutron auth_type password
+        contrail-config --set /etc/nova/nova.conf neutron region_name $REGION_NAME
+        contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME
+        contrail-config --set /etc/nova/nova.conf neutron username neutron
+        contrail-config --set /etc/nova/nova.conf neutron password $NEUTRON_PASSWORD
+
     fi
 fi
 
