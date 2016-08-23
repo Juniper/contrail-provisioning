@@ -380,7 +380,7 @@ else
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
         contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
-        contrail-config --set /etc/nova/nova.conf glance api_servers ${AUTH_PROTOCOL}://$CONTROLLER:9292
+        contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
         contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
         # Needs to updated
         # contrail-config --set /etc/nova/nova.conf DEFAULT my_ip MGMT_IP_ADDRESS_OF_CONTROLLER

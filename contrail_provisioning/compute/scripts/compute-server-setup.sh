@@ -189,7 +189,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
                 contrail-config --set /etc/nova/nova.conf keystone_authtoken username nova
                 contrail-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
-                contrail-config --set /etc/nova/nova.conf glance api_servers ${AUTH_PROTOCOL}://$CONTROLLER:9292
+                contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
                 contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
                 contrail-config --set /etc/nova/nova.conf vnc enabled True
                 contrail-config --set /etc/nova/nova.conf vnc vncserver_listen 0.0.0.0
@@ -259,7 +259,7 @@ else
             contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
             contrail-config --set /etc/nova/nova.conf keystone_authtoken username nova
             contrail-config --set /etc/nova/nova.conf keystone_authtoken password $NOVA_PASSWORD
-            contrail-config --set /etc/nova/nova.conf glance api_servers ${AUTH_PROTOCOL}://$CONTROLLER:9292
+            contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
             contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
             contrail-config --set /etc/nova/nova.conf vnc enabled True
             contrail-config --set /etc/nova/nova.conf vnc vncserver_listen 0.0.0.0
