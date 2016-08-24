@@ -67,7 +67,7 @@ class ComputeSetup(ContrailSetup):
             'cpu_model': None,
             'dpdk': False,
             'hypervisor' : 'libvirt',
-            'gateway_server_list': None,
+            'gateway_server_list': '',
         }
 
         self.parse_args(args_str)
