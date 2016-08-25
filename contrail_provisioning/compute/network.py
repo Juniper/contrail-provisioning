@@ -77,7 +77,8 @@ class ComputeNetworkSetup(object):
                     return i
             except ValueError,e:
                 print "Skipping interface %s" % i
-        raise RuntimeError, '%s not configured, rerun w/ --physical_interface' % ip
+        raise RuntimeError('Secondary interace  not configured,',
+                           'rerun w/ --physical_interface')
     #end get_secondary_device
 
     def get_if_mac(self, dev):
