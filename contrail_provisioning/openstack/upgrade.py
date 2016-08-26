@@ -4,6 +4,7 @@
 #
 """Upgrade's Contrail Openstack components."""
 
+from copy import deepcopy
 from distutils.version import LooseVersion
 
 from setup import OpenstackSetup
@@ -52,15 +53,31 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         self.upgrade_data['restore'].remove('/etc/contrail')
 
     def stop(self):
+        openstack_services = deepcopy(self.openstack_services)
+        if self.pdist in ['centos']:
+            contrail_os_version = local("rpm -q --qf '%{V}\\n' contrail-openstack", capture=True)
+            if LooseVersion(contrail_os_version) <= LooseVersion('3.0.2.0'):
+                openstack_services = ['supervisor-openstack']
+
         with settings(warn_only=True):
-            for service in self.openstack_services:
+            for service in openstack_services:
                 if ('running' in
                         local('service %s status' % service,
                               capture=True)):
                     local('service %s stop' % service)
 
     def restart(self):
+        # From R3.1, openstack services moved from supervisor-openstack
+        # and will run as native systemd services
+        if self.pdist in ['centos']:
+            with settings(warn_only=True):
+                local('systemctl daemon-reload')
         for service in self.openstack_services:
+            # To ensure, services are enabled as we transition from sysV to
+            # systemd openstack services in R3.1
+            if self.pdist in ['centos']:
+                with settings(warn_only=True):
+                    local('systemctl enable %s' % service)
             local('service %s restart' % service)
 
     def fix_cmon_param_file(self):
