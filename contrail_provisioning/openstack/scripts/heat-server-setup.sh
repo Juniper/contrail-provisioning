@@ -133,8 +133,11 @@ for svc in heat; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $controller_ip
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_port 35357
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
-    if [ $KEYSTONE_INSECURE == "True" ]; then
-        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure $KEYSTONE_INSECURE
+    if [ $AUTH_PROTOCOL == "https" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken insecure True
+        openstack-config --set /etc/$svc/$svc.conf clients_keystone insecure True
+        openstack-config --set /etc/$svc/$svc.conf clients_neutron insecure True
+        openstack-config --set /etc/$svc/$svc.conf clients_contrail use_ssl True
     fi
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name service
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
