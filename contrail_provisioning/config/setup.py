@@ -5,13 +5,6 @@
 
 import os
 import sys
-import argparse
-import ConfigParser
-from time import sleep
-
-from fabric.state import env
-from fabric.api import local
-from fabric.context_managers import settings
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.config.common import ConfigBaseSetup
@@ -40,6 +33,10 @@ class ConfigSetup(ContrailSetup):
             'aaa_mode': None,
             'nworkers': '1',
             'haproxy': False,
+            'manage_db': False,
+            'seed_list': '',
+            'data_dir': '',
+            'ssd_data_dir': '',
             'region_name': None,
             'keystone_auth_protocol': 'http',
             'keystone_auth_port': '35357',
@@ -117,6 +114,14 @@ class ConfigSetup(ContrailSetup):
             help = "Number of worker processes for api and discovery services",
             default = '1')
         parser.add_argument("--haproxy", help = "Enable haproxy", action="store_true")
+        parser.add_argument("--manage_db", action="store_true",
+                help="Manage seperate cassandra DB for config")
+        parser.add_argument("--seed_list",
+                help = "List of seed nodes for config database", nargs='+')
+        parser.add_argument("--data_dir",
+                help = "Directory where config database stores data")
+        parser.add_argument("--ssd_data_dir",
+                help = "SSD directory that config database stores data")
         parser.add_argument("--region_name", help = "The Region name for the openstack")
         # TODO: Remove after https://review.opencontrail.org/#/c/15076/ is merged
         parser.add_argument("--amqp_server_ip",

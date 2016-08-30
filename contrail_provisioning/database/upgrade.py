@@ -103,7 +103,12 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
 
         local(cmd)
         local('service cassandra stop')
-        self.fixup_cassandra_config_files()
+        # Accomodate cassandra upgrade, if needed
+        self.fixup_cassandra_config_file(self.database_listen_ip,
+                                         self.database_seed_list,
+                                         self._args.data_dir,
+                                         self._args.ssd_data_dir,
+                                         cluster_name='Contrail')
 
     def upgrade(self):
         self.fixup_cassandra_upgrade()
