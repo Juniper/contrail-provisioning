@@ -396,11 +396,22 @@ class CollectorSetup(ContrailSetup):
         else:
             local("sudo collector-server-setup.sh")
 
+    def provision_alarm(self):
+        alarm_args = "--api_server_ip %s" % self._args.cfgm_ip
+        alarm_args += " --api_server_port 8082"
+        alarm_args += " --admin_user %s" % self._args.keystone_admin_user
+        alarm_args += " --admin_password %s" % self._args.keystone_admin_passwd
+        alarm_args += " --admin_tenant_name %s" % self._args.keystone_admin_tenant_name
+        alarm_args += " --oper add"
+        alarm_args += " --alarm_file /opt/contrail/utils/contrail-alarm.json"
+        local("sudo python /opt/contrail/utils/provision_alarm.py %s" % alarm_args)
+
 #end class CollectorSetup
 
 def main(args_str = None):
     collector = CollectorSetup(args_str)
     collector.setup()
+    collector.provision_alarm()
 
 def fix_collector_config(args_str = None):
     collector = CollectorSetup(args_str)
