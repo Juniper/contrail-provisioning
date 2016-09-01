@@ -218,6 +218,10 @@ class OpenstackSetup(ContrailSetup):
                 else:
                     local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
+        with settings(warn_only=True):
+            if self.keystone_ssl_enabled:
+                local("sudo sed -i 's/^OPENSTACK_KEYSTONE_URL = \"http:/OPENSTACK_KEYSTONE_URL = \"https:/g' %s" % (dashboard_setting_file))
+
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                    % (nova_conf_file))
