@@ -156,6 +156,16 @@ class DatabaseSetup(DatabaseCommon):
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, '#advertised.host.name=<hostname routable by clients>',\
                 'advertised.host.name='+listen_ip)
 
+        #Set retention policy
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, '#log.retention.bytes=.*',
+                'log.retention.bytes=1073741824')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.retention.bytes=.*',
+                'log.retention.bytes=268435456')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.segment.bytes=.*',
+                'log.segment.bytes=268435456')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.retention.hours=.*',
+                'log.retention.hours=24')
+
         # Set log compaction and topic delete options
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.enable=false','log.cleaner.enable=true')
         if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=compact'):
