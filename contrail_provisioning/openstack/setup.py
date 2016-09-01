@@ -236,6 +236,10 @@ class OpenstackSetup(ContrailSetup):
             local('sudo sed -i "s/policy_file =/#policy_file = /" /etc/keystone/keystone.conf')
             local('sudo sed -i "/^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/d" %s' % (dashboard_setting_file))
 
+        with settings(warn_only=True):
+            if self.keystone_ssl_enabled:
+                local("sudo sed -i 's/^OPENSTACK_KEYSTONE_URL = \"http:/OPENSTACK_KEYSTONE_URL = \"https:/g' %s" % (dashboard_setting_file))
+
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
                    % (nova_conf_file))
