@@ -20,6 +20,7 @@ class ConfigSetup(ContrailSetup):
 
         self.global_defaults = {
             'self_ip': '127.0.0.1',
+            'cfgm_index' : 1,
             'collector_ip': '127.0.0.1',
             'keystone_ip': '127.0.0.1',
             'keystone_admin_user': 'admin',
@@ -72,6 +73,7 @@ class ConfigSetup(ContrailSetup):
         parser = self._parse_args(args_str)
 
         parser.add_argument("--self_ip", help = "IP Address of this system")
+        parser.add_argument("--cfgm_index", help = "The index of this cfgm node")
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
