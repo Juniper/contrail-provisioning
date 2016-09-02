@@ -130,7 +130,7 @@ class DatabaseSetup(DatabaseCommon):
 
         self.fixup_contrail_database_nodemgr()
 
-        self.fixup_zookeeper_configs()
+        #self.fixup_zookeeper_configs()
         self.fixup_kafka_server_properties(self.database_listen_ip)
 
     def fixup_kafka_server_properties(self, listen_ip):
