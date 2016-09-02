@@ -137,7 +137,7 @@ class DatabaseCommon(ContrailSetup):
         for pattern_to_match, str_to_replace in env_file_settings:
             local("sudo sed -i 's/%s/%s/g' %s" % (pattern_to_match, str_to_replace, env_file))
 
-    def fix_zookeeper_servers_config(self, zookeeper_ip_list):
+    def fix_zookeeper_servers_config(self, zookeeper_ip_list, myid):
         zk_index = 1
         # Instead of inserting/deleting config, remove all the zoo keeper servers
         # and re-generate.
@@ -149,11 +149,13 @@ class DatabaseCommon(ContrailSetup):
 
         #put cluster-unique zookeeper's instance id in myid
         datadir = local('grep -oP "^dataDir=\K.*" %s/zoo.cfg' % self.zoo_conf_dir, capture=True)
-        local('sudo echo "%s" > %s/myid' %(self._args.database_index, datadir))
+        local('sudo echo "%s" > %s/myid' % (myid, datadir))
 
-    def fixup_zookeeper_configs(self, zookeeper_ip_list=None):
+    def fixup_zookeeper_configs(self, zookeeper_ip_list=None, myid=None):
         if not zookeeper_ip_list:
             zookeeper_ip_list = self._args.zookeeper_ip_list
+        if not myid:
+            myid = self._args.database_index
         # set high session timeout to survive glance led disk activity
         local('sudo echo "maxSessionTimeout=120000" >> %s/zoo.cfg' % self.zoo_conf_dir)
         local('sudo echo "autopurge.purgeInterval=3" >> %s/zoo.cfg' % self.zoo_conf_dir)
@@ -164,4 +166,4 @@ class DatabaseCommon(ContrailSetup):
         if self.pdist == 'Ubuntu':
             local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> %s/environment' % self.zoo_conf_dir)
 
-        self.fix_zookeeper_servers_config(zookeeper_ip_list)
+        self.fix_zookeeper_servers_config(zookeeper_ip_list, myid)
