@@ -366,7 +366,10 @@ class ConfigBaseSetup(ContrailSetup):
                 print "[contrail-api and rabbitmq] started by supervisor config, continue to provision."
                 return
 
-    def setup_cassandra(self):
+    def setup_database(self):
+        db.fixup_zookeeper_configs(self._args.zookeeper_ip_list,
+                                   self._args.cfgm_index)
+        db_services = ['zookeeper']
         if self._args.manage_db:
             db = DatabaseCommon()
             db.create_data_dir(self._args.data_dir)
@@ -377,16 +380,15 @@ class ConfigBaseSetup(ContrailSetup):
                                            self._args.ssd_data_dir,
                                            cluster_name='ContrailConfigDB')
             db.fixup_cassandra_env_config()
-            #db.fixup_zookeeper_configs(self._args.zookeeper_ip_list)
-            local('sudo chkconfig contrail-database on')
-            local('sudo service contrail-database restart')
-            #local('sudo chkconfig zookeeper on')
-            #local('sudo service zookeeper restart')
+            db_services.append('contrail-database')
+        for svc in db_services:
+            local('sudo chkconfig %s on' % svc)
+            local('sudo service %s restart' % svc)
 
     def setup(self):
         self.disable_selinux()
         self.disable_iptables()
         self.setup_coredump()
-        self.setup_cassandra()
+        self.setup_database()
         self.fixup_config_files()
         self.run_services()
