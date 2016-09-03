@@ -173,6 +173,9 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_port 35357
+    openstack-config --del /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri
     if [ $AUTH_PROTOCOL == "https" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken insecure True
     fi
