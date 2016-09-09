@@ -133,7 +133,10 @@ class GaleraSetup(ContrailSetup):
                 local('sed -i "/\[mysqld\]/a\collation-server = utf8_general_ci" %s' % self.mysql_conf)
 
     def fix_cmon_config(self):
-        zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
+        if len(self._args.zoo_ip_list):
+            zk_servers_ports = ','.join(['%s:2181' %(s) for s in self._args.zoo_ip_list])
+        else:
+            zk_servers_ports = ""
         template_vals = {'__internal_vip__' : self._args.internal_vip,
                          '__haproxy_dips__' : '"' + '" "'.join(self._args.galera_ip_list) + '"',
                          '__external_vip__' : self._args.external_vip,
