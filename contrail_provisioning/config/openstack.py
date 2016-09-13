@@ -127,7 +127,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             conf_vals = {'use_ssl' : True,
                          'insecure': self._args.apiserver_insecure,
                          'certfile' : certfile,
-                         'keyfile' : keyfile,
+                         'keyfile' : certfile,
                          'cafile' : cafile,
                         }
             for param, value in conf_vals.items():
