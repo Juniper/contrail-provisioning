@@ -132,7 +132,7 @@ class DatabaseSetup(DatabaseCommon):
 
         self.fixup_contrail_database_nodemgr()
 
-        self.fixup_zookeeper_configs()
+        #self.fixup_zookeeper_configs()
         self.fixup_kafka_server_properties(self.database_listen_ip)
 
     def fixup_kafka_server_properties(self, listen_ip):
@@ -294,7 +294,7 @@ class DatabaseSetup(DatabaseCommon):
             return False
 
     def restart(self):
-        local('service zookeeper restart')
+        #local('service zookeeper restart')
         local('service contrail-database restart')
         local('service supervisor-database restart')
 
