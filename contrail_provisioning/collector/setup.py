@@ -50,7 +50,7 @@ class CollectorSetup(ContrailSetup):
             cassandra_port = '9160'
         self.cassandra_server_list = [(cassandra_server_ip, cassandra_port) for cassandra_server_ip in self._args.cassandra_ip_list]
         zookeeper_port = '2181'
-        self.zookeeper_server_list = None
+        self.zookeeper_server_list = []
         if self._args.zookeeper_ip_list:
             self.zookeeper_server_list = [(zookeeper_server_ip, zookeeper_port) for \
                 zookeeper_server_ip in self._args.zookeeper_ip_list]
@@ -207,7 +207,8 @@ class CollectorSetup(ContrailSetup):
             local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
-            ','.join('%s:2181' % cs[0] for cs in self.cassandra_server_list))
+                ','.join('%s:%s' % zookeeper_server
+                    for zookeeper_server in self.zookeeper_server_list)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
@@ -232,7 +233,8 @@ class CollectorSetup(ContrailSetup):
         with settings(warn_only=True):
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
-            ','.join('%s:2181' % cs[0] for cs in self.cassandra_server_list))
+            ','.join('%s:%s' % zookeeper_server
+                for zookeeper_server in self.zookeeper_server_list)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
         self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
