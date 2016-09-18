@@ -137,8 +137,8 @@ if [ -d /etc/neutron ]; then
     openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts $AMQP_SERVER
     liberty=0
     if [ $is_ubuntu -eq 1 ] ; then
-        neutron_server_version=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'` 
-        if [[ $neutron_server_version == *"7.0."* ]]; then
+        neutron_server_top_ver=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'  | cut -d ":" -f 1`
+        if [ "$neutron_server_top_ver" -gt "1" ]; then
             liberty=1
         fi
     elif [ $is_redhat -eq 1 ]; then

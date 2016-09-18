@@ -227,7 +227,14 @@ fi
 
 ubuntu_liberty=0
 if [ $is_ubuntu -eq 1 ]; then
-    if [[ $keystone_version == *"8.0.0"* ]]; then
+    if [[ $keystone_version == *":"* ]]; then
+        keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2 | cut -d'-' -f1`
+        keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
+    else
+        keystone_version_without_epoch=`echo $keystone_version`
+    fi
+
+    if [ $keystone_top_ver -gt 1 ]; then
         ubuntu_liberty=1
     fi
 fi
