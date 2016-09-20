@@ -229,6 +229,7 @@ class OpenstackSetup(ContrailSetup):
         with settings(warn_only=True):
             if self.keystone_ssl_enabled:
                 local("sudo sed -i 's/^OPENSTACK_KEYSTONE_URL = \"http:/OPENSTACK_KEYSTONE_URL = \"https:/g' %s" % (dashboard_setting_file))
+                local("sudo sed -i 's/^#OPENSTACK_SSL_NO_VERIFY.*/OPENSTACK_SSL_NO_VERIFY = True/g' %s" % (dashboard_setting_file))
 
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
