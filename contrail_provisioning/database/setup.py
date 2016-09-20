@@ -125,7 +125,8 @@ class DatabaseSetup(DatabaseCommon):
                                          self.database_seed_list,
                                          self._args.data_dir,
                                          self._args.ssd_data_dir,
-                                         cluster_name='Contrail')
+                                         cluster_name='Contrail',
+                                         user=self._args.cassandra_user)
         self.fixup_datastax_config_file(self._args.opscenter_ip)
         self.setup_analytics_data_dir()
         self.fixup_cassandra_env_config()
@@ -272,26 +273,6 @@ class DatabaseSetup(DatabaseCommon):
 
         if not is_removed:
             raise RuntimeError("Error while removed node %s from the DB cluster", self._args.node_to_delete)
-
-    def check_database_down(self):
-        proc = subprocess.Popen('ps auxw | grep -Eq "Dcassandra-pidfile=.*cassandra\.pid"', shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (output, errout) = proc.communicate()
-        if proc.returncode == 0:
-            return False
-        else:
-            return True
-
-    def check_database_up(self):
-        cmds = ["cqlsh ", self._args.self_ip, " -e exit"]
-        cassandra_cli_cmd = ' '.join(cmds)
-        proc = subprocess.Popen(cassandra_cli_cmd, shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (output, errout) = proc.communicate()
-        if proc.returncode == 0:
-            return True
-        else:
-            return False
 
     def restart(self):
         #local('service zookeeper restart')
