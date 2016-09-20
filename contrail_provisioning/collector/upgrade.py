@@ -120,24 +120,34 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 ' '.join('%s:%s' % (server.split(':')[0], '9042') for server \
                 in analytics_api_cass_server_list.split()))
 
-        # From 3.10:
-        # 1. contrail-analytics-api.conf provides access to only cloud admin
-        #    role, API server VIP needs to be specified
-        # 2. contrail-keystone-auth.conf needs to be passed to
+        # Analytics AAA mode
+        # 1. When upgrading, check contrail-analytics-api.conf for aaa_mode,
+        #    if it does not exist then set it to the the passed value or
+        #    "no-auth" if no value is passed
+        # 2. contrail-analytics-api.conf API server VIP needs to be specified
+        # 3. contrail-keystone-auth.conf needs to be passed to
         #    contrail-analytics-api via contrail-analytics-api.ini
-        # 3. Provision rabbitmq_server_list  and rabbitmq_port in
-        #    contrail-alarm-gen.conf
-        # 4. contrail-keystone-auth.conf needs to be passed to
-        #    contrail-alarm-gen via contrail-alarm-gen.ini
-        if (self._args.from_rel < LooseVersion('3.1') and
-                self._args.to_rel >= LooseVersion('3.1')):
-            analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
-            self.set_config(analytics_api_conf, 'DEFAULTS',
-                'aaa_mode', self._args.aaa_mode)
+        analytics_api_conf = '/etc/contrail/contrail-analytics-api.conf'
+        has_aaa_mode = self.has_config(analytics_api_conf, 'DEFAULTS',
+            'aaa_mode')
+        if not has_aaa_mode:
+            aaa_mode = self._args.aaa_mode if self._args.aaa_mode else \
+                'no-auth'
+            self.set_config(analytics_api_conf, 'DEFAULTS', 'aaa_mode',
+                aaa_mode)
             self.set_config(analytics_api_conf, 'DEFAULTS', 'api_server',
                 self._args.cfgm_ip + ':8082')
             self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
                 ['/etc/contrail/contrail-keystone-auth.conf'])
+
+        # From 3.10:
+        # 1. Provision rabbitmq_server_list  and rabbitmq_port in
+        #    contrail-alarm-gen.conf
+        # 2. contrail-keystone-auth.conf needs to be passed to
+        #    contrail-alarm-gen via contrail-alarm-gen.ini and
+        #    contrail-collector via contrail-collector.ini
+        if (self._args.from_rel < LooseVersion('3.1') and
+                self._args.to_rel >= LooseVersion('3.1')):
             alarm_gen_conf = '/etc/contrail/contrail-alarm-gen.conf'
             self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_server_list',
                 ','.join(self._args.amqp_ip_list))
