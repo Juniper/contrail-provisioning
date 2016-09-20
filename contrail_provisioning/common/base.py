@@ -371,10 +371,19 @@ class ContrailSetup(object):
                         fl, sec, var))
 
     def get_config(self, fl, sec, var):
+        output = None
         with settings(warn_only=True):
             output = local("openstack-config --get %s %s %s" % (
                 fl, sec, var), capture=True)
         return output
+
+    def has_config(self, fl, sec, var):
+        has = False
+        with settings(warn_only=True):
+            output = local("openstack-config --has %s %s %s" % (
+                fl, sec, var), capture=True)
+            has = bool(int(output))
+        return has
 
     def setup(self):
         self.disable_selinux()
