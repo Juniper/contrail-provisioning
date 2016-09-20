@@ -34,7 +34,6 @@ class CollectorSetup(ContrailSetup):
             'keystone_keyfile': None,
             'keystone_cafile': None,
             'keystone_auth_port': '35357',
-            'aaa_mode': 'cloud-admin',
             'keystone_version': 'v2.0',
             'apiserver_insecure': False,
             'apiserver_certfile': None,
@@ -334,7 +333,6 @@ class CollectorSetup(ContrailSetup):
             'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
-            'aaa_mode' : self._args.aaa_mode,
             'api_server_use_ssl': 'True' if self.api_ssl_enabled else 'False',
             },
           'REDIS' : {
@@ -350,6 +348,8 @@ class CollectorSetup(ContrailSetup):
             config_vals['REDIS']['redis_password'] = self._args.redis_password
         if self._args.cloud_admin_role:
             config_vals['DEFAULTS']['cloud_admin_role'] = self._args.cloud_admin_role
+        if self._args.aaa_mode:
+            config_vals['DEFAULTS']['aaa_mode'] = self._args.aaa_mode
 
         # pickup the number of partitions from alarmgen conf
         # if it isn't there, analytics-api conf should use defaults too
