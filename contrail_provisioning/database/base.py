@@ -4,7 +4,7 @@
 #
 
 import os
-
+import subprocess
 from fabric.api import local, settings
 
 from contrail_provisioning.common.base import ContrailSetup
@@ -167,3 +167,23 @@ class DatabaseCommon(ContrailSetup):
             local('echo ZOO_LOG4J_PROP="INFO,CONSOLE,ROLLINGFILE" >> %s/environment' % self.zoo_conf_dir)
 
         self.fix_zookeeper_servers_config(zookeeper_ip_list, myid)
+
+    def check_database_down(self):
+        proc = subprocess.Popen('ps auxw | grep -Eq "Dcassandra-pidfile=.*cassandra\.pid"', shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, errout) = proc.communicate()
+        if proc.returncode == 0:
+            return False
+        else:
+            return True
+
+    def check_database_up(self, database_ip):
+        cmds = ["cqlsh ", database_ip, " -e exit"]
+        cassandra_cli_cmd = ' '.join(cmds)
+        proc = subprocess.Popen(cassandra_cli_cmd, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, errout) = proc.communicate()
+        if proc.returncode == 0:
+            return True
+        else:
+            return False
