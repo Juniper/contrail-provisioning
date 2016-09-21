@@ -126,6 +126,24 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 ' '.join('%s:%s' % (server.split(':')[0], '9042') for server \
                 in analytics_api_cass_server_list.split()))
 
+        # We must ensure that the number of partitions in collector
+        # and analytics-api is same as that in alarm-gen
+        try:
+            pstr = self.get_config('/etc/contrail/contrail-analytics-api.conf',\
+                    'DEFAULTS', 'partitions')
+            pint = int(pstr)
+            self.set_config('/etc/contrail/contrail-collector.conf',\
+                    'DEFAULT', 'partitions', pstr)
+            self.set_config('/etc/contrail/contrail-analytics-api.conf',\
+                    'DEFAULTS', 'partitions', pstr)
+        except:
+            self.replace_in_file('/etc/contrail/contrail-collector.conf',\
+                    'partitions', '')
+            self.replace_in_file('/etc/contrail/contrail-analytics-api.conf',\
+                    'partitions', '')
+
+    # end update_config
+
 def main():
     collector = CollectorUpgrade()
     collector.upgrade()
