@@ -24,12 +24,12 @@ parameter = value = None
 
 def usage():
     sys.stderr.write(sys.argv[0] +
-                     " --set|--del|--get config_file section [parameter] [value]\n")
+                     " --set|--del|--get|--has config_file section [parameter] [value]\n")
     sys.exit(1)
 
 try:
     mode = sys.argv[1]
-    if mode not in ('--set', '--del', '--get'):
+    if mode not in ('--set', '--del', '--get', '--has'):
         usage()
     cfgfile = sys.argv[2]
     section = sys.argv[3]
@@ -40,7 +40,7 @@ try:
         if mode == '--set':
             usage()
     else:
-        if mode == '--del' or mode == '--get':
+        if mode == '--del' or mode == '--get' or mode == '--has':
             sys.stderr.write("A value should not be specified with %s\n" % (mode))
             usage()
 except IndexError:
@@ -63,6 +63,17 @@ elif mode == '--get':
     else:
         value = conf.get(section, parameter)
         sys.stdout.write("%s\n" % (str(value)))
+elif mode == "--has":
+    if parameter is None:
+        if conf.has_section(section):
+            sys.stdout.write("1\n")
+        else:
+            sys.stdout.write("0\n")
+    else:
+        if conf.has_option(section, parameter):
+            sys.stdout.write("1\n")
+        else:
+            sys.stdout.write("0\n")
 else:
     if parameter is None:
         conf.remove_section(section)
