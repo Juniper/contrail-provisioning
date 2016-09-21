@@ -147,6 +147,23 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 ['/etc/contrail/contrail-keystone-auth.conf'])
             self.fixup_analytics_daemon_ini_file('contrail-collector',
                 ['/etc/contrail/contrail-keystone-auth.conf'])
+
+        # We must ensure that the number of partitions in collector
+        # and analytics-api is same as that in alarm-gen
+        try:
+            pstr = self.get_config('/etc/contrail/contrail-analytics-api.conf',\
+                    'DEFAULTS', 'partitions')
+            pint = int(pstr)
+            self.set_config('/etc/contrail/contrail-collector.conf',\
+                    'DEFAULT', 'partitions', pstr)
+            self.set_config('/etc/contrail/contrail-analytics-api.conf',\
+                    , 'DEFAULTS', 'partitions', pstr)
+        except:
+            self.replace_in_file('/etc/contrail/contrail-collector.conf',\
+                    'partitions', '')
+            self.replace_in_file('/etc/contrail/contrail-analytics-api.conf',\
+                    'partitions', '')
+
     # end update_config
 
 def main():
