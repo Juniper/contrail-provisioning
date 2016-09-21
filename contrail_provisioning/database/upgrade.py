@@ -72,7 +72,11 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
             cmd = 'yum -y install /opt/contrail/contrail_install_repo/cassandra20-2.0.17-1.noarch.rpm'
         local(cmd)
         local('service cassandra stop')
-        self.fixup_cassandra_config_files()
+        self.fixup_cassandra_config_file(self.database_listen_ip,
+                                         self.database_seed_list,
+                                         self._args.data_dir,
+                                         self._args.ssd_data_dir,
+                                         cluster_name='Contrail')
         local('service cassandra start;sleep 5')
 
         cassandra_cli_cmd = "cassandra-cli --host " + self._args.self_ip + \
