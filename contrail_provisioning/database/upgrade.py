@@ -10,12 +10,10 @@ from contrail_provisioning.database.migrate import DatabaseMigrate
 from contrail_provisioning.common.upgrade import ContrailUpgrade
 
 
-class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
+class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
     def __init__(self, args_str=None):
         ContrailUpgrade.__init__(self)
         DatabaseSetup.__init__(self)
-        DatabaseMigrate.__init__(self)
-
         self.update_upgrade_data()
 
     def update_upgrade_data(self):
@@ -33,7 +31,13 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
 
 
     def upgrade(self):
-        self.migrate()
+        self._migrator = DatabaseMigrate()
+        self._migrator.migrate(data_dir=self._args.data_dir,
+                         analytics_data_dir=self._args.analytics_data_dir,
+                         ssd_data_dir=self._args.ssd_data_dir,
+                         database_listen_ip=self.database_listen_ip,
+                         database_seed_list=self.database_seed_list,
+                         cassandra_user=self._args.cassandra_user)
 
         self._upgrade()
 
@@ -42,7 +46,8 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup, DatabaseMigrate):
                                          self.database_seed_list,
                                          self._args.data_dir,
                                          self._args.ssd_data_dir,
-                                         cluster_name='Contrail')
+                                         cluster_name='Contrail',
+                                         user=self._args.cassandra_user)
 
         # Accomodate Kafka upgrade, if needed
         self.fixup_kafka_server_properties(self._args.self_ip)
