@@ -5,6 +5,7 @@
 
 import os
 import sys
+from fabric.api import local
 
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.config.common import ConfigBaseSetup
@@ -146,8 +147,19 @@ class ConfigSetup(ContrailSetup):
         if not self._args.neutron_password:
             self._args.neutron_password = self._args.keystone_admin_passwd
 
+    def provision_alarm(self):
+        alarm_args = "--api_server_ip %s" % self._args.self_ip
+        alarm_args += " --api_server_port 8082"
+        alarm_args += " --admin_user %s" % self._args.keystone_admin_user
+        alarm_args += " --admin_password %s" % self._args.keystone_admin_passwd
+        alarm_args += " --admin_tenant_name %s" % self._args.keystone_admin_tenant_name
+        if (self.api_ssl_enabled == True):
+            alarm_args += " --api_server_use_ssl True"
+        local("sudo python /opt/contrail/utils/provision_alarm.py %s" % alarm_args)
+
 def main(args_str = None):
-    config_args = ConfigSetup(args_str)._args
+    config_setup = ConfigSetup(args_str)
+    config_args = config_setup._args
     if config_args.orchestrator == 'openstack':
         config = ConfigOpenstackSetup(config_args)
     # For future Orchestrator, inherit ConfigBaseSetup and
@@ -156,6 +168,7 @@ def main(args_str = None):
         # Defaults to provision only contrail config without Orchestrator.
         config = ConfigBaseSetup(config_args)
     config.setup()
+    config_setup.provision_alarm()
 
 def fix_cfgm_config_files(args_str=None):
     config_args = ConfigSetup(args_str)._args
