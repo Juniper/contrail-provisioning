@@ -199,4 +199,41 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # Timeout for each netns command, when the timeout is reached, the netns
 # command is killed.
 #netns_timeout=30
+
+[QOS]
+# [QUEUE-0]
+# Nic queues for qos config
+# nic_queue=[1,6-10,8-10]
+
+# Nic queue scheduling algorithm used
+# scheduling=strict
+
+# Percentage of the total bandwidth used by queue
+# bandwidth=70
+
+# [QUEUE-1]
+# Nic queues for qos config
+# nic_queue=[2]
+
+# Nic queue scheduling algorithm used
+# scheduling=rr
+
+# Percentage of the total bandwidth used by queue
+# bandwidth=75
+
+
+# [QUEUE-2]
+# Nic queues for qos config
+# nic_queue=[2-5]
+
+# Nic queue scheduling algorithm used
+# scheduling=rr
+
+# Percentage of the total bandwidth used by queue
+# bandwidth=75
+
+# [QUEUE-DEFAULT]
+# Default nic queue
+# nic_queue=[7]
+
 """)
