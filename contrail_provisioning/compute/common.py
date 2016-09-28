@@ -118,6 +118,10 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         vgw_intf_list = self._args.vgw_intf_list
         vgw_gateway_routes = self._args.vgw_gateway_routes
         gateway_server_list = self._args.gateway_server_list
+        qos_logical_queue = self._args.qos_logical_queue
+        qos_queue_id = self._args.qos_queue_id
+        qos_queue_scheduling = self._args.qos_queue_scheduling
+        qos_queue_bandwidth = self._args.qos_queue_bandwidth
 
         self.mac = None
         if self.dev and self.dev != 'vhost0' :
@@ -239,6 +243,29 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 filename = self._temp_dir_name + "/vnswad.conf"
                 with open(filename, "a") as f:
                     f.write(gateway_str)
+
+            if qos_logical_queue != None:
+                qos_str = ""
+                qos_str += "# Default logical nic queue\n"
+                qos_str += "logical_queue=" + qos_logical_queue[-1] + "\n\n"
+                for i in range(len(qos_logical_queue)-1):
+                    qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id[i])
+                    qos_str += "# Logical nic queues for qos config\n"
+                    qos_str += "logical_queue=" + qos_logical_queue[i].replace(",",", ") + "\n\n"
+                    qos_str += "# Nic queue scheduling algorithm used\n"
+                    if qos_queue_scheduling != None:
+                       qos_str +=  "scheduling=" + qos_queue_scheduling[i] + "\n\n"
+                    else:
+                       qos_str +=  "scheduling=" + "\n\n"
+                    qos_str +=  "# Percentage of the total bandwidth used by queue\n"
+                    if qos_queue_bandwidth != None:
+                       qos_str +=  "bandwidth=" + qos_queue_bandwidth[i] + "\n\n"
+                    else:
+                       qos_str +=  "bandwidth=" + "\n\n"
+
+                filename = self._temp_dir_name + "/vnswad.conf"
+                with open(filename, "a") as f:
+                    f.write(qos_str)
 
             if self._args.metadata_secret:
                 local("sudo openstack-config --set %s/vnswad.conf METADATA \

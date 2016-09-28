@@ -68,6 +68,10 @@ class ComputeSetup(ContrailSetup):
             'dpdk': False,
             'hypervisor' : 'libvirt',
             'gateway_server_list': '',
+            'qos_logical_queue': None,
+            'qos_queue_id': None,
+            'qos_queue_scheduling': None,
+            'qos_queue_bandwidth': None,
         }
 
         self.parse_args(args_str)
@@ -138,6 +142,14 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--sriov", help = "sriov configuration")
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'], help = "Keystone Version")
         parser.add_argument("--gateway_server_list", help = "Compute nodes acting as gateway",
+                            nargs='+', type=str)
+        parser.add_argument("--qos_logical_queue", help = "Logical queue for qos",
+                            nargs='+', type=str)
+        parser.add_argument("--qos_queue_id", help = "Hardware queue id",
+                            nargs='+', type=str)
+        parser.add_argument("--qos_queue_scheduling", help = "Scheduling algorithm for logical queue",
+                            nargs='+', type=str)
+        parser.add_argument("--qos_queue_bandwidth", help = "Maximum bandwidth for logical queue",
                             nargs='+', type=str)
 
         self._args = parser.parse_args(self.remaining_argv)
