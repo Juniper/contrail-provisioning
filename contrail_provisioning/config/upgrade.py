@@ -109,6 +109,10 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                 self.del_config(conf_file, 'DEFAULTS', 'rabbit_port')
                 self.set_config(conf_file, 'DEFAULTS', 'rabbit_server',
                                 self.config_setup.rabbit_servers)
+        # Provision alarm during upgrade
+        if (self._args.from_rel < LooseVersion('3.2.0.0') and
+            self._args.to_rel >= LooseVersion('3.2.0.0')):
+            self.provision_alarm()
 
 
 
