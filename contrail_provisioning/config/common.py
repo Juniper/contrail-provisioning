@@ -313,20 +313,6 @@ class ConfigBaseSetup(ContrailSetup):
         local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
         local("sudo chmod a+x /etc/init.d/contrail-discovery")
 
-    def fixup_vnc_api_lib_ini(self):
-        # vnc_api_lib.ini
-        authn_url = '/v3/auth/tokens' if 'v3' in self._args.keystone_version else '/v2.0/tokens'
-        template_vals = {
-                         '__contrail_keystone_ip__': '127.0.0.1',
-                         '__contrail_authn_url__': authn_url,
-                        }
-        self._template_substitute_write(vnc_api_lib_ini.template,
-                                        template_vals, self._temp_dir_name + '/vnc_api_lib.ini')
-        local("sudo mv %s/vnc_api_lib.ini /etc/contrail/" %(self._temp_dir_name))
-        # Remove the auth setion from /etc/contrail/vnc_api_lib.ini, will be added by
-        # Orchestrator specific setup if required.
-        local("sudo openstack-config --del /etc/contrail/vnc_api_lib.ini auth")
-
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
             template_vals = {
