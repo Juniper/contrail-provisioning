@@ -154,7 +154,7 @@ class DatabaseCommon(ContrailSetup):
 
         #put cluster-unique zookeeper's instance id in myid
         datadir = local('grep -oP "^dataDir=\K.*" %s/zoo.cfg' % self.zoo_conf_dir, capture=True)
-        local('sudo echo "%s" > %s/myid' %(self._args.database_index, datadir))
+        local('sudo echo "%s" > %s/myid' %(myid, datadir))
 
     def fixup_zookeeper_configs(self, zookeeper_ip_list=None, myid=None):
         if not zookeeper_ip_list:
