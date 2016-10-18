@@ -175,7 +175,7 @@ class DatabaseSetup(DatabaseCommon):
             local('sudo echo "delete.topic.enable=true" >> %s' % KAFKA_SERVER_PROPERTIES)
 
         #Set replication factor to 2 if more than one kafka broker is available
-        if (len(zk_list)>1):
+        if (len(self._args.seed_list.split(','))>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
                 local('sudo echo "default.replication.factor=2" >> %s' % (KAFKA_SERVER_PROPERTIES))
         KAFKA_LOG4J_PROPERTIES='/usr/share/kafka/config/log4j.properties'
