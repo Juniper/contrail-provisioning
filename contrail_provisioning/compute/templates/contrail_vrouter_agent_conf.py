@@ -201,8 +201,6 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 #netns_timeout=30
 
 [QOS]
-# Default logical nic queue
-# logical_queue=
 
 # [QUEUE-1]
 # Logical nic queues for qos config
@@ -225,6 +223,9 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # bandwidth=
 
 # [QUEUE-3]
+# This is the default hardware queue
+# default_hw_queue= true
+
 # Logical nic queues for qos config
 # logical_queue=
 

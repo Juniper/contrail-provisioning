@@ -246,10 +246,11 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
 
             if qos_logical_queue != None:
                 qos_str = ""
-                qos_str += "# Default logical nic queue\n"
-                qos_str += "logical_queue=" + qos_logical_queue[-1] + "\n\n"
-                for i in range(len(qos_logical_queue)-1):
+                for i in range(len(qos_logical_queue)):
                     qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id[i])
+                    if (i == (len(qos_logical_queue)-1)):
+                        qos_str += "# This is the default hardware queue\n"
+                        qos_str += "default_hw_queue= true\n\n"
                     qos_str += "# Logical nic queues for qos config\n"
                     qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[i].replace(",",", ")
                     qos_str += "# Nic queue scheduling algorithm used\n"
