@@ -22,7 +22,7 @@ hc_interval=$__contrail_healthcheck_interval__
 
 # maximum hearbeats to miss before server will declare publisher out of
 # service. 
-hc_max_miss=3
+hc_max_miss=7
 
 # use short TTL for agressive rescheduling if all services are not up
 ttl_short=1
