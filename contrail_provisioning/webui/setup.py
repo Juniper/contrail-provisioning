@@ -88,6 +88,9 @@ class WebuiSetup(ContrailSetup):
         add_cert_path = False
         keys_path = '/etc/contrail/webui_ssl/'
         keys_re_path = '\/etc\/contrail\/webui_ssl\/'
+        cassandra_ip_list = self._args.cassandra_ip_list
+        if contrail_internal_vip:
+            cassandra_ip_list = [contrail_internal_vip]
 
         #Dynamically create keys
         with settings(warn_only=True):
@@ -136,8 +139,8 @@ class WebuiSetup(ContrailSetup):
         if self._args.collector_ip:
             local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.collector_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
-        if self._args.cassandra_ip_list:
-            local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
+        if cassandra_ip_list:
+            local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(cassandra_ip_list)))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.redis_password:
             local("sudo sed \"s/config.redis_password.*/config.redis_password = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.redis_password))
