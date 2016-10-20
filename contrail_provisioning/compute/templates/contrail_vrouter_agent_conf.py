@@ -69,6 +69,12 @@ physical_interface_address=$__pci_dev__
 # MAC address of device used by dpdk
 physical_interface_mac=$__physical_interface_mac__
 
+# UIO driver to use for DPDK
+physical_uio_driver=uio_pci_generic
+
+# Gateway mode : can be server/ vcpe (default is none)
+gateway_mode=$__gateway_mode__
+
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional
