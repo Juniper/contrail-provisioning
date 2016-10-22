@@ -28,7 +28,6 @@ class AgentXmlParams():
         self.physical_interface=""
         self.gateway_idx=0
         self.gateway_str=""
-        self.gateway_mode=""
     #end __init__
 
 class Xml2Ini():
@@ -69,7 +68,6 @@ class Xml2Ini():
     #end __parse_args__
 
     def process_vhost(self, item, obj):
-        self.gateway_mode = item.attrib["gateway_mode"]
         for child_item in item:
             if child_item.tag == "name":
                 obj.vhost_name = child_item.text
@@ -357,14 +355,6 @@ class Xml2Ini():
 
         ini_str += "# Physical interface name to which virtual host interface maps to\n"
         ini_str += "physical_interface=%s\n\n" %(obj.physical_interface)
-
-        ini_str += obj.gateway_str
-
-        ini_str += "# Gateway mode : can be server/ vcpe (default is none)\n"
-        if obj.gateway_mode:
-            ini_str += "gateway_mode=%s\n\n" %(obj.gateway_mode)
-        else:
-            ini_str += "# gateway_mode=\n\n"
 
         with open(self._args.target_file, "w") as f:
             f.write(ini_str)
