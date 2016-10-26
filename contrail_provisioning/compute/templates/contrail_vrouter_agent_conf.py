@@ -72,9 +72,6 @@ physical_interface_mac=$__physical_interface_mac__
 # UIO driver to use for DPDK
 physical_uio_driver=uio_pci_generic
 
-# Gateway mode : can be server/ vcpe (default is none)
-gateway_mode=$__gateway_mode__
-
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional
@@ -156,6 +153,9 @@ ip=$__contrail_vhost_ip__
 # Gateway IP address for virtual host
 gateway=$__contrail_vhost_gateway__
 
+# Gateway mode : can be server/ vcpe (default is none)
+gateway_mode=$__gateway_mode__
+
 # Physical interface name to which virtual host interface maps to
 physical_interface=$__contrail_physical_intf__
 
@@ -200,27 +200,14 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # command is killed.
 #netns_timeout=30
 
-[QOS]
-
+# [QOS]
 # [QUEUE-1]
 # Logical nic queues for qos config
 # logical_queue=
 
-# Nic queue scheduling algorithm used
-# scheduling=
-
-# Percentage of the total bandwidth used by queue
-# bandwidth=
-
 # [QUEUE-2]
 # Logical nic queues for qos config
 # logical_queue=
-
-# Nic queue scheduling algorithm used
-# scheduling=
-
-# Percentage of the total bandwidth used by queue
-# bandwidth=
 
 # [QUEUE-3]
 # This is the default hardware queue
@@ -229,10 +216,26 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # Logical nic queues for qos config
 # logical_queue=
 
-# Nic queue scheduling algorithm used
+# [QOS-NIANTIC]
+# [PG-1]
+# Scheduling algorithm for priority group (strict/rr)
 # scheduling=
 
-# Percentage of the total bandwidth used by queue
+# Total hardware queue bandwidth used by priority group
+# bandwidth=
+
+# [PG-2]
+# Scheduling algorithm for priority group (strict/rr)
+# scheduling=
+
+# Total hardware queue bandwidth used by priority group
+# bandwidth=
+
+# [PG-3]
+# Scheduling algorithm for priority group (strict/rr)
+# scheduling=
+
+# Total hardware queue bandwidth used by priority group
 # bandwidth=
 
 """)

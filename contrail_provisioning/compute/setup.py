@@ -71,8 +71,9 @@ class ComputeSetup(ContrailSetup):
             'gateway_server_list': '',
             'qos_logical_queue': None,
             'qos_queue_id': None,
-            'qos_queue_scheduling': None,
-            'qos_queue_bandwidth': None,
+            'priority_id': None,
+            'priority_scheduling': None,
+            'priority_bandwidth': None,
         }
 
         self.parse_args(args_str)
@@ -149,9 +150,11 @@ class ComputeSetup(ContrailSetup):
                             nargs='+', type=str)
         parser.add_argument("--qos_queue_id", help = "Hardware queue id",
                             nargs='+', type=str)
-        parser.add_argument("--qos_queue_scheduling", help = "Scheduling algorithm for logical queue",
+        parser.add_argument("--priority_id", help = "Priority group id",
                             nargs='+', type=str)
-        parser.add_argument("--qos_queue_bandwidth", help = "Maximum bandwidth for logical queue",
+        parser.add_argument("--priority_scheduling", help = "Scheduling algorithm for priority group",
+                            nargs='+', type=str)
+        parser.add_argument("--priority_bandwidth", help = "Maximum bandwidth for priority group",
                             nargs='+', type=str)
 
         self._args = parser.parse_args(self.remaining_argv)
