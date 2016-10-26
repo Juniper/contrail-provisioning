@@ -200,38 +200,42 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # command is killed.
 #netns_timeout=30
 
-[QOS]
-# Default logical nic queue
-# logical_queue=
-
+# [QOS]
 # [QUEUE-1]
 # Logical nic queues for qos config
 # logical_queue=
-
-# Nic queue scheduling algorithm used
-# scheduling=
-
-# Percentage of the total bandwidth used by queue
-# bandwidth=
 
 # [QUEUE-2]
 # Logical nic queues for qos config
 # logical_queue=
 
-# Nic queue scheduling algorithm used
-# scheduling=
-
-# Percentage of the total bandwidth used by queue
-# bandwidth=
-
 # [QUEUE-3]
+# This is the default hardware queue
+# default_hw_queue= true
+
 # Logical nic queues for qos config
 # logical_queue=
 
-# Nic queue scheduling algorithm used
+# [QOS-NIANTIC]
+# [PG-1]
+# Scheduling algorithm for priority group (strict/rr)
 # scheduling=
 
-# Percentage of the total bandwidth used by queue
+# Total hardware queue bandwidth used by priority group
+# bandwidth=
+
+# [PG-2]
+# Scheduling algorithm for priority group (strict/rr)
+# scheduling=
+
+# Total hardware queue bandwidth used by priority group
+# bandwidth=
+
+# [PG-3]
+# Scheduling algorithm for priority group (strict/rr)
+# scheduling=
+
+# Total hardware queue bandwidth used by priority group
 # bandwidth=
 
 """)
