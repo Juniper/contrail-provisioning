@@ -307,18 +307,30 @@ if [ $is_ubuntu -eq 1 ] ; then
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
     if [[ $nova_api_version == *"2015"* ]] || [[ $is_liberty_or_above -eq 1 ]]; then
-        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
+            if [ "$INTERNAL_VIP" != "none" ]; then
+                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+            else
+                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            fi
+        elif [ "$INTERNAL_VIP" != "none" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+        else
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        fi
+
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
         openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
-        openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
         openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
         if [ $AUTH_PROTOCOL == "https" ]; then
             openstack-config --set /etc/nova/nova.conf neutron insecure True
         fi
         if [ $is_mitaka_or_above -eq 1 ]; then
-            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
             openstack-config --set /etc/nova/nova.conf neutron auth_type password
             openstack-config --set /etc/nova/nova.conf neutron project_name service
             openstack-config --set /etc/nova/nova.conf neutron username $OS_NET
@@ -354,10 +366,22 @@ else
         if [ $AUTH_PROTOCOL == "https" ]; then
             openstack-config --set /etc/nova/nova.conf neutron insecure True
         fi
-        openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+        if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
+            if [ "$INTERNAL_VIP" != "none" ]; then
+                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+            else
+                openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            fi
+        elif [ "$INTERNAL_VIP" != "none" ]; then
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+        else
+            openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
+            openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        fi
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
         openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
-        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         openstack-config --set /etc/nova/nova.conf neutron admin_username neutron
         openstack-config --set /etc/nova/nova.conf neutron admin_password $NEUTRON_PASSWORD
         openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
