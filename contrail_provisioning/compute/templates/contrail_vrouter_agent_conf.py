@@ -75,6 +75,10 @@ physical_uio_driver=uio_pci_generic
 # Gateway mode : can be server/ vcpe (default is none)
 gateway_mode=$__gateway_mode__
 
+# Sandesh send rate limit can be used to throttle system logs transmitted per
+# second. System logs are dropped if the sending rate is exceeded
+# sandesh_send_rate_limit=100
+
 [DISCOVERY]
 # If COLLECTOR and/or CONTROL-NODE and/or DNS is not specified this section is 
 # mandatory. Else this section is optional

@@ -83,6 +83,14 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
                    nova_conf_file)
             local("service %s start" % openstack_compute_service)
 
+    def update_agent_params(self):
+        agent_conf = '/etc/contrail/contrail-vrouter-agent.conf'
+        has_sandesh_rate_limit = self.has_config(agent_conf, 'DEFAULT',
+            'sandesh_send_rate_limit')
+        if not has_sandesh_rate_limit:
+            self.set_config(agent_conf, 'DEFAULT',
+                            '\#sandesh_send_rate_limit', '100')
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -99,6 +107,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             self._args.to_rel >= LooseVersion('2.20')):
             self.compute_setup.fixup_contrail_vrouter_nodemgr()
         self.enable_apt_get_auto_start()
+        self.update_agent_params()
 
 def main():
     compute = ComputeUpgrade()
