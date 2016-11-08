@@ -76,10 +76,6 @@ INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
 KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
-AMQP_PORT=5672
-if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
-    AMQP_PORT=5673
-fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -139,8 +135,7 @@ for svc in heat; do
         openstack-config --set /etc/$svc/$svc.conf heat_api bind_port 8005
     fi
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_port $AMQP_PORT
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_hosts $AMQP_SERVERS
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
     openstack-config --set /etc/$svc/$svc.conf DEFAULT plugin_dirs ${PYDIST}/vnc_api/gen/heat/resources,${PYDIST}/contrail_heat/resources
     openstack-config --set /etc/$svc/$svc.conf DEFAULT heat_waitcondition_server_url http://$controller_ip:8000/v1/waitcondition

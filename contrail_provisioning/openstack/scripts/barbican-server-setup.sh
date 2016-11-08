@@ -82,10 +82,6 @@ OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
 KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
-AMQP_PORT=5672
-if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
-    AMQP_PORT=5673
-fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -123,7 +119,7 @@ openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_auth
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken admin_password $ADMIN_TOKEN
 openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken auth_version $KEYSTONE_VERSION
 openstack-config --set /etc/barbican/barbican.conf DEFAULT host_href http://$CONTROLLER:9311
-openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_hosts $AMQP_SERVER:$AMQP_PORT
+openstack-config --set /etc/barbican/barbican.conf DEFAULT rabbit_hosts $AMQP_SERVERS
 
 if [ "$INTERNAL_VIP" != "none" ]; then
      openstack-config --set /etc/barbican/barbican-api-paste.ini filter:keystone_authtoken identity_uri $AUTH_PROTOCOL://$INTERNAL_VIP:35357
