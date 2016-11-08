@@ -33,6 +33,7 @@ class OpenstackSetup(ContrailSetup):
             'keystone_service_tenant_name': 'service',
             'keystone_version': 'v2.0',
             'amqp_server_ip':'127.0.0.1',
+            'amqp_port': '5672',
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
             'haproxy': False,
@@ -109,6 +110,10 @@ class OpenstackSetup(ContrailSetup):
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use")
         parser.add_argument("--quantum_port", help = "Port of neutron service")
         parser.add_argument("--amqp_server_ip", help = "IP of the AMQP server to be used for openstack")
+        parser.add_argument("--amqp_server_list", nargs='+', type=str,
+                            help = "IP of the AMQP server to be used by openstack services")
+        parser.add_argument("--amqp_port",
+            help = "IP of the AMQP server port to be used by openstack services")
         parser.add_argument("--osapi_compute_workers", type=int,
                             help = "Number of worker threads for osapi compute")
         parser.add_argument("--conductor_workers", type=int,
@@ -146,7 +151,16 @@ class OpenstackSetup(ContrailSetup):
         if self._args.openstack_ip_list:
             ctrl_infos.append('MEMCACHED_SERVERS=%s' % 
                 (':11211,'.join(self._args.openstack_ip_list) + ':11211'))
-        ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
+        if self._args.amqp_server_list:
+            amqp_server_list = ','.join([amqp_server + ':' + self._args.amqp_port
+                for amqp_server in self._args.amqp_server_list])
+        else:
+            amqp_port=self._args.amqp_port
+            if (self._args.contrail_internal_vip == self._args.amqp_server_ip or
+                    self._args.internal_vip == self._args.amqp_server_ip):
+                amqp_port=5673
+            amqp_server_list = ':'.join([self._args.amqp_server_ip, amqp_port])
+        ctrl_infos.append('AMQP_SERVERS=%s' % amqp_server_list)
         if self._args.haproxy:
             ctrl_infos.append('QUANTUM=127.0.0.1')
         else:
