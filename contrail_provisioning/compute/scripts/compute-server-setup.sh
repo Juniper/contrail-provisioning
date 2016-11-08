@@ -80,7 +80,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_nonblocking True
     openstack-config --set /etc/nova/nova.conf DEFAULT libvirt_inject_partition -1
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_host $CONTROLLER
     openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME $SERVICE_TENANT_NAME
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
@@ -490,16 +490,11 @@ fi
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 EXTERNAL_VIP=${EXTERNAL_VIP:-$INTERNAL_VIP}
-AMQP_PORT=5672
-if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
-    AMQP_PORT=5673
-fi
 if [ "$INTERNAL_VIP" != "none" ] || [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_port 9292
     openstack-config --set /etc/nova/nova.conf DEFAULT glance_num_retries 10
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_interval 10
     openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_retry_backoff 5
     openstack-config --set /etc/nova/nova.conf DEFAULT kombu_reconnect_delay 10
