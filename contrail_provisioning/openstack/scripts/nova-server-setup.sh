@@ -156,10 +156,6 @@ INTERNAL_VIP=${INTERNAL_VIP:-none}
 CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
 AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
 KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
-AMQP_PORT=5672
-if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
-    AMQP_PORT=5673
-fi
 
 controller_ip=$CONTROLLER
 if [ "$INTERNAL_VIP" != "none" ]; then
@@ -259,7 +255,7 @@ for svc in nova; do
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken signing_dir /tmp/keystone-signing-nova
 done
 
-openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $ADMIN_TOKEN
@@ -344,11 +340,11 @@ else
     if [[ $rpm_icehouse_or_higher -eq 1 ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT neutron_auth_strategy keystone
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-        openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
+        openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hosts $AMQP_SERVERS
         openstack-config --set /etc/nova/nova.conf DEFAULT lock_path /var/lib/nova/tmp
         openstack-config --set /etc/nova/nova.conf DEFAULT state_path /var/lib/nova
         openstack-config --set /etc/nova/nova.conf DEFAULT instances_path /var/lib/nova/instances
-        openstack-config --set /etc/nova/nova.conf conductor rabbit_host $AMQP_SERVER
+        openstack-config --set /etc/nova/nova.conf conductor rabbit_hosts $AMQP_SERVERS
         chown -R nova:nova /var/lib/nova
     fi
 
@@ -439,8 +435,7 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT memcached_servers $MEMCACHED_SERVERS
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_port 5000
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
+    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_hostS $AMQP_SERVERS
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
@@ -467,7 +462,6 @@ fi
 # Openstack and contrail in different nodes.
 if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_port $AMQP_PORT
 fi
 
 if [ "$SRIOV_ENABLED" == "True" ] ; then

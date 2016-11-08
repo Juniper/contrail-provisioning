@@ -47,6 +47,7 @@ class ComputeSetup(ContrailSetup):
             'neutron_password':None,
             'keystone_admin_tenant_name':'admin',
             'amqp_server_ip':'127.0.0.1',
+            'amqp_port': '5672',
             'quantum_service_protocol':'http',
             'esxi_vm': False,
             'vmware': None,
@@ -119,6 +120,10 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--quantum_service_protocol", help = "Protocol of neutron for nova to use")
         parser.add_argument("--quantum_port", help = "Quantum server port")
         parser.add_argument("--amqp_server_ip", help = "IP of the AMQP server to be used for openstack")
+        parser.add_argument("--amqp_server_list", nargs='+', type=str,
+                            help = "IP of the AMQP server to be used by openstack services")
+        parser.add_argument("--amqp_port",
+            help = "IP of the AMQP server port to be used by openstack services")
         parser.add_argument("--vmware", help = "The Vmware ESXI IP")
         parser.add_argument("--vmware_username", help = "The Vmware ESXI username")
         parser.add_argument("--vmware_passwd", help = "The Vmware ESXI password")

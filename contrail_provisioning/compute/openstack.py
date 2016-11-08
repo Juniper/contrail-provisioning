@@ -44,7 +44,16 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_password)
         ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
-        ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
+        if self._args.amqp_server_list:
+            amqp_server_list = ','.join([amqp_server + ':' + self._args.amqp_port
+                for amqp_server in self._args.amqp_server_list])
+        else:
+            amqp_port=self._args.amqp_port
+            if (self.args.contrail_internal_vip == self._args.amqp_server_ip or
+                    self.args.contrail_internal_vip == self._args.amqp_server_ip):
+                amqp_port=5673
+            amqp_server_list = ':'.join([self._args.amqp_server_ip, amqp_port])
+        ctrl_infos.append('AMQP_SERVERS=%s' % amqp_server_list)
         ctrl_infos.append('HYPERVISOR=%s' % self._args.hypervisor)
         ctrl_infos.append('NOVA_PASSWORD=%s' % self._args.nova_password)
         ctrl_infos.append('NEUTRON_PASSWORD=%s' % self._args.neutron_password)
