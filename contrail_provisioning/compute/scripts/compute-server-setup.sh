@@ -75,6 +75,10 @@ fi
 source /etc/contrail/ctrl-details
 HYPERVISOR=${HYPERVISOR:-"libvirt"}
 
+INTERNAL_VIP=${INTERNAL_VIP:-none}
+CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
+EXTERNAL_VIP=${EXTERNAL_VIP:-$INTERNAL_VIP}
+
 if [ $CONTROLLER != $COMPUTE ] ; then
     openstack-config --del /etc/nova/nova.conf database connection
     openstack-config --set /etc/nova/nova.conf DEFAULT auth_strategy keystone
@@ -487,9 +491,6 @@ if [ $VMWARE_IP ]; then
 fi
 
 # Openstack HA specific configs
-INTERNAL_VIP=${INTERNAL_VIP:-none}
-CONTRAIL_INTERNAL_VIP=${CONTRAIL_INTERNAL_VIP:-none}
-EXTERNAL_VIP=${EXTERNAL_VIP:-$INTERNAL_VIP}
 AMQP_PORT=5672
 if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP_SERVER" ]; then
     AMQP_PORT=5673
