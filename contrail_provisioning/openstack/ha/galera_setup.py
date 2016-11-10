@@ -157,7 +157,6 @@ class GaleraSetup(ContrailSetup):
         self._template_substitute_write(cmon_conf_template.template, template_vals,
                                         self._temp_dir_name + '/cmon.cnf')
         local("sudo mv %s/cmon.cnf /etc/cmon.cnf" % (self._temp_dir_name))
-        local("sudo chmod 444 /etc/init.d/cmon")
 
     def fixup_config_files(self):
         with settings(warn_only=True):
