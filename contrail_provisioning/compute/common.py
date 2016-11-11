@@ -120,6 +120,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         gateway_server_list = self._args.gateway_server_list
         qos_logical_queue = self._args.qos_logical_queue
         qos_queue_id_list = self._args.qos_queue_id
+        default_hw_queue_qos = self._args.default_hw_queue_qos
         priority_id_list = self._args.priority_id
         priority_scheduling = self._args.priority_scheduling
         priority_bandwidth = self._args.priority_bandwidth
@@ -250,7 +251,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 qos_str += "[QOS]\n"
                 for i in range(len(qos_queue_id_list)):
                     qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[i])
-                    if (i == (len(qos_logical_queue)-1)):
+                    if ((default_hw_queue_qos) and (i == (len(qos_logical_queue)-1))):
                         qos_str += "# This is the default hardware queue\n"
                         qos_str += "default_hw_queue= true\n\n"
                     qos_str += "# Logical nic queues for qos config\n"
