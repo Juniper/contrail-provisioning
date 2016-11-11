@@ -150,6 +150,8 @@ class ComputeSetup(ContrailSetup):
                             nargs='+', type=str)
         parser.add_argument("--qos_queue_id", help = "Hardware queue id",
                             nargs='+', type=str)
+        parser.add_argument("--default_hw_queue_qos", help = "Default hardware queue is defined for qos",
+                            action="store_true")
         parser.add_argument("--priority_id", help = "Priority group id",
                             nargs='+', type=str)
         parser.add_argument("--priority_scheduling", help = "Scheduling algorithm for priority group",
