@@ -444,7 +444,11 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
-    openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
+    if [ $is_mitaka_or_above -eq 1 ]; then
+        openstack-config --set /etc/nova/nova.conf glance api_servers $INTERNAL_VIP:9292
+    else
+        openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
+    fi
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_max_attempts 10
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
