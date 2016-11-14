@@ -322,6 +322,19 @@ if [ $is_ubuntu -eq 1 ] ; then
             openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         fi
 
+        if [ $is_mitaka_or_above -eq 1 ]; then
+            if [ "$INTERNAL_VIP" != "none" ]; then
+                openstack-config --set /etc/nova/nova.conf glance api_servers $INTERNAL_VIP:9292
+            else
+                openstack-config --set /etc/nova/nova.conf glance api_servers $CONTROLLER:9292
+            fi
+        else
+            if [ "$INTERNAL_VIP" != "none" ]; then
+                openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
+            else
+                openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $CONTROLLER:9292
+            fi
+        fi
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
         openstack-config --set /etc/nova/nova.conf neutron admin_password $ADMIN_TOKEN
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name service
@@ -403,7 +416,11 @@ else
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
         contrail-config --set /etc/nova/nova.conf keystone_authtoken project_name $SERVICE_TENANT_NAME
-        contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+        if [ "$INTERNAL_VIP" != "none" ]; then
+            contrail-config --set /etc/nova/nova.conf glance api_servers http://$INTERNAL_VIP:9292
+        else
+            contrail-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+        fi
         contrail-config --set /etc/nova/nova.conf oslo_concurrency lock_path /var/lib/nova/tmp
         # Needs to updated
         # contrail-config --set /etc/nova/nova.conf DEFAULT my_ip MGMT_IP_ADDRESS_OF_CONTROLLER
@@ -418,7 +435,12 @@ else
         contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME
         contrail-config --set /etc/nova/nova.conf neutron username neutron
         contrail-config --set /etc/nova/nova.conf neutron password $NEUTRON_PASSWORD
-
+    else
+        if [ "$INTERNAL_VIP" != "none" ]; then
+            openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers http://$INTERNAL_VIP:9292
+        else
+            openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers http://$CONTROLLER:9292
+        fi
     fi
 fi
 
@@ -444,7 +466,6 @@ if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL $AUTH_PROTOCOL://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT image_service nova.image.glance.GlanceImageService
-    openstack-config --set /etc/nova/nova.conf DEFAULT glance_api_servers $INTERNAL_VIP:9292
     openstack-config --set /etc/nova/nova.conf DEFAULT service_down_time 90
     openstack-config --set /etc/nova/nova.conf DEFAULT scheduler_max_attempts 10
     openstack-config --set /etc/nova/nova.conf database idle_timeout 180
