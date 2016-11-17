@@ -306,20 +306,28 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
+
     if [[ $nova_api_version == *"2015"* ]] || [[ $is_liberty_or_above -eq 1 ]]; then
+        # In Kilo, the neutron auth URL should be configured as admin_auth_url.
+        # In releases > Kilo, it is changed to auth_url.
+        if [ $is_liberty_or_above -eq 1 ]; then
+            NEUTRON_AUTH_URL_FIELD=auth_url
+        else
+            NEUTRON_AUTH_URL_FIELD=admin_auth_url
+        fi
         if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
             if [ "$INTERNAL_VIP" != "none" ]; then
-                openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
             else
-                openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
             fi
         elif [ "$INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
-            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
         else
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
-            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         fi
 
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
@@ -362,6 +370,12 @@ else
     if [[ $rpm_kilo_or_higher -eq 1 ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 
+        if [[ $rpm_liberty_or_higher -eq 1]]; then
+            NEUTRON_AUTH_URL_FIELD=auth_url
+        else
+            NEUTRON_AUTH_URL_FIELD=admin_auth_url
+        fi
+
         # Neutron section in nova.conf
         if [ $AUTH_PROTOCOL == "https" ]; then
             openstack-config --set /etc/nova/nova.conf neutron insecure True
@@ -369,16 +383,16 @@ else
         if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
             if [ "$INTERNAL_VIP" != "none" ]; then
-                openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
             else
-                openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
             fi
         elif [ "$INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
-            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
         else
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
-            openstack-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
         fi
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
         openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
