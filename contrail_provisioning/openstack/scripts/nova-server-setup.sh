@@ -306,7 +306,17 @@ if [ $is_ubuntu -eq 1 ] ; then
         fi
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
+
+    # In Kilo, the neutron auth URL should be configured as admin_auth_url.
+    # In releases > Kilo, it is changed to auth_url.
+    if [ "$INTERNAL_VIP" != "none" ]; then
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
+    else
+        openstack-config --set /etc/nova/nova.conf neutron admin_auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+    fi
+    
     if [[ $nova_api_version == *"2015"* ]] || [[ $is_liberty_or_above -eq 1 ]]; then
+        openstack-config --del /etc/nova/nova.conf neutron admin_auth_url
         if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
             if [ "$INTERNAL_VIP" != "none" ]; then
