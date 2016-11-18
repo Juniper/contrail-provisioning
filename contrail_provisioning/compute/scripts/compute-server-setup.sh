@@ -131,7 +131,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         fi
 
         if [ $kilo_or_above -eq 1 ] ; then
-            if [ $liberty_or_above -eq 1 ] ; then
+            if [ $mitaka_or_above -eq 1 ] ; then
                 NEUTRON_AUTH_URL_FIELD=auth_url
             else
                 NEUTRON_AUTH_URL_FIELD=admin_auth_url
@@ -182,7 +182,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova_contrail_vif.contrailvif.ContrailNetworkAPI
             fi
 
-            if [ $rpm_liberty_or_higher -eq 1 ] ; then
+            if [ $rpm_mitaka_or_higher -eq 1 ] ; then
                 NEUTRON_AUTH_URL_FIELD=auth_url
             else
                 NEUTRON_AUTH_URL_FIELD=admin_auth_url

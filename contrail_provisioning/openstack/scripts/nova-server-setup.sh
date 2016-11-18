@@ -310,7 +310,7 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [[ $nova_api_version == *"2015"* ]] || [[ $is_liberty_or_above -eq 1 ]]; then
         # In Kilo, the neutron auth URL should be configured as admin_auth_url.
         # In releases > Kilo, it is changed to auth_url.
-        if [ $is_liberty_or_above -eq 1 ]; then
+        if [ $is_mitaka_or_above -eq 1 ]; then
             NEUTRON_AUTH_URL_FIELD=auth_url
         else
             NEUTRON_AUTH_URL_FIELD=admin_auth_url
@@ -370,7 +370,7 @@ else
     if [[ $rpm_kilo_or_higher -eq 1 ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
 
-        if [[ $rpm_liberty_or_higher -eq 1 ]]; then
+        if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
             NEUTRON_AUTH_URL_FIELD=auth_url
         else
             NEUTRON_AUTH_URL_FIELD=admin_auth_url
