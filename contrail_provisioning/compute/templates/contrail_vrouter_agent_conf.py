@@ -70,7 +70,7 @@ physical_interface_address=$__pci_dev__
 physical_interface_mac=$__physical_interface_mac__
 
 # UIO driver to use for DPDK
-physical_uio_driver=uio_pci_generic
+physical_uio_driver=igb_uio
 
 # Gateway mode : can be server/ vcpe (default is none)
 gateway_mode=$__gateway_mode__
