@@ -25,7 +25,7 @@ if [ -f /etc/redhat-release ]; then
    web_svc=httpd
    mysql_svc=$(get_mysql_service_name)
    rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-neutron "1 8.1.0 1.el7" && echo 1 || echo 0)
-   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-neutron "1 7.0.3 1.el7" && echo 1 || echo 0)
+   rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-neutron "1 7.0.1 8.el7ost" && echo 1 || echo 0)
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
