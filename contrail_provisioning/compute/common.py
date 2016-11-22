@@ -249,13 +249,21 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             if qos_queue_id_list != None:
                 qos_str = ""
                 qos_str += "[QOS]\n"
-                for i in range(len(qos_queue_id_list)):
+                for i in range(len(qos_logical_queue)):
                     qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[i])
-                    if ((default_hw_queue_qos) and (i == (len(qos_logical_queue)-1))):
-                        qos_str += "# This is the default hardware queue\n"
-                        qos_str += "default_hw_queue= true\n\n"
                     qos_str += "# Logical nic queues for qos config\n"
                     qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[i].replace(",",", ")
+
+                if (default_hw_queue_qos):
+                    qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[-1])
+                    qos_str += "# This is the default hardware queue\n"
+                    qos_str += "default_hw_queue= true\n\n"
+                    qos_str += "# Logical nic queues for qos config\n"
+
+                    if(len(qos_logical_queue) == len(qos_queue_id_list)):
+                        qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[-1].replace(",",", ")
+                    else:
+                        qos_str += "logical_queue=[ ]\n\n"
 
                 filename = self._temp_dir_name + "/vnswad.conf"
                 with open(filename, "a") as f:
