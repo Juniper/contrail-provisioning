@@ -166,13 +166,23 @@ class DatabaseSetup(DatabaseCommon):
                 'log.segment.bytes=268435456')
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.retention.hours=.*',
                 'log.retention.hours=24')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=.*',
+                'log.cleanup.policy=delete')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.threads=.*',
+                'log.cleaner.threads=2')
+        self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.dedupe.buffer.size=.*',
+                'log.cleaner.dedupe.buffer.size=250000000')
 
         # Set log compaction and topic delete options
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.enable=false','log.cleaner.enable=true')
-        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=compact'):
-            local('sudo echo "log.cleanup.policy=compact" >> %s' % KAFKA_SERVER_PROPERTIES)
+        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=delete'):
+            local('sudo echo "log.cleanup.policy=delete" >> %s' % KAFKA_SERVER_PROPERTIES)
         if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'delete.topic.enable=true'):
             local('sudo echo "delete.topic.enable=true" >> %s' % KAFKA_SERVER_PROPERTIES)
+        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleaner.threads=2'):
+            local('sudo echo "log.cleaner.threads=2" >> %s' % KAFKA_SERVER_PROPERTIES)
+        if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleaner.dedupe.buffer.size=250000000'):
+            local('sudo echo "log.cleaner.dedupe.buffer.size=250000000" >> %s' % KAFKA_SERVER_PROPERTIES)
 
         #Set replication factor to 2 if more than one kafka broker is available
         if (len(self._args.seed_list) > 1 or len(self._args.seed_list[0].split(','))>1):
