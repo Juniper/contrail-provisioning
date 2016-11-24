@@ -69,6 +69,7 @@ class ComputeSetup(ContrailSetup):
             'dpdk': False,
             'hypervisor' : 'libvirt',
             'gateway_server_list': '',
+            'default_hw_queue_qos': False,
             'qos_logical_queue': None,
             'qos_queue_id': None,
             'priority_id': None,
