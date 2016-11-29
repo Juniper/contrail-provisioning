@@ -241,7 +241,7 @@ if [ $is_ubuntu -eq 1 ] ; then
 
     if [ $keystone_top_ver -gt 1 ]; then
         ubuntu_liberty_and_above=1
-        dpkg --compare-versions $keystone_version_without_epoch eq 9.0.0
+        dpkg --compare-versions $keystone_version_without_epoch ge 9.0.0
         if [ $? -eq 0 ]; then
             ubuntu_mitaka=1
         fi
