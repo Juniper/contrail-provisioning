@@ -226,6 +226,7 @@ class OpenstackSetup(ContrailSetup):
                 local("sudo sed -i 's/^#OPENSTACK_SSL_NO_VERIFY.*/OPENSTACK_SSL_NO_VERIFY = True/g' %s" % (dashboard_setting_file))
 
         dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
+        dashboard_keystone_policy_file = "/usr/share/openstack-dashboard/openstack_dashboard/conf/keystone_policy.json"
         with settings(warn_only=True):
             is_v3 = local('grep "^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True" %s' % dashboard_setting_file)
         if self._args.keystone_version == 'v3' and is_v3.failed:
@@ -236,6 +237,9 @@ class OpenstackSetup(ContrailSetup):
             local("sudo cp %s/templates/policy.v3cloudsample.json /etc/keystone" % dir_path)
             local('sudo sed -i "s/#policy_file = .*/policy_file = policy.v3cloudsample.json/" /etc/keystone/keystone.conf')
             local("sudo echo OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True >> %s" % (dashboard_setting_file))
+            local("sudo cp %s %s.original" % (dashboard_keystone_policy_file, dashboard_keystone_policy_file))
+            local("sudo cp %s/templates/policy.v3cloudsample.json %s" % (dir_path, dashboard_keystone_policy_file))
+            local('sudo sed -i "s/^    \\\"cloud_admin\\\":.*/    \\\"cloud_admin\\\": \\\"role:admin and domain_id:default\\\",/" %s' % dashboard_keystone_policy_file)
         elif self._args.keystone_version == 'v2.0' and is_v3.succeeded:
             local('sudo sed -i "/OPENSTACK_API_VERSIONS = { \\\"identity\\\": 3, }/d" %s' % (dashboard_setting_file))
             local('sudo sed -i "/SESSION_ENGINE.*jango.contrib.sessions.backends.cache/d" %s' % (dashboard_setting_file))
