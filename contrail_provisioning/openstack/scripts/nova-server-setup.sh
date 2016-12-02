@@ -161,14 +161,11 @@ if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP
     AMQP_PORT=5673
 fi
 
-controller_ip=$CONTROLLER
-if [ "$INTERNAL_VIP" != "none" ]; then
-    controller_ip=$INTERNAL_VIP
-fi
+keystone_ip=$KEYSTONE_SERVER
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
 export OS_DOMAIN_NAME=Default
@@ -182,7 +179,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -263,7 +260,7 @@ openstack-config --set /etc/nova/nova.conf DEFAULT rabbit_host $AMQP_SERVER
 openstack-config --set /etc/nova/nova.conf DEFAULT $TENANT_NAME service
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_USER $OS_NET
 openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_PASSWD $ADMIN_TOKEN
-openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
 openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL_TIMEOUT 300
 openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api $OS_NET
@@ -320,14 +317,14 @@ if [ $is_ubuntu -eq 1 ] ; then
             if [ "$INTERNAL_VIP" != "none" ]; then
                 openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
             else
-                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
             fi
         elif [ "$INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
             openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
         else
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
-            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
         fi
 
         openstack-config --set /etc/nova/nova.conf neutron admin_username $OS_NET
@@ -383,14 +380,14 @@ else
             if [ "$INTERNAL_VIP" != "none" ]; then
                 openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
             else
-                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+                openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
             fi
         elif [ "$INTERNAL_VIP" != "none" ]; then
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
             openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
         else
             openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$QUANTUM:9696/
-            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+            openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
         fi
         openstack-config --set /etc/nova/nova.conf neutron admin_tenant_name $SERVICE_TENANT_NAME
         openstack-config --set /etc/nova/nova.conf neutron auth_strategy keystone
@@ -408,9 +405,9 @@ else
     if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
         contrail-config --set /etc/nova/nova.conf DEFAULT rpc_backend rabbit
         contrail-config --set /etc/nova/nova.conf DEFAULT use_neutron True
-        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
-        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
-        contrail-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers $CONTROLLER:11211
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:5000
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357
+        contrail-config --set /etc/nova/nova.conf keystone_authtoken memcached_servers $KEYSTONE_SERVER:11211
         contrail-config --set /etc/nova/nova.conf keystone_authtoken auth_type password
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken project_domain_name default
         #contrail-config --set /etc/nova/nova.conf keystone_authtoken user_domain_name default
@@ -424,7 +421,7 @@ else
         # contrail-config --set /etc/nova/nova.conf vnc vncserver_listen MGMT_IP_ADDRESS_OF_CONTROLLER
         # contrail-config --set /etc/nova/nova.conf vnc vncserver_proxyclient_address MGMT_IP_ADDRESS_OF_CONTROLLER
 
-        contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        contrail-config --set /etc/nova/nova.conf neutron auth_url ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
         contrail-config --set /etc/nova/nova.conf neutron auth_type password
         contrail-config --set /etc/nova/nova.conf neutron region_name $REGION_NAME
         contrail-config --set /etc/nova/nova.conf neutron project_name $SERVICE_TENANT_NAME

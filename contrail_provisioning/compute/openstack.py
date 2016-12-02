@@ -43,7 +43,11 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
         ctrl_infos.append('AUTH_PROTOCOL=%s' % self._args.keystone_auth_protocol)
         ctrl_infos.append('QUANTUM_PROTOCOL=%s' % self._args.quantum_service_protocol)
         ctrl_infos.append('ADMIN_TOKEN=%s' % self._args.keystone_admin_password)
-        ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
+        if self._args.openstack_ctrl_ip == None:
+            ctrl_infos.append('CONTROLLER=%s' % self._args.keystone_ip)
+        else:
+            ctrl_infos.append('CONTROLLER=%s' % self._args.openstack_ctrl_ip)
+        ctrl_infos.append('KEYSTONE_SERVER=%s' % self._args.keystone_ip)
         ctrl_infos.append('AMQP_SERVER=%s' % self._args.amqp_server_ip)
         ctrl_infos.append('HYPERVISOR=%s' % self._args.hypervisor)
         ctrl_infos.append('NOVA_PASSWORD=%s' % self._args.nova_password)

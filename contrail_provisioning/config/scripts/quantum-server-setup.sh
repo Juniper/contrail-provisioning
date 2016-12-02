@@ -56,7 +56,7 @@ fi
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$KEYSTONE_SERVER:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
 export OS_DOMAIN_NAME=Default
@@ -70,7 +70,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$KEYSTONE_SERVER:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -85,12 +85,12 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf DEFAULT allow_overlapping_ips True
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$KEYSTONE_SERVER:5000
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $NEUTRON_PASSWORD
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
+    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $KEYSTONE_SERVER
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
     if [ "$AUTH_PROTOCOL" == "https" ]; then
