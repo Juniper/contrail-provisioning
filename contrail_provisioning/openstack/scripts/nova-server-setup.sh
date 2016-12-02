@@ -112,7 +112,7 @@ nova_top_ver=`echo $nova_api_version | cut -d':' -f1`
 if [ $is_ubuntu -eq 1 ]; then
     if [ $nova_top_ver -gt 1 ]; then
         is_liberty_or_above=1
-        dpkg --compare-versions $nova_version eq 13.0.0
+        dpkg --compare-versions $nova_version ge 13.0.0
         if [ $? -eq 0 ]; then
             is_mitaka_or_above=1
         fi
