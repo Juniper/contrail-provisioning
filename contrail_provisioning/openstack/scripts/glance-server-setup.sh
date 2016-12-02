@@ -83,14 +83,11 @@ if [ "$CONTRAIL_INTERNAL_VIP" == "$AMQP_SERVER" ] || [ "$INTERNAL_VIP" == "$AMQP
     AMQP_PORT=5673
 fi
 
-controller_ip=$CONTROLLER
-if [ "$INTERNAL_VIP" != "none" ]; then
-    controller_ip=$INTERNAL_VIP
-fi
+keystone_ip=$KEYSTONE_SERVER
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
 export OS_DOMAIN_NAME=Default
@@ -104,7 +101,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=$AUTH_PROTOCOL://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=$AUTH_PROTOCOL://$keystone_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -160,7 +157,7 @@ for cfg in api registry; do
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_user glance
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken admin_password $ADMIN_TOKEN
     openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
-    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:35357
+    openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$KEYSTONE_SERVER:35357
     if [ $AUTH_PROTOCOL == "https" ]; then
         openstack-config --set /etc/glance/glance-$cfg.conf keystone_authtoken insecure True
     fi
@@ -178,8 +175,8 @@ for cfg in api registry; do
 
         # Additional Configs for Centos Mitaka onwards
         if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
-            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$CONTROLLER:5000
-            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$CONTROLLER:35357
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_uri ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:5000
+            contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_url ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357
             contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken memcached_servers $CONTROLLER:11211
             contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken auth_type password
             contrail-config --set /etc/glance/glance-$cfg.conf keystone_authtoken project_domain_name default
