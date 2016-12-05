@@ -95,7 +95,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
 
     def fixup_contrail_plugin_ini(self):
         # quantum/neutron plugin
-        template_vals = {'__contrail_api_server_ip__': self.contrail_internal_vip or self._args.self_ip,
+        template_vals = {'__contrail_api_server_ip__': self.contrail_internal_vip or self._args.first_cfgm_ip or self._args.self_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.self_ip,
                          '__contrail_analytics_server_port__': '8081',
@@ -173,6 +173,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def run_services(self):
         if self.contrail_internal_vip:
             quantum_ip = self.contrail_internal_vip
+        elif self._args.first_cfgm_ip:
+            quantum_ip = self._args.first_cfgm_ip
         else:
             quantum_ip = self.cfgm_ip
         quant_args = '--ks_server_ip     %s ' % self._args.keystone_ip + \
