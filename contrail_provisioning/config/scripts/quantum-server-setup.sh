@@ -85,6 +85,7 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf DEFAULT allow_overlapping_ips True
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT dhcp_agent_notification False
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
     openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
