@@ -61,6 +61,7 @@ class ConfigBaseSetup(ContrailSetup):
         if (self._args.apiserver_keyfile and
                 self._args.apiserver_certfile and self._args.apiserver_cafile):
             self.api_ssl_enabled = True
+        self.keystone_ssl_enabled = False
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
