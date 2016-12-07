@@ -223,6 +223,7 @@ class DatabaseMigrate(DatabaseCommon):
                                              ssd_data_dir,
                                              cluster_name='Contrail',
                                              user=cassandra_user)
+            self.fixup_cassandra_env_config()
             local('service cassandra start;sleep 5')
 
             while not self.check_database_up(database_listen_ip):
