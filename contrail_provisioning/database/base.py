@@ -188,7 +188,12 @@ class DatabaseCommon(ContrailSetup):
         proc = subprocess.Popen(cassandra_cli_cmd, shell=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, errout) = proc.communicate()
-        if proc.returncode == 0:
+
+        nodetool_cmd = "nodetool status"
+        nodetool_proc = subprocess.Popen(nodetool_cmd, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, errout) = nodetool_proc.communicate()
+        if proc.returncode == 0 and nodetool_proc.returncode == 0:
             return True
         else:
             return False

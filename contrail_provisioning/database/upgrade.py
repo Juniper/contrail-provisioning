@@ -39,6 +39,7 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
                                          self._args.ssd_data_dir,
                                          cluster_name='Contrail',
                                          user=self._args.cassandra_user)
+        self.fixup_cassandra_env_config()
 
         # Accomodate Kafka upgrade, if needed
         self.fixup_kafka_server_properties(self._args.self_ip)
