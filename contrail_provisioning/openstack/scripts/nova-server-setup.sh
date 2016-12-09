@@ -434,6 +434,11 @@ else
     fi
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+    contrail-config --set /etc/nova/nova.conf neutron project_domain_name Default
+    contrail-config --set /etc/nova/nova.conf neutron user_domain_name Default
+fi
+
 if [ "$INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf DEFAULT osapi_compute_listen_port 9774
     openstack-config --set /etc/nova/nova.conf DEFAULT metadata_listen_port 9775
