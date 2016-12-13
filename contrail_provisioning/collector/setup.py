@@ -41,6 +41,7 @@ class CollectorSetup(ContrailSetup):
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
             'aaa_mode': 'cloud-admin',
+            'collector_ip_list':['127.0.0.1']
         }
 
         self.parse_args(args_str)
@@ -49,6 +50,7 @@ class CollectorSetup(ContrailSetup):
         else:
             cassandra_port = '9160'
         self.cassandra_server_list = [(cassandra_server_ip, cassandra_port) for cassandra_server_ip in self._args.cassandra_ip_list]
+        self.redis_server_list = ["%s:6379" % collector_ip for collector_ip in self._args.collector_ip_list]
         zookeeper_port = '2181'
         self.zookeeper_server_list = []
         if self._args.zookeeper_ip_list:
@@ -71,13 +73,15 @@ class CollectorSetup(ContrailSetup):
             --zookeeper_ip_list 10.1.1.1 10.1.1.2
             --cfgm_ip 10.1.5.11 --self_collector_ip 10.1.5.11
             --analytics_data_ttl 1 --analytics_syslog_port 3514
-            --keystone_ip 10.1.5.11
+            --keystone_ip 10.1.5.11 --collector_ip_list 10.1.5.11 10.1.5.12
         '''
 
         parser = self._parse_args(args_str)
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--collector_ip_list", help = "List of IP Addresses of Analytics nodes",
                             nargs='+', type=str)
         parser.add_argument("--cfgm_ip", help = "IP Address of the config node")
         parser.add_argument("--self_collector_ip", help = "IP Address of the collector node")
@@ -200,6 +204,9 @@ class CollectorSetup(ContrailSetup):
                 for zookeeper_server in self.zookeeper_server_list)
         self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'zk_list',
                         zk_list_str)
+        redis_list_str = ' '.join(self.redis_server_list)
+        self.set_config(ALARM_GEN_CONF_FILE, 'REDIS', 'redis_uve_list',
+                        redis_list_str)
 
         if self._args.amqp_ip_list:
             self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_server_list',
@@ -334,6 +341,7 @@ class CollectorSetup(ContrailSetup):
         rest_api_port = '8081'
         if self._args.internal_vip:
             rest_api_port = '9081'
+
         config_vals = \
         { 'DEFAULTS' : {
             'log_file' : '/var/log/contrail/contrail-analytics-api.log',
@@ -351,16 +359,19 @@ class CollectorSetup(ContrailSetup):
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
             'api_server_use_ssl': 'True' if self.api_ssl_enabled else 'False',
+            'zk_list': ' '.join('%s:%s' % zookeeper_server for \
+                zookeeper_server in self.zookeeper_server_list)
             },
           'REDIS' : {
-            'redis_server_port' : 6379,
             'redis_query_port' : 6379,
+            'redis_uve_list' : ' '.join(self.redis_server_list),
             },
           'DISCOVERY' : {
             'disc_server_ip' : self._args.cfgm_ip,
             'disc_server_port' : 5998,
             },
         }
+
         if self._args.redis_password:
             config_vals['REDIS']['redis_password'] = self._args.redis_password
         if self._args.cloud_admin_role:
