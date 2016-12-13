@@ -273,7 +273,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
 
             if priority_id_list != None:
                 priority_group_str = ""
-                priority_group_str += "[QOS-NIANTIC]\n"
+                priority_group_str += "[QOS-SCHEDULING]\n"
                 for i in range(len(priority_id_list)):
                     priority_group_str += '[%s%s]\n' %("PG-", priority_id_list[i])
                     priority_group_str += "# Scheduling algorithm for priority group (strict/rr)\n"

@@ -216,7 +216,7 @@ netns_command=/usr/bin/opencontrail-vrouter-netns
 # Logical nic queues for qos config
 # logical_queue=
 
-# [QOS-NIANTIC]
+# [QOS-SCHEDULING]
 # [PG-1]
 # Scheduling algorithm for priority group (strict/rr)
 # scheduling=
