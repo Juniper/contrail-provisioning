@@ -29,7 +29,8 @@ class ComputeOpenstackSetup(ComputeBaseSetup):
                     cmd = "dpkg -l | grep 'ii' | grep nova-compute | grep -v vif | grep -v nova-compute-kvm | awk '{print $3}'"
                     nova_compute_version = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
                     if (nova_compute_version != "2:2013.1.3-0ubuntu1"):
-                        local("openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://%s:5000/v2.0" % self._args.keystone_ip)
+                        local("openstack-config --set /etc/nova/nova.conf DEFAULT neutron_admin_auth_url http://%s:5000/%s" \
+                                % (self._args.keystone_ip, self._args.keystone_version))
 
         nova_conf_file = "/etc/nova/nova.conf"
         if os.path.exists(nova_conf_file):
