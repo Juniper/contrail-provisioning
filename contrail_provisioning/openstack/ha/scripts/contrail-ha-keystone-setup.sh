@@ -149,7 +149,7 @@ function get_role() {
 # add domain level role
 function user_role_add_domain() {
     # openstack role add --user=$1 --domain $2 $3
-    curl -H"X-Auth-Token: $SERVICE_TOKEN" -X PUT http://localhost:5000/v3/domains/$2/users/$1/roles/$3
+    curl $INSECURE_FLAG -H"X-Auth-Token: $SERVICE_TOKEN" -X PUT $AUTH_PROTOCOL://localhost:5000/v3/domains/$2/users/$1/roles/$3
 }
 
 ADMIN_ROLE=$(get_role admin)
