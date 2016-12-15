@@ -340,6 +340,11 @@ if [ $VMWARE_IP ]; then
     fi
 fi
 
+if [ "$KEYSTONE_VERSION" == "v3" ]; then
+    contrail-config --set /etc/nova/nova.conf neutron project_domain_name Default
+    contrail-config --set /etc/nova/nova.conf neutron user_domain_name Default
+fi
+
 get_pci_whitelist_addresses() {
     orig_ifs=$IFS
     IFS=' '
