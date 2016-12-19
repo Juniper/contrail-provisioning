@@ -184,11 +184,7 @@ status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&
 if [ $status == 'stopped' ]; then
     service supervisor-openstack start
     sleep 5
-    if [ -e /tmp/supervisord_openstack.sock ]; then
-        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
-    else
-        supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
-    fi
+    supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
 fi
 
 # Start cinder services
