@@ -5,6 +5,7 @@
 """Provision's Contrail Config components."""
 
 import os
+import subprocess
 from time import sleep
 
 from fabric.api import local
@@ -319,7 +320,13 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
+            ps = subprocess.Popen("which service", shell=True, stdout=subprocess.PIPE)
+            svc_bin_path = ps.stdout.read()
+            svc_bin_path = svc_bin_path.replace('\n','')
+            ps.stdout.close()
+            ps.wait()
             template_vals = {
+                             '__service_bin_path__':svc_bin_path,
                             }
             self._template_substitute_write(contrail_sudoers.template,
                                             template_vals, self._temp_dir_name + '/contrail_sudoers')
