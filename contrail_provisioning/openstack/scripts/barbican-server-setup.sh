@@ -153,9 +153,11 @@ for svc in $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in supervisor-openstack; do
-    chkconfig $svc on
-done
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in supervisor-openstack; do
+        chkconfig $svc on
+    done
+fi
 
 echo "======= Starting the services ======"
 
@@ -164,11 +166,13 @@ for svc in $web_svc memcached; do
 done
 
 # Listen at supervisor-openstack port
-status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
-if [ $status == 'stopped' ]; then
-    service supervisor-openstack start
-    sleep 5
-    supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
+    if [ $status == 'stopped' ]; then
+        service supervisor-openstack start
+        sleep 5
+        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
+    fi
 fi
 
 # Start barbican services

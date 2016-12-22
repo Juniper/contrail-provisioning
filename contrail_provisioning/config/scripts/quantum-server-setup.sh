@@ -16,6 +16,8 @@
 
 
 source /opt/contrail/bin/contrail-lib.sh
+source /opt/contrail/bin/contrail-openstack-lib.sh
+
 CONF_DIR=/etc/contrail
 set -x
 
@@ -33,6 +35,20 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
+
+   is_liberty_or_latest=0
+   if [ $is_ubuntu -eq 1 ] ; then
+       neutron_server_version=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'`
+       neutron_version=`echo $neutron_server_version | cut -d':' -f2 | cut -d'-' -f1`
+       neutron_top_ver=`echo $neutron_server_version | cut -d':' -f1`
+       if [ $neutron_server_top_ver -gt 1 ]; then
+           is_liberty_or_latest=1
+       fi
+       dpkg --compare-versions $neutron_version ge 9.0.0~rc3
+       if [ $? -eq 0 ]; then
+           ubuntu_newton=1
+       fi 
+   fi
 fi
 
 msg_svc=rabbitmq-server
@@ -81,6 +97,13 @@ else
     net_svc_name='quantum'
 fi
 
+if [ $ubuntu_newton -eq 1 ]; then
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        openstack-db -y --init --service neutron --password $SERVICE_DBPASS --rootpw "$MYSQL_TOKEN"
+    fi
+fi
+
 for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT bind_port $QUANTUM_PORT
     openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
@@ -115,14 +138,6 @@ if [ -d /etc/neutron ]; then
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
     openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
     openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts $AMQP_SERVER
-
-    is_liberty_or_latest=0
-    if [ $is_ubuntu -eq 1 ] ; then
-        neutron_server_top_ver=`dpkg -l | grep 'ii' | grep neutron-server | awk '{print $3}'  | cut -d ":" -f 1`
-        if [ "$neutron_server_top_ver" -gt "1" ]; then
-            is_liberty_or_latest=1
-        fi
-    fi
 
     if [ $is_liberty_or_latest -eq 1 ] || [[ $rpm_liberty_or_higher -eq 1 ]]; then
         # for liberty loadbalanacer plugin would be V2 by default and

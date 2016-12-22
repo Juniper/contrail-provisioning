@@ -38,7 +38,11 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    mysql_svc=mysql
    glance_api_ver=`dpkg -l | grep 'ii' | grep glance-api | awk '{print $3}'`
    echo $glance_api_ver
-   openstack_services_contrail='supervisor-openstack'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+       openstack_services_contrail=''
+   else
+       openstack_services_contrail='supervisor-openstack'
+   fi
    openstack_services_glance='glance-api glance-registry'
 fi
 
@@ -230,7 +234,9 @@ echo "======= Starting the services ======"
 update_services "action=restart" $web_svc memcached
 
 # Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    listen_on_supervisor_openstack_port
+fi
 
 # Start glance services
 update_services "action=restart" $openstack_services_glance

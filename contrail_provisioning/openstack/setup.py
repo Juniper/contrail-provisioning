@@ -50,7 +50,16 @@ class OpenstackSetup(ContrailSetup):
             args_str = ' '.join(sys.argv[1:])
         self.parse_args(args_str)
 
-        if self.pdist in ['Ubuntu']:
+        if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+            self.mysql_conf = '/etc/mysql/my.cnf'
+            self.mysql_svc = 'mysql'
+            self.openstack_services = ['cinder-api', 'cinder-scheduler',
+                                      'glance-api', 'glance-registry',
+                                      'heat-api', 'heat-engine',
+                                      'apache2', 'nova-api',
+                                      'nova-conductor', 'nova-consoleauth',
+                                      'nova-novncproxy', 'nova-scheduler']
+        elif self.pdist in ['Ubuntu']:
             self.mysql_conf = '/etc/mysql/my.cnf'
             self.mysql_svc = 'mysql'
             self.openstack_services = ['supervisor-openstack']

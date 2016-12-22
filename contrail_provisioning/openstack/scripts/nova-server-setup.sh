@@ -99,7 +99,11 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
         openstack-config --del /etc/nova/nova.conf DEFAULT quantum_auth_strategy
         openstack-config --del /etc/nova/nova.conf DEFAULT quantum_url
    fi
-   openstack_services_contrail='supervisor-openstack'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+       openstack_services_contrail=''
+   else
+       openstack_services_contrail='supervisor-openstack'
+   fi
    openstack_services_nova='nova-api nova-scheduler
                             nova-console nova-consoleauth
                             nova-novncproxy nova-conductor'
@@ -517,7 +521,9 @@ echo "======= Starting the services ======"
 update_services "action=restart" $web_svc memcached
 
 # Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    listen_on_supervisor_openstack_port
+fi
 
 # Start nova services
 update_services "action=restart" $openstack_services_nova

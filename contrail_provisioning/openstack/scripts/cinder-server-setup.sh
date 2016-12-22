@@ -39,7 +39,11 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    os_cinder=$(dpkg-query -W -f='${Version}' cinder-api)
    is_kilo_or_above=$(python -c "from distutils.version import LooseVersion; \
                   print LooseVersion('$os_cinder') >= LooseVersion('1:2015.1.1')")
-   openstack_services_contrail='supervisor-openstack'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+       openstack_services_contrail=''
+   else
+       openstack_services_contrail='supervisor-openstack'
+   fi
    openstack_services_cinder='cinder-api cinder-scheduler'
 fi
 echo "$0: Openstack Cinder Version: ( $os_cinder )"
@@ -168,7 +172,9 @@ echo "======= Starting the services ======"
 update_services "action=restart" $web_svc memcached
 
 # Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    listen_on_supervisor_openstack_port
+fi
 
 # Start cinder services
 update_services "action=restart" $openstack_services_cinder
