@@ -45,6 +45,7 @@ class ConfigBaseSetup(ContrailSetup):
             amqp_ip_list = self._args.amqp_ip_list
         self.rabbit_servers = ','.join(['%s:%s' % (amqp, self._args.amqp_port)\
                                         for amqp in amqp_ip_list])
+        self.amqp_password = self._args.amqp_password or ''
         self.contrail_internal_vip = (self._args.contrail_internal_vip or
                                  self._args.internal_vip)
         self.api_ssl_enabled = False
@@ -100,6 +101,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
         local("sudo mv %s/contrail-api.conf /etc/contrail/" %(self._temp_dir_name))
+        if self.amqp_password:
+            local("sudo openstack-config --set /etc/contrail/contrail-api.conf DEFAULTS rabbit_password %s" % self.amqp_password)
 
     def fixup_contrail_api_supervisor_ini(self, config_files=['/etc/contrail/contrail-api.conf', '/etc/contrail/contrail-database.conf']):
         # supervisor contrail-api.ini
@@ -159,6 +162,8 @@ class ConfigBaseSetup(ContrailSetup):
         local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
         if os.path.exists('/etc/init.d/contrail-schema'):
             local("sudo chmod a+x /etc/init.d/contrail-schema")
+        if self.amqp_password:
+            local("sudo openstack-config --set /etc/contrail/contrail-schema.conf DEFAULTS rabbit_password %s" % self.amqp_password)
 
     def fixup_device_manager_ini(self,config_files=
                                       ['/etc/contrail/contrail-device-manager.conf',
@@ -191,6 +196,8 @@ class ConfigBaseSetup(ContrailSetup):
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
         local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
         #local("sudo chmod a+x /etc/init.d/contrail-device-manager")
+        if self.amqp_password:
+            local("sudo openstack-config --set /etc/contrail/contrail-device-manager.conf DEFAULTS rabbit_password %s" % self.amqp_password)
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
@@ -214,6 +221,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_svc_monitor_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-svc-monitor.conf')
         local("sudo mv %s/contrail-svc-monitor.conf /etc/contrail/contrail-svc-monitor.conf" %(self._temp_dir_name))
+        if self.amqp_password:
+            local("sudo openstack-config --set /etc/contrail/contrail-svc-monitor.conf DEFAULTS rabbit_password %s" % self.amqp_password)
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail

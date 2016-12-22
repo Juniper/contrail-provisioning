@@ -9,6 +9,7 @@ import argparse
 import netaddr
 import netifaces
 import ConfigParser
+import platform
 
 from fabric.api import local
 
@@ -16,6 +17,7 @@ from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.compute.network import ComputeNetworkSetup
 from contrail_provisioning.common.templates import keepalived_conf_template
 
+(PLATFORM, VERSION, EXTRA) = platform.linux_distribution()
 
 class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
     def __init__(self, args_str = None):
@@ -112,7 +114,10 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
         local("sudo mv %s/keepalived.conf /etc/keepalived/" %(self._temp_dir_name))
 
     def run_services(self):
-        local("service keepalived restart")
+        if PLATFORM.lower() == 'ubuntu':
+            local("sudo chkconfig keepalived on && sudo service keepalived restart")
+        else:
+            local("sudo systemctl enable keepalived && sudo systemctl restart keepalived")
 
 def main(args_str = None):
     keepalived = KeepalivedSetup(args_str)
