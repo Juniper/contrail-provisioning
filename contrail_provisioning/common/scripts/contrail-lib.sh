@@ -16,15 +16,17 @@ function listen_on_supervisor_openstack_port () {
     # centos/rhel based target nodes runs systemd initsytem and
     # and supervisor-openstack is no longer supported on them
     if [ $(is_ubuntu) == "True" ]; then
-        # Listen at supervisor-openstack port
-        status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
-        if [ $status == 'stopped' ]; then
-            service supervisor-openstack start
-            sleep 5
-            if [ -e /tmp/supervisord_openstack.sock ]; then
-                supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
-            else
-                supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
+        if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+            # Listen at supervisor-openstack port
+            status=$(service supervisor-openstack status | grep -s -i running >/dev/null 2>&1  && echo "running" || echo "stopped")
+            if [ $status == 'stopped' ]; then
+                service supervisor-openstack start
+                sleep 5
+                if [ -e /tmp/supervisord_openstack.sock ]; then
+                    supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
+                else
+                    supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
+                fi
             fi
         fi
     fi

@@ -575,9 +575,11 @@ if [ -f $nova_compute_upstart ]; then
     fi
 fi
 
-for svc in openstack-nova-compute supervisor-vrouter; do
-    chkconfig $svc on
-done
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in openstack-nova-compute supervisor-vrouter; do
+        chkconfig $svc on
+    done
+fi
 
 #for svc in openstack-nova-compute; do
 #    service $svc restart
