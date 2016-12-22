@@ -47,9 +47,11 @@ class ConfigSetup(ContrailSetup):
             'quantum_port': '9696',
             'quantum_service_protocol': 'http',
             'manage_neutron': 'yes',
+            'provision_neutron_server': 'yes',
             'orchestrator' : 'openstack',
             'amqp_port': '5672',
             'control_ip_list': '',
+            'amqp_password': '',
             'keystone_insecure': False,
             'keystone_certfile': None,
             'keystone_keyfile': None,
@@ -134,9 +136,11 @@ class ConfigSetup(ContrailSetup):
         # TODO END
         parser.add_argument("--amqp_ip_list", nargs='+', type=str,
             help = "IP of the AMQP server to be used for neutron and config services")
+        parser.add_argument("--amqp_password", help = "AMQP (RabbitMQ) Password")
         parser.add_argument("--amqp_port",
             help = "IP of the AMQP server port to be used for neutron and config services")
         parser.add_argument("--manage_neutron", help = "Provision neutron user/role in Keystone.")
+        parser.add_argument("--provision_neutron_server", help = "Provision neutron server in config nodes.")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
