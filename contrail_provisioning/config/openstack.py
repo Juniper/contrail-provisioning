@@ -193,7 +193,8 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
             local("setup-quantum-in-keystone %s" %(quant_args))
 
         super(ConfigOpenstackSetup, self).run_services()
-        local("sudo quantum-server-setup.sh")
+        if self._args.provision_neutron_server == 'yes':
+            local("sudo quantum-server-setup.sh")
 
     def setup(self):
         self.disable_selinux()
