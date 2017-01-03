@@ -5,5 +5,8 @@
 for svc in contrail-collector contrail-analytics-api ; do
     service $svc stop
 done
-chkconfig supervisor-analytics off
-service supervisor-analytics stop
+
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    chkconfig supervisor-analytics off
+    service supervisor-analytics stop
+fi
