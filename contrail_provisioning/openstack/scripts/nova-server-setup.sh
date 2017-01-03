@@ -99,7 +99,12 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
         openstack-config --del /etc/nova/nova.conf DEFAULT quantum_auth_strategy
         openstack-config --del /etc/nova/nova.conf DEFAULT quantum_url
    fi
-   openstack_services_contrail='supervisor-openstack'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+       is_xenial=1
+       openstack_services_contrail=''
+   else
+       openstack_services_contrail='supervisor-openstack'
+   fi
    openstack_services_nova='nova-api nova-scheduler
                             nova-console nova-consoleauth
                             nova-novncproxy nova-conductor'
@@ -294,15 +299,14 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [[ $nova_api_version == *"2013.2"* ]] || [[ $nova_api_version == *"2015"* ]]; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
     else
-        if [ $is_liberty_or_above -eq 1 ]; then
+        if [ $is_mitaka_or_above -eq 1 ]; then
+            openstack-config --del /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
+            openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron True
+            openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+        elif [ $is_liberty_or_above -eq 1 ]; then
             openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-        else 
-            if [ $is_mitaka_or_above -eq 1 ]; then
-                openstack-config --del /etc/nova/nova.conf DEFAULT network_api_class nova.network.neutronv2.api.API
-                openstack-config --set /etc/nova/nova.conf DEFAULT use_neutron True
-            else
-                openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
-            fi
+        else
+            openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class contrail_nova_networkapi.api.API
         fi
     fi
     openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
@@ -517,7 +521,9 @@ echo "======= Starting the services ======"
 update_services "action=restart" $web_svc memcached
 
 # Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
+if [ $is_xenial -ne 1 ] ; then
+    listen_on_supervisor_openstack_port
+fi
 
 # Start nova services
 update_services "action=restart" $openstack_services_nova
