@@ -65,15 +65,16 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_cassandra_config()
         self.fixup_ifmap_config_files()
         self.fixup_contrail_api_config_file()
-        self.fixup_contrail_api_supervisor_ini()
-        self.fixup_contrail_api_initd()
+        if self.pdist in ['Ubuntu'] and self.pdistversion != '16.04':
+            self.fixup_contrail_api_supervisor_ini()
+            self.fixup_contrail_api_initd()
+            self.fixup_device_manager_ini()
+            self.fixup_discovery_supervisor_ini()
+            self.fixup_discovery_initd()
         self.fixup_schema_transformer_config_file()
-        self.fixup_device_manager_ini()
         self.fixup_device_manager_config_file()
         self.fixup_svc_monitor_config_file()
         self.fixup_discovery_config_file()
-        self.fixup_discovery_supervisor_ini()
-        self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_sudoers()
         self.fixup_contrail_config_nodemgr()
@@ -199,7 +200,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_schema_transformer_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
         local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
-        local("sudo chmod a+x /etc/init.d/contrail-schema")
+        if os.path.exists('/etc/init.d/contrail-schema'):
+            local("sudo chmod a+x /etc/init.d/contrail-schema")
 
     def fixup_device_manager_ini(self,config_files=
                                       ['/etc/contrail/contrail-device-manager.conf',

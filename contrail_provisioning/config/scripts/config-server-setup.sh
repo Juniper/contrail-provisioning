@@ -41,9 +41,15 @@ for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
-for svc in supervisor-support-service supervisor-config quantum-server puppetmaster; do
-    chkconfig $svc on
-done
+if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+    for svc in quantum-server; do
+        chkconfig $svc on
+    done
+else
+    for svc in supervisor-support-service supervisor-config quantum-server puppetmaster; do
+        chkconfig $svc on
+    done
+fi
 
 echo "======= Starting the services ======"
 
@@ -51,12 +57,15 @@ for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
-for svc in puppetmaster; do
-    service $svc restart
-done
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in puppetmaster; do
+        service $svc restart
+    done
+fi
 
 # TODO: move dependency to service script
 # wait for ifmap server to start
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
 tries=0
 while [ $tries -lt 10 ]; do
     wget -O- http://localhost:8443 >/dev/null 2>&1
@@ -64,9 +73,12 @@ while [ $tries -lt 10 ]; do
     tries=$(($tries + 1))
     sleep 1
 done
+fi
 
-chkconfig supervisor-config on
-service supervisor-config restart
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    chkconfig supervisor-config on
+    service supervisor-config restart
+fi
 
 #service quantum-server restart
 

@@ -7,10 +7,17 @@
 pycassaShell -f drop-cassandra-cfgm-keyspaces
 
 # shutdown all the services
-for svc in supervisor-config quantum-server puppet-server; do
-    chkconfig $svc off > /dev/null 2>&1
-    service $svc stop > /dev/null 2>&1
-done
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in supervisor-config quantum-server puppet-server; do
+        chkconfig $svc off > /dev/null 2>&1
+        service $svc stop > /dev/null 2>&1
+    done
+else
+    for svc in quantum-server; do
+        chkconfig $svc off > /dev/null 2>&1
+        service $svc stop > /dev/null 2>&1
+    done
+fi
 
 for svc in api objectstore scheduler cert consoleauth novncproxy conductor; do
     svc=openstack-nova-$svc
