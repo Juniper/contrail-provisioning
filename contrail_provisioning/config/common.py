@@ -173,8 +173,10 @@ class ConfigBaseSetup(ContrailSetup):
                             }
             self._template_substitute_write(contrail_api_svc.template,
                                             template_vals, self._temp_dir_name + '/contrail-api')
-            local("sudo mv %s/contrail-api /etc/init.d/" %(self._temp_dir_name))
-            local("sudo chmod a+x /etc/init.d/contrail-api")
+
+            if os.path.exists('/etc/init.d/contrail-api'):
+               local("sudo mv %s/contrail-api /etc/init.d/" %(self._temp_dir_name))
+               local("sudo chmod a+x /etc/init.d/contrail-api")
 
     def fixup_schema_transformer_config_file(self):
         # contrail-schema.conf
@@ -199,7 +201,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_schema_transformer_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
         local("sudo mv %s/contrail-schema.conf /etc/contrail/contrail-schema.conf" %(self._temp_dir_name))
-        local("sudo chmod a+x /etc/init.d/contrail-schema")
+        if os.path.exists('/etc/init.d/contrail-schema'):
+           local("sudo chmod a+x /etc/init.d/contrail-schema")
 
     def fixup_device_manager_ini(self,config_files=
                                       ['/etc/contrail/contrail-device-manager.conf',
@@ -230,7 +233,8 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_device_manager_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
         local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
-        #local("sudo chmod a+x /etc/init.d/contrail-device-manager")
+        #if os.path.exists('/etc/init.d/contrail-device-manager'):
+        #   local("sudo chmod a+x /etc/init.d/contrail-device-manager")
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
@@ -311,8 +315,9 @@ class ConfigBaseSetup(ContrailSetup):
                         }
         self._template_substitute_write(contrail_discovery_svc.template,
                                         template_vals, self._temp_dir_name + '/contrail-discovery')
-        local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
-        local("sudo chmod a+x /etc/init.d/contrail-discovery")
+        if os.path.exists('/etc/init.d/contrail-discovery'):
+           local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
+           local("sudo chmod a+x /etc/init.d/contrail-discovery")
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
