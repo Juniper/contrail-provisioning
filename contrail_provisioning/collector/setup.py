@@ -383,6 +383,7 @@ class CollectorSetup(ContrailSetup):
                         }
         self._template_substitute_write(redis_server_conf_template.template,
                                         template_vals, self._temp_dir_name + '/redis-server.conf')
+        local("sudo service redis-server stop")
         local("sudo mv %s/redis-server.conf /etc/init/" %(self._temp_dir_name))
  
         local("sudo update-rc.d redis-server disable")
