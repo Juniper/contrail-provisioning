@@ -33,7 +33,12 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   openstack_services_contrail='supervisor-openstack'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+       is_xenial=1
+       openstack_services_contrail=''
+   else
+       openstack_services_contrail='supervisor-openstack'
+   fi
    openstack_services_heat='heat-api heat-api-cfn heat-engine'
 fi
 
@@ -182,7 +187,9 @@ echo "======= Enabling the services ======"
 update_services "action=enable" $openstack_services_contrail $openstack_services_heat
 
 # Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
+if [ $is_xenial -ne 1 ] ; then
+    listen_on_supervisor_openstack_port
+fi
 
 # Start heat services
 echo "======= Starting the services ======"

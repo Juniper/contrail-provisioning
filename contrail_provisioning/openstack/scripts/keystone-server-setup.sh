@@ -18,8 +18,14 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
-   openstack_services_contrail='supervisor-openstack'
-   openstack_services_keystone='keystone'
+   if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
+      is_xenial=1
+      openstack_services_contrail=''
+      openstack_services_keystone='apache2'
+   else
+      openstack_services_contrail='supervisor-openstack'
+      openstack_services_keystone='keystone'
+   fi
 fi
 
 if [ $is_ubuntu -eq 1 ] ; then
@@ -86,9 +92,11 @@ openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_
 # Stop keystone if it is already running (to reload the new admin token)
 update_services "action=stop;exit_on_error=false" $openstack_services_contrail $openstack_services_keystone
 
-# Listen at supervisor-openstack port
-listen_on_supervisor_openstack_port
 
+# Listen at supervisor-openstack port
+if [ $is_xenial -ne 1 ] ; then
+   listen_on_supervisor_openstack_port
+fi
 
 if [ ! -d /etc/keystone/ssl ]; then
     keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
@@ -187,17 +195,9 @@ if [ "$AUTH_PROTOCOL" == "https" ]; then
     openstack-config --set $conf_file eventlet_server_ssl ca_certs $KEYSTONE_CAFILE
 fi
 
-# wait for the keystone service to start
-tries=0
-while [ $tries -lt 10 ]; do
-    $(source $CONF_DIR/keystonerc; keystone $INSECURE_FLAG user-list >/dev/null 2>&1)
-    if [ $? -eq 0 ]; then break; fi;
-    tries=$(($tries + 1))
-    sleep 1
-done
-
 if [ $is_ubuntu -eq 1 ] ; then
     ubuntu_kilo_or_above=0
+    ubuntu_newton_or_above=0
     if [[ $keystone_version == *":"* ]]; then
         keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2`
         keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
@@ -216,9 +216,52 @@ if [ $is_ubuntu -eq 1 ] ; then
     if [ $keystone_top_ver -gt 1 ]; then
         ubuntu_kilo_or_above=1
     fi
+
+    #For newton
+    if [ $keystone_top_ver -gt 1 ]; then
+        keystone_ver=`echo $keystone_version_without_epoch | cut -d'~' -f1`
+        dpkg --compare-versions $keystone_ver ge 10.0.0
+        if [ $? -eq 0 ]; then
+            ubuntu_newton_or_above=1
+        fi
+    fi
 else
     is_kilo_or_latest=$(is_installed_rpm_greater openstack-keystone "0 2015.1.1 1.el7" && echo True)
 fi
+
+if [ $ubuntu_newton_or_above -eq 1 ]; then
+    keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+    keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+    if [ "$KEYSTONE_VERSION" == "v3" ]; then
+        keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
+           --bootstrap-admin-url http://$CONTROLLER:35357/v3/ \
+           --bootstrap-internal-url http://$CONTROLLER:35357/v3/ \
+           --bootstrap-public-url http://$CONTROLLER:5000/v3/ \
+           --bootstrap-region-id RegionOne
+    else
+        keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
+           --bootstrap-admin-url http://$CONTROLLER:35357/v2.0/ \
+           --bootstrap-internal-url http://$CONTROLLER:35357/v2.0/ \
+           --bootstrap-public-url http://$CONTROLLER:5000/v2.0/ \
+           --bootstrap-region-id RegionOne
+    fi
+    update_services "action=restart" apache2 
+fi
+
+source /etc/contrail/openstackrc
+
+# wait for the keystone service to start
+tries=0
+while [ $tries -lt 10 ]; do
+    if [ $ubuntu_newton_or_above -eq 1 ]; then
+        $(source $CONF_DIR/keystonerc; openstack $INSECURE_FLAG user list >/dev/null 2>&1)
+    else
+        $(source $CONF_DIR/keystonerc; keystone $INSECURE_FLAG user-list >/dev/null 2>&1)
+    fi
+    if [ $? -eq 0 ]; then break; fi;
+    tries=$(($tries + 1))
+    sleep 1
+done
 
 # Update all config files with service username and password
 for svc in keystone; do
@@ -244,6 +287,9 @@ for svc in keystone; do
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.persistence.backends.memcache.Token
         else
             openstack-config --set /etc/$svc/$svc.conf token driver keystone.token.backends.memcache.Token
+        fi
+        if [ $ubuntu_newton_or_above -eq 1 ]; then
+            openstack-config --set /etc/$svc/$svc.conf token provider fernet
         fi
     fi
 
@@ -327,13 +373,21 @@ update_services "action=restart" $web_svc memcached $openstack_services_contrail
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
     if [ "$OPENSTACK_INDEX" -eq 1 ]; then
-        (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
+        if [ $ubuntu_newton_or_above -eq 1 ]; then
+            (source $CONF_DIR/keystonerc; bash contrail-ha-newton-keystone-setup.sh $INTERNAL_VIP)
+        else
+            (source $CONF_DIR/keystonerc; bash contrail-ha-keystone-setup.sh $INTERNAL_VIP)
+        fi
         if [ $? != 0 ]; then
             exit 1
         fi
     fi
 else
-    (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+    if [ $ubuntu_newton_or_above -eq 1 ];then
+        (source $CONF_DIR/keystonerc; bash contrail-newton-keystone-setup.sh $CONTROLLER)
+    else
+        (source $CONF_DIR/keystonerc; bash contrail-keystone-setup.sh $CONTROLLER)
+    fi
     if [ $? != 0 ]; then
         exit 1
     fi
