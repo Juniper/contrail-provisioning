@@ -109,6 +109,8 @@ setup(
                'contrail_provisioning/openstack/scripts/contrail-cmon-monitor.sh',
                'contrail_provisioning/openstack/scripts/contrail-token-clean.sh',
                'contrail_provisioning/openstack/scripts/contrail-keystone-setup.sh',
+               'contrail_provisioning/openstack/scripts/contrail-newton-keystone-setup.sh',
+               'contrail_provisioning/openstack/scripts/contrail-ha-newton-keystone-setup.sh',
                'contrail_provisioning/openstack/scripts/chk_ctrldata.sh',
                'contrail_provisioning/openstack/scripts/barbican-server-setup.sh',
                'contrail_provisioning/openstack/scripts/create-keystone-ssl-certs.sh',
