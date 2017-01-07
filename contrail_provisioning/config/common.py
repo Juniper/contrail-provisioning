@@ -45,12 +45,10 @@ class ConfigBaseSetup(ContrailSetup):
         self.zk_servers_ports = ','.join(['%s:2181' %(s)\
             for s in self._args.zookeeper_ip_list])
 
-        # These changes needs to go after fabric changes go inside. This will be 
-        # uncommented once fabric changes go through.
-        #self.control_node_users = '\n'.join(['%s:%s' %(s, s)\
-        #    for s in self._args.control_ip_list])
-        #self.control_node_dns_users = '\n'.join(['%s.dns:%s.dns' %(s, s)\
-        #    for s in self._args.control_ip_list])
+        self.control_node_users = '\n'.join(['%s:%s' %(s, s)\
+            for s in self._args.control_ip_list])
+        self.control_node_dns_users = '\n'.join(['%s.dns:%s.dns' %(s, s)\
+            for s in self._args.control_ip_list])
         amqp_ip_list = [self.cfgm_ip]
         if self._args.amqp_ip_list:
             amqp_ip_list = self._args.amqp_ip_list
