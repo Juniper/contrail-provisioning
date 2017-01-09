@@ -297,7 +297,7 @@ def main(args_str = None):
 
 def update_zookeeper_servers(args_str = None):
     database = DatabaseSetup(args_str)
-    database.fix_zookeeper_servers_config()
+    database.fixup_zookeeper_configs()
     database.fixup_kafka_server_properties(database.database_listen_ip)
 
 def restart_zookeeper_server(args_str = None):
