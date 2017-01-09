@@ -34,18 +34,19 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                         '/etc/contrail/contrail-keystone-auth.conf',
                         '/etc/contrail/contrail-database.conf',
                        ]
-        self.fixup_contrail_api_supervisor_ini(config_files)
-        self.fixup_contrail_api_initd()
-        self.fixup_contrail_plugin_ini()
+        if self.pdist in ['Ubuntu'] and self.pdistversion != '16.04':
+            self.fixup_contrail_api_supervisor_ini(config_files)
+            self.fixup_contrail_api_initd()
+            self.fixup_contrail_plugin_ini()
+            self.fixup_contrail_schema_supervisor_ini()
+            self.fixup_contrail_device_manager_supervisor_ini()
+            self.fixup_contrail_svc_monitor_supervisor_ini()
+            self.fixup_discovery_supervisor_ini()
+            self.fixup_discovery_initd()
         self.fixup_schema_transformer_config_file()
-        self.fixup_contrail_schema_supervisor_ini()
         self.fixup_device_manager_config_file()
-        self.fixup_contrail_device_manager_supervisor_ini()
         self.fixup_svc_monitor_config_file()
-        self.fixup_contrail_svc_monitor_supervisor_ini()
         self.fixup_discovery_config_file()
-        self.fixup_discovery_supervisor_ini()
-        self.fixup_discovery_initd()
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_config_nodemgr()
         self.fixup_contrail_sudoers()

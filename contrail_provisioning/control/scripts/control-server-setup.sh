@@ -16,7 +16,9 @@ if [ "`grep server /etc/puppet/puppet.conf`" ]; then
 fi
 
 #setup script for contrail-control package under supervisord
-chkconfig supervisor-control on
-service supervisor-control restart
+if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    chkconfig supervisor-control on
+    service supervisor-control restart
+fi
 
 
