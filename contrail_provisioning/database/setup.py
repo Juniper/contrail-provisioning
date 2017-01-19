@@ -42,6 +42,7 @@ class DatabaseSetup(DatabaseCommon):
             --initial_token 0 --seed_list 10.84.13.23 10.84.13.24
             --data_dir /home/cassandra
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
+            --collector_ip_list 10.1.5.11 10.1.5.12
             --database_index 1
             --node_to_delete 10.1.5.11
         '''
@@ -59,6 +60,8 @@ class DatabaseSetup(DatabaseCommon):
         parser.add_argument("--analytics_data_dir", help = "Directory where database stores analytics data")
         parser.add_argument("--ssd_data_dir", help = "SSD directory that database stores data")
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
+                            nargs='+', type=str)
+        parser.add_argument("--collector_ip_list", help = "List of IP Addresses of collector servers",
                             nargs='+', type=str)
         parser.add_argument("--database_index", help = "The index of this databse node")
         parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for contrail database")
@@ -197,8 +200,9 @@ class DatabaseSetup(DatabaseCommon):
 
     def fixup_contrail_database_nodemgr(self):
         template_vals = {
-                        '__contrail_discovery_ip__': self._args.cfgm_ip,
-                        '__contrail_discovery_port__': '5998',
+                        '__contrail_collectors__': \
+                           ' '.join('%s:%s' %(server, '8086')
+                           for server in self._args.collector_ip_list),
                         '__minimum_diskGB__': self._args.minimum_diskGB,
                         '__hostip__': self.database_listen_ip,
                         }

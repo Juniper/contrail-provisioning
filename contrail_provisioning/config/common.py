@@ -130,11 +130,12 @@ class ConfigBaseSetup(ContrailSetup):
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_disc_server_port__': '5998',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_cloud_admin_role__': "cloud_admin_role=%s" % self._args.cloud_admin_role if self._args.cloud_admin_role else '',
                          '__contrail_aaa_mode__': "aaa_mode=%s" % aaa_mode if aaa_mode else '',
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list) 
                         }
         self._template_substitute_write(contrail_api_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-api.conf')
@@ -192,9 +193,10 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-schema.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_disc_server_port__': '5998',
                          '__rabbit_server_ip__': self.rabbit_servers,
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list) 
                         }
         self._template_substitute_write(contrail_schema_transformer_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-schema.conf')
@@ -224,8 +226,9 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_log_file__' : '/var/log/contrail/contrail-device-manager.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_disc_server_port__': '5998',
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list) 
                         }
         self._template_substitute_write(contrail_device_manager_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
@@ -250,9 +253,10 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-svc-monitor.log',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_disc_server_port__': '5998',
                          '__contrail_region_name__': self._args.region_name,
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list) 
                         }
         self._template_substitute_write(contrail_svc_monitor_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-svc-monitor.conf')
@@ -324,9 +328,11 @@ class ConfigBaseSetup(ContrailSetup):
             local("sudo chmod 440 /etc/sudoers.d/contrail_sudoers")
 
     def fixup_contrail_config_nodemgr(self):
-        template_vals = {'__contrail_discovery_ip__' : self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_discovery_port__': '5998'
-                       }
+        template_vals = {
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list) 
+                        }
         self._template_substitute_write(contrail_config_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
         local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))

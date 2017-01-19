@@ -79,13 +79,6 @@ port=$__contrail_listen_port__
 # UDP port to listen on for receiving Google Protocol Buffer messages
 # protobuf_port=3333
 
-[DISCOVERY]
-# Port to connect to for communicating with discovery server
-# port=5998
-
-# IP address of discovery server
-server=$__contrail_discovery_ip__
-
 [REDIS]
 # Port to connect to for communicating with redis-server
 port=6379
