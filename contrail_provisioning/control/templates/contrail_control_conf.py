@@ -10,7 +10,8 @@ template = string.Template("""#
 # bgp_config_file=bgp_config.xml
 # bgp_end_of_rib_timeout=30
 # bgp_port=179
-# collectors= # Provided by discovery server
+# collectors= # List of collectors in ip:port format 
+collectors=$__contrail_collectors__
 # gr_helper_bgp_disable=0
 # gr_helper_xmpp_disable=0
 hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
@@ -35,14 +36,11 @@ log_local=1
 # second. System logs are dropped if the sending rate is exceeded
 # sandesh_send_rate_limit=100
 
-[DISCOVERY]
-# port=5998
-server=$__contrail_discovery_ip__ # discovery-server IP address
-
 [IFMAP]
 certs_store=$__contrail_cert_ops__
 password=$__contrail_ifmap_paswd__
 # server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
+server_url=$__contrail_ifmap_server_url__
 user=$__contrail_ifmap_usr__
 # stale_entries_cleanup_timeout=300 # in seconds
 # end_of_rib_timeout=10 # in seconds

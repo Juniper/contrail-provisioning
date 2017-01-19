@@ -9,7 +9,7 @@ template = string.Template("""#
 [DEFAULT]
 # analytics_data_ttl=48
 cassandra_server_list=$__contrail_cassandra_server_list__
-# collectors=127.0.0.1:8086
+collectors=$__contrail_collectors__
 hostip=$__contrail_host_ip__ # Resolved IP of `hostname`
 # hostname= # Retrieved as `hostname`
 http_server_port=$__contrail_http_server_port__
@@ -21,10 +21,6 @@ log_file=$__contrail_log_file__
 log_level=SYS_NOTICE
 log_local=1
 # test_mode=0
-
-[DISCOVERY]
-# port=5998
-server=$__contrail_discovery_ip__
 
 [REDIS]
 port=$__contrail_redis_server_port__
