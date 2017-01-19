@@ -93,15 +93,20 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 local('sudo echo "alias bridge off" > /etc/modprobe.conf')
 
     def fixup_vrouter_nodemgr_param(self):
-        template_vals = {'__contrail_discovery_ip__': self._args.contrail_internal_vip or self._args.cfgm_ip
+        template_vals = {
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') \
+                             for server in self._args.collectors)
                         }
         self._template_substitute_write(vrouter_nodemgr_param.template,
                                         template_vals, self._temp_dir_name + '/vrouter_nodemgr_param')
         local("sudo mv %s/vrouter_nodemgr_param /etc/contrail/vrouter_nodemgr_param" %(self._temp_dir_name))
 
     def fixup_contrail_vrouter_nodemgr(self):
-        template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
-                         '__contrail_discovery_port__': '5998'
+        template_vals = {
+                         '__contrail_collectors__': \
+                             ' '.join('%s:%s' %(server, '8086') \
+                             for server in self._args.collectors)
                        }
         self._template_substitute_write(contrail_vrouter_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-vrouter-nodemgr.conf')
@@ -110,8 +115,6 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
     def fixup_contrail_vrouter_agent(self):
         keystone_ip = self._args.keystone_ip
         compute_ip = self._args.self_ip
-        discovery_ip = self._args.contrail_internal_vip or self._args.cfgm_ip
-        ncontrols = self._args.ncontrols
         non_mgmt_gw = self._args.non_mgmt_gw
         vgw_public_subnet = self._args.vgw_public_subnet
         vgw_public_vn_name = self._args.vgw_public_vn_name
@@ -192,8 +195,6 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
 
             vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                 '__contrail_vhost_gateway__': self.gateway,
-                '__contrail_discovery_ip__': discovery_ip,
-                '__contrail_discovery_ncontrol__': ncontrols,
                 '__contrail_physical_intf__': self.dev,
                 '__contrail_control_ip__': compute_ip,
                 '__hypervisor_type__': hypervisor_type,
@@ -203,6 +204,15 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 '__pci_dev__': pci_dev,
                 '__physical_interface_mac__': self.mac,
                 '__gateway_mode__': gateway_mode,
+                '__contrail_control_node_list__' : \
+                     ' '.join('%s:%s' %(server, '5269') for server \
+                     in self._args.control_nodes),
+                '__contrail_dns_node_list__' : \
+                     ' '.join('%s:%s' %(server, '53') for server \
+                     in self._args.control_nodes),
+                '__contrail_collectors__' : \
+                     ' '.join('%s:%s' %(server, '8086') for server \
+                     in self._args.collectors)
             }
             self._template_substitute_write(contrail_vrouter_agent_conf.template,
                     vnswad_conf_template_vals, self._temp_dir_name + '/vnswad.conf')

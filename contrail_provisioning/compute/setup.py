@@ -75,6 +75,8 @@ class ComputeSetup(ContrailSetup):
             'priority_id': None,
             'priority_scheduling': None,
             'priority_bandwidth': None,
+            'collectors' :'',
+            'control-nodes' : ''
         }
 
         self.parse_args(args_str)
@@ -84,6 +86,8 @@ class ComputeSetup(ContrailSetup):
         Eg. setup-vnc-vrouter --cfgm_ip 10.1.5.11 --keystone_ip 10.1.5.12
                    --self_ip 10.1.5.12 --service_token 'c0ntrail123' --ncontrols 1
                    --haproxy --internal_vip 10.1.5.200
+                   --collectors 10.1.5.11 10.1.5.12
+                   --control-nodes 10.1.5.11 10.1.5.12
         '''
         parser = self._parse_args(args_str)
 
@@ -96,6 +100,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
         parser.add_argument("--hypervisor", help = "Hypervisor to be provisioned in this(compute) node")
         parser.add_argument("--mgmt_self_ip", help = "Management IP Address of this system")
+        # [NIPAK] To be removed once CI passes and fab provisioning merges
         parser.add_argument("--ncontrols", help = "Number of control-nodes in the system")
         parser.add_argument("--non_mgmt_ip", help = "IP Address of non-management interface(fabric network) on the compute  node")
         parser.add_argument("--non_mgmt_gw", help = "Gateway Address of the non-management interface(fabric network) on the compute node")
@@ -158,6 +163,10 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--priority_scheduling", help = "Scheduling algorithm for priority group",
                             nargs='+', type=str)
         parser.add_argument("--priority_bandwidth", help = "Maximum bandwidth for priority group",
+                            nargs='+', type=str)
+        parser.add_argument("--collectors", help = "List of IP:port of the VNC collectors",
+                            nargs='+', type=str)
+        parser.add_argument("--control-nodes", help = "List of IP:port of the VNC control-nodes",
                             nargs='+', type=str)
 
         self._args = parser.parse_args(self.remaining_argv)

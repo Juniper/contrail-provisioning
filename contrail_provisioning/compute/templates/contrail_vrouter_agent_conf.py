@@ -11,13 +11,16 @@ template = string.Template("""
 # value provided by discovery service will be used. (Optional)
 # server=10.0.0.1 10.0.0.2
 
+# List of control-node's with ip1:port ip2:port format
+servers=$__contrail_control_node_list__
+
 [DEFAULT]
 # Everything in this section is optional
 
 # IP address and port to be used to connect to collector. If these are not
 # configured, value provided by discovery service will be used. Multiple
 # IP:port strings separated by space can be provided
-# collectors=127.0.0.1:8086
+collectors=$__contrail_collectors__
 
 # Agent mode : can be vrouter / tsn / tor (default is vrouter)
 # agent_mode=
@@ -80,17 +83,20 @@ gateway_mode=$__gateway_mode__
 # mandatory. Else this section is optional
 
 # IP address of discovery server
-server=$__contrail_discovery_ip__
+#server=$__contrail_discovery_ip__
 
 # Number of control-nodes info to be provided by Discovery service. Possible
 # values are 1 and 2
-max_control_nodes=$__contrail_discovery_ncontrol__
+#max_control_nodes=$__contrail_discovery_ncontrol__
 
 [DNS]
 # IP address and port to be used to connect to dns-node. Maximum of 2 IP
 # addresses (separated by a space) can be provided. If no IP is configured then
 # the value provided by discovery service will be used.
 # server=10.0.0.1:53 10.0.0.2:53
+
+# List of control-node's with ip1:port ip2:port format
+servers=$__contrail_dns_node_list__
 
 [HYPERVISOR]
 # Everything in this section is optional
