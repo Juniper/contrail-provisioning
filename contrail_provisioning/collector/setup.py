@@ -216,11 +216,11 @@ class CollectorSetup(ContrailSetup):
             self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_port',
                             self._args.amqp_port)
 
-        self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_ip',
-                        self._args.cfgm_ip)
-        self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_port',
-                        '5998')
-
+        collector_list_str = ' '.join('%s:%s' %(server, '8086')
+                for server in self._args.collector_ip_list)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'collectors',
+                        collector_list_str)
+ 
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
         with settings(warn_only=True):
@@ -230,9 +230,9 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
                 ','.join('%s:%s' % zookeeper_server
                     for zookeeper_server in self.zookeeper_server_list))
-        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
-                        self._args.cfgm_ip)
-        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
+        self.set_config(conf_fl, 'DEFAULTS', 'collectors',
+                        ' '.join('%s:%s' %(server,'8086')
+                        for server in self._args.collector_ip_list))
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-snmp-collector.ini',
                         'program:contrail-snmp-collector',
@@ -242,9 +242,11 @@ class CollectorSetup(ContrailSetup):
                         '/etc/contrail/contrail-keystone-auth.conf')
 
     def fixup_contrail_analytics_nodemgr(self):
-        template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
-                         '__contrail_discovery_port__': '5998'
-                       }
+        template_vals = {
+                         '__contrail_collectors__' : \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                             in self._args.collector_ip_list)
+                         }
         self._template_substitute_write(contrail_analytics_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-analytics-nodemgr.conf')
         local("sudo mv %s/contrail-analytics-nodemgr.conf /etc/contrail/contrail-analytics-nodemgr.conf" %(self._temp_dir_name))
@@ -256,9 +258,9 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
             ','.join('%s:%s' % zookeeper_server
                 for zookeeper_server in self.zookeeper_server_list))
-        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_ip',
-                        self._args.cfgm_ip)
-        self.set_config(conf_fl, 'DISCOVERY', 'disc_server_port', '5998')
+        self.set_config(conf_fl, 'DEFAULTS', 'collectors',\
+                        ' '.join('%s:%s' %(server,'8086')
+                        for server in self._args.collector_ip_list))
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',
                         'program:contrail-topology',
@@ -273,7 +275,6 @@ class CollectorSetup(ContrailSetup):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
         COLLECTOR_CONF_FILE = '/etc/contrail/contrail-collector.conf'
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-collector.log',
-                         '__contrail_discovery_ip__' : self._args.cfgm_ip,
                          '__contrail_host_ip__' : self._args.self_collector_ip,
                          '__contrail_listen_port__' : '8086',
                          '__contrail_http_server_port__' : '8089',
@@ -322,10 +323,13 @@ class CollectorSetup(ContrailSetup):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
                          '__contrail_redis_server__': '127.0.0.1',
                          '__contrail_redis_server_port__' : '6379',
+                         '__contrail_collectors__' : \
+                             ' '.join('%s:%s' %(server,'8086')
+                             for server in self._args.collector_ip_list),
                          '__contrail_host_ip__' : self._args.self_collector_ip,
                          '__contrail_http_server_port__' : '8091',
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                         '__contrail_discovery_ip__' : self._args.cfgm_ip,
+
                          '__contrail_redis_password__' : ''}
         if self._args.redis_password:
             template_vals['__contrail_redis_password__'] = 'password = '+ self._args.redis_password
@@ -360,15 +364,13 @@ class CollectorSetup(ContrailSetup):
             'api_server' : self._args.cfgm_ip + ':8082',
             'api_server_use_ssl': 'True' if self.api_ssl_enabled else 'False',
             'zk_list': ' '.join('%s:%s' % zookeeper_server for \
-                zookeeper_server in self.zookeeper_server_list)
+                zookeeper_server in self.zookeeper_server_list),
+            'collectors': ' '.join('%s:%s' %(server, '8086') \
+                            for server in self._args.collector_ip_list)
             },
           'REDIS' : {
             'redis_query_port' : 6379,
             'redis_uve_list' : ' '.join(self.redis_server_list),
-            },
-          'DISCOVERY' : {
-            'disc_server_ip' : self._args.cfgm_ip,
-            'disc_server_port' : 5998,
             },
         }
 
