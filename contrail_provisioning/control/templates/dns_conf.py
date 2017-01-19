@@ -7,7 +7,8 @@ template = string.Template("""#
 #
 
 [DEFAULT]
-# collectors= # Provided by discovery server
+# List of collectors provided in ip:port format
+collectors=$__contrail_collectors__
 # dns_config_file=contrail-dns.conf
 # named_config_file=contrail-named.conf                 # named config file
 # named_config_directory=/etc/contrail/dns              # named config directory
@@ -27,14 +28,10 @@ template = string.Template("""#
   log_local=1
 # test_mode=0
 
-[DISCOVERY]
-# port=5998
-  server=$__contrail_discovery_ip__ # discovery-server IP address
-
 [IFMAP]
   certs_store=$__contrail_cert_ops__
   password=$__contrail_ifmap_paswd__
-# server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
+  server_url=$__contrail_ifmap_server_url__
   user=$__contrail_ifmap_usr__
 
 """)
