@@ -23,6 +23,7 @@ class ConfigSetup(ContrailSetup):
             'self_ip': '127.0.0.1',
             'cfgm_index' : 1,
             'collector_ip': '127.0.0.1',
+            'collector_ip_list': ['127.0.0.1'],
             'keystone_ip': '127.0.0.1',
             'keystone_admin_user': 'admin',
             'keystone_admin_passwd': 'contrail123',
@@ -65,6 +66,7 @@ class ConfigSetup(ContrailSetup):
         '''
         Eg. setup-vnc-cfgm --self_ip 10.1.5.11 --keystone_ip 10.1.5.12 
             --collector_ip 10.1.5.12 --service_token contrail123
+            --collector_ip_list 10.1.5.11 10.1.5.12
             --cassandra_ip_list 10.1.5.11 10.1.5.12 
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --nworkers 1
@@ -77,6 +79,8 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--first_cfgm_ip", help = "IP Address of the first CFGM in the cluster")
         parser.add_argument("--cfgm_index", help = "The index of this cfgm node")
         parser.add_argument("--collector_ip", help = "IP Address of collector node")
+        parser.add_argument("--collector_ip_list",
+            help = "List of IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
         parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
