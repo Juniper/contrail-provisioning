@@ -387,6 +387,7 @@ class CollectorSetup(ContrailSetup):
         local("sudo mv %s/redis-server.conf /etc/init/" %(self._temp_dir_name))
  
         local("sudo update-rc.d redis-server disable")
+        local("sudo service redis-server start")
 
     def restart_collector(self):
         local("sudo service supervisor-analytics restart")
