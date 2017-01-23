@@ -47,5 +47,9 @@ user=$__contrail_ifmap_usr__
 # stale_entries_cleanup_timeout=300 # in seconds
 # end_of_rib_timeout=10 # in seconds
 # peer_response_wait_time=60 # in seconds
+rabbitmq_server_list=$__contrail_rabbit_server_list__
+rabbitmq_user=$__contrail_rabbitmq_user__
+rabbitmq_password=$__contrail_rabbitmq_password__
+config_db_server_list=$__config_db_server_cql_list__
 
 """)
