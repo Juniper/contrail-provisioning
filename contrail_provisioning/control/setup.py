@@ -29,6 +29,7 @@ class ControlSetup(ContrailSetup):
             'self_ip': '127.0.0.1',
             'use_certs': False,
             'puppet_server': None,
+            'config_dbs': '127.0.0.1',
         }
 
         self.parse_args(args_str)
@@ -39,6 +40,7 @@ class ControlSetup(ContrailSetup):
         Eg. setup-vnc-control --cfgm_ip 10.1.5.11 --collector_ip 10.1.5.11
                                         --discovery_ip 10.1.5.11 --self_ip 10.1.5.12
                 --use_certs --puppet_server a3s19.contrail.juniper.net
+                --config_dbs 10.1.5.11 10.1.5.12
         '''
         parser = self._parse_args(args_str)
 
@@ -49,6 +51,7 @@ class ControlSetup(ContrailSetup):
         parser.add_argument("--use_certs", help = "Use certificates for authentication",
             action="store_true")
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
+        parser.add_argument("--config_dbs", help = "Config db list", nargs="+", type=str)
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -69,6 +72,13 @@ class ControlSetup(ContrailSetup):
                          '__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
                          '__contrail_cert_ops__': '%s' %(certdir) if self._args.use_certs else '',
+                         '__contrail_rabbitmq_ip__': self._args.cfgm_ip,
+                         '__contrail_rabbitmq_port__': '5672',
+                         '__contrail_rabbitmq_user__': 'guest',
+                         '__contrail_rabbitmq_password__': 'guest',
+                         '__config_db_server_cql_list__': \
+                             ' '.join('%s:%s' %(server, '9042') for server \
+                                in self._args.config_dbs)
                         }
         self._template_substitute_write(contrail_control_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-control.conf')
@@ -89,6 +99,14 @@ class ControlSetup(ContrailSetup):
                          '__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
                          '__contrail_cert_ops__': '%s' %(certdir) if self._args.use_certs else '',
+
+                         '__contrail_rabbitmq_ip__': self._args.cfgm_ip,
+                         '__contrail_rabbitmq_port__': '5672',
+                         '__contrail_rabbitmq_user__': 'guest',
+                         '__contrail_rabbitmq_password__': 'guest',
+                         '__config_db_server_cql_list__': 
+                          ' '.join('%s:%s' %(server, '9042') for server \
+                              in self._args.config_dbs)
                         }
         self._template_substitute_write(dns_conf.template,
                                         dns_template_vals, self._temp_dir_name + '/contrail-dns.conf')
