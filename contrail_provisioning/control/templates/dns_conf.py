@@ -36,5 +36,8 @@ template = string.Template("""#
   password=$__contrail_ifmap_paswd__
 # server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
   user=$__contrail_ifmap_usr__
-
+  rabbitmq_server_list=$__contrail_rabbit_server_list__
+  rabbitmq_user=$__contrail_rabbitmq_user__
+  rabbitmq_password=$__contrail_rabbitmq_password__
+  config_db_server_list=$__config_db_server_cql_list__
 """)
