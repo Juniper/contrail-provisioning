@@ -157,7 +157,7 @@ class DatabaseMigrate(DatabaseCommon):
     def migrate_cassandra(self, inter_pkgs, final_ver, data_dir,
                           analytics_data_dir, ssd_data_dir,
                           database_listen_ip, database_seed_list,
-                          cassandra_user):
+                          cassandra_user, cluster_name='Contrail'):
         if final_ver is None:
             final_ver = self._get_final_ver()
 
@@ -221,7 +221,7 @@ class DatabaseMigrate(DatabaseCommon):
                                              database_seed_list,
                                              data_dir,
                                              ssd_data_dir,
-                                             cluster_name='Contrail',
+                                             cluster_name=cluster_name,
                                              user=cassandra_user)
             self.fixup_cassandra_env_config()
             local('service cassandra start;sleep 5')
@@ -240,10 +240,10 @@ class DatabaseMigrate(DatabaseCommon):
     def migrate(self, inter_pkg=None, final_ver=None, data_dir=None,
                 analytics_data_dir=None, ssd_data_dir=None,
                 database_listen_ip=None, database_seed_list=None,
-                cassandra_user=None):
+                cassandra_user=None, cluster_name='Contrail'):
         self.migrate_cassandra(inter_pkg, final_ver, data_dir,
             analytics_data_dir, ssd_data_dir, database_listen_ip,
-            database_seed_list, cassandra_user)
+            database_seed_list, cassandra_user, cluster_name)
 
 
 def main():
@@ -253,7 +253,7 @@ def main():
     database.migrate(database._args.inter_pkg, database._args.final_ver,
         database._args.data_dir, database._args.analytics_data_dir,
         database._args.ssd_data_dir, database._args.database_listen_ip,
-        database._args.database_seed_list, database._args.cassandra_user)
+        database._args.database_seed_list, database._args.cassandra_user, cluster_name='Contrail')
 
 if __name__ == "__main__":
     main()
