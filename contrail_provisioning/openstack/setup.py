@@ -195,10 +195,12 @@ class OpenstackSetup(ContrailSetup):
         barbican_ini_file = "/etc/barbican/vassals/barbican-api.ini"
 
         # TODO till post of openstack-horizon.spec is fixed...
-        if (os.path.isdir("/etc/openstack_dashboard")):
+        if (os.path.isfile("/etc/openstack_dashboard/local_settings")):
             dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
-        else:
+        elif (os.path.isfile("/etc/openstack-dashboard/local_settings")):
             dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
+        else:
+            dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
 
         if self.pdist in ['fedora', 'centos', 'redhat']:
             dashboard_version = self.get_openstack_dashboard_version()
@@ -208,7 +210,6 @@ class OpenstackSetup(ContrailSetup):
                 else:
                     local("sudo sed -i 's/ALLOWED_HOSTS =/#ALLOWED_HOSTS =/g' %s" %(dashboard_setting_file))
 
-        dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
         with settings(warn_only=True):
             is_v3 = local('grep "^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True" %s' % dashboard_setting_file)
         if self._args.keystone_version == 'v3' and is_v3.failed:
