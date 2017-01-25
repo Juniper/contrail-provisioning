@@ -205,10 +205,12 @@ class OpenstackSetup(ContrailSetup):
         barbican_apache_file = "/etc/apache2/conf-available/barbican-api.conf"
 
         # TODO till post of openstack-horizon.spec is fixed...
-        if (os.path.isdir("/etc/openstack_dashboard")):
+        if (os.path.isfile("/etc/openstack_dashboard/local_settings")):
             dashboard_setting_file = "/etc/openstack_dashboard/local_settings"
-        else:
+        elif (os.path.isfile("/etc/openstack-dashboard/local_settings")):
             dashboard_setting_file = "/etc/openstack-dashboard/local_settings"
+        else:
+            dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
 
         if self.pdist in ['fedora', 'centos', 'redhat']:
             dashboard_version = self.get_openstack_dashboard_version()
@@ -225,7 +227,6 @@ class OpenstackSetup(ContrailSetup):
                 local("sudo sed -i 's/^OPENSTACK_KEYSTONE_URL = \"http:/OPENSTACK_KEYSTONE_URL = \"https:/g' %s" % (dashboard_setting_file))
                 local("sudo sed -i 's/^#OPENSTACK_SSL_NO_VERIFY.*/OPENSTACK_SSL_NO_VERIFY = True/g' %s" % (dashboard_setting_file))
 
-        dashboard_setting_file = "/etc/openstack-dashboard/local_settings.py"
         dashboard_keystone_policy_file = "/usr/share/openstack-dashboard/openstack_dashboard/conf/keystone_policy.json"
         if (not os.path.isfile(dashboard_keystone_policy_file)):
             dashboard_keystone_policy_file = "/etc/openstack-dashboard/keystone_policy.json"
