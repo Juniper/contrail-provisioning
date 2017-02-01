@@ -3,6 +3,7 @@
 # Copyright (c) 2015 Juniper Networks, Inc. All rights reserved.
 #
 """Upgrade's Contrail Database components."""
+import json
 from distutils.version import LooseVersion
 
 from setup import DatabaseSetup
@@ -20,6 +21,18 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         self.upgrade_data['upgrade'] = self._args.packages
         self.upgrade_data['restore'].append(
              '/etc/contrail/contrail-database-nodemgr.conf')
+
+    def _change_section(self, conf_file, old_section, new_section):
+       is_present = self.has_config(conf_file, old_section)
+       if is_present:
+           # Get the contents
+           contents = json.loads(self.get_config(conf_file, old_section))
+           # Delete old section
+           self.del_config(conf_file, old_section)
+           # Add new section
+           for content in contents:
+               self.set_config(conf_file, new_section, content[0], content[1])
+    # end _change_section
 
     def upgrade(self):
         self._migrator = DatabaseMigrate()
@@ -48,6 +61,10 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         if (self._args.from_rel < LooseVersion('2.20') and
                 self._args.to_rel >= LooseVersion('2.20')):
             self.fixup_contrail_database_nodemgr()
+
+        # Change DEFAULT to DEFAULTS in contrail-database-nodemgr.conf
+        dn_conf_file = '/etc/contrail/contrail-database-nodemgr.conf'
+        self._change_section(dn_conf_file, 'DEFAULT', 'DEFAULTS')
         self.restart()
 
 

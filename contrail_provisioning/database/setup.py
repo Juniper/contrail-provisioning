@@ -12,7 +12,6 @@ import subprocess
 from fabric.api import *
 
 from contrail_provisioning.database.base import DatabaseCommon
-from contrail_provisioning.database.templates import contrail_database_nodemgr_template
 from contrail_provisioning.database.templates import cassandra_create_user_template
  
 class DatabaseSetup(DatabaseCommon):
@@ -200,16 +199,20 @@ class DatabaseSetup(DatabaseCommon):
         local("sudo sed -i \"s/DatePattern='.'yyyy-MM-dd-HH/MaxBackupIndex=10/g\" %s" % KAFKA_LOG4J_PROPERTIES)
 
     def fixup_contrail_database_nodemgr(self):
-        template_vals = {
-                        '__contrail_collectors__': \
-                           ' '.join('%s:%s' %(server, '8086')
-                           for server in self._args.collector_ip_list),
-                        '__minimum_diskGB__': self._args.minimum_diskGB,
-                        '__hostip__': self.database_listen_ip,
-                        }
-        self._template_substitute_write(contrail_database_nodemgr_template.template,
-                                        template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
-        local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-database-nodemgr.conf'
+        config_vals = {
+            'DEFAULTS' : {
+                'minimum_diskGB' : self._args.minimum_diskGB,
+                'hostip' : self.database_listen_ip,
+            },
+            'COLLECTOR' : {
+                'server_list' : ' '.join('%s:%s' %(server, '8086'))
+            },
+        }
+        for section, parameter_values in config_vals.items():
+            for parameter, value in parameter_values.items():
+                self.set_config(conf_file, section, parameter, value)
+    # end fixup_contrail_database_nodemgr
 
     def create_cassandra_user(self):
         template_vals = {
