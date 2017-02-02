@@ -120,13 +120,18 @@ class ConfigBaseSetup(ContrailSetup):
             aaa_mode = "no-auth"
         else:
             aaa_mode = self._args.aaa_mode
+        if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+            listen_port = 9100
+        else:
+            listen_port = 8082
+  
         # contrail-api.conf
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'api-server',
                          '__contrail_ifmap_password__': 'api-server',
                          '__contrail_listen_ip_addr__': '0.0.0.0',
-                         '__contrail_listen_port__': '8082',
+                         '__contrail_listen_port__': listen_port,
                          '__contrail_use_certs__': self._args.use_certs,
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
