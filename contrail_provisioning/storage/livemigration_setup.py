@@ -56,6 +56,7 @@ class LiveMigrationSetup(ContrailSetup):
         parser.add_argument("--storage-os-hosts", help = "Host names of openstack nodes other than master", nargs='+', type=str)
         parser.add_argument("--storage-os-host-tokens", help = "passwords of openstack nodes other than master", nargs='+', type=str)
         parser.add_argument("--fix-nova-uid", help = "Enable/disable uid fix")
+        parser.add_argument("--live-migration-scope", help = "live-migration scope")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -86,6 +87,7 @@ class LiveMigrationSetup(ContrailSetup):
                     storage_setup_args = storage_setup_args + " --nfs-livem-host %s" % (' '.join(self._args.nfs_livem_host))
                 if self._args.nfs_livem_mount:
                     storage_setup_args = storage_setup_args + " --nfs-livem-mount %s" % (' '.join(self._args.nfs_livem_mount))
+                storage_setup_args = storage_setup_args + " --nfs-livem-scope %s" % (self._args.live_migration_scope)
                 for storage_host, storage_host_token in zip(self._args.storage_hosts, self._args.storage_host_tokens):
                     if storage_host == self._args.storage_master:
                         storage_master_passwd = storage_host_token
