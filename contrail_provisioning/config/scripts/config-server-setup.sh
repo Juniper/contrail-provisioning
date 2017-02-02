@@ -41,12 +41,15 @@ for svc in rabbitmq-server $web_svc memcached; do
     chkconfig $svc on
 done
 
-if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
-    for svc in quantum-server; do
+if [ $is_ubuntu -eq 1 ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in api config-nodemgr device-manager discovery schema svc-monitor; do
+        chkconfig contrail-$svc on
+    done 
+    for svc in ifmap; do
         chkconfig $svc on
-    done
+    done 
 else
-    for svc in supervisor-support-service supervisor-config quantum-server puppetmaster; do
+    for svc in supervisor-support-service supervisor-config; do
         chkconfig $svc on
     done
 fi
@@ -56,12 +59,6 @@ echo "======= Starting the services ======"
 for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
-
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
-    for svc in puppetmaster; do
-        service $svc restart
-    done
-fi
 
 # TODO: move dependency to service script
 # wait for ifmap server to start
@@ -75,10 +72,16 @@ while [ $tries -lt 10 ]; do
 done
 fi
 
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
-    chkconfig supervisor-config on
-    service supervisor-config restart
+if [ $is_ubuntu -eq 1 ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in api config-nodemgr device-manager discovery schema svc-monitor; do
+        service contrail-$svc restart
+    done 
+    for svc in ifmap; do
+        service $svc restart
+    done
+else
+    for svc in supervisor-config; do
+        service $svc restart
+    done
 fi
-
-#service quantum-server restart
 

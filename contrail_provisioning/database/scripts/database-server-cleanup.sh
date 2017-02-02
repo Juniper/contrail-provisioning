@@ -3,7 +3,7 @@
 #cleanup script for database package under supervisord
 # shutdown all the services
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
-    for svc in zookeeper; do
+    for svc in contrail-database-nodemgr zookeeper; do
         chkconfig $svc off > /dev/null 2>&1
         service $svc stop > /dev/null 2>&1
     done

@@ -7,13 +7,13 @@
 pycassaShell -f drop-cassandra-cfgm-keyspaces
 
 # shutdown all the services
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
-    for svc in supervisor-config quantum-server puppet-server; do
-        chkconfig $svc off > /dev/null 2>&1
-        service $svc stop > /dev/null 2>&1
+if [ -f /etc/lsb-release ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in api config-nodemgr device-manager discovery schema svc-monitor; do
+        chkconfig contrail-$svc off > /dev/null 2>&1
+        service contrail-$svc stop > /dev/null 2>&1
     done
 else
-    for svc in quantum-server; do
+    for svc in supervisor-config; do
         chkconfig $svc off > /dev/null 2>&1
         service $svc stop > /dev/null 2>&1
     done

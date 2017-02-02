@@ -15,10 +15,14 @@ if [ "`grep server /etc/puppet/puppet.conf`" ]; then
     done
 fi
 
-#setup script for contrail-control package under supervisord
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+if [ -f /etc/lsb-release ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    #setup script for contrail-control package under systemd
+    for svc in control nodemgr dns named; do
+            chkconfig contrail-$svc on
+            service contrail-$svc restart
+    done
+else
+    #setup script for contrail-control package under supervisord
     chkconfig supervisor-control on
     service supervisor-control restart
 fi
-
-
