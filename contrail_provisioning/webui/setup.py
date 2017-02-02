@@ -41,6 +41,9 @@ class WebuiSetup(ContrailSetup):
             --openstack_ip 10.84.12.12 --collector_ip 10.84.12.12
             --cassandra_ip_list 10.1.5.11 10.1.5.12 --internal_vip 10.84.12.200
             --contrail_internal_vip 10.84.12.250
+            --cfgm_ip_list 10.84.12.11 10.84.12.12
+            --collector_ip_list 10.84.12.11 10.84.12.12
+            --dns_server_ip_list 10.84.12.11 10.84.12.12
         '''
         parser = self._parse_args(args_str)
 
@@ -49,6 +52,12 @@ class WebuiSetup(ContrailSetup):
         parser.add_argument("--openstack_ip", help = "IP Address of the openstack controller")
         parser.add_argument("--collector_ip", help = "IP Address of the Collector node")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--cfgm_ip_list", help = "List of IP Addresses of cfgm nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--collector_ip_list", help = "List of IP Addresses of collector nodes",
+                            nargs='+', type=str)
+        parser.add_argument("--dns_server_ip_list", help = "List of IP Addresses of DNS server nodes",
                             nargs='+', type=str)
         parser.add_argument("--orchestrator", help = "Orchestrator used, example openstack, vcenter")
         parser.add_argument("--internal_vip", help = "VIP Address of openstack  nodes")
@@ -110,6 +119,9 @@ class WebuiSetup(ContrailSetup):
 
         local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.cfgm_ip_list:
+            local("sudo sed \"s/config.cnfg.server_ip.*/config.cnfg.server_ip = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cfgm_ip_list)))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.networkManager.ip.*/config.networkManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.cfgm_ip))
         local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         local("sudo sed \"s/config.imageManager.ip.*/config.imageManager.ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(internal_vip or openstack_ip))
@@ -136,8 +148,14 @@ class WebuiSetup(ContrailSetup):
         if self._args.collector_ip:
             local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(contrail_internal_vip or self._args.collector_ip))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.collector_ip_list:
+            local("sudo sed \"s/config.analytics.server_ip.*/config.analytics.server_ip = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.collector_ip_list)))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.cassandra_ip_list:
             local("sudo sed \"s/config.cassandra.server_ips.*/config.cassandra.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.cassandra_ip_list)))
+            local("sudo mv config.global.js.new /etc/contrail/config.global.js")
+        if self._args.dns_server_ip_list:
+            local("sudo sed \"s/config.dns.server_ip.*/config.dns.server_ips = %s;/g\" /etc/contrail/config.global.js > config.global.js.new" %(str(self._args.dns_server_ip_list)))
             local("sudo mv config.global.js.new /etc/contrail/config.global.js")
         if self._args.redis_password:
             local("sudo sed \"s/config.redis_password.*/config.redis_password = '%s';/g\" /etc/contrail/config.global.js > config.global.js.new" %(self._args.redis_password))
