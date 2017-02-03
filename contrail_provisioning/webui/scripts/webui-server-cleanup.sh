@@ -2,10 +2,12 @@
 
 #cleanup script for webui package under supervisord
 
-for svc in contrail-webui contrail-webui-middleware; do
-    service $svc stop
-done
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+if [ -f /etc/lsb-release ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+    for svc in webui webui-middleware; do
+        chkconfig contrail-$svc off
+        service contrail-$svc stop
+    done
+else
     chkconfig supervisor-webui off
     service supervisor-webui stop
 fi
