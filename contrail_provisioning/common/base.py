@@ -365,19 +365,19 @@ class ContrailSetup(object):
             local("contrail-config --set %s %s %s '%s'" % (
                         fl, sec, var, val))
 
-    def del_config(self, fl, sec, var):
+    def del_config(self, fl, sec, var=''):
         with settings(warn_only=True):
             local("contrail-config --del %s %s %s" % (
                         fl, sec, var))
 
-    def get_config(self, fl, sec, var):
+    def get_config(self, fl, sec, var=''):
         output = None
         with settings(warn_only=True):
             output = local("openstack-config --get %s %s %s" % (
                 fl, sec, var), capture=True)
         return output
 
-    def has_config(self, fl, sec, var):
+    def has_config(self, fl, sec, var=''):
         has = False
         with settings(warn_only=True):
             output = local("openstack-config --has %s %s %s" % (
