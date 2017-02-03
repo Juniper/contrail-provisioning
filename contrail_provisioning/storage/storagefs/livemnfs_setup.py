@@ -45,6 +45,14 @@ class SetupNFSLivem(object):
     nova_mount='/var/lib/nova/instances/global'
     global contrail_nova
     contrail_nova = True
+    global LIBVIRT_AA_HELPER_TMP_FILE
+    LIBVIRT_AA_HELPER_TMP_FILE = '/tmp/usr.lib.libvirt.virt-aa-helper'
+    global LIBVIRT_AA_HELPER_FILE
+    LIBVIRT_AA_HELPER_FILE = '/etc/apparmor.d/usr.lib.libvirt.virt-aa-helper'
+    global LIBVIRT_QEMU_HELPER_TMP_FILE
+    LIBVIRT_QEMU_HELPER_TMP_FILE = '/tmp/libvirt-qemu'
+    global LIBVIRT_QEMU_HELPER_FILE
+    LIBVIRT_QEMU_HELPER_FILE = '/etc/apparmor.d/abstractions/libvirt-qemu'
 
 
     def check_vm(self, vmip):
@@ -74,12 +82,90 @@ class SetupNFSLivem(object):
             args_str = ' '.join(sys.argv[1:])
         self._parse_args(args_str)
         vm_running = 0
-        nova_storage_scope_fix = local('grep -r storage_scope %s | \
+        if (self._args.nfs_livem_scope == 'enabled' or
+            self._args.nfs_livem_scope == 'global'):
+            nova_mount = '/var/lib/nova/instances/global'
+
+            nova_storage_scope_fix = local('grep -r storage_scope %s | \
                                         grep global | wc -l'
                                         %(NOVA_PY_PATH), capture=True)
-        if nova_storage_scope_fix == '0':
-            contrail_nova = False
+            if nova_storage_scope_fix == '0':
+                contrail_nova = False
+                nova_mount = '/var/lib/nova/instances'
+            else:
+                for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+                    with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                        if entries != self._args.storage_master:
+                            virt_aa_present=run('ls %s 2>/dev/null | wc -l'
+                                            %(LIBVIRT_AA_HELPER_FILE))
+                            if virt_aa_present != '0':
+                                global_virt_aa_helper=run('cat %s | \
+                                    grep -n "instances\/global" | wc -l'
+                                    %(LIBVIRT_AA_HELPER_FILE))
+                                if global_virt_aa_helper == '0':
+                                    snap_lineno=int(run('cat %s | \
+                                        grep -n "instances\/snapshots" | \
+                                        cut -d \':\' -f 1'
+                                        %(LIBVIRT_AA_HELPER_FILE)))
+                                    run('head -n %d %s > %s' %(snap_lineno,
+                                        LIBVIRT_AA_HELPER_FILE,
+                                        LIBVIRT_AA_HELPER_TMP_FILE))
+                                    run('echo \
+                                        "  /var/lib/nova/instances/global/_base/** r," \
+                                        >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                    run('echo \
+                                        "  /var/lib/nova/instances/global/snapshots/** r," \
+                                        >> %s' %(LIBVIRT_AA_HELPER_TMP_FILE))
+                                    run('tail -n +%d %s >> %s' %(snap_lineno+1,
+                                        LIBVIRT_AA_HELPER_FILE,
+                                        LIBVIRT_AA_HELPER_TMP_FILE))
+                                    run('cp -f %s %s'
+                                        %(LIBVIRT_AA_HELPER_TMP_FILE,
+                                        LIBVIRT_AA_HELPER_FILE))
+                                    run('apparmor_parser -r %s'
+                                        %(LIBVIRT_AA_HELPER_FILE))
+        else:
             nova_mount = '/var/lib/nova/instances'
+        for hostname, entries, entry_token in zip(self._args.storage_hostnames, self._args.storage_hosts, self._args.storage_host_tokens):
+            with settings(host_string = 'root@%s' %(entries), password = entry_token):
+                if entries != self._args.storage_master:
+                    virt_qemu_present=run('ls %s 2>/dev/null | wc -l'
+                                %(LIBVIRT_QEMU_HELPER_FILE))
+                    if virt_qemu_present != '0':
+                        global_virt_tmp_helper=run('cat %s | \
+                                grep -n "deny \/tmp\/" | wc -l'
+                                %(LIBVIRT_QEMU_HELPER_FILE))
+                        if global_virt_tmp_helper != '0':
+                            snap_lineno=int(run('cat %s | \
+                                grep -n "deny \/tmp\/" | \
+                                cut -d \':\' -f 1'
+                                %(LIBVIRT_QEMU_HELPER_FILE)))
+                            run('head -n %d %s > %s' %(snap_lineno-1,
+                                LIBVIRT_QEMU_HELPER_FILE,
+                                LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('tail -n +%d %s >> %s' %(snap_lineno+1,
+                                LIBVIRT_QEMU_HELPER_FILE,
+                                LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('echo \
+                                "  capability mknod," \
+                                >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('echo \
+                                "  /etc/ceph/* r," \
+                                >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('echo \
+                                "  /etc/qemu-ifup ixr," \
+                                >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('echo \
+                                "  /etc/qemu-ifdown ixr," \
+                                >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('echo \
+                                "  owner /tmp/* rw," \
+                                >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                            run('cp -f %s %s'
+                                %(LIBVIRT_QEMU_HELPER_TMP_FILE,
+                                LIBVIRT_QEMU_HELPER_FILE))
+                        if pdist == 'Ubuntu':
+                            run('sudo service libvirt-bin restart')
 
         #print self._args.storage_setup_mode
         if (self._args.storage_setup_mode == 'setup' or
@@ -498,8 +584,7 @@ class SetupNFSLivem(object):
                         if mounted == '0':
                             run('ping -c 10 %s' %(nfs_server))
                             if contrail_nova == True:
-                                run('sudo rm -rf %s' %(nova_mount))
-                                run('sudo mkdir %s' %(nova_mount))
+                                run('sudo mkdir -p %s' %(nova_mount))
                             run('sudo mount %s' %(nova_mount))
                             run('sudo chown nova:nova %s' %(nova_mount))
                         else:
@@ -541,6 +626,7 @@ class SetupNFSLivem(object):
                             return
                         else:
                             run('sudo umount %s' %(nova_mount))
+                            run('sudo chown nova:nova %s' %(nova_mount))
 
 
         if self._args.storage_setup_mode == 'unconfigure' and \
@@ -823,6 +909,7 @@ class SetupNFSLivem(object):
         parser.add_argument("--nfs-livem-host", help = "host for nfs live migration vm", nargs="+", type=str)
         parser.add_argument("--nfs-livem-mount", help = "Mount of External NFS server")
         parser.add_argument("--storage-setup-mode", help = "Storage configuration mode")
+        parser.add_argument("--nfs-livem-scope", help = "Live migration scope. Enable disable local/global support")
 
         self._args = parser.parse_args(remaining_argv)
 
