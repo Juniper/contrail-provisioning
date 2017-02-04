@@ -34,7 +34,9 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                         '/etc/contrail/contrail-keystone-auth.conf',
                         '/etc/contrail/contrail-database.conf',
                        ]
-        if self.pdist in ['Ubuntu'] and self.pdistversion != '16.04':
+        if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+            pass
+        else:
             self.fixup_contrail_api_supervisor_ini(config_files)
             self.fixup_contrail_api_initd()
             self.fixup_contrail_plugin_ini()

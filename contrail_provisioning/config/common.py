@@ -65,7 +65,9 @@ class ConfigBaseSetup(ContrailSetup):
         self.fixup_cassandra_config()
         self.fixup_ifmap_config_files()
         self.fixup_contrail_api_config_file()
-        if self.pdist in ['Ubuntu'] and self.pdistversion != '16.04':
+        if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+            pass
+        else:
             self.fixup_contrail_api_supervisor_ini()
             self.fixup_contrail_api_initd()
             self.fixup_device_manager_ini()
