@@ -77,6 +77,7 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
                                          self._args.data_dir,
                                          self._args.ssd_data_dir,
                                          cluster_name='Contrail')
+        self.fixup_cassandra_env_config()
         local('service cassandra start;sleep 5')
 
         cassandra_cli_cmd = "cassandra-cli --host " + self._args.self_ip + \
@@ -113,6 +114,7 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
                                          self._args.data_dir,
                                          self._args.ssd_data_dir,
                                          cluster_name='Contrail')
+        self.fixup_cassandra_env_config()
 
     def upgrade(self):
         self.fixup_cassandra_upgrade()
