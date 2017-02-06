@@ -206,7 +206,8 @@ class DatabaseSetup(DatabaseCommon):
                 'hostip' : self.database_listen_ip,
             },
             'COLLECTOR' : {
-                'server_list' : ' '.join('%s:%s' %(server, '8086'))
+                'server_list' : ' '.join('%s:%s' %(server, '8086')
+                    for server in self._args.collector_ip_list)
             },
         }
         for section, parameter_values in config_vals.items():
