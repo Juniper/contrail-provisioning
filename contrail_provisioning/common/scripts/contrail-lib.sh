@@ -56,15 +56,20 @@ function update_services () {
     fi
     exit_on_error=$(echo $exit_on_error | tr '[:upper:]' '[:lower:]')
     for service_name in "${@:2}"; do
-        if [ $(is_ubuntu) == "False" ]; then
-            systemctl $action "$service_name"
-        else
-            if [ "$action" == "enable" ]; then
-                chkconfig $service_name on
+        if [ $(is_ubuntu) == "True" ]; then
+            if (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
+                systemctl $action "$service_name"
             else
-                service $service_name $action
+                if [ "$action" == "enable" ]; then
+                    chkconfig $service_name on
+                else
+                    service $service_name $action
+                fi
             fi
+        else
+            systemctl $action "$service_name"
         fi
+
         if [ $? != 0 ] && [ "$exit_on_error" != "false" ] ; then
             echo "ERROR: "$action" service ( $service_name ) failed!"
             exit 1

@@ -399,8 +399,12 @@ class ConfigBaseSetup(ContrailSetup):
             db.fixup_cassandra_env_config()
             db_services.append('contrail-database')
         for svc in db_services:
-            local('sudo chkconfig %s on' % svc)
-            local('sudo service %s restart' % svc)
+            if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+                local('sudo systemctl enable %s' % svc)
+                local('sudo systemctl restart %s' % svc)
+            else:
+                local('sudo chkconfig %s on' % svc)
+                local('sudo service %s restart' % svc)
 
     def setup(self):
         self.disable_selinux()
