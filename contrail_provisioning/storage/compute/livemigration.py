@@ -52,6 +52,11 @@ class SetupLivem(object):
                    libvirt_configured = run('cat %s |grep "\-d \-l"| wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
                    if libvirt_configured == '0':
                        run('cat %s | sed s/"-d"/"-d -l"/ > %s' %(LIBVIRTD_UBUNTU_BIN_CONF, LIBVIRTD_TMP_BIN_CONF), shell='/bin/bash')
+                       libvirt_enabled = run('cat %s |grep "^libvirtd_opts"| wc -l' %(LIBVIRTD_UBUNTU_BIN_CONF))
+                       if libvirt_enabled == '0':
+                           run('echo \'libvirtd_opts="-l"\' >> %s' %(LIBVIRTD_TMP_BIN_CONF))
+                       #else:
+                       #Handle other cases
                        run('cp -f %s %s' %(LIBVIRTD_TMP_BIN_CONF, LIBVIRTD_UBUNTU_BIN_CONF))
                        run('service nova-compute restart')
                        run('service libvirt-bin restart')
