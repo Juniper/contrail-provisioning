@@ -103,7 +103,10 @@ class VcenterPluginSetup(ContrailSetup):
            #disable contrail-svc-monitor for vcenter as orchestrator based provisioning
            if (os.path.isfile('/etc/contrail/supervisord_config_files/contrail-svc-monitor.ini')):
               local("sudo rm /etc/contrail/supervisord_config_files/contrail-svc-monitor.ini")
-              update_cmd = "sudo supervisorctl -s unix:///tmp/supervisord_config.sock update"
+              if os.path.exists('/tmp/supervisord_config.sock'):
+                  update_cmd = "sudo supervisorctl -s unix:///tmp/supervisord_config.sock update"
+              else:
+                  update_cmd = "sudo supervisorctl -s unix:///var/run/supervisord_config.sock update"
               out = local(update_cmd, capture=True)
               # Retry until the svc-monitor is removed from the group
               while 'not removing' in out:
