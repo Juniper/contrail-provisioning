@@ -174,7 +174,11 @@ if [ $is_xenial -ne 1 ] ; then
     if [ $status == 'stopped' ]; then
         service supervisor-openstack start
         sleep 5
-        supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
+        if [ -e /tmp/supervisord_openstack.sock ]; then
+            supervisorctl -s unix:///tmp/supervisord_openstack.sock stop all
+        else
+            supervisorctl -s unix:///var/run/supervisord_openstack.sock stop all
+        fi
     fi
 fi
 
