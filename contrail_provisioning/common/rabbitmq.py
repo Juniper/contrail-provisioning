@@ -102,10 +102,17 @@ class RabbitMQ(ContrailSetup):
         is_running = "service supervisor-support-service status | grep running"
         if local(is_running).failed:
             local("service supervisor-support-service start")
-            sock = "unix:///var/run/supervisord_support_service.sock"
+            if os.path.exists('/tmp/supervisord_support_service.sock'):
+                sock = "unix:///tmp/supervisord_support_service.sock"
+            else:
+                sock = "unix:///var/run/supervisord_support_service.sock"
             stop_all = "supervisorctl -s %s stop all" % sock
             if local(stop_all).failed:
-                sock = "unix:///var/run/supervisord_support_service.sock"
+                # sock and stop_all are set again, why? 
+                if os.path.exists('/tmp/supervisord_support_service.sock'):
+                    sock = "unix:///tmp/supervisord_support_service.sock"
+                else:
+                    sock = "unix:///var/run/supervisord_support_service.sock"
                 stop_all = "supervisorctl -s %s stop all" % sock
                 local(stop_all)
 
