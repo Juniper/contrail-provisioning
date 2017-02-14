@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright (c) 2016 Juniper Networks, Inc. All rights reserved.
 #
@@ -19,7 +19,7 @@ fi
   TOUCH="/bin/touch"
   RM="/bin/rm"
   CP="/bin/cp"
-  ECHO="/bin/echo"
+  ECHO="/bin/echo -e"
   CAT="/bin/cat"
   CHOWN="/bin/chown"
 }
@@ -28,6 +28,14 @@ argc=$#
 NODE_IP=$1
 SSL_PATH=$2
 CERT_FILE_PREFIX=$3
+SAN=$4
+
+SANS=$SAN,$NODE_IP
+IFS=',' read -ra SAN_LIST <<< "$SANS"
+for i in "${!SAN_LIST[@]}"; do
+    SAN_IPS=$(echo "$SAN_IPS\nIP.$(($i+1)) = ${SAN_LIST[$i]}")
+done
+
 
 main() {
     if [ "$argc" -lt 3 ]; then
@@ -63,18 +71,18 @@ main() {
     $MKDIR certs
 	$TOUCH database.txt database.txt.attr serial.txt
 	$ECHO 01 > serial.txt
-	$OPENSSL ca -policy policy_anything -config cfg/openssl.cfg -cert cacert/ca.cer -in req/client.csr -keyfile key/privatep8.key -days 3650 -out certs/client.crt -batch
+	$OPENSSL ca -policy policy_anything -config cfg/openssl.cfg -cert cacert/ca.cer -in req/client.csr -keyfile key/privatep8.key -days 3650 -extensions v3_req -out certs/client.crt -batch
 
 	$RM -f database.*
 	$TOUCH database.txt database.txt.attr 
-    $OPENSSL ca -policy policy_anything -config cfg/openssl.cfg -cert cacert/ca.cer -in req/server.csr -keyfile key/privatep8.key -days 3650 -out certs/server.crt -batch
+    $OPENSSL ca -policy policy_anything -config cfg/openssl.cfg -cert cacert/ca.cer -in req/server.csr -keyfile key/privatep8.key -days 3650 -extensions v3_req -out certs/server.crt -batch
     $RM -f database.*
     $RM -f serial.txt 
 #Convert from PEM to DER both Ca cert and Ca signed Cert
 
-	$OPENSSL x509 -in certs/client.crt -inform PEM -outform DER -out client.der
+	$OPENSSL x509 -in certs/client.crt -inform PEM -outform DER -out client.der -extensions v3_req
 		
-	$OPENSSL x509 -in cacert/ca.cer -inform PEM -outform DER -out ca.der
+	$OPENSSL x509 -in cacert/ca.cer -inform PEM -outform DER -out ca.der -extensions v3_req
 
 #Create Root and server pem files 
 	
@@ -151,6 +159,7 @@ default_keyfile                 = privkey.pem
 distinguished_name              = req_distinguished_name
 attributes                      = req_attributes
 x509_extensions = v3_ca # The extentions to add to the self signed cert
+req_extensions = v3_req
 [ req_distinguished_name ]
 countryName                             = Country Name (2 letter code)
 countryName_min                         = 2
@@ -171,6 +180,15 @@ commonName_max                          = 64
 emailAddress                            = Email Address
 emailAddress_default                    = admin@juniper.com
 emailAddress_max                        = 40
+
+[ v3_req ]
+# Extensions to add to a certificate request
+basicConstraints = CA:true
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+$SAN_IPS
 
 # SET-ex3                               = SET extension number 3
 [ req_attributes ]
