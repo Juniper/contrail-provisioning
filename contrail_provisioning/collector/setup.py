@@ -220,6 +220,8 @@ class CollectorSetup(ContrailSetup):
                 for server in self._args.collector_ip_list)
         self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'collectors',
                         collector_list_str)
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'api_server',
+                self._args.cfgm_ip+':8082')
  
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
@@ -233,6 +235,8 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'collectors',
                         ' '.join('%s:%s' %(server,'8086')
                         for server in self._args.collector_ip_list))
+        self.set_config(conf_fl, 'DEFAULTS', 'api_server',
+                self._args.cfgm_ip+':8082')
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-snmp-collector.ini',
                         'program:contrail-snmp-collector',
@@ -261,6 +265,8 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'collectors',\
                         ' '.join('%s:%s' %(server,'8086')
                         for server in self._args.collector_ip_list))
+        self.set_config(conf_fl, 'DEFAULTS', 'api_server',
+                self._args.cfgm_ip+':8082')
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',
                         'program:contrail-topology',
@@ -286,7 +292,8 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_flow_ttl__' : '#analytics_flow_ttl=2',
                          '__contrail_analytics_syslog_port__' : str(self._args.analytics_syslog_port),
                          '__contrail_redis_password__' : '',
-                         '__contrail_kafka_broker_list__':''
+                         '__contrail_kafka_broker_list__':'',
+                         '__contrail_api_server_list__' : self._args.cfgm_ip+':8082'
                        }
         if self.zookeeper_server_list:
             template_vals['__contrail_zookeeper_server_list__'] = \

@@ -174,6 +174,20 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             self.replace_in_file('/etc/contrail/contrail-analytics-api.conf',\
                     'partitions', '')
 
+        if (self._args.to_rel >= LooseVersion('4.00')):
+            collector_conf = '/etc/contrail/contrail-collector.conf'
+            set_config(collector_conf, 'DEFAULT', 'api_server',
+                    self._args.cfgm_ip+':8082')
+            alarmgen_conf = '/etc/contrail/contrail-alarm-gen.conf'
+            self.set_config(alarmgen_conf, 'DEFAULTS', 'api_server',
+                    self._args.cfgm_ip+':8082')
+            snmp_collector_conf = '/etc/contrail/contrail-snmp-collector.conf'
+            self.set_config(snmp_collector_conf, 'DEFAULTS', 'api_server',
+                    self._args.cfgm_ip+':8082')
+            topology_conf = '/etc/contrail/contrail-topology.conf'
+            self.set_config(topology_conf, 'DEFAULTS', 'api_server',
+                    self._args.cfgm_ip+':8082')
+
     # end update_config
 
 def main():
