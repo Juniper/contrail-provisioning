@@ -5,14 +5,15 @@
 # Script to generate Self Signed Certificates for keystone
 argc=$#
 KEYSTONE_VIP=$1
+SANS=$2
 SSL_PATH=/etc/keystone/ssl/
 CERT_FILE_PREFIX=keystone
 
 if [ "$argc" -eq 0 ]; then
     echo "Usage: $0 KEYSTONE_VIP";
-    echo "Example: $0 10.1.1.100";
+    echo "Example: $0 10.1.1.100 20.1.1.100,10.1.1.1,20.1.1.1";
     exit 1;
 fi
 
 #Generate Certs
-create-ssl-certs.sh $KEYSTONE_VIP $SSL_PATH $CERT_FILE_PREFIX
+create-ssl-certs.sh $KEYSTONE_VIP $SSL_PATH $CERT_FILE_PREFIX $SANS
