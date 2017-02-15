@@ -293,6 +293,11 @@ class OpenstackSetup(ContrailSetup):
             local("sudo sed -i 's/admin_password = /;admin_password = /' /etc/cinder/api-paste.ini")
 
     def run_services(self):
+        with settings(warn_only=True):
+            # Stop the openstack services if they are running
+            # before running the setup
+            for service in self.openstack_services:
+                local("service %s stop" % service)
         local("sudo keystone-server-setup.sh")
         local("sudo glance-server-setup.sh")
         local("sudo cinder-server-setup.sh")
