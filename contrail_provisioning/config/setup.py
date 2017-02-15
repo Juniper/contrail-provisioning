@@ -60,14 +60,15 @@ class ConfigSetup(ContrailSetup):
             'apiserver_certfile': None,
             'apiserver_keyfile': None,
             'apiserver_cafile': None,
+            'use_irond': False,
         }
         self.parse_args(args_str)
 
     def parse_args(self, args_str):
         '''
-        Eg. setup-vnc-cfgm --self_ip 10.1.5.11 --keystone_ip 10.1.5.12 
+        Eg. setup-vnc-cfgm --self_ip 10.1.5.11 --keystone_ip 10.1.5.12
             --collector_ip 10.1.5.12 --service_token contrail123
-            --cassandra_ip_list 10.1.5.11 10.1.5.12 
+            --cassandra_ip_list 10.1.5.11 10.1.5.12
             --zookeeper_ip_list 10.1.5.11 10.1.5.12
             --nworkers 1
             optional: --use_certs, --aaa_mode --haproxy
@@ -97,21 +98,21 @@ class ConfigSetup(ContrailSetup):
                             nargs='+', type=str)
         parser.add_argument("--quantum_port", help = "Quantum Server port")
         parser.add_argument("--quantum_service_protocol", help = "Protocol of quantum/neutron for nova to use ")
-        parser.add_argument("--keystone_auth_protocol", 
+        parser.add_argument("--keystone_auth_protocol",
             help = "Auth protocol used to talk to keystone")
         parser.add_argument("--keystone_auth_port", help = "Port of Keystone to talk to",
             default = '35357')
         parser.add_argument("--neutron_password", help="Password of neutron user")
         parser.add_argument("--keystone_service_tenant_name",
             help="Tenant name of the networking service user - neutron/quantum")
-        parser.add_argument("--keystone_insecure", 
+        parser.add_argument("--keystone_insecure",
             help = "Connect to keystone in secure or insecure mode if in https mode")
         parser.add_argument("--keystone_version", choices=['v2.0', 'v3'],
             help = "Keystone Version")
         parser.add_argument("--keystone_certfile", help="")
         parser.add_argument("--keystone_keyfile", help="")
         parser.add_argument("--keystone_cafile", help="")
-        parser.add_argument("--apiserver_insecure", 
+        parser.add_argument("--apiserver_insecure",
             help = "Connect to apiserver in secure or insecure mode if in https mode")
         parser.add_argument("--apiserver_certfile", help="")
         parser.add_argument("--apiserver_keyfile", help="")
@@ -149,6 +150,9 @@ class ConfigSetup(ContrailSetup):
             default= None)
         parser.add_argument("--cassandra_password", help = "Cassandra password",
             default= None)
+        parser.add_argument("--use_irond", help="Use the irond as IFMAP "
+                            "server instead of the embedded IFMAP server",
+                            action="store_true")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:
@@ -183,6 +187,9 @@ def update_ifmap_users(args_str=None):
     else:
         config = ConfigBaseSetup(config_args)
     config.fixup_ifmap_config_files()
+    if not config_args.use_irond:
+        config.fixup_config_files()
+        config.restart_config()
 
 if __name__ == "__main__":
-    main() 
+    main()

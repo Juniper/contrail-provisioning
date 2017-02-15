@@ -2,10 +2,6 @@ import string
 
 template = string.Template("""
 [DEFAULTS]
-ifmap_server_ip=$__contrail_ifmap_server_ip__
-ifmap_server_port=$__contrail_ifmap_server_port__
-ifmap_username=$__contrail_ifmap_username__
-ifmap_password=$__contrail_ifmap_password__
 cassandra_server_list=$__contrail_cassandra_server_list__
 listen_ip_addr=$__contrail_listen_ip_addr__
 listen_port=$__contrail_listen_port__
@@ -19,10 +15,9 @@ rabbit_server=$__rabbit_server_ip__
 list_optimization_enabled=True
 $__contrail_cloud_admin_role__
 $__contrail_aaa_mode__
+$__contrail_ifmap_server_conf__
 
-[SECURITY]
-use_certs=$__contrail_use_certs__
-keyfile=$__contrail_keyfile_location__
-certfile=$__contrail_certfile_location__
-ca_certs=$__contrail_cacertfile_location__
+$__contrail_ifmap_cert__
+
+$__contrail_ifmap_embedded_server_conf__
 """)
