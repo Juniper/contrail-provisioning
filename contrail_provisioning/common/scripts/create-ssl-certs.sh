@@ -86,7 +86,7 @@ main() {
    $CAT certs/server.crt >> "$CERT_FILE_PREFIX".pem
    cd ../
    mkdir -p $SSL_PATH/private/
-   chmod 750 $SSL_PATH/private/
+   chmod 755 $SSL_PATH/private/
    mkdir -p $SSL_PATH/certs/
    chmod 755 $SSL_PATH/certs
    $CP working/"$CERT_FILE_PREFIX".key $SSL_PATH/private/
