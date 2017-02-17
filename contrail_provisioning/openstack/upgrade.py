@@ -103,6 +103,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
                                  'ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, PciPassthroughFilter')
             local("openstack-config --set %s DEFAULT scheduler_default_filters '%s'" % (nova_conf_file, default_filter))
 
+    def fix_nova_config_kv3_params(self):
+        local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
+        local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -121,6 +125,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             self.fix_haproxy_config()
         if (self._args.sriov):
             self.fix_sriov_nova_config()
+        # In 3.2+, nova.conf [neutron] extra parameters are created for v3
+        if ('v3' in self._args.keystone_version and
+                self._args.from_rel <= LooseVersion('3.1.2.0')):
+            self.fix_nova_config_kv3_params()
         self.restart()
 
 
