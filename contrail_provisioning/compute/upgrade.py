@@ -89,6 +89,10 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             if 'contrail-tor-agent' in tor_file:
                 local("cp /etc/init.d/contrail-vrouter-agent /etc/init.d/%s " % (tor_file))
 
+    def fix_nova_config_kv3_params(self):
+        local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
+        local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -107,6 +111,10 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if 'toragent' in self._args.roles:
             if (self._args.to_rel >= LooseVersion('3.00')):
                 self.fix_tor_agent_init_script()
+        # In 3.2+, nova.conf [neutron] extra parameters are created for v3
+        if ('v3' in self._args.keystone_version and
+                self._args.from_rel <= LooseVersion('3.1.2.0')):
+            self.fix_nova_config_kv3_params()
         self.enable_apt_get_auto_start()
 
 def main():
