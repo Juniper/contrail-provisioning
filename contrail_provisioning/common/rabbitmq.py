@@ -102,12 +102,12 @@ class RabbitMQ(ContrailSetup):
         is_running = "service supervisor-support-service status | grep running"
         if local(is_running).failed:
             local("service supervisor-support-service start")
-            sock = "unix:///var/run/supervisord_support_service.sock"
-            stop_all = "supervisorctl -s %s stop all" % sock
-            if local(stop_all).failed:
+            if os.path.exists('/tmp/supervisord_support_service.sock'):
+                sock = "unix:///tmp/supervisord_support_service.sock"
+            else:
                 sock = "unix:///var/run/supervisord_support_service.sock"
-                stop_all = "supervisorctl -s %s stop all" % sock
-                local(stop_all)
+            stop_all = "supervisorctl -s %s stop all" % sock
+            local(stop_all)
 
     def remove_mnesia_database(self):
          with settings(warn_only=True):
