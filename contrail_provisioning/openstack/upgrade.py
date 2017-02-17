@@ -111,6 +111,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("sed -i -e 's/timeout client 24h/timeout client 0/g' %s" % hap_cfg)
             local("sed -i -e 's/timeout server 24h/timeout server 0/g' %s" % hap_cfg)
 
+    def fix_nova_config_kv3_params(self):
+        local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
+        local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -127,6 +131,10 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
             self.fix_haproxy_config()
+        # In 3.2+, nova.conf [neutron] extra parameters are created for v3
+        if ('v3' in self._args.keystone_version and
+                self._args.from_rel <= LooseVersion('3.1.2.0')):
+            self.fix_nova_config_kv3_params()
         self.restart()
 
 

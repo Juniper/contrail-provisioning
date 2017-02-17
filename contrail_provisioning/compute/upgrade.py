@@ -83,6 +83,10 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
                    nova_conf_file)
             local("service %s start" % openstack_compute_service)
 
+    def fix_nova_config_kv3_params(self):
+        local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
+        local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -98,6 +102,10 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if (self._args.from_rel < LooseVersion('2.20') and
             self._args.to_rel >= LooseVersion('2.20')):
             self.compute_setup.fixup_contrail_vrouter_nodemgr()
+        # In 3.2+, nova.conf [neutron] extra parameters are created for v3
+        if ('v3' in self._args.keystone_version and
+                self._args.from_rel <= LooseVersion('3.1.2.0')):
+            self.fix_nova_config_kv3_params()
         self.enable_apt_get_auto_start()
 
 def main():
