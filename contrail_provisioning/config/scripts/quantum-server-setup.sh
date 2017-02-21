@@ -128,13 +128,7 @@ if [ -d /etc/neutron ]; then
         # for liberty loadbalanacer plugin would be V2 by default and
         # neutron_lbaas extensions would be needed in api_extensions_path
         openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions:${PYDIST}/neutron_lbaas/extensions
-        if [ $is_ubuntu -eq 1 ] ; then
-            if !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
-                openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2
-            fi
-        else
-            openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2
-        fi
+        openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2
     else
         openstack-config --set /etc/neutron/neutron.conf DEFAULT api_extensions_path extensions:${PYDIST}/neutron_plugin_contrail/extensions
         openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
