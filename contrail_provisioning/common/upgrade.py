@@ -94,7 +94,7 @@ class ContrailUpgrade(object):
                 cmd += ' -o Dpkg::Options::="--force-confnew" install %s' % pkgs
         else:
             local('yum clean all')
-            cmd = 'yum -y --disablerepo=* --enablerepo=contrail*'
+            cmd = 'yum -y --nogpgcheck '
             cmd += ' install %s' % pkgs
         local(cmd)
     
@@ -140,8 +140,8 @@ class ContrailUpgrade(object):
             cmd += ' -o Dpkg::Options::="--force-confnew"'
             cmd += ' install %s' % pkgs
         else:
-            cmd = 'yum -y --nogpgcheck --disablerepo=*'
-            cmd += ' --enablerepo=contrail* install %s' % pkgs
+            cmd = 'yum -y --nogpgcheck '
+            cmd += ' install %s' % pkgs
         local(cmd)
 
     def _remove_package(self):
@@ -169,8 +169,8 @@ class ContrailUpgrade(object):
         else:
             with settings(warn_only = True):
                 local('rpm -e --nodeps %s' % rem_pkgs)
-            cmd = 'yum -y --nogpgcheck --disablerepo=*'
-            cmd += ' --enablerepo=contrail* install %s' % add_pkgs
+            cmd = 'yum -y --nogpgcheck '
+            cmd += ' install %s' % add_pkgs
             local(cmd)
 
     def _ensure_package(self):
