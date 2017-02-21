@@ -220,7 +220,7 @@ class CollectorSetup(ContrailSetup):
                 for server in self._args.collector_ip_list)
         self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'collectors',
                         collector_list_str)
-        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'api_server',
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'api_server_list',
                 self._args.cfgm_ip+':8082')
  
     def fixup_contrail_snmp_collector(self):
@@ -235,7 +235,7 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'collectors',
                         ' '.join('%s:%s' %(server,'8086')
                         for server in self._args.collector_ip_list))
-        self.set_config(conf_fl, 'DEFAULTS', 'api_server',
+        self.set_config(conf_fl, 'DEFAULTS', 'api_server_list',
                 self._args.cfgm_ip+':8082')
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-snmp-collector.ini',
@@ -265,7 +265,7 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'DEFAULTS', 'collectors',\
                         ' '.join('%s:%s' %(server,'8086')
                         for server in self._args.collector_ip_list))
-        self.set_config(conf_fl, 'DEFAULTS', 'api_server',
+        self.set_config(conf_fl, 'DEFAULTS', 'api_server_list',
                 self._args.cfgm_ip+':8082')
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',

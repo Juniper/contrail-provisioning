@@ -68,7 +68,7 @@ syslog_port=$__contrail_analytics_syslog_port__
 # ipfix_port=4739
 
 # List of ApiServers specified as ip:port separated by space
-api_server=$__contrail_api_server_list__
+api_server_list=$__contrail_api_server_list__
 
 [COLLECTOR]
 # Everything in this section is optional
