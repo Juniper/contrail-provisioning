@@ -579,17 +579,14 @@ if [ $is_ubuntu -eq 1 ]; then
     if (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
         for svc in nova-compute contrail-vrouter-agent contrail-vrouter-nodemgr; do
             chkconfig $svc on
-            service $svc restart
-        done  
+        done
     else
         for svc in nova-compute supervisor-vrouter; do
             chkconfig $svc on
-            service $svc restart
         done
     fi
 else
     for svc in openstack-nova-compute supervisor-vrouter; do
         chkconfig $svc on
-        service $svc restart
     done
 fi
