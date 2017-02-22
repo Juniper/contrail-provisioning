@@ -67,9 +67,6 @@ syslog_port=$__contrail_analytics_syslog_port__
 # UDP port to listen on for receiving ipfix messages. -1 to disable.
 # ipfix_port=4739
 
-# List of ApiServers specified as ip:port separated by space
-api_server_list=$__contrail_api_server_list__
-
 [COLLECTOR]
 # Everything in this section is optional
 
@@ -89,5 +86,9 @@ port=6379
 # IP address of redis-server
 server=127.0.0.1
 $__contrail_redis_password__
+
+[API_SERVER]
+# List of api-servers specified as ip:port separated by space
+api_server_list=$__contrail_api_server_list__
 
 """)
