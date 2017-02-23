@@ -164,7 +164,7 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
                     '/etc/neutron/ssl/certs/')
             ctrl_infos.append('KEYSTONE_CERTFILE=%s' % certfile)
             ctrl_infos.append('KEYSTONE_KEYFILE=%s' % certfile)
-            ctrl_infos.append('KEYSTONE_CAFILE=%s' % certfile)
+            ctrl_infos.append('KEYSTONE_CAFILE=%s' % cafile)
 
         self.update_vips_in_ctrl_details(ctrl_infos)
 
