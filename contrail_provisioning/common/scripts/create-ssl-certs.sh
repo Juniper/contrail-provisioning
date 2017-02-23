@@ -33,7 +33,7 @@ SAN=$4
 SANS=$SAN,$NODE_IP
 IFS=',' read -ra SAN_LIST <<< "$SANS"
 for i in "${!SAN_LIST[@]}"; do
-    SAN_IPS=$(echo "$SAN_IPS\nIP.$(($i+2)) = ${SAN_LIST[$i]}")
+    SAN_IPS=$(echo "$SAN_IPS\nIP.$(($i+1)) = ${SAN_LIST[$i]}")
 done
 
 
@@ -183,7 +183,7 @@ emailAddress_max                        = 40
 
 [ v3_req ]
 # Extensions to add to a certificate request
-basicConstraints = CA:FALSE
+basicConstraints = CA:true
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 subjectAltName = @alt_names
 
