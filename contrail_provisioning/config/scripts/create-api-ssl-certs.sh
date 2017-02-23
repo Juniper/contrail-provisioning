@@ -6,14 +6,15 @@
 
 argc=$#
 API_VIP=$1
+SANS=$2
 SSL_PATH=/etc/contrail/ssl/
 CERT_FILE_PREFIX=contrail
 
 if [ "$argc" -eq 0 ]; then
     echo "Usage: $0 API_VIP";
-    echo "Example: $0 10.1.1.100";
+    echo "Example: $0 10.1.1.100 20.1.1.100,10.1.1.1,20.1.1.1";
     exit 1;
 fi
 
 #Generate Certs
-create-ssl-certs.sh $API_VIP $SSL_PATH $CERT_FILE_PREFIX
+create-ssl-certs.sh $API_VIP $SSL_PATH $CERT_FILE_PREFIX $SANS
