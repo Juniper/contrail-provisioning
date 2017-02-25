@@ -144,35 +144,6 @@ class CollectorSetup(ContrailSetup):
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_alarm_gen()
         self.fixup_cassandra_config()
-        self.fixup_ini_files()
-
-    def fixup_analytics_daemon_ini_file(self, daemon_name, conf_files=None):
-        dconf_files = []
-        if conf_files:
-            dconf_files.extend(conf_files)
-        daemon_conf_file = '/etc/contrail/' + daemon_name + '.conf'
-        dconf_files.append(daemon_conf_file)
-        if self._args.cassandra_user:
-            database_conf = '/etc/contrail/contrail-database.conf'
-            dconf_files.append(database_conf)
-        ini_conf_cmd = ''.join([' --conf_file ' + conf_file for \
-            conf_file in dconf_files])
-        supervisor_dir = '/etc/contrail/supervisord_analytics_files'
-        bin_dir = '/usr/bin'
-        self.set_config(os.path.join(supervisor_dir, daemon_name + '.ini'),
-            'program:' + daemon_name, 'command',
-            os.path.join(bin_dir, daemon_name) + ini_conf_cmd)
-    # end fixup_analytics_daemon_ini_file
-
-    def fixup_ini_files(self):
-        self.fixup_analytics_daemon_ini_file('contrail-collector',
-            ['/etc/contrail/contrail-keystone-auth.conf'])
-        self.fixup_analytics_daemon_ini_file('contrail-query-engine')
-        self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
-            ['/etc/contrail/contrail-keystone-auth.conf'])
-        self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
-            ['/etc/contrail/contrail-keystone-auth.conf'])
-    # end fixup_ini_files
 
     def fixup_cassandra_config(self):
         if self._args.cassandra_user:
