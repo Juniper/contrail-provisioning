@@ -350,7 +350,7 @@ class ContrailSetup(object):
             # Remove the auth setion from /etc/contrail/vnc_api_lib.ini
             # if orchestrator is not openstack
             local("sudo contrail-config --del %s auth" % conf_file)
-        elif self.keystone_ssl_enabled:
+        elif self._args.orchestrator == 'openstack' and self.keystone_ssl_enabled:
             certfile, cafile, keyfile = self._get_keystone_certs()
             configs = {'cafile': cafile,
                        'certfile': certfile,
