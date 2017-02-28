@@ -29,10 +29,6 @@ collectors=$__contrail_collectors__
 # test_mode=0
 
 [IFMAP]
-  certs_store=$__contrail_cert_ops__
-  password=$__contrail_ifmap_paswd__
-  server_url=$__contrail_ifmap_server_url__
-  user=$__contrail_ifmap_usr__
   rabbitmq_server_list=$__contrail_rabbit_server_list__
   rabbitmq_user=$__contrail_rabbitmq_user__
   rabbitmq_password=$__contrail_rabbitmq_password__

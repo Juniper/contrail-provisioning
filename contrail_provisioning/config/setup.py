@@ -176,13 +176,5 @@ def fix_cfgm_config_files(args_str=None):
     config.fixup_config_files()
     config.restart_config()
 
-def update_ifmap_users(args_str=None):
-    config_args = ConfigSetup(args_str)._args
-    if config_args.orchestrator == 'openstack':
-        config = ConfigOpenstackSetup(config_args)
-    else:
-        config = ConfigBaseSetup(config_args)
-    config.fixup_ifmap_config_files()
-
 if __name__ == "__main__":
     main() 

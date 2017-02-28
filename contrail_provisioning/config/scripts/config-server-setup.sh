@@ -45,9 +45,6 @@ if [ $is_ubuntu -eq 1 ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release);
     for svc in api config-nodemgr device-manager schema svc-monitor; do
         chkconfig contrail-$svc on
     done 
-    for svc in ifmap; do
-        chkconfig $svc on
-    done 
 else
     for svc in supervisor-support-service supervisor-config; do
         chkconfig $svc on
@@ -60,25 +57,10 @@ for svc in rabbitmq-server $web_svc memcached; do
     service $svc restart
 done
 
-# TODO: move dependency to service script
-# wait for ifmap server to start
-if [ -f /etc/lsb-release ] && !(egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
-tries=0
-while [ $tries -lt 10 ]; do
-    wget -O- http://localhost:8443 >/dev/null 2>&1
-    if [ $? -eq 0 ]; then break; fi
-    tries=$(($tries + 1))
-    sleep 1
-done
-fi
-
 if [ $is_ubuntu -eq 1 ] && (egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release); then
     for svc in api config-nodemgr device-manager schema svc-monitor; do
         service contrail-$svc restart
     done 
-    for svc in ifmap; do
-        service $svc restart
-    done
 else
     for svc in supervisor-config; do
         service $svc restart
