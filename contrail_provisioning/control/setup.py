@@ -79,9 +79,7 @@ class ControlSetup(ContrailSetup):
 
     def fixup_contrail_control(self):
         certdir = '/var/lib/puppet/ssl' if self._args.puppet_server else '/etc/contrail/ssl'
-        template_vals = {'__contrail_ifmap_usr__': '%s' %(self.control_ip),
-                         '__contrail_ifmap_paswd__': '%s' %(self.control_ip),
-                         '__contrail_hostname__': self.hostname,
+        template_vals = {'__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
                          '__contrail_cert_ops__': '%s' %(certdir) if self._args.use_certs else '',
                          '__contrail_rabbit_server_list__': \
@@ -95,7 +93,6 @@ class ControlSetup(ContrailSetup):
                          '__contrail_collectors__': \
                              ' '.join('%s:%s' %(server, '8086') for server \
                                 in self._args.collectors),
-                         '__contrail_ifmap_server_url__': '%s' %('https://' + self._args.cfgm_ip + ':8443'),
                         }
         self._template_substitute_write(contrail_control_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-control.conf')
@@ -112,9 +109,7 @@ class ControlSetup(ContrailSetup):
         local("sudo mv %s/contrail-control-nodemgr.conf /etc/contrail/contrail-control-nodemgr.conf" %(self._temp_dir_name))
 
     def fixup_dns(self):
-        dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(self.control_ip),
-                         '__contrail_ifmap_paswd__': '%s.dns' %(self.control_ip),
-                         '__contrail_hostname__': self.hostname,
+        dns_template_vals = {'__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
                          '__contrail_cert_ops__': '%s' %(certdir) if self._args.use_certs else '',
                          '__contrail_rabbit_server_list__': \
@@ -128,7 +123,6 @@ class ControlSetup(ContrailSetup):
                          '__contrail_collectors__': \
                              ' '.join('%s:%s' %(server, '8086') for server \
                                 in self._args.collectors),
-                         '__contrail_ifmap_server_url__': '%s' %('https://' + self._args.cfgm_ip + ':8443'),
                         }
         self._template_substitute_write(dns_conf.template,
                                         dns_template_vals, self._temp_dir_name + '/contrail-dns.conf')

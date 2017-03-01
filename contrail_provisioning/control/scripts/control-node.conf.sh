@@ -52,12 +52,6 @@ cat << EOF
 # port=5998
   server=$DISCOVERY # discovery-server IP address
 
-[IFMAP]
-  certs_store=$CERT_OPTS
-  password=$IFMAP_PASWD
-# server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
-  user=$IFMAP_USER
-
 
 EOF
 ) > $CONFIG_FILE

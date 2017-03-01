@@ -37,14 +37,6 @@ log_local=1
 # sandesh_send_rate_limit=100
 
 [IFMAP]
-certs_store=$__contrail_cert_ops__
-password=$__contrail_ifmap_paswd__
-# server_url= # Provided by discovery server, e.g. https://127.0.0.1:8443
-server_url=$__contrail_ifmap_server_url__
-user=$__contrail_ifmap_usr__
-# stale_entries_cleanup_timeout=300 # in seconds
-# end_of_rib_timeout=10 # in seconds
-# peer_response_wait_time=60 # in seconds
 rabbitmq_server_list=$__contrail_rabbit_server_list__
 rabbitmq_user=$__contrail_rabbitmq_user__
 rabbitmq_password=$__contrail_rabbitmq_password__

@@ -20,7 +20,7 @@ DEST=/opt/stack
 # And to disable Cinder and use Nova Volumes instead:
 # disable_service c-api c-sch c-vol cinder
 # enable_service n-vol
-ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-net,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,mysql,cass,zk,ifmap,apiSrv,schma,rabbit
+ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-net,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,mysql,cass,zk,apiSrv,schma,rabbit
 
 # Set the default Nova APIs to enable
 NOVA_ENABLED_APIS=ec2,osapi_compute,osapi_volume,metadata

@@ -2,10 +2,6 @@ import string
 
 template = string.Template("""
 [DEFAULTS]
-ifmap_server_ip=$__contrail_ifmap_server_ip__
-ifmap_server_port=$__contrail_ifmap_server_port__
-ifmap_username=$__contrail_ifmap_username__
-ifmap_password=$__contrail_ifmap_password__
 api_server_ip=$__contrail_api_server_ip__
 api_server_port=$__contrail_api_server_port__
 api_server_use_ssl=$__api_server_use_ssl__

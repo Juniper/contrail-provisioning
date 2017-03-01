@@ -46,7 +46,6 @@ setup(
             'unregister-openstack-services = contrail_provisioning.openstack.setup:service_unregister',
             'readjust-cassandra-seed-list = contrail_provisioning.database.setup:readjust_seed_list',
             'decommission-cassandra-node = contrail_provisioning.database.setup:decommission_cassandra_node',
-            'update-ifmap-users = contrail_provisioning.config.setup:update_ifmap_users',
             'remove-cassandra-node = contrail_provisioning.database.setup:remove_cassandra_node',
 
             # Reset scripts

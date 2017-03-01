@@ -27,7 +27,6 @@ class ConfigOpenstackSetup(ConfigBaseSetup):
     def fixup_config_files(self):
         self.fixup_cassandra_config()
         self.fixup_keystone_auth_config_file(True)
-        self.fixup_ifmap_config_files()
         self.fixup_contrail_api_config_file()
         config_files = [
                         '/etc/contrail/contrail-api.conf',

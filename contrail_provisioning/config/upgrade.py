@@ -30,12 +30,7 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
 
     def update_upgrade_data(self):
         self.upgrade_data['upgrade'] = self._args.packages
-        ifmap_dir = '/etc/ifmap-server'
-        if self.pdist in ['centos', 'redhat']:
-            if (self._args.from_rel < LooseVersion('2.00') and
-                self._args.to_rel >= LooseVersion('2.20')):
-                ifmap_dir = '/etc/irond'
-        self.upgrade_data['backup'] += [ifmap_dir, '/etc/neutron',
+        self.upgrade_data['backup'] += ['/etc/neutron',
                                     '/etc/init.d/contrail-api',
                                     '/etc/init.d/contrail-discovery',
                                     '/etc/sudoers.d/contrail_sudoers',
@@ -52,7 +47,6 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                    '/etc/init.d/contrail-api',
                                    '/etc/init.d/contrail-discovery',
                                    '/etc/neutron',
-                                   ifmap_dir,
                                         ]
 
         # From R3.1, zookeeper-3.4.8-0contrail1 is in use
