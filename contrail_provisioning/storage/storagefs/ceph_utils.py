@@ -4,6 +4,7 @@ import os
 import sys, select
 import subprocess
 import time
+import math
 from distutils.version import LooseVersion
 
 class SetupCephUtils(object):
@@ -214,6 +215,13 @@ class SetupCephUtils(object):
                                     %(CEPH_ADMIN_KEYRING, pool, pg_count))
     #end set_pgp_count_increment()
 
+    # Function to return nearest power of 2
+    # Recommended pg count to be a power of 2
+    def next_greater_power_of_2(self, x):
+        power = round(math.log(x,2))
+        return 2**power
+    #end next_greater_power_of_2
+
     # First level Function to set the PG/PGP count
     def set_pg_pgp_count(self, osd_num, pool, host_cnt):
 
@@ -229,6 +237,8 @@ class SetupCephUtils(object):
         # current count. Set the value in increments matching 30 times the
         # current value. Do this untill the value matches the required value
         # of 30 times the OSD count.
+        rep_size = int(self.exec_local('sudo ceph osd pool get %s size | \
+                                    awk \'{print $2}\'' %(pool)))
         while True:
             time.sleep(5);
             creating_pgs = self.exec_local('sudo ceph -s | grep creating | wc -l')
@@ -239,16 +249,22 @@ class SetupCephUtils(object):
         cur_pg = self.exec_local('sudo ceph -k %s osd pool get %s pg_num'
                                     %(CEPH_ADMIN_KEYRING, pool))
         cur_pg_cnt = int(cur_pg.split(':')[1])
-        max_pg_cnt = 30 * osd_num
+        max_pg_cnt = self.next_greater_power_of_2((100 * osd_num)/rep_size)
         if cur_pg_cnt >= max_pg_cnt:
             return
         while True:
-            cur_pg_cnt = 30 * cur_pg_cnt
-            if cur_pg_cnt > max_pg_cnt:
+            cur_pg = self.exec_local('sudo ceph -k %s osd pool get %s pg_num'
+                                    %(CEPH_ADMIN_KEYRING, pool))
+            cur_pg_cnt = int(cur_pg.split(':')[1])
+            new_pg_cnt = 32 * cur_pg_cnt
+            if cur_pg_cnt < (32 * osd_num):
+                if new_pg_cnt > (32 * osd_num):
+                    new_pg_cnt = 32 * osd_num
+            if new_pg_cnt > max_pg_cnt:
                 self.set_pg_count_increment(pool, max_pg_cnt)
                 break;
             else:
-                self.set_pg_count_increment(pool, cur_pg_cnt)
+                self.set_pg_count_increment(pool, new_pg_cnt)
 
         # Set pgp count
         while True:
@@ -261,16 +277,22 @@ class SetupCephUtils(object):
         cur_pg = self.exec_local('sudo ceph -k %s osd pool get %s pgp_num'
                                     %(CEPH_ADMIN_KEYRING, pool))
         cur_pg_cnt = int(cur_pg.split(':')[1])
-        max_pg_cnt = 30 * osd_num
+        max_pg_cnt = self.next_greater_power_of_2((100 * osd_num)/rep_size)
         if cur_pg_cnt >= max_pg_cnt:
             return
         while True:
-            cur_pg_cnt = 30 * cur_pg_cnt
-            if cur_pg_cnt > max_pg_cnt:
+            cur_pg = self.exec_local('sudo ceph -k %s osd pool get %s pgp_num'
+                                    %(CEPH_ADMIN_KEYRING, pool))
+            cur_pg_cnt = int(cur_pg.split(':')[1])
+            new_pg_cnt = 32 * cur_pg_cnt
+            if cur_pg_cnt < (32 * osd_num):
+                if new_pg_cnt > (32 * osd_num):
+                    new_pg_cnt = 32 * osd_num
+            if new_pg_cnt > max_pg_cnt:
                 self.set_pgp_count_increment(pool, max_pg_cnt)
                 break;
             else:
-                self.set_pgp_count_increment(pool, cur_pg_cnt)
+                self.set_pgp_count_increment(pool, new_pg_cnt)
 
     #end set_pg_pgp_count()
 
