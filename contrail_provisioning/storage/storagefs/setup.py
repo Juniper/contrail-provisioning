@@ -34,6 +34,7 @@ from distutils.version import LooseVersion
 
 sys.path.insert(0, os.getcwd())
 
+(PLATFORM, VERSION, EXTRA) = platform.linux_distribution()
 class SetupCeph(object):
 
     # Added global defines for the files.
@@ -78,9 +79,23 @@ class SetupCeph(object):
     global CEPH_BOOTSTRAP_OSD_KEYRING
     CEPH_BOOTSTRAP_OSD_KEYRING = '/var/lib/ceph/bootstrap-osd/ceph.keyring'
     global CONTRAIL_STORAGE_STATS_INIT
-    CONTRAIL_STORAGE_STATS_INIT = '/etc/init/contrail-storage-stats.conf'
     global CONTRAIL_STORAGE_STATS_TMP_INIT
-    CONTRAIL_STORAGE_STATS_TMP_INIT = '/tmp/contrail-storage-stats.conf'
+    global CONTRAIL_STORAGE_SYSTEMCTL
+    global CONTRAIL_STORAGE_CEPH_ID
+    global CONTRAIL_STORAG_OSD_MON_ID
+    if (('ubuntu' in PLATFORM.lower()) and
+        (LooseVersion(VERSION) > LooseVersion('14.04'))):
+        CONTRAIL_STORAGE_STATS_INIT = '/lib/systemd/system/contrail-storage-stats.service'
+        CONTRAIL_STORAGE_STATS_TMP_INIT = '/tmp/contrail-storage-stats.service'
+        CONTRAIL_STORAGE_SYSTEMCTL = 'systemctl'
+        CONTRAIL_STORAGE_CEPH_ID = 'id'
+        CONTRAIL_STORAG_OSD_MON_ID = '@'
+    else:
+        CONTRAIL_STORAGE_STATS_INIT = '/etc/init/contrail-storage-stats.conf'
+        CONTRAIL_STORAGE_STATS_TMP_INIT = '/tmp/contrail-storage-stats.conf'
+        CONTRAIL_STORAGE_SYSTEMCTL = ''
+        CONTRAIL_STORAGE_CEPH_ID = 'i'
+        CONTRAIL_STORAG_OSD_MON_ID = ' id='
     global CONTRAIL_STORAGE_STATS_CONF
     CONTRAIL_STORAGE_STATS_CONF = '/etc/contrail/contrail-storage-nodemgr.conf'
     global CINDER_VOLUME_INIT_CONFIG
@@ -213,7 +228,8 @@ class SetupCeph(object):
                 /tmp/mon_local_list.sh')
         local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >> \
                 /tmp/mon_local_list.sh')
-        local('echo "sudo stop ceph-mon id=\$id" >> /tmp/mon_local_list.sh')
+        local('echo "sudo %s stop ceph-mon%s\$id" >> /tmp/mon_local_list.sh' 
+                %(CONTRAIL_STORAGE_SYSTEMCTL, CONTRAIL_STORAG_OSD_MON_ID))
         local('echo "fi done fi" >> /tmp/mon_local_list.sh')
         local('echo "}" >> /tmp/mon_local_list.sh')
         local('echo "get_local_daemon_ulist" >> /tmp/mon_local_list.sh')
@@ -235,7 +251,8 @@ class SetupCeph(object):
                 /tmp/osd_local_list.sh')
         local('echo "id=\`echo \$i | sed \'s/[^-]*-//\'\`" >> \
                 /tmp/osd_local_list.sh')
-        local('echo "sudo stop ceph-osd id=\$id" >> /tmp/osd_local_list.sh')
+        local('echo "sudo %s stop ceph-osd%s\$id" >> /tmp/osd_local_list.sh' 
+                %(CONTRAIL_STORAGE_SYSTEMCTL, CONTRAIL_STORAG_OSD_MON_ID))
         local('echo "fi done fi" >> /tmp/osd_local_list.sh')
         local('echo "}" >> /tmp/osd_local_list.sh')
         local('echo "get_local_daemon_ulist" >> /tmp/osd_local_list.sh')
@@ -257,7 +274,8 @@ class SetupCeph(object):
                 then" >> /tmp/mon_local_list.sh')
         run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >> \
                 /tmp/mon_local_list.sh')
-        run('echo "sudo stop ceph-mon id=\\\\$id" >> /tmp/mon_local_list.sh')
+        run('echo "sudo %s stop ceph-mon%s\\\\$id" >> /tmp/mon_local_list.sh' 
+                %(CONTRAIL_STORAGE_SYSTEMCTL, CONTRAIL_STORAG_OSD_MON_ID))
         run('echo "fi done fi" >> /tmp/mon_local_list.sh')
         run('echo "}" >> /tmp/mon_local_list.sh')
         run('echo "get_local_daemon_ulist" >> /tmp/mon_local_list.sh')
@@ -279,7 +297,8 @@ class SetupCeph(object):
                 then" >> /tmp/osd_local_list.sh')
         run('echo "id=\\\\`echo \\\\$i | sed \'s/[^-]*-//\'\\\\`" >> \
                 /tmp/osd_local_list.sh')
-        run('echo "sudo stop ceph-osd id=\\\\$id" >> /tmp/osd_local_list.sh')
+        run('echo "sudo %s stop ceph-osd%s\\\\$id" >> /tmp/osd_local_list.sh' 
+                %(CONTRAIL_STORAGE_SYSTEMCTL, CONTRAIL_STORAG_OSD_MON_ID))
         run('echo "fi done fi" >> /tmp/osd_local_list.sh')
         run('echo "}" >> /tmp/osd_local_list.sh')
         run('echo "get_local_daemon_ulist" >> /tmp/osd_local_list.sh')
@@ -651,6 +670,12 @@ class SetupCeph(object):
                                                 disksplit[1], osdnum))
         return osd_map_config
     # create_osd_map_config()
+
+    # Remove default created CEPH pools if any
+    def do_remove_default_unwanted_pools(self):
+        crush_setup_utils = SetupCephUtils()
+        crush_setup_utils.do_remove_unwanted_pools()
+    #end do_remove_default_unwanted_pools()
 
     # Top level function for crush map changes
     def do_crush_map_pool_config(self):
@@ -1428,8 +1453,8 @@ class SetupCeph(object):
                                             %(osd_disk), shell='/bin/bash')
                         osdnum = osddet.split('-')[1]
                         pr_running = run('sudo ps -ef | grep ceph-osd | \
-                                            grep -w "i %s" | grep -v grep | \
-                                            wc -l' %(osdnum))
+                                            grep -w "%s %s" | grep -v grep | \
+                                            wc -l' %(CONTRAIL_STORAGE_CEPH_ID, osdnum))
                         if pr_running == '0':
                             print 'Ceph OSD process not running for disk %s in \
                                             host %s' %(osd_disk, entry)
@@ -2854,7 +2879,9 @@ class SetupCeph(object):
                         mon = run('sudo ps -ef | grep ceph-mon | \
                                   grep -v grep | tr -s \' \' | cut -d \" \" -f 11')
                         if mon != '':
-                            run('sudo sudo restart ceph-mon id=%s' %(mon))
+                            run('sudo sudo %s restart ceph-mon%s%s' 
+                                    %(CONTRAIL_STORAGE_SYSTEMCTL, 
+                                        CONTRAIL_STORAG_OSD_MON_ID, mon))
                             print ('checking health after restarting \
                                     ceph-mon %s' %(mon))
                             self.do_cluster_health_check()
@@ -2873,7 +2900,9 @@ class SetupCeph(object):
                     while osd:
                         osd = osd.strip('\n\r')
                         if osd != '':
-                            run('sudo sudo restart ceph-osd id=%s' %(osd))
+                            run('sudo sudo %s restart ceph-osd%s%s' 
+                                    %(CONTRAIL_STORAGE_SYSTEMCTL, 
+                                        CONTRAIL_STORAG_OSD_MON_ID, osd))
                             print ('checking health after restarting \
                                 ceph-osd %s' %(osd))
                             self.do_cluster_health_check()
@@ -3363,10 +3392,13 @@ class SetupCeph(object):
                                 osd_num = osd_det.split('-')[1]
                                 osd_running = run('ps -ef | grep ceph-osd | \
                                                    grep -v grep | \
-                                                   grep -w "\\-i %s" | wc -l'
-                                                   %(osd_num))
+                                                   grep -w "\\-%s %s" | wc -l'
+                                                   %(CONTRAIL_STORAGE_CEPH_ID, osd_num))
                                 if osd_running != '0':
-                                    run('sudo stop ceph-osd id=%s' %(osd_num))
+                                    run('sudo %s stop ceph-osd%s%s' 
+                                            %(CONTRAIL_STORAGE_SYSTEMCTL, 
+                                                CONTRAIL_STORAG_OSD_MON_ID, 
+                                                osd_num))
                                 run('sudo ceph -k %s osd out %s'
                                             %(CEPH_ADMIN_KEYRING, osd_num))
                                 run('sudo ceph osd crush remove osd.%s'
@@ -3770,6 +3802,9 @@ class SetupCeph(object):
 
             # update ceph mon host list on all storage nodes
             self.do_update_monhost_config()
+
+            # Remove default CEPH pools if any
+            self.do_remove_default_unwanted_pools()
 
             # restart monitors after package upgrade
             self.do_monitor_restarts()
