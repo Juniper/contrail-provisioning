@@ -1471,6 +1471,21 @@ class SetupCephUtils(object):
         return
     #end do_configure_object_storage_pools()
 
+    # Removes unwanted pools
+    def do_remove_unwanted_pools(self):
+        # Remove unwanted pools
+        pool_present = self.exec_local('sudo rados lspools | grep -w data | wc -l')
+        if pool_present != '0':
+            self.exec_local('sudo rados rmpool data data --yes-i-really-really-mean-it')
+        pool_present = self.exec_local('sudo rados lspools | grep -w metadata | wc -l')
+        if pool_present != '0':
+            self.exec_local('sudo rados rmpool metadata metadata \
+                                --yes-i-really-really-mean-it')
+        pool_present = self.exec_local('sudo rados lspools | grep -w rbd | wc -l')
+        if pool_present != '0':
+            self.exec_local('sudo rados rmpool rbd rbd --yes-i-really-really-mean-it')
+    #end do_remove_unwanted_pools()
+
     # Function for pool configuration
     # Removes unwanted pools
     # Create default images/volumes pool
@@ -1490,18 +1505,6 @@ class SetupCephUtils(object):
         global ceph_tier_list
         global chassis_hdd_ruleset
         global chassis_ssd_ruleset
-
-        # Remove unwanted pools
-        pool_present = self.exec_local('sudo rados lspools | grep -w data | wc -l')
-        if pool_present != '0':
-            self.exec_local('sudo rados rmpool data data --yes-i-really-really-mean-it')
-        pool_present = self.exec_local('sudo rados lspools | grep -w metadata | wc -l')
-        if pool_present != '0':
-            self.exec_local('sudo rados rmpool metadata metadata \
-                                --yes-i-really-really-mean-it')
-        pool_present = self.exec_local('sudo rados lspools | grep -w rbd | wc -l')
-        if pool_present != '0':
-            self.exec_local('sudo rados rmpool rbd rbd --yes-i-really-really-mean-it')
 
         # Add required pools
         pool_present = self.exec_local('sudo rados lspools | grep -w volumes | wc -l')
