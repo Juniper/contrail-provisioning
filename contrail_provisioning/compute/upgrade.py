@@ -4,6 +4,7 @@
 #
 """Upgrade's Contrail Compute components."""
 
+import os
 from distutils.version import LooseVersion
 
 from setup import ComputeSetup
@@ -87,6 +88,11 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
         local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
 
+    def fix_tor_agent_init_script(self):
+        for tor_file in os.listdir('/etc/init.d/'):
+            if 'contrail-tor-agent' in tor_file:
+                local("cp /etc/init.d/contrail-vrouter-agent /etc/init.d/%s " % (tor_file))
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -106,6 +112,9 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if ('v3' in self._args.keystone_version and
                 self._args.from_rel <= LooseVersion('3.1.2.0')):
             self.fix_nova_config_kv3_params()
+        if 'toragent' in self._args.roles:
+            if (self._args.to_rel >= LooseVersion('3.00')):
+                self.fix_tor_agent_init_script()
         self.enable_apt_get_auto_start()
 
 def main():
