@@ -19,10 +19,6 @@ from contrail_provisioning.config.templates import contrail_api_svc
 from contrail_provisioning.config.templates import contrail_schema_transformer_conf
 from contrail_provisioning.config.templates import contrail_device_manager_conf
 from contrail_provisioning.config.templates import contrail_svc_monitor_conf
-from contrail_provisioning.config.templates import contrail_discovery_conf
-from contrail_provisioning.config.templates import contrail_discovery_ini
-from contrail_provisioning.config.templates import contrail_discovery_ini_centos
-from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import contrail_sudoers
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 from contrail_provisioning.common.templates import contrail_database_template
@@ -66,12 +62,9 @@ class ConfigBaseSetup(ContrailSetup):
             self.fixup_contrail_api_supervisor_ini()
             self.fixup_contrail_api_initd()
             self.fixup_device_manager_ini()
-            self.fixup_discovery_supervisor_ini()
-            self.fixup_discovery_initd()
         self.fixup_schema_transformer_config_file()
         self.fixup_device_manager_config_file()
         self.fixup_svc_monitor_config_file()
-        self.fixup_discovery_config_file()
         self.fixup_vnc_api_lib_ini()
         self.fixup_contrail_sudoers()
         self.fixup_contrail_config_nodemgr()
@@ -221,62 +214,6 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_svc_monitor_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-svc-monitor.conf')
         local("sudo mv %s/contrail-svc-monitor.conf /etc/contrail/contrail-svc-monitor.conf" %(self._temp_dir_name))
-
-    def fixup_discovery_config_file(self):
-        # discovery.conf_
-        template_vals = {
-                         '__contrail_zk_server_ip__': self.zk_servers,
-                         '__contrail_zk_server_port__': '2181',
-                         '__contrail_listen_ip_addr__': '0.0.0.0',
-                         '__contrail_listen_port__': '5998',
-                         '__contrail_log_local__': 'True',
-                         '__contrail_log_file__': '/var/log/contrail/contrail-discovery.log',
-                         '__contrail_healthcheck_interval__': 5,
-                         '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
-                        }
-        self._template_substitute_write(contrail_discovery_conf.template,
-                                        template_vals, self._temp_dir_name + '/contrail-discovery.conf')
-        local("sudo mv %s/contrail-discovery.conf /etc/contrail/" %(self._temp_dir_name))
-
-    def fixup_discovery_supervisor_ini(self, config_files= ['/etc/contrail/contrail-discovery.conf']):
-        # supervisor contrail-discovery.ini
-        template_vals = {'__contrail_disc_port_base__': '911', # 911x
-                         '__contrail_disc_nworkers__': '1',
-                         '__contrail_config_database__':''
-                        }
-        if self._args.cassandra_user is not None:
-             config_files.append('/etc/contrail/contrail-database.conf')
-
-        config_file_args = ' --conf_file '.join(config_files)
-        if self.pdist == 'Ubuntu':
-            tmpl = contrail_discovery_ini.template
-        else:
-            tmpl = contrail_discovery_ini_centos.template
-        template_vals['__contrail_discovery_conf__']= config_file_args
-
-        self._template_substitute_write(tmpl,
-                                        template_vals, self._temp_dir_name + '/contrail-discovery.ini')
-        local("sudo mv %s/contrail-discovery.ini /etc/contrail/supervisord_config_files/" %(self._temp_dir_name))
-
-    def fixup_discovery_initd(self):
-        # initd script wrapper for contrail-discovery
-        sctl_lines = ''
-        for worker_id in range(int(self._args.nworkers)):
-            sctl_line = 'if [ -e /tmp/supervisord_config.sock ]; then\n'
-            sctl_line += '    supervisorctl -s unix:///tmp/supervisord_config.sock ' + \
-                            '${1} `basename ${0}:%s`\n' %(worker_id)
-            sctl_line += 'else\n'
-            sctl_line += '    supervisorctl -s unix:///var/run/supervisord_config.sock ' + \
-                            '${1} `basename ${0}:%s`\n' %(worker_id)
-            sctl_line += 'fi\n'
-            sctl_lines = sctl_lines + sctl_line
-
-        template_vals = {'__contrail_supervisorctl_lines__': sctl_lines,
-                        }
-        self._template_substitute_write(contrail_discovery_svc.template,
-                                        template_vals, self._temp_dir_name + '/contrail-discovery')
-        local("sudo mv %s/contrail-discovery /etc/init.d/" %(self._temp_dir_name))
-        local("sudo chmod a+x /etc/init.d/contrail-discovery")
 
     def fixup_contrail_sudoers(self):
         # sudoers for contrail
