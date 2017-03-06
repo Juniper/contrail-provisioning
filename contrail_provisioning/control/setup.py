@@ -24,10 +24,6 @@ class ControlSetup(ContrailSetup):
 
         self.global_defaults = {
             'cfgm_ip': '127.0.0.1',
-            # [NIPAK] To be removed once CI passes and fab provisioning merges
-            'collector_ip': '127.0.0.1',
-            # [NIPAK] To be removed once CI passes and fab provisioning merges
-            'discovery_ip': '127.0.0.1',
             'self_ip': '127.0.0.1',
             'use_certs': False,
             'puppet_server': None,
@@ -42,8 +38,6 @@ class ControlSetup(ContrailSetup):
     def parse_args(self, args_str):
         '''
         Eg. setup-vnc-control --cfgm_ip 10.1.5.11
-                              --collector_ip 10.1.5.11
-                              --discovery_ip 10.1.5.11
                               --self_ip 10.1.5.12
                 --use_certs --puppet_server a3s19.contrail.juniper.net
                 --rabbit_server_list 10.1.5.11 10.1.5.12
@@ -53,10 +47,6 @@ class ControlSetup(ContrailSetup):
         parser = self._parse_args(args_str)
 
         parser.add_argument("--cfgm_ip", help = "IP Address of the openstack controller")
-        # [NIPAK] To be removed once CI passes and fab provisioning merges
-        parser.add_argument("--collector_ip", help = "IP Address of the VNC collector")
-        # [NIPAK] To be removed once CI passes and fab provisioning merges
-        parser.add_argument("--discovery_ip", help = "IP Address of the VNC discovery server") 
         parser.add_argument("--self_ip", help = "IP Address of the VNC control node")
         parser.add_argument("--use_certs", help = "Use certificates for authentication",
             action="store_true")

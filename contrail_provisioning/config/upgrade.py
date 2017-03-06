@@ -32,7 +32,6 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
         self.upgrade_data['upgrade'] = self._args.packages
         self.upgrade_data['backup'] += ['/etc/neutron',
                                     '/etc/init.d/contrail-api',
-                                    '/etc/init.d/contrail-discovery',
                                     '/etc/sudoers.d/contrail_sudoers',
                                        ]
 
@@ -40,12 +39,9 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                    '/etc/contrail/contrail-svc-monitor.conf',
                                    '/etc/contrail/contrail-schema.conf',
                                    '/etc/contrail/contrail-api.conf',
-                                   '/etc/contrail/contrail-discovery.conf',
                                    '/etc/contrail/supervisord_config_files/contrail-api.ini',
-                                   '/etc/contrail/supervisord_config_files/contrail-discovery.ini',
                                    '/etc/sudoers.d/contrail_sudoers',
                                    '/etc/init.d/contrail-api',
-                                   '/etc/init.d/contrail-discovery',
                                    '/etc/neutron',
                                         ]
 
