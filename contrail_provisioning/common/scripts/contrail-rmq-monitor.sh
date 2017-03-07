@@ -192,7 +192,7 @@ do
  (rabbitmqctl cluster_status | grep -A 1 running_nodes > "$cluschk") & pid1=$!
  (rabbitmqctl cluster_status | grep partitions | grep ctrl | wc -l > "$cluspart") & pid2=$!
  log_info_msg "Checking for stable state of rmq channel (monitored by pid $pid) and cluster (monitored by pid $pid1)"
- sleep 10
+ sleep 30
  if [ -d "/proc/${pid}" ]; then
   (exec pkill -TERM -P $pid)&
  fi
@@ -204,6 +204,17 @@ do
  fi
   i=$[$i+1]
 done
+}
+
+check_total_limit()
+{
+  total_limit=$(rabbitmqctl status | grep total_limit | cut -d',' -f2  | cut -d'}' -f1)
+  if [ "$total_limit" != 65000 ]; then
+     ok=$(rabbitmqctl eval 'file_handle_cache:set_limit(65000).')
+  fi
+  if [ "$ok" != "ok" ]; then
+     log_error_msg "Error in setting the total limit of file descriptors for rabbitmq-server"
+  fi
 }
 
 cleanup()
@@ -373,6 +384,7 @@ fi
 
 function run_rmq_monitor()
 {
+ check_total_limit
  periodic_check
  cleanpending
  checkNrst
