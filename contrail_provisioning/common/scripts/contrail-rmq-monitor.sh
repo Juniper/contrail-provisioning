@@ -206,6 +206,17 @@ do
 done
 }
 
+check_total_limit()
+{
+  total_limit=$(rabbitmqctl status | grep total_limit | cut -d',' -f2  | cut -d'}' -f1)
+  if [ "$total_limit" != 65000 ]; then
+     ok=$(rabbitmqctl eval 'file_handle_cache:set_limit(65000).')
+  fi
+  if [ "$ok" != "ok" ]; then
+     log_error_msg "Error in setting the total limit of file descriptors for rabbitmq-server"
+  fi
+}
+
 cleanup()
 {
  dst=$1
@@ -373,6 +384,7 @@ fi
 
 function run_rmq_monitor()
 {
+ check_total_limit
  periodic_check
  cleanpending
  checkNrst
