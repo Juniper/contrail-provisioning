@@ -53,7 +53,7 @@ class ControlSetup(ContrailSetup):
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--rabbit_server_list", help = "Rabbit Server list", nargs="+", type=str)
         parser.add_argument("--config_db_list", help = "Config db list", nargs="+", type=str)
-        parser.add_argument('--collectors', help = "List of IP:port of the VNC collectors",
+        parser.add_argument('--collectors', help = "List of IP addresses of the VNC collectors",
                             nargs="+")
 
         self._args = parser.parse_args(self.remaining_argv)

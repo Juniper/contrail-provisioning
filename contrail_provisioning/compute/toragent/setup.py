@@ -33,7 +33,6 @@ class TorAgentBaseSetup(ContrailSetup):
         template_vals = {'__contrail_control_ip__':self._args.self_ip,
                          '__contrail_agent_name__':self._args.agent_name,
                          '__contrail_http_server_port__':self._args.http_server_port,
-                         '__contrail_discovery_ip__':self._args.discovery_server_ip,
                          '__contrail_tor_ip__':self._args.tor_ip,
                          '__contrail_tor_id__':self._args.tor_id,
                          '__contrail_tsn_ovs_port__':self._args.tor_ovs_port,
@@ -43,6 +42,15 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tor_ssl_cert__':ssl_cert,
                          '__contrail_tor_ssl_privkey__':ssl_privkey,
                          '__contrail_tor_ssl_cacert__':ssl_cacert,
+                         '__contrail_control_node_list__' : \
+                             ' '.join('%s:%s' %(server, '5269') for server \
+                             in self._args.control_nodes),
+                         '__contrail_dns_node_list__' : \
+                             ' '.join('%s:%s' %(server, '53') for server \
+                             in self._args.control_nodes),
+                         '__contrail_collectors__' : \
+                             ' '.join('%s:%s' %(server, '8086') for server \
+                             in self._args.collectors)
                         }
         self._template_substitute_write(tor_agent_conf.template,
                                         template_vals, self._temp_dir_name + '/tor_agent_conf')
@@ -85,22 +93,27 @@ class TorAgentSetup(ContrailSetup):
     def parse_args(self, args_str):
         '''
         Eg. setup-vnc-tor-agent --agent_name contrail-tor-1 --http_server_port 9090
-            --discovery_server_ip 10.204.217.39 --tor_id 1 --tor_ip 10.204.221.35
+            --tor_id 1 --tor_ip 10.204.221.35
             --tor_ovs_port 9999 --tsn_ip 10.204.221.33 --tor_ovs_protocol tcp
             --tor_agent_ovs_ka 10000
+            --controllers 10.204.221.31 10.204.222
+            --control-nodes  10.204.221.31 10.204.222
         '''
         parser = self._parse_args(args_str)
 
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
         parser.add_argument("--agent_name", help = "Name of the TOR agent")
         parser.add_argument("--http_server_port", help = "Port number for the HTTP server.")
-        parser.add_argument("--discovery_server_ip", help = "IP Address of the config node")
         parser.add_argument("--tor_ip", help = "TOR Switch IP")
         parser.add_argument("--tor_id", help = "Unique ID for the TOR")
         parser.add_argument("--tor_ovs_port", help = "OVS Port Number")
         parser.add_argument("--tsn_ip", help = "TSN Node IP")
         parser.add_argument("--tor_ovs_protocol", help = "TOR OVS Protocol. Currently Only TCP supported")
         parser.add_argument("--tor_agent_ovs_ka", help = "TOR Agent OVS Keepalive timer value in millisecs")
+        parser.add_argument("--collectors", help = "List of IP addresses of the VNC collectors",
+                            nargs='+', type=str)
+        parser.add_argument("--control-nodes", help = "List of IP addresses of the VNC control-nodes"
+                            nargs='+', type=str)
 
         self._args = parser.parse_args(self.remaining_argv)
 
