@@ -237,6 +237,8 @@ class OpenstackSetup(ContrailSetup):
                 local("sudo sed -i 's/^#OPENSTACK_SSL_NO_VERIFY.*/OPENSTACK_SSL_NO_VERIFY = True/g' %s" % (dashboard_setting_file))
 
         dashboard_keystone_policy_file = "/usr/share/openstack-dashboard/openstack_dashboard/conf/keystone_policy.json"
+        if (not os.path.isfile(dashboard_keystone_policy_file)):
+            dashboard_keystone_policy_file = "/etc/openstack-dashboard/keystone_policy.json"
         with settings(warn_only=True):
             is_v3 = local('grep "^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True" %s' % dashboard_setting_file)
         if self._args.keystone_version == 'v3' and is_v3.failed:
@@ -256,6 +258,7 @@ class OpenstackSetup(ContrailSetup):
             local("sudo sed -i \"s/^OPENSTACK_KEYSTONE_URL = \(.*\)v3\(.*\)/OPENSTACK_KEYSTONE_URL = \\1v2.0\\2/g\" %s" % (dashboard_setting_file))
             local('sudo sed -i "s/policy_file =/#policy_file = /" /etc/keystone/keystone.conf')
             local('sudo sed -i "/^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/d" %s' % (dashboard_setting_file))
+            local("sudo cp %s.original %s" % (dashboard_keystone_policy_file, dashboard_keystone_policy_file))
 
         if os.path.exists(nova_conf_file):
             local("sudo sed -i 's/rpc_backend = nova.openstack.common.rpc.impl_qpid/#rpc_backend = nova.openstack.common.rpc.impl_qpid/g' %s" \
