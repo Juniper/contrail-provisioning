@@ -167,6 +167,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf neutron project_name service
             openstack-config --set /etc/nova/nova.conf neutron username $OS_NET
             openstack-config --set /etc/nova/nova.conf neutron password $ADMIN_TOKEN
+            contrail-config --set /etc/nova/nova.conf DEFAULT use_neutron True
         fi
     else
         if [ ${nova_compute_ver%%.*} -ge 2014 ]; then
