@@ -21,6 +21,5 @@ certfile=$__contrail_certfile_location__
 ca_certs=$__contrail_cacertfile_location__
 
 [SCHEDULER]
-analytics_server_ip=$__contrail_analytics_server_ip__
-analytics_server_port=8081
+analytics_server_list=$__contrail_analytics_server_list__
 """)

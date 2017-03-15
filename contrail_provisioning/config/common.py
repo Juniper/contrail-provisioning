@@ -198,7 +198,6 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_api_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__api_server_use_ssl__': 'True' if self.api_ssl_enabled else 'False',
-                         '__contrail_analytics_server_ip__': self.contrail_internal_vip or self._args.collector_ip,
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_use_certs__': self._args.use_certs,
                          '__contrail_keyfile_location__': '/etc/contrail/ssl/private_keys/svc_monitor_key.pem',
@@ -209,6 +208,9 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_region_name__': self._args.region_name,
                          '__contrail_collectors__': \
                              ' '.join('%s:%s' %(server, '8086') for server \
+                                in self._args.collector_ip_list),
+                         '__contrail_analytics_server_list__': \
+                             ' '.join('%s:%s' %(server, '8081') for server \
                                 in self._args.collector_ip_list)
                         }
         self._template_substitute_write(contrail_svc_monitor_conf.template,
