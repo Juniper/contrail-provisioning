@@ -167,16 +167,23 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             collector_conf = '/etc/contrail/contrail-collector.conf'
             set_config(collector_conf, 'API_SERVER', 'api_server_list',
                     self._args.cfgm_ip+':8082')
+            set_config(collector_conf, 'API_SERVER', 'api_server_use_ssl',
+                    self.api_ssl_enabled)
             alarmgen_conf = '/etc/contrail/contrail-alarm-gen.conf'
             self.set_config(alarmgen_conf, 'API_SERVER', 'api_server_list',
                     self._args.cfgm_ip+':8082')
+            self.set_config(alarmgen_conf, 'API_SERVER', 'api_server_use_ssl',
+                    self.api_ssl_enabled)
             snmp_collector_conf = '/etc/contrail/contrail-snmp-collector.conf'
             self.set_config(snmp_collector_conf, 'API_SERVER', 'api_server_list',
                     self._args.cfgm_ip+':8082')
+            self.set_config(snmp_collector_conf, 'API_SERVER', 'api_server_use_ssl',
+                    self.api_ssl_enabled)
             topology_conf = '/etc/contrail/contrail-topology.conf'
             self.set_config(topology_conf, 'API_SERVER', 'api_server_list',
                     self._args.cfgm_ip+':8082')
-
+            self.set_config(topology_conf, 'API_SERVER', 'api_server_use_ssl',
+                    self.api_ssl_enabled)
     # end update_config
 
 def main():
