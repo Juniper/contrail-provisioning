@@ -322,7 +322,7 @@ echo "======= Enabling the keystone services ======"
 update_services "action=enable" $web_svc memcached $openstack_services_contrail $openstack_services_keystone
 
 echo "======= Starting the services ======"
-update_services "action=restart" $web_svc memcached $openstack_services_contrail $openstack_services_keystone
+update_services "action=restart" $web_svc memcached $openstack_services_keystone
 
 if [ "$INTERNAL_VIP" != "none" ]; then
     # Required only in first openstack node, as the mysql db is replicated using galera.
