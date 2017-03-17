@@ -90,5 +90,6 @@ $__contrail_redis_password__
 [API_SERVER]
 # List of api-servers specified as ip:port separated by space
 api_server_list=$__contrail_api_server_list__
+api_server_use_ssl=$__contrail_api_server_use_ssl__
 
 """)
