@@ -86,14 +86,11 @@ INTERNAL_VIP=${INTERNAL_VIP:-none}
 AUTH_PROTOCOL=${AUTH_PROTOCOL:-http}
 KEYSTONE_INSECURE=${KEYSTONE_INSECURE:-False}
 
-controller_ip=$CONTROLLER
-if [ "$INTERNAL_VIP" != "none" ]; then
-    controller_ip=$INTERNAL_VIP
-fi
+keystone_ip=$KEYSTONE_SERVER
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
 export OS_DOMAIN_NAME=Default
@@ -107,7 +104,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v2.0/
 export OS_NO_CACHE=1
 EOF
 
@@ -134,9 +131,9 @@ for svc in cinder; do
     # If cinder is Kilo based, need additional settings
     if [ "$is_kilo_or_above" == "True" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                               auth_uri $AUTH_PROTOCOL://${controller_ip}:5000/$KEYSTONE_VERSION
+                               auth_uri $AUTH_PROTOCOL://${keystone_ip}:5000/$KEYSTONE_VERSION
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken \
-                               identity_uri $AUTH_PROTOCOL://${controller_ip}:35357
+                               identity_uri $AUTH_PROTOCOL://${keystone_ip}:35357
         admin_user='cinderv2'
     else
         admin_user='cinder'
