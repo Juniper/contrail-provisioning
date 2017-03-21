@@ -29,8 +29,8 @@ collectors=$__contrail_collectors__
 # test_mode=0
 
 [IFMAP]
-  rabbitmq_server_list=$__contrail_rabbit_server_list__
-  rabbitmq_user=$__contrail_rabbitmq_user__
-  rabbitmq_password=$__contrail_rabbitmq_password__
-  config_db_server_list=$__config_db_server_cql_list__
+rabbitmq_server_list=$__contrail_rabbit_server_list__
+rabbitmq_user=$__contrail_rabbitmq_user__
+rabbitmq_password=$__contrail_rabbitmq_password__
+config_db_server_list=$__config_db_server_cql_list__
 """)
