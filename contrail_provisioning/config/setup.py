@@ -25,6 +25,7 @@ class ConfigSetup(ContrailSetup):
             'collector_ip': '127.0.0.1',
             'collector_ip_list': ['127.0.0.1'],
             'keystone_ip': '127.0.0.1',
+            'openstack_ctrl_ip': None,
             'keystone_admin_user': 'admin',
             'keystone_admin_passwd': 'contrail123',
             'keystone_admin_tenant_name': 'admin',
@@ -84,6 +85,7 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--collector_ip_list",
             help = "List of IP Addresses of collector nodes", nargs='+', type=str)
         parser.add_argument("--keystone_ip", help = "IP Address of keystone node")
+        parser.add_argument("--openstack_ctrl_ip", help = "Ctrl IP Address of the openstack node")
         parser.add_argument("--keystone_admin_user", help = "Keystone admin tenant user.")
         parser.add_argument("--keystone_admin_passwd", help = "Keystone admin user's password.")
         parser.add_argument("--keystone_admin_tenant_name", help = "Keystone admin tenant name.")

@@ -26,6 +26,7 @@ class ComputeSetup(ContrailSetup):
             'cfgm_passwd': 'c0ntrail123',
             'keystone_ip': '127.0.0.1',
             'openstack_mgmt_ip': None,
+            'openstack_ctrl_ip': None,
             'service_token': '',
             'self_ip': '127.0.0.1',
             'ncontrols': '2',
@@ -96,6 +97,7 @@ class ComputeSetup(ContrailSetup):
         parser.add_argument("--cfgm_passwd", help = "Password of the Sudo user in the config node")
         parser.add_argument("--keystone_ip", help = "IP Address of the keystone node")
         parser.add_argument("--openstack_mgmt_ip", help = "Mgmt IP Address of the openstack node if it is different from openstack_IP")
+        parser.add_argument("--openstack_ctrl_ip", help = "Ctrl IP Address of the openstack node")
         parser.add_argument("--service_token", help = "The service password to access keystone")
         parser.add_argument("--self_ip", help = "IP Address of this(compute) node")
         parser.add_argument("--hypervisor", help = "Hypervisor to be provisioned in this(compute) node")
