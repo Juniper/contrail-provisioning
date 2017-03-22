@@ -120,6 +120,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--amqp_ip_list",
             help="List of IP addresses of AMQP servers", nargs="+", type=str)
         parser.add_argument("--amqp_port", help="Port number of AMQP server")
+        parser.add_argument("--amqp_password", help = "AMQP Password")
         parser.add_argument("--apiserver_insecure",
             help = "Connect to apiserver in secure or insecure mode if in https mode")
         parser.add_argument("--apiserver_certfile", help="")
@@ -204,10 +205,12 @@ class CollectorSetup(ContrailSetup):
         if self._args.amqp_ip_list:
             self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_server_list',
                             ','.join(self._args.amqp_ip_list))
-
         if self._args.amqp_port:
             self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_port',
                             self._args.amqp_port)
+        if self._args.amqp_password:
+            self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_password',
+                            self._args.amqp_password)
 
         self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_ip',
                         self._args.cfgm_ip)
