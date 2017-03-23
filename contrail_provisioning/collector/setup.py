@@ -160,6 +160,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_analytics_daemon_ini_file('contrail-query-engine')
         self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
             ['/etc/contrail/contrail-keystone-auth.conf'])
+        self.fixup_analytics_daemon_ini_file('contrail-alarm-gen')
     # end fixup_ini_files
 
     def fixup_cassandra_config(self):
