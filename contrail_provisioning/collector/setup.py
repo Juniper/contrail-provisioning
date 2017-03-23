@@ -15,6 +15,7 @@ from contrail_provisioning.common.templates import contrail_database_template
 from contrail_provisioning.collector.templates import contrail_collector_ini
 from contrail_provisioning.collector.templates import contrail_query_engine_ini
 from contrail_provisioning.collector.templates import contrail_analytics_api_ini
+from contrail_provisioning.collector.templates import contrail_alarm_gen_ini
 
 class CollectorSetup(ContrailSetup):
     def __init__(self, args_str = None):
@@ -114,9 +115,11 @@ class CollectorSetup(ContrailSetup):
         collector_conf_files = ['/etc/contrail/contrail-collector.conf','/etc/contrail/contrail-database.conf']
         query_engine_conf_files = ['/etc/contrail/contrail-query-engine.conf','/etc/contrail/contrail-database.conf']
         analytics_api_conf_files = ['/etc/contrail/contrail-analytics-api.conf','/etc/contrail/contrail-database.conf']
+        alarm_gen_conf_files = ['/etc/contrail/contrail-alarm-gen.conf']
         collector_template_vals = {'__contrail_collector_conf__': ' --conf_file '.join(collector_conf_files)}
         query_engine_template_vals = {'__contrail_query_engine_conf__': ' --conf_file '.join(query_engine_conf_files)}
         analytics_api_template_vals = {'__contrail_analytics_api_conf__': ' --conf_file '.join(analytics_api_conf_files)}
+        alarm_gen_template_vals = {'__contrail_alarm_gen_conf__': '--conf_file '.join(alarm_gen_conf_files)}
         self._template_substitute_write(contrail_collector_ini.template,
                                         collector_template_vals, self._temp_dir_name + '/contrail-collector.ini')
         local("sudo mv %s/contrail-collector.ini /etc/contrail/supervisord_analytics_files/contrail-collector.ini" %(self._temp_dir_name))
@@ -126,7 +129,9 @@ class CollectorSetup(ContrailSetup):
         self._template_substitute_write(contrail_analytics_api_ini.template,
                                         analytics_api_template_vals, self._temp_dir_name + '/contrail-analytics-api.ini')
         local("sudo mv %s/contrail-analytics-api.ini /etc/contrail/supervisord_analytics_files/contrail-analytics-api.ini" %(self._temp_dir_name))
-
+        self._template_substitute_write(contrail_alarm_gen_ini.template,
+                                        alarm_gen_template_vals, self._temp_dir_name + '/contrail-alarm-gen.ini')
+        local("sudo mv %s/contrail-alarm-gen.ini /etc/contrail/supervisord_analytics_files/contrail-alarm-gen.ini" %(self._temp_dir_name))
 
     def fixup_cassandra_config(self):
         if self._args.cassandra_user:
