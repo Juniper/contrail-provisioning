@@ -98,6 +98,14 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
         local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
 
+    def fix_sriov_nova_config(self):
+        with settings(warn_only=True):
+            nova_cfg = '/etc/nova/nova.conf'
+            default_filter= ('RetryFilter, AvailabilityZoneFilter, RamFilter, DiskFilter, '
+                             'ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, '
+                             'ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, PciPassthroughFilter')
+            local("openstack-config --set %s DEFAULT scheduler_default_filters '%s'" % (nova_cfg, default_filter))
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -118,6 +126,9 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
         if ('v3' in self._args.keystone_version and
                 self._args.from_rel <= LooseVersion('3.1.2.0')):
             self.fix_nova_config_kv3_params()
+        if (self._args.sriov and
+                self._args.from_rel >= LooseVersion('3.00')):
+            self.fix_sriov_nova_config()
         self.restart()
 
 
