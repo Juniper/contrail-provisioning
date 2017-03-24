@@ -40,7 +40,7 @@ class CollectorSetup(ContrailSetup):
             'apiserver_keyfile': None,
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
-            'aaa_mode': 'cloud-admin',
+            'aaa_mode': 'rbac',
             'collector_ip_list':['127.0.0.1']
         }
 
@@ -114,7 +114,7 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--keystone_keyfile", help="")
         parser.add_argument("--keystone_cafile", help="")
         parser.add_argument("--aaa_mode", help="AAA mode",
-            choices=['no-auth', 'cloud-admin', 'cloud-admin-only'])
+            choices=['no-auth', 'cloud-admin', 'cloud-admin-only', 'rbac'])
         parser.add_argument("--cloud_admin_role",
             help="Name of cloud-admin role")
         parser.add_argument("--cassandra_user", help="Cassandra user name",
