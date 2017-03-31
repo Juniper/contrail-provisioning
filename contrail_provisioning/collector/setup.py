@@ -57,10 +57,10 @@ class CollectorSetup(ContrailSetup):
             self.zookeeper_server_list = [(zookeeper_server_ip, zookeeper_port) for \
                 zookeeper_server_ip in self._args.zookeeper_ip_list]
 
-        self.api_ssl_enabled = 'False'
+        self.api_ssl_enabled = False
         if (self._args.apiserver_keyfile and
                 self._args.apiserver_certfile and self._args.apiserver_cafile):
-            self.api_ssl_enabled = 'True'
+            self.api_ssl_enabled = True
         self.keystone_ssl_enabled = False
         if (self._args.keystone_keyfile and
                 self._args.keystone_certfile and self._args.keystone_cafile):
@@ -197,7 +197,7 @@ class CollectorSetup(ContrailSetup):
         self.set_config(ALARM_GEN_CONF_FILE, 'API_SERVER', 'api_server_list',
                 self._args.cfgm_ip+':8082')
         self.set_config(ALARM_GEN_CONF_FILE, 'API_SERVER', 'api_server_use_ssl',
-                self.api_ssl_enabled)
+                str(self.api_ssl_enabled))
  
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
@@ -214,7 +214,7 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'API_SERVER', 'api_server_list',
                 self._args.cfgm_ip+':8082')
         self.set_config(conf_fl, 'API_SERVER', 'api_server_use_ssl',
-                self.api_ssl_enabled)
+                str(self.api_ssl_enabled))
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-snmp-collector.ini',
                         'program:contrail-snmp-collector',
@@ -246,7 +246,7 @@ class CollectorSetup(ContrailSetup):
         self.set_config(conf_fl, 'API_SERVER', 'api_server_list',
                 self._args.cfgm_ip+':8082')
         self.set_config(conf_fl, 'API_SERVER', 'api_server_use_ssl',
-                self.api_ssl_enabled)
+                str(self.api_ssl_enabled))
         self.set_config('/etc/contrail/supervisord_analytics_files/' +\
                         'contrail-topology.ini',
                         'program:contrail-topology',
@@ -274,7 +274,7 @@ class CollectorSetup(ContrailSetup):
                          '__contrail_redis_password__' : '',
                          '__contrail_kafka_broker_list__':'',
                          '__contrail_api_server_list__' : self._args.cfgm_ip+':8082',
-                         '__contrail_api_server_use_ssl__' : self.api_ssl_enabled
+                         '__contrail_api_server_use_ssl__' : str(self.api_ssl_enabled)
                        }
         if self.zookeeper_server_list:
             template_vals['__contrail_zookeeper_server_list__'] = \
@@ -350,7 +350,7 @@ class CollectorSetup(ContrailSetup):
             'analytics_statistics_ttl' : self._args.analytics_statistics_ttl,
             'analytics_flow_ttl' : self._args.analytics_flow_ttl,
             'api_server' : self._args.cfgm_ip + ':8082',
-            'api_server_use_ssl': self.api_ssl_enabled,
+            'api_server_use_ssl': str(self.api_ssl_enabled),
             'zk_list': ' '.join('%s:%s' % zookeeper_server for \
                 zookeeper_server in self.zookeeper_server_list),
             'collectors': ' '.join('%s:%s' %(server, '8086') \
