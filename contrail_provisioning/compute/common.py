@@ -4,6 +4,7 @@
 #
 
 import os
+import re
 import sys
 import socket
 import netaddr
@@ -23,6 +24,36 @@ from contrail_provisioning.compute.templates import contrail_vrouter_agent_conf
 from contrail_provisioning.compute.templates import contrail_vrouter_nodemgr_template
 from contrail_provisioning.compute.templates import contrail_lbaas_auth_conf
 
+def run_command(cmd):
+    # This function can raise ValueError exception.
+    # It's the responsibility of the caller to handle it.
+    return subprocess.check_output(cmd, shell=True)
+
+def is_ostype_ubuntu():
+    if os.path.isfile("/etc/lsb-release"):
+        lsb_file = open("/etc/lsb-release", 'r')
+        lsb_filetext = lsb_file.read()
+        lsb_file.close()
+        matches = re.findall('DISTRIB_ID.*Ubuntu', lsb_filetext)
+        if matches:
+            return True
+    return False
+
+def is_xenial_or_above():
+    if os.path.isfile("/etc/lsb-release"):
+        lsb_file = open("/etc/lsb-release", 'r')
+        lsb_filetext = lsb_file.read()
+        lsb_file.close()
+        matches = re.findall('DISTRIB_RELEASE.*16.04', lsb_filetext)
+        if matches:
+            return True
+    return False
+
+def insert_line_to_file(line,file_name,pattern=None):
+    with settings(warn_only = True):
+        if pattern:
+            local('sed -i \'/%s/d\' %s' %(pattern,file_name))
+        local('printf "%s\n" >> %s' %(line, file_name))
 
 class ExtList (list):
     def findex (self, fun):
@@ -112,6 +143,222 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                                         template_vals, self._temp_dir_name + '/contrail-vrouter-nodemgr.conf')
         local("sudo mv %s/contrail-vrouter-nodemgr.conf /etc/contrail/contrail-vrouter-nodemgr.conf" %(self._temp_dir_name))
 
+
+    def setup_hugepages_node(self, dpdk_args):
+        """Setup hugepages on one or list of nodes
+        """
+        # How many times DPDK inits hugepages (rte_eal_init())
+        # See function map_all_hugepages() in DPDK
+        DPDK_HUGEPAGES_INIT_TIMES = 2
+
+        # get required size of hugetlbfs
+        factor = int(dpdk_args['huge_pages'])
+
+        print dpdk_args
+
+        if factor == 0:
+            factor = 1
+
+        with settings(warn_only = True):
+            # set number of huge pages
+            memsize = run_command("grep MemTotal /proc/meminfo | tr -s ' ' | cut -d' ' -f 2 | tr -d '\n'")
+            pagesize = run_command("grep Hugepagesize /proc/meminfo | tr -s ' ' | cut -d' ' -f 2 | tr -d '\n'")
+            reserved = run_command("grep HugePages_Total /proc/meminfo | tr -s ' ' | cut -d' ' -f 2 | tr -d '\n'")
+
+            if (reserved == ""):
+                reserved = "0"
+
+            requested = ((int(memsize) * factor) / 100) / int(pagesize)
+
+            if (requested > int(reserved)):
+                pattern = "^vm.nr_hugepages ="
+                line = "vm.nr_hugepages = %d" %requested
+                insert_line_to_file(pattern = pattern, line = line,
+                                    file_name = '/etc/sysctl.conf')
+
+            current_max_map_count = local("sysctl -n vm.max_map_count")
+            if current_max_map_count == "":
+                current_max_map_count = 0
+
+            current_huge_pages = max(int(requested), int(reserved))
+
+            requested_max_map_count = DPDK_HUGEPAGES_INIT_TIMES * int(current_huge_pages)
+            if int(requested_max_map_count) > int(current_max_map_count):
+                pattern = "^vm.max_map_count ="
+                line = "vm.max_map_count = %d" %requested_max_map_count
+                insert_line_to_file(pattern = pattern, line = line,
+                                    file_name = '/etc/sysctl.conf')
+
+            mounted = local("mount | grep hugetlbfs | cut -d' ' -f 3")
+            if (mounted != ""):
+                print "hugepages already mounted on %s" %mounted
+            else:
+                local("mkdir -p /hugepages")
+                pattern = "^hugetlbfs"
+                line = "hugetlbfs    /hugepages    hugetlbfs defaults      0       0"
+                insert_line_to_file(pattern = pattern, line = line,
+                                    file_name = '/etc/fstab')
+                local("mount -t hugetlbfs hugetlbfs /hugepages")
+
+    def setup_coremask_node(self, dpdk_args):
+        """Setup core mask on one or list of nodes
+        """
+        vrouter_file = '/etc/contrail/supervisord_vrouter_files/contrail-vrouter-dpdk.ini'
+
+        try:
+            coremask = dpdk_args['coremask']
+        except KeyError:
+            raise RuntimeError("Core mask for host %s is not defined." \
+                   %(dpdk_args))
+
+        if not coremask:
+            raise RuntimeError("Core mask for host %s is not defined." \
+                % dpdk_args)
+
+        # if a list of cpus is provided, -c flag must be passed to taskset
+        if (',' in coremask) or ('-' in coremask):
+            taskset_param = ' -c'
+        else:
+            taskset_param = ''
+
+        with settings(warn_only = True):
+            # supported coremask format: hex: (0x3f); list: (0,3-5), (0,1,2,3,4,5)
+            # try taskset on a dummy command
+            try:
+                run_command('taskset%s %s true' %(taskset_param, coremask))
+                run_command('sed -i \'s/command=/command=taskset%s %s /\' %s' \
+                    %(taskset_param, coremask, vrouter_file))
+            except:
+                raise RuntimeError("Error: Core mask %s for host %s is invalid." \
+                    %(coremask, dpdk_args))
+
+    def setup_vm_coremask_node(self, q_coremask, dpdk_args):
+        """
+        Setup CPU affinity for QEMU processes based on vRouter/DPDK core affinity
+        on a given node.
+
+        Supported core mask format:
+            vRouter/DPDK:   hex (0x3f), list (0,1,2,3,4,5), range (0,3-5)
+            QEMU/nova.conf: list (0,1,2,3,4,5), range (0,3-5), exclusion (0-5,^4)
+
+        QEMU needs to be pinned to different cores than vRouter. Because of
+        different core mask formats, it is not possible to just set QEMU to
+        <not vRouter cores>. This function takes vRouter core mask from testbed,
+        changes it to list of cores and removes them from list of all possible
+        cores (generated as a list from 0 to N-1, where N = number of cores).
+        This is changed back to string and passed to openstack-config.
+        """
+        vrouter_file = '/etc/contrail/supervisord_vrouter_files/contrail-vrouter-dpdk.ini'
+
+        try:
+            vr_coremask = dpdk_args['coremask']
+        except KeyError:
+            raise RuntimeError("vRouter core mask for host %s is not defined." \
+                %(dpdk_args))
+
+        if not vr_coremask:
+            raise RuntimeError("vRouter core mask for host %s is not defined." \
+                % dpdk_args)
+
+        if not q_coremask:
+            try:
+                cpu_count = int(run_command('grep -c processor /proc/cpuinfo'))
+            except ValueError:
+                print "Cannot count CPUs on host %s. VM core mask cannot be computed." \
+                    %(dpdk_args)
+                raise
+
+            if not cpu_count or cpu_count == -1:
+                raise ValueError("Cannot count CPUs on host %s. VM core mask cannot be computed." \
+                    %(dpdk_args))
+
+            all_cores = [x for x in xrange(cpu_count)]
+
+            if 'x' in vr_coremask:  # String containing hexadecimal mask.
+                vr_coremask = int(vr_coremask, 16)
+
+                """
+                Convert hexmask to a string with numbers of cores to be used, eg.
+                0x19 -> 11001 -> 10011 -> [(0,1), (1,0), (2,0), (3,1), (4,1)] -> '0,3,4'
+                """
+                vr_coremask = [x[0] for x in enumerate(reversed(bin(vr_coremask)[2:])) if x[1] == '1']
+            elif (',' in vr_coremask) or ('-' in vr_coremask):  # Range or list of cores.
+                vr_coremask = vr_coremask.split(',')  # Get list of core numbers and/or core ranges.
+
+                # Expand ranges like 0-4 to 0, 1, 2, 3, 4.
+                vr_coremask_expanded = []
+                for rng in vr_coremask:
+                    if '-' in rng:  # If it's a range - expand it.
+                        a, b = rng.split('-')
+                        vr_coremask_expanded += range(int(a), int(b)+1)
+                    else:  # If not, just add to the list.
+                        vr_coremask_expanded.append(int(rng))
+
+                vr_coremask = vr_coremask_expanded
+            else:  # A single core.
+                try:
+                    single_core = int(vr_coremask)
+                except ValueError:
+                    print "Error: vRouter core mask %s for host %s is invalid." \
+                        %(vr_coremask, dpdk_args)
+                    raise
+
+                vr_coremask = []
+                vr_coremask.append(single_core)
+
+            # From list of all cores remove list of vRouter cores and stringify.
+            diff = set(all_cores) - set(vr_coremask)
+            q_coremask = ','.join(str(x) for x in diff)
+
+            # If we have no spare cores for VMs
+            if not q_coremask:
+                raise RuntimeError("Setting QEMU core mask for host %s failed - empty string." \
+                    %(dpdk_args))
+
+        with settings(warn_only = True):
+            # This can fail eg. because openstack-config is not present.
+            # There's no sanity check in openstack-config.
+            try:
+                run_command("openstack-config --set /etc/nova/nova.conf DEFAULT vcpu_pin_set %s" \
+                % q_coremask)
+                print "QEMU coremask on host %s set to %s." \
+                    %(dpdk_args, q_coremask)
+            except ValueError:
+                raise RuntimeError("Error: setting QEMU core mask %s for host %s failed." \
+                    %(vr_coremask, dpdk_args))
+
+    def setup_uio_driver(self, dpdk_args):
+        """Setup UIO driver to use for DPDK (igb_uio, uio_pci_generic or vfio-pci)
+        """
+        vrouter_agent_file = '/etc/contrail/contrail-vrouter-agent.conf'
+
+        if 'uio_driver' in dpdk_args:
+            uio_driver = dpdk_args['uio_driver']
+        else:
+            print "No UIO driver defined for host, skipping..."
+            return
+
+        with settings(warn_only = True):
+            try:
+                run_command('modprobe %s' %(uio_driver))
+                print "Setting UIO driver to %s for host..." % uio_driver
+                run_command('sed -i.bak \'s/physical_uio_driver=.*/physical_uio_driver=%s/\' %s' \
+                    %(uio_driver, vrouter_agent_file))
+            except ValueError:
+                raise RuntimeError("Error: invalid UIO driver %s for host"
+                    % (uio_driver))
+
+    def dpdk_increase_vrouter_limit(self, vrouter_module_params_args):
+        """Increase the maximum number of mpls label and nexthop on tsn node"""
+        vrouter_file = '/etc/contrail/supervisord_vrouter_files/contrail-vrouter-dpdk.ini'
+        cmd = "--vr_mpls_labels %s " % vrouter_module_params_args.setdefault('mpls_labels', '5120')
+        cmd += "--vr_nexthops %s " % vrouter_module_params_args.setdefault('nexthops', '65536')
+        cmd += "--vr_vrfs %s " % vrouter_module_params_args.setdefault('vrfs', '5120')
+        cmd += "--vr_bridge_entries %s " % vrouter_module_params_args.setdefault('macs', '262144')
+        with settings(warn_only=True):
+            run_command('sed -i \'s#\(^command=.*$\)#\\1 %s#\' %s'\
+                  %(cmd, vrouter_file))
+
     def fixup_contrail_vrouter_agent(self):
         keystone_ip = self._args.keystone_ip
         compute_ip = self._args.self_ip
@@ -183,6 +430,8 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             pci_dev = ""
             platform_mode = "default"
             if self._args.dpdk:
+                dpdk_args = dict(u.split("=") for u in self._args.dpdk.split(","))
+                print dpdk_args
                 platform_mode = "dpdk"
                 iface = self.dev
                 if self.is_interface_vlan(self.dev):
@@ -192,6 +441,28 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 # Bond interface in DPDK has zero PCI address.
                 if not pci_dev:
                     pci_dev = "0000:00:00.0"
+
+                self.setup_hugepages_node(dpdk_args)
+                self.setup_coremask_node(dpdk_args)
+                self.setup_vm_coremask_node(False, dpdk_args)
+
+                if self._args.vrouter_module_params:
+                    vrouter_module_params_args = dict(u.split("=") for u in self._args.vrouter_module_params.split(","))
+                    self.dpdk_increase_vrouter_limit(vrouter_module_params_args)
+
+                if is_ostype_ubuntu():
+                    with settings(warn_only=True):
+                        if not is_xenial_or_above():
+                            run_command('rm -f /etc/init/supervisor-vrouter.override')
+                        # Fix /dev/vhost-net permissions. It is required for
+                        # multiqueue operation
+                        run_command('echo \'KERNEL=="vhost-net", GROUP="kvm", MODE="0660"\' > /etc/udev/rules.d/vhost-net.rules')
+                        # The vhost-net module has to be loaded at startup to
+                        # ensure the correct permissions while the qemu is being
+                        # launched
+                        run_command('echo "vhost-net" >> /etc/modules')
+
+                self.setup_uio_driver(dpdk_args)
 
             vnswad_conf_template_vals = {'__contrail_vhost_ip__': cidr,
                 '__contrail_vhost_gateway__': self.gateway,
