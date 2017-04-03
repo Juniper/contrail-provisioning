@@ -28,7 +28,7 @@ log_level=SYS_NOTICE
 log_local=1
 # test_mode=0
 
-[IFMAP]
+[CONFIGDB]
 rabbitmq_server_list=$__contrail_rabbit_server_list__
 rabbitmq_user=$__contrail_rabbitmq_user__
 rabbitmq_password=$__contrail_rabbitmq_password__

@@ -36,7 +36,7 @@ log_local=1
 # second. System logs are dropped if the sending rate is exceeded
 # sandesh_send_rate_limit=100
 
-[IFMAP]
+[CONFIGDB]
 rabbitmq_server_list=$__contrail_rabbit_server_list__
 rabbitmq_user=$__contrail_rabbitmq_user__
 rabbitmq_password=$__contrail_rabbitmq_password__
