@@ -83,6 +83,15 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             local("sed -i -e 's/timeout client 24h/timeout client 0/g' %s" % hap_cfg)
             local("sed -i -e 's/timeout server 24h/timeout server 0/g' %s" % hap_cfg)
 
+    def fix_sriov_nova_config(self):
+        with settings(warn_only=True):
+            nova_conf_file = '/etc/nova/nova.conf'
+            if (self._args.from_rel >= LooseVersion('3.00')):
+                default_filter= ('RetryFilter, AvailabilityZoneFilter, RamFilter, DiskFilter, '
+                                 'ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, '
+                                 'ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, PciPassthroughFilter')
+            local("openstack-config --set %s DEFAULT scheduler_default_filters '%s'" % (nova_conf_file, default_filter))
+
     def upgrade(self):
         self.stop()
         self._upgrade()
@@ -99,6 +108,8 @@ class OpenstackUpgrade(ContrailUpgrade, OpenstackSetup):
             self.fix_cmon_config()
             self.fix_cmon_param_file()
             self.fix_haproxy_config()
+        if (self._args.sriov):
+            self.fix_sriov_nova_config()
         self.restart()
 
 
