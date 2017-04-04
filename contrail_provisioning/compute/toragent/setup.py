@@ -7,6 +7,7 @@ import os
 import sys
 import argparse
 import ConfigParser
+import platform
 from fabric.api import local, run
 from fabric.state import env
 from fabric.context_managers import settings, lcd
@@ -14,6 +15,10 @@ from fabric.context_managers import settings, lcd
 from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.compute.toragent.templates import tor_agent_conf
 from contrail_provisioning.compute.toragent.templates import tor_agent_ini
+from contrail_provisioning.compute.toragent.templates import tor_agent_service
+from distutils.version import LooseVersion
+
+(PLATFORM, VERSION, EXTRA) = platform.linux_distribution()
 
 class TorAgentBaseSetup(ContrailSetup):
     def __init__(self, tor_agent_args, args_str=None):
@@ -65,10 +70,17 @@ class TorAgentBaseSetup(ContrailSetup):
                          '__contrail_tor_agent_conf_file__':self.tor_file_name,
                          '__contrail_tor_agent_log_file__':self.tor_log_file_name
                         }
-        self._template_substitute_write(tor_agent_ini.template,
-                                        template_vals, self._temp_dir_name + '/tor_agent_ini')
-        self.tor_ini_file_name=self.tor_process_name + '.ini'
-        local("sudo mv %s/tor_agent_ini /etc/contrail/supervisord_vrouter_files/%s" %(self._temp_dir_name,self.tor_ini_file_name))
+        if (('ubuntu' in PLATFORM.lower()) and
+            (LooseVersion(VERSION) > LooseVersion('14.04'))):
+            self._template_substitute_write(tor_agent_service.template,
+                                            template_vals, self._temp_dir_name + '/tor_agent_service')
+            self.tor_file_name=self.tor_process_name + '.service'
+            local("sudo mv %s/tor_agent_service /lib/systemd/system/%s" %(self._temp_dir_name,self.tor_file_name))
+        else:
+            self._template_substitute_write(tor_agent_ini.template,
+                                            template_vals, self._temp_dir_name + '/tor_agent_ini')
+            self.tor_file_name=self.tor_process_name + '.ini'
+            local("sudo mv %s/tor_agent_ini /etc/contrail/supervisord_vrouter_files/%s" %(self._temp_dir_name,self.tor_file_name))
 
     def create_init_file(self):
         local("sudo cp /etc/init.d/contrail-vrouter-agent /etc/init.d/%s" %(self.tor_process_name))
@@ -76,7 +88,9 @@ class TorAgentBaseSetup(ContrailSetup):
     def setup(self):
         self.fixup_tor_agent()
         self.fixup_tor_ini()
-        self.create_init_file()
+        if (('ubuntu' in PLATFORM.lower()) and
+            (LooseVersion(VERSION) <= LooseVersion('14.04'))):
+            self.create_init_file()
 
 class TorAgentSetup(ContrailSetup):
     def __init__(self, args_str = None):
