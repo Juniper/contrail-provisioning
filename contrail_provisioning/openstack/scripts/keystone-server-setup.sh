@@ -16,6 +16,7 @@ fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
    is_ubuntu=1
    is_redhat=0
+   is_xenial=0
    web_svc=apache2
    mysql_svc=mysql
    if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
