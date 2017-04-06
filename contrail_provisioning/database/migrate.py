@@ -63,6 +63,10 @@ class DatabaseMigrate(DatabaseCommon):
         local('nodetool upgradesstables')
         local('nodetool drain')
 
+    def drain_cassandra(self):
+        print 'Draining cassandra...'
+        local('nodetool drain')
+
     def _get_cassandra_version(self):
         with settings(warn_only=True):
             if self.pdist in ['Ubuntu']:
@@ -211,6 +215,7 @@ class DatabaseMigrate(DatabaseCommon):
             if not self.pdist in ['Ubuntu']:
                 local("systemctl daemon-reload")
 
+            self.drain_cassandra()
             self.stop_cassandra()
             local('sleep 5')
             while not self.check_database_down():
