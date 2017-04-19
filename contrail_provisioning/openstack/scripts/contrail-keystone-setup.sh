@@ -443,7 +443,7 @@ if [[ -n "$ENABLE_HEAT" ]]; then
             --internalurl 'http://'$CONTROLLER':8004/v1/%(tenant_id)s'
         fi
         if [ -z $(endpoint_lookup $HEAT_CFN_SERVICE) ]; then
-        keystone endpoint-create --region $OS_REGION_NAME --service-id $HEAT_CFN_SERVICE \
+        keystone $INSECURE_FLAG endpoint-create --region $OS_REGION_NAME --service-id $HEAT_CFN_SERVICE \
             --publicurl 'http://'$CONTROLLER':8000/v1' \
             --adminurl 'http://'$CONTROLLER:'8000/v1' \
             --internalurl 'http://'$CONTROLLER':8000/v1'
