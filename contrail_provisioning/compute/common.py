@@ -121,12 +121,6 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         vgw_intf_list = self._args.vgw_intf_list
         vgw_gateway_routes = self._args.vgw_gateway_routes
         gateway_server_list = self._args.gateway_server_list
-        qos_logical_queue = self._args.qos_logical_queue
-        qos_queue_id_list = self._args.qos_queue_id
-        default_hw_queue_qos = self._args.default_hw_queue_qos
-        priority_id_list = self._args.priority_id
-        priority_scheduling = self._args.priority_scheduling
-        priority_bandwidth = self._args.priority_bandwidth
 
         self.mac = None
         if self.dev and self.dev != 'vhost0' :
@@ -256,45 +250,6 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
                 with open(filename, "a") as f:
                     f.write(gateway_str)
 
-            if qos_queue_id_list != None:
-                qos_str = ""
-                qos_str += "[QOS]\n"
-                num_sections = len(qos_logical_queue)
-                if(len(qos_logical_queue) == len(qos_queue_id_list) and default_hw_queue_qos):
-                    num_sections = num_sections - 1
-                for i in range(num_sections):
-                    qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[i])
-                    qos_str += "# Logical nic queues for qos config\n"
-                    qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[i].replace(",",", ")
-
-                if (default_hw_queue_qos):
-                    qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[-1])
-                    qos_str += "# This is the default hardware queue\n"
-                    qos_str += "default_hw_queue= true\n\n"
-                    qos_str += "# Logical nic queues for qos config\n"
-
-                    if(len(qos_logical_queue) == len(qos_queue_id_list)):
-                        qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[-1].replace(",",", ")
-                    else:
-                        qos_str += "logical_queue=[ ]\n\n"
-                filename = self._temp_dir_name + "/vnswad.conf"
-                with open(filename, "a") as f:
-                    f.write(qos_str)
-
-            if priority_id_list != None:
-                priority_group_str = ""
-                priority_group_str += "[QOS-NIANTIC]\n"
-                for i in range(len(priority_id_list)):
-                    priority_group_str += '[%s%s]\n' %("PG-", priority_id_list[i])
-                    priority_group_str += "# Scheduling algorithm for priority group (strict/rr)\n"
-                    priority_group_str += "scheduling=" + priority_scheduling[i] + "\n\n"
-                    priority_group_str += "# Total hardware queue bandwidth used by priority group\n"
-                    priority_group_str += "bandwidth=" + priority_bandwidth[i] + "\n\n"
-
-                filename = self._temp_dir_name + "/vnswad.conf"
-                with open(filename, "a") as f:
-                    f.write(priority_group_str)
-
             if self._args.metadata_secret:
                 local("sudo openstack-config --set %s/vnswad.conf METADATA \
                        metadata_proxy_secret %s" % (self._temp_dir_name, self._args.metadata_secret))
@@ -409,6 +364,69 @@ SUBCHANNELS=1,2,3
             prov_args += " --dpdk_enabled"
         local("python /opt/contrail/utils/provision_vrouter.py %s" %(prov_args))
 
+    def add_qos_config(self):
+        qos_logical_queue = self._args.qos_logical_queue
+        qos_queue_id_list = self._args.qos_queue_id
+        default_hw_queue_qos = self._args.default_hw_queue_qos
+        priority_id_list = self._args.priority_id
+        priority_scheduling = self._args.priority_scheduling
+        priority_bandwidth = self._args.priority_bandwidth
+        agent_conf = "/etc/contrail/contrail-vrouter-agent.conf"
+        conf_file = "contrail-vrouter-agent.conf"
+
+        if (qos_queue_id_list or priority_id_list):
+            sudo("sed -i -e 's/^qos_enabled.*/qos_enabled=true/' %s" % ("/etc/contrail/agent_param"))
+
+        if qos_queue_id_list != None:
+            ltemp_dir = tempfile.mkdtemp()
+            local("sudo cp %s %s/" %(conf_file, ltemp_dir))
+            local("sed -i -e '/^\[QOS\]/d' -e '/^\[QUEUE-/d' -e '/^logical_queue/d' %s/%s" % (ltemp_dir, conf_file))
+            local("sed -i -e '/^\# Logical nic queues/d' -e '/^# This is the default/d' -e '/^default_hw_queue/d' %s/%s" % (ltemp_dir, conf_file))
+            local("sudo cp %s/%s %s" % (ltemp_dir, conf_file, agent_conf))
+            local('rm -rf %s' % (ltemp_dir))
+            qos_str = ""
+            qos_str += "[QOS]\n"
+            num_sections = len(qos_logical_queue)
+            if(len(qos_logical_queue) == len(qos_queue_id_list) and default_hw_queue_qos):
+                num_sections = num_sections - 1
+            for i in range(num_sections):
+                qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[i])
+                qos_str += "# Logical nic queues for qos config\n"
+                qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[i].replace(",",", ")
+
+            if (default_hw_queue_qos):
+                qos_str += '[%s%s]\n' %("QUEUE-", qos_queue_id_list[-1])
+                qos_str += "# This is the default hardware queue\n"
+                qos_str += "default_hw_queue= true\n\n"
+                qos_str += "# Logical nic queues for qos config\n"
+
+                if(len(qos_logical_queue) == len(qos_queue_id_list)):
+                    qos_str += "logical_queue=[%s]\n\n" % qos_logical_queue[-1].replace(",",", ")
+                else:
+                    qos_str += "logical_queue=[ ]\n\n"
+            with open(agent_conf, "a") as f:
+                f.write(qos_str)
+
+        if priority_id_list != None:
+            ltemp_dir = tempfile.mkdtemp()
+            local("sudo cp %s %s/" %(conf_file, ltemp_dir))
+            local("sed -i -e '/^\[QOS-NIANTIC\]/d' -e '/^\[PG-/d' -e '/^scheduling/d' -e '/^bandwidth/d' %s/%s" % (ltemp_dir, conf_file))
+            local("sed -i -e '/^# Scheduling algorithm for/d' -e '/^# Total hardware queue bandwidth/d' %s/%s" % (ltemp_dir, conf_file))
+            local("sudo cp %s/%s %s" % (ltemp_dir, conf_file, agent_conf))
+            local('rm -rf %s' % (ltemp_dir))
+            priority_group_str = ""
+            priority_group_str += "[QOS-NIANTIC]\n"
+            for i in range(len(priority_id_list)):
+                priority_group_str += '[%s%s]\n' %("PG-", priority_id_list[i])
+                priority_group_str += "# Scheduling algorithm for priority group (strict/rr)\n"
+                priority_group_str += "scheduling=" + priority_scheduling[i] + "\n\n"
+                priority_group_str += "# Total hardware queue bandwidth used by priority group\n"
+                priority_group_str += "bandwidth=" + priority_bandwidth[i] + "\n\n"
+
+            with open(agent_conf, "a") as f:
+                f.write(priority_group_str)
+
+
     def setup(self):
         self.disable_selinux()
         self.disable_iptables()
@@ -417,4 +435,5 @@ SUBCHANNELS=1,2,3
            self.fixup_config_files()
            self.run_services()
            self.add_vnc_config()
+           self.add_qos_config()
 
