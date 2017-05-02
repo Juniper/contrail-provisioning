@@ -135,9 +135,9 @@ verify_cluststate()
 {
  cluststate=`cat $cluschk`
  cnt=0
- for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+ for (( i=0; i<${DIPS_SIZE}; i++ ))
   do
-    substr=${DIPHOSTS[i]}
+    substr=${DIPS[i]}
     for s in $cluststate; do
       if case ${s} in *"${substr}"*) true;; *) false;; esac; then
         cnt=$[cnt+1]
@@ -180,9 +180,9 @@ verify_rstinprog()
 periodic_check()
 {
 hosts=""
-for (( i=0; i<${DIPS_HOST_SIZE}; i++ ))
+for (( i=0; i<${DIPS_SIZE}; i++ ))
  do
-  substr=${DIPHOSTS[i]}
+  substr=${DIPS[i]}
   hosts=$hosts$substr"\|"
  done
 i=0
