@@ -202,8 +202,6 @@ class CollectorSetup(ContrailSetup):
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
         with settings(warn_only=True):
-            local("mkdir -p /etc/snmp")
-            local("echo 'mibs +ALL' > /etc/snmp/snmp.conf")
             local("[ -f %s ] || > %s" % (conf_fl, conf_fl))
         self.set_config(conf_fl, 'DEFAULTS', 'zookeeper',
                 ','.join('%s:%s' % zookeeper_server
