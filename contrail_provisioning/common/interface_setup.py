@@ -531,11 +531,15 @@ class UbuntuInterface(BaseInterface):
 
     def create_bond_members(self):
         '''Create interface config for each bond members for Ubuntu'''
+        mac = False
         for each in self.members:
             log.info('Create Bond Members: %s' %each)
-            mac = self.get_mac_addr(each)
+            if not mac:
+                mac = self.get_mac_addr(each)
             cfg = ['auto %s' %each,
                    'iface %s inet manual' %each,
+                   'pre-up ip link set dev %s down' %each,
+                   'pre-up ip link set dev %s address %s' %(each, mac),
                    'down ip addr flush dev %s' %each,
                    'bond-master %s' %self.device]
             if self._dev_is_vf(each):
@@ -581,14 +585,12 @@ class UbuntuInterface(BaseInterface):
             cfg = ['auto %s' %self.device,
                    'iface %s inet static' %self.device,
                    'address %s' %self.ipaddr,
-                   'netmask  %s' %self.netmask,
-                   'hwaddress %s' % bond_mac]
+                   'netmask  %s' %self.netmask]
             if self.gw:
                 cfg.append('gateway %s' %self.gw)
         else:
             cfg = ['auto %s' %self.device,
                    'iface %s inet manual' %self.device,
-                   'hwaddress %s' % bond_mac,
                    'down ip addr flush dev %s' %self.device]
         cfg += self.bond_opts_str.split("\n")
         self.write_network_script(self.device, cfg)
