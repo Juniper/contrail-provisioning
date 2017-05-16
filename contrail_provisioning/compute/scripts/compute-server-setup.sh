@@ -106,6 +106,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
         kilo_or_above=0
         liberty_or_above=0
         mitaka_or_above=0
+        newton_or_above=0
         # for juno and kilo versions
         if [ "$nova_compute_top_ver" -eq "1" ]; then
             # for kilo
@@ -127,6 +128,11 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             dpkg --compare-versions $nova_compute_version_without_epoch ge 13.0.0
             if [ $? -eq 0 ]; then
                 mitaka_or_above=1
+            fi
+            #For newton, the nova-compute version is 14.y.z
+            dpkg --compare-versions $nova_compute_version_without_epoch ge 14.0.0
+            if [ $? -eq 0 ]; then
+                newton_or_above=1
             fi
         fi
 
@@ -156,7 +162,12 @@ if [ $CONTROLLER != $COMPUTE ] ; then
             openstack-config --set /etc/nova/nova.conf neutron url_timeout 300
             openstack-config --set /etc/nova/nova.conf neutron service_metadata_proxy True
             openstack-config --set /etc/nova/nova.conf compute compute_driver libvirt.LibvirtDriver
-            openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+            if [ $newton_or_above -eq 1 ]; then
+                openstack-config --del /etc/nova/nova.conf glance host
+                openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+            else
+                openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
+             fi
             if [ $AUTH_PROTOCOL == "https" ]; then
                 openstack-config --set /etc/nova/nova.conf neutron insecure True
             fi
@@ -462,10 +473,23 @@ if [ $VCENTER_IP ]; then
     openstack-config --set /etc/nova/nova.conf vmware vcenter_dvswitch $VCENTER_DVSWITCH 
     openstack-config --set /etc/nova/nova.conf vmware insecure True
     openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
-    openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
+    if [ $newton_or_above -eq 1 ]; then
+        openstack-config --del /etc/nova/nova.conf DEFAULT compute_driver
+        openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver vmwareapi.contrailVCDriver
+        openstack-config --del /etc/nova/nova.conf compute compute_driver
+        openstack-config --set /etc/nova/nova.conf compute compute_driver vmwareapi.contrailVCDriver
+    else
+        openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
+    fi
     if [ -f /etc/nova/nova-compute.conf ]; then
-        openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
-        openstack-config --set /etc/nova/nova-compute.conf libvirt virt_type vmwareapi
+        if [ $newton_or_above -eq 1 ]; then
+            openstack-config --del /etc/nova/nova-compute.conf DEFAULT compute_driver
+            openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver vmwareapi.contrailVCDriver
+            openstack-config --del /etc/nova/nova-compute.conf libvirt
+        else
+            openstack-config --set /etc/nova/nova-compute.conf DEFAULT compute_driver nova.virt.vmwareapi.contrailVCDriver
+            openstack-config --set /etc/nova/nova-compute.conf libvirt virt_type vmwareapi
+        fi
     fi
 fi
 
