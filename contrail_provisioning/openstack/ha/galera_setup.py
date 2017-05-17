@@ -8,6 +8,8 @@ import sys
 import argparse
 import ConfigParser
 import time
+import platform
+from distutils.version import LooseVersion
 
 from fabric.api import local,run
 from fabric.context_managers import lcd, hide, settings
@@ -18,7 +20,13 @@ from contrail_provisioning.common.base import ContrailSetup
 from contrail_provisioning.openstack.ha.templates import galera_param_template
 from contrail_provisioning.openstack.ha.templates import cmon_param_template
 from contrail_provisioning.openstack.ha.templates import cmon_conf_template
-from contrail_provisioning.openstack.ha.templates import wsrep_conf_template
+
+if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
+    from contrail_provisioning.openstack.ha.templates\
+                import wsrep_conf_template_ubuntu_1404 as wsrep_conf_template
+else:
+    from contrail_provisioning.openstack.ha.templates\
+                import wsrep_conf_template_ubuntu_1604 as wsrep_conf_template
 from contrail_provisioning.openstack.ha.templates import wsrep_conf_centos_template
 
 
