@@ -13,6 +13,7 @@ from contrail_provisioning.common.upgrade import ContrailUpgrade
 from contrail_provisioning.compute.common import ComputeBaseSetup
 
 from fabric.api import local
+from fabric.context_managers import settings
 
 
 class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
@@ -93,6 +94,13 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         local("openstack-config --set /etc/nova/nova.conf neutron project_domain_name Default")
         local("openstack-config --set /etc/nova/nova.conf neutron user_domain_name Default")
 
+    def fix_agent_params(self):
+        # kmod=vrouter after introduction of modprobe in centos/redhat
+        # platforms. Ensure all upgraded system has kmod=vrouter
+        with settings(warn_only=True):
+            local("sed -i 's$^kmod[ ]*=[ ]*/lib/modules/[^/]*/extra/net/vrouter/vrouter.ko$kmod=vrouter$g' /tmp/np-agent-param")
+        local("grep '^kmod[ ]*=[ ]*vrouter' /etc/contrail/agent_param")
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -100,6 +108,9 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             ('running' in local('service supervisor-vrouter status',
                                 capture=True))):
             local("service supervisor-vrouter stop")
+        if self.pdist not in ['Ubuntu']:
+           self._args.from_rel >= LooseVersion('2.21'):
+            self.fix_agent_params()
         if (self.compute_setup.config_nova and
                 self._args.orchestrator == 'openstack'):
            if self._args.from_rel == LooseVersion('2.00'):
