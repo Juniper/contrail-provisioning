@@ -12,6 +12,7 @@ from contrail_provisioning.common.upgrade import ContrailUpgrade
 from contrail_provisioning.compute.common import ComputeBaseSetup
 
 from fabric.api import local
+from fabric.context_managers import settings
 
 
 class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
@@ -76,8 +77,20 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
                    nova_conf_file)
             local("service %s start" % openstack_compute_service)
 
+    def fix_agent_params(self):
+        # kmod=vrouter after introduction of modprobe in centos/redhat
+        # platforms. Ensure all upgraded system has kmod=vrouter
+        with settings(warn_only=True):
+            local("sed -i 's$^kmod[ ]*=[ ]*/lib/modules/[^/]*/extra/net/vrouter/vrouter.ko$kmod=vrouter$g' \
+                   /etc/contrail/agent_param")
+        local("grep '^kmod[ ]*=[ ]*vrouter' /etc/contrail/agent_param")
+
     def upgrade(self):
         self._upgrade()
+        if self.pdist not in ['Ubuntu'] and \
+           self._args.from_rel >= LooseVersion('2.21') and \
+           self._args.to_rel <= LooseVersion('3.2'):
+            self.fix_agent_params()
         if ('running' in
             local('service supervisor-vrouter status', capture=True)):
             local("service supervisor-vrouter stop")
