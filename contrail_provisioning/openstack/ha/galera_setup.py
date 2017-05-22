@@ -84,6 +84,7 @@ class GaleraSetup(ContrailSetup):
         parser.add_argument("--cmon_user", help = "Cmon user")
         parser.add_argument("--cmon_pass", help = "Cmon pass")
         parser.add_argument("--monitor_galera", help = "Monitor Galera. Value can be boolean in string True / False")
+        parser.add_argument("--install_mysql_db", help = "Run MySQL Install script", type=bool, default = True)
         self._args = parser.parse_args(self.remaining_argv)
 
     def fix_galera_config(self, bootstrap=True):
@@ -186,6 +187,7 @@ class GaleraSetup(ContrailSetup):
         self.fix_cmon_config()
 
         local("echo %s > /etc/contrail/galeraid" % self._args.openstack_index)
+        if 
         self.install_mysql_db()
         self.set_mysql_root_password()
         ip_list = self._args.galera_ip_list + ['localhost', '127.0.0.1']
@@ -198,7 +200,8 @@ class GaleraSetup(ContrailSetup):
         with settings(warn_only=True):
             install_db = local("service %s restart" % self.mysql_svc).failed
         if install_db:
-            local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            if self._args.install_mysql_db == True:
+                local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
             self.cleanup_redo_log()
             if self._args.openstack_index == 1:
                self.bootstrap_donor()
@@ -352,7 +355,10 @@ class GaleraSetup(ContrailSetup):
             self.verify_mysql_server_status(self._args.galera_ip_list[self._args.openstack_index+1], self.mysql_token) == True):
               local("service %s restart" % self.mysql_svc)
         else:
-              local("service %s restart --wsrep_cluster_address=gcomm://" % self.mysql_svc)
+              local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://#g" %s' % (self.wsrep_conf))
+              local("service %s restart" % self.mysql_svc)
+              wsrep_cluster_address = (':4567,'.join(self._args.galera_ip_list) + ':4567')
+              local('sed -ibak "s#wsrep_cluster_address=.*#wsrep_cluster_address=gcomm://%s#g" %s' % (wsrep_cluster_address, self.wsrep_conf))
         time.sleep(15)
 
     def cleanup_redo_log(self):
