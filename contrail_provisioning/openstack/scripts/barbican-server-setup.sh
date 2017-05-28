@@ -28,12 +28,27 @@ fi
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
    is_ubuntu=1
    is_redhat=0
+   is_xenial=0
+   ubuntu_mitaka_or_above=0
    web_svc=apache2
    mysql_svc=mysql
    barbican_api_ver=`dpkg -l | grep 'ii' | grep barbican-api | awk '{print $3}'`
    echo $barbican_api_ver
    if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_RELEASE.*16.04' /etc/lsb-release; then
       is_xenial=1
+   fi
+   keystone_version=`dpkg -l keystone | grep 'ii' | grep -v python | awk '{print $3}'`
+   if [[ $keystone_version == *":"* ]]; then
+       keystone_version_without_epoch=`echo $keystone_version | cut -d':' -f2 | cut -d'-' -f1`
+       keystone_top_ver=`echo $keystone_version | cut -d':' -f1`
+   else
+       keystone_version_without_epoch=`echo $keystone_version`
+   fi
+   if [ $keystone_top_ver -gt 1 ]; then
+       dpkg --compare-versions $keystone_version_without_epoch ge 9.0.0
+       if [ $? -eq 0 ]; then
+           ubuntu_mitaka_or_above=1
+       fi
    fi
 fi
 
@@ -180,7 +195,13 @@ if [ $is_xenial -ne 1 ] ; then
 fi
 
 # Start barbican services
-for svc in barbican-api barbican-worker; do
-    service $svc restart
+if [ $is_xenial -eq 1 || $ubuntu_mitaka_or_above -eq 1 ]; then
+    svc='apache2'
+else
+    svc='barbican-api barbican-worker'
+fi
+
+for s in "$svc"; do
+    service $s restart
 done
 
