@@ -198,7 +198,10 @@ class GaleraSetup(ContrailSetup):
         with settings(warn_only=True):
             install_db = local("service %s restart" % self.mysql_svc).failed
         if install_db:
-            local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
+                local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+            else:
+                local('mysql_install_db --user=mysql --datadir=/var/lib/mysql')
             self.cleanup_redo_log()
             if self._args.openstack_index == 1:
                self.bootstrap_donor()
@@ -323,8 +326,11 @@ class GaleraSetup(ContrailSetup):
         wsrep_state_result = self.verify_mysql_server_status(self._args.self_ip, self.mysql_token)
         if wsrep_state_result == False:
             raise RuntimeError("Unable able to bring up galera in %s" % self._args.self_ip)
-        local("sudo update-rc.d -f mysql remove")
-        local("sudo update-rc.d mysql defaults")
+        if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
+            local("sudo update-rc.d -f mysql remove")
+            local("sudo update-rc.d mysql defaults")
+        else:
+            local("sudo systemctl enable mysql")
         local("service contrail-hamon start")
 
     # Assuming that there are 3 nodes in the cluster,
@@ -341,9 +347,11 @@ class GaleraSetup(ContrailSetup):
            if wsrep_state_result == False:
                raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
            local("service %s restart" % self.mysql_svc)
-
-        local("sudo update-rc.d -f mysql remove")
-        local("sudo update-rc.d mysql defaults")
+        if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
+            local("sudo update-rc.d -f mysql remove")
+            local("sudo update-rc.d mysql defaults")
+        else:
+            local("sudo systemctl enable mysql")
 
     # bootstrsp the donor node. Check if the first node can be
     # donor or joiner
