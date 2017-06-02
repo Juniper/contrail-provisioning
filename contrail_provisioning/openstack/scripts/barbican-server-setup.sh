@@ -195,7 +195,7 @@ if [ $is_xenial -ne 1 ] ; then
 fi
 
 # Start barbican services
-if [ $is_xenial -eq 1 || $ubuntu_mitaka_or_above -eq 1 ]; then
+if [[ $is_xenial -eq 1 ]] || [[ $ubuntu_mitaka_or_above -eq 1 ]]; then
     svc='apache2'
 else
     svc='barbican-api barbican-worker'
