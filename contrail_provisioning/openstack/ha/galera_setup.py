@@ -204,6 +204,7 @@ class GaleraSetup(ContrailSetup):
                 if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
                     local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
                 else:
+                    local('rm -rf /var/lib/mysql')
                     local('mysql_install_db --user=mysql --datadir=/var/lib/mysql')
             self.cleanup_redo_log()
             if self._args.openstack_index == 1:
