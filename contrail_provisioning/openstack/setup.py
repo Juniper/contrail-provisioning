@@ -280,6 +280,15 @@ class OpenstackSetup(ContrailSetup):
             if os.path.exists(barbican_apache_file):
                 local("sudo sed -i 's/Listen 9311/Listen 9322/g' %s" %(barbican_apache_file))
 
+        #keystone in 16.04
+        if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
+            if self._args.internal_vip:
+                apache2_keystone_conf = "/etc/apache2/sites-enabled/keystone.conf"
+                if os.path.exists(apache2_keystone_conf):
+                    with settings(warn_only=True):
+                        local("sudo sed -i 's/Listen 5000/Listen 6000/g' %s" %(apache2_keystone_conf))
+                        local("sudo sed -i 's/Listen 35357/Listen 35358/g' %s" %(apache2_keystone_conf))
+
         local('sed -i -e "s/bind-address/#bind-address/" %s' % self.mysql_conf)
         self.service_token = self._args.service_token
         if not self.service_token:
