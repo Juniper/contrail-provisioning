@@ -113,8 +113,10 @@ REGION_NAME=${REGION_NAME:-RegionOne}
 OPENSTACK_INDEX=${OPENSTACK_INDEX:-0}
 INTERNAL_VIP=${INTERNAL_VIP:-none}
 if [ "$INTERNAL_VIP" != "none" ]; then
+    KEYSTONE_IP=$INTERNAL_VIP
     export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$KEYSTONE_SERVER:${CONFIG_ADMIN_PORT:-35358}/v2.0}
 else
+    KEYSTONE_IP=$CONTROLLER
     export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$KEYSTONE_SERVER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 fi
 
@@ -122,7 +124,7 @@ keystone_ip=$KEYSTONE_SERVER
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
 cat > $CONF_DIR/openstackrc_v3 <<EOF
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v3
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$KEYSTONE_IP:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
 export OS_DOMAIN_NAME=Default
@@ -136,7 +138,7 @@ cat > $CONF_DIR/openstackrc <<EOF
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_PASSWORD
 export OS_TENANT_NAME=admin
-export OS_AUTH_URL=${AUTH_PROTOCOL}://$keystone_ip:5000/v2.0/
+export OS_AUTH_URL=${AUTH_PROTOCOL}://$KEYSTONE_IP:5000/v2.0/
 export OS_NO_CACHE=1
 export OS_REGION_NAME=$REGION_NAME
 export OS_CACERT=$KEYSTONE_CAFILE
@@ -228,20 +230,23 @@ else
 fi
 
 if [ $ubuntu_newton_or_above -eq 1 ]; then
-    keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
-    keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
-    if [ "$KEYSTONE_VERSION" == "v3" ]; then
-        keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
-           --bootstrap-admin-url http://$CONTROLLER:35357/v3/ \
-           --bootstrap-internal-url http://$CONTROLLER:35357/v3/ \
-           --bootstrap-public-url http://$CONTROLLER:5000/v3/ \
-           --bootstrap-region-id RegionOne
-    else
-        keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
-           --bootstrap-admin-url http://$CONTROLLER:35357/v2.0/ \
-           --bootstrap-internal-url http://$CONTROLLER:35357/v2.0/ \
-           --bootstrap-public-url http://$CONTROLLER:5000/v2.0/ \
-           --bootstrap-region-id RegionOne
+    # Required only in first openstack node, as the mysql db is replicated using galera.
+    if [ "$OPENSTACK_INDEX" -eq 1 ]; then
+        keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+        keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+        if [ "$KEYSTONE_VERSION" == "v3" ]; then
+            keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
+               --bootstrap-admin-url http://$KEYSTONE_IP:35357/v3/ \
+               --bootstrap-internal-url http://$KEYSTONE_IP:35357/v3/ \
+               --bootstrap-public-url http://$KEYSTONE_IP:5000/v3/ \
+               --bootstrap-region-id RegionOne
+        else
+            keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
+               --bootstrap-admin-url http://$KEYSTONE_IP:35357/v2.0/ \
+               --bootstrap-internal-url http://$KEYSTONE_IP:35357/v2.0/ \
+               --bootstrap-public-url http://$KEYSTONE_IP:5000/v2.0/ \
+               --bootstrap-region-id RegionOne
+        fi
     fi
     update_services "action=restart" apache2 
 fi
