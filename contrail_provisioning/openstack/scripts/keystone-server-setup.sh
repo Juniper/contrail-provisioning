@@ -118,6 +118,14 @@ else
     export SERVICE_ENDPOINT=${SERVICE_ENDPOINT:-$AUTH_PROTOCOL://$KEYSTONE_SERVER:${CONFIG_ADMIN_PORT:-35357}/v2.0}
 fi
 
+if [ "$INTERNAL_VIP" != "none" ]; then
+    KEYSTONE_ADMIN_PORT=35358
+    KEYSTONE_PUBLIC_PORT=6000
+else
+    KEYSTONE_ADMIN_PORT=35357
+    KEYSTONE_PUBLIC_PORT=5000
+fi
+
 keystone_ip=$KEYSTONE_SERVER
 
 if [ "$KEYSTONE_VERSION" == "v3" ]; then
@@ -232,15 +240,15 @@ if [ $ubuntu_newton_or_above -eq 1 ]; then
     keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
     if [ "$KEYSTONE_VERSION" == "v3" ]; then
         keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
-           --bootstrap-admin-url http://$CONTROLLER:35357/v3/ \
-           --bootstrap-internal-url http://$CONTROLLER:35357/v3/ \
-           --bootstrap-public-url http://$CONTROLLER:5000/v3/ \
+           --bootstrap-admin-url http://$CONTROLLER:$KEYSTONE_ADMIN_PORT/v3/ \
+           --bootstrap-internal-url http://$CONTROLLER:$KEYSTONE_ADMIN_PORT/v3/ \
+           --bootstrap-public-url http://$CONTROLLER:$KEYSTONE_PUBLIC_PORT/v3/ \
            --bootstrap-region-id RegionOne
     else
         keystone-manage bootstrap --bootstrap-password $ADMIN_PASSWORD \
-           --bootstrap-admin-url http://$CONTROLLER:35357/v2.0/ \
-           --bootstrap-internal-url http://$CONTROLLER:35357/v2.0/ \
-           --bootstrap-public-url http://$CONTROLLER:5000/v2.0/ \
+           --bootstrap-admin-url http://$CONTROLLER:$KEYSTONE_ADMIN_PORT/v2.0/ \
+           --bootstrap-internal-url http://$CONTROLLER:$KEYSTONE_ADMIN_PORT/v2.0/ \
+           --bootstrap-public-url http://$CONTROLLER:$KEYSTONE_PUBLIC_PORT/v2.0/ \
            --bootstrap-region-id RegionOne
     fi
     update_services "action=restart" apache2 
