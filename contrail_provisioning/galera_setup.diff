@@ -1,0 +1,44 @@
+diff --git a/contrail_provisioning/openstack/ha/galera_setup.py b/contrail_provisioning/openstack/ha/galera_setup.py
+index 4ef7b0f..586eb66 100755
+--- a/contrail_provisioning/openstack/ha/galera_setup.py
++++ b/contrail_provisioning/openstack/ha/galera_setup.py
+@@ -201,7 +201,8 @@ class GaleraSetup(ContrailSetup):
+             install_db = local("service %s restart" % self.mysql_svc).failed
+         if install_db:
+             if self._args.install_mysql_db == True:
+-                local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
++                if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
++                    local('mysql_install_db --user=mysql --ldata=/var/lib/mysql')
+             self.cleanup_redo_log()
+             if self._args.openstack_index == 1:
+                self.bootstrap_donor()
+@@ -326,9 +327,12 @@ class GaleraSetup(ContrailSetup):
+         wsrep_state_result = self.verify_mysql_server_status(self._args.self_ip, self.mysql_token)
+         if wsrep_state_result == False:
+             raise RuntimeError("Unable able to bring up galera in %s" % self._args.self_ip)
+-        local("sudo update-rc.d -f mysql remove")
+-        local("sudo update-rc.d mysql defaults")
+-        local("service contrail-hamon start")
++        if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
++            local("sudo update-rc.d -f mysql remove")
++            local("sudo update-rc.d mysql defaults")
++            local("service contrail-hamon start")
++        else:
++            local("sudo systemctl enable mysql")
+ 
+     # Assuming that there are 3 nodes in the cluster,
+     # check for the state of wsrep in each node.
+@@ -345,8 +349,11 @@ class GaleraSetup(ContrailSetup):
+                raise RuntimeError("Unable able to bring up galera in first node, please verify and continue.")
+            local("service %s restart" % self.mysql_svc)
+ 
+-        local("sudo update-rc.d -f mysql remove")
+-        local("sudo update-rc.d mysql defaults")
++        if LooseVersion("14.04") == LooseVersion(platform.dist()[1]):
++            local("sudo update-rc.d -f mysql remove")
++            local("sudo update-rc.d mysql defaults")
++        else:
++            local("sudo systemctl enable mysql")
+ 
+     # bootstrsp the donor node. Check if the first node can be
+     # donor or joiner
