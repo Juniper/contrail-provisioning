@@ -26,6 +26,7 @@ if [ -f /etc/redhat-release ]; then
    mysql_svc=$(get_mysql_service_name)
    rpm_mitaka_or_higher=$(is_installed_rpm_greater openstack-neutron "1 8.1.0 1.el7" && echo 1 || echo 0)
    rpm_liberty_or_higher=$(is_installed_rpm_greater openstack-neutron "1 7.0.1 8.el7ost" && echo 1 || echo 0)
+   neutron_api_paste=/usr/share/neutron/api-paste.ini
 fi
 
 if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; then
@@ -33,6 +34,7 @@ if [ -f /etc/lsb-release ] && egrep -q 'DISTRIB_ID.*Ubuntu' /etc/lsb-release; th
    is_redhat=0
    web_svc=apache2
    mysql_svc=mysql
+   neutron_api_paste=/etc/neutron/api-paste.ini
 fi
 
 msg_svc=rabbitmq-server
@@ -137,12 +139,12 @@ if [ -d /etc/neutron ]; then
     openstack-config --del /etc/neutron/neutron.conf service_providers service_provider
     openstack-config --set /etc/neutron/neutron.conf service_providers service_provider LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default
 
-    ret_val=`grep "keystone = user_token" /etc/neutron/api-paste.ini > /dev/null;echo $?`
+    ret_val=`grep "keystone = user_token" $neutron_api_paste > /dev/null;echo $?`
     if [ "$AAA_MODE" == "rbac" ] && [ $ret_val == 1 ]; then
-        sed -i 's/keystone =/keystone = user_token/' /etc/neutron/api-paste.ini
-        openstack-config --set /etc/neutron/api-paste.ini filter:user_token paste.filter_factory neutron_plugin_contrail.plugins.opencontrail.neutron_middleware:token_factory
+        sed -i 's/keystone =/keystone = user_token/' $neutron_api_paste
+        openstack-config --set $neutron_api_paste filter:user_token paste.filter_factory neutron_plugin_contrail.plugins.opencontrail.neutron_middleware:token_factory
     elif [ "$AAA_MODE" != "rbac" ] && [ $ret_val != 1 ]; then
-        sed -i 's/keystone = user_token/keystone =/' /etc/neutron/api-paste.ini
+        sed -i 's/keystone = user_token/keystone =/'$neutron_api_paste 
     fi
 else
     openstack-config --set /etc/quantum/quantum.conf DEFAULT core_plugin quantum.plugins.contrail.ContrailPlugin.ContrailPlugin
