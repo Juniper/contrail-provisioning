@@ -1,20 +1,11 @@
 import string
 
 template = string.Template("""
-api-server:api-server
-schema-transformer:schema-transformer
-svc-monitor:svc-monitor
-control-user:control-user-passwd
-dhcp:dhcp
-visual:visual
-sensor:sensor
+api-server:$__ifmap_password__
+schema-transformer:$__ifmap_password__
+svc-monitor:$__ifmap_password__
+visual:$__ifmap_password__
 
-# compliance testsuite users
-mapclient:mapclient
-helper:mapclient
-
-# This is a read-only MAPC
-reader:reader
 $__contrail_control_node_users__
 $__contrail_control_node_dns_users__
 
