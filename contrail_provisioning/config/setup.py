@@ -47,6 +47,7 @@ class ConfigSetup(ContrailSetup):
             'quantum_service_protocol': 'http',
             'manage_neutron': 'yes',
             'orchestrator' : 'openstack',
+            'ifmap_password': None,
         }
         self.parse_args(args_str)
 
@@ -106,7 +107,7 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--external_vip", help = "External VIP Address of HA Openstack Nodes")
         parser.add_argument("--contrail_internal_vip", help = "Internal VIP Address of HA config Nodes")
         parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
-  
+        parser.add_argument("--ifmap_password", help = "Ifmap password")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:

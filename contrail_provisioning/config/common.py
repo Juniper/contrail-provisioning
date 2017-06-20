@@ -50,6 +50,10 @@ class ConfigBaseSetup(ContrailSetup):
         if self._args.internal_vip:
             self.rabbit_host = self._args.internal_vip
             self.rabbit_port = 5673
+        self.control_node_users = '\n'.join(['%s:%s' %(s, self._args.ifmap_password or s)\
+            for s in self._args.control_ip_list])
+        self.control_node_dns_users = '\n'.join(['%s.dns:%s' %(s, self._args.ifmap_password or (s + '.dns'))\
+            for s in self._args.control_ip_list])
 
     def fixup_config_files(self):
         self.fixup_ifmap_config_files()
@@ -86,6 +90,7 @@ class ConfigBaseSetup(ContrailSetup):
 
             template_vals = {'__contrail_control_node_users__' : self.control_node_users,
                              '__contrail_control_node_dns_users__' : self.control_node_dns_users,
+                             '__ifmap_password__': self._args.ifmap_password or 'api-server',
                             }
             self._template_substitute_write(ifmap_basicauthusers.template,
                                             template_vals, self._temp_dir_name + '/basicauthusers.properties')
@@ -106,7 +111,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'api-server',
-                         '__contrail_ifmap_password__': 'api-server',
+                         '__contrail_ifmap_password__': self._args.ifmap_password or 'api-server',
                          '__contrail_listen_ip_addr__': '0.0.0.0',
                          '__contrail_listen_port__': '8082',
                          '__contrail_use_certs__': self._args.use_certs,
@@ -162,7 +167,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'schema-transformer',
-                         '__contrail_ifmap_password__': 'schema-transformer',
+                         '__contrail_ifmap_password__': self._args.ifmap_password or 'api-server',
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
                          '__contrail_api_server_port__': '8082',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
@@ -202,7 +207,7 @@ class ConfigBaseSetup(ContrailSetup):
         template_vals = {'__contrail_ifmap_server_ip__': self.cfgm_ip,
                          '__contrail_ifmap_server_port__': '8444' if self._args.use_certs else '8443',
                          '__contrail_ifmap_username__': 'svc-monitor',
-                         '__contrail_ifmap_password__': 'svc-monitor',
+                         '__contrail_ifmap_password__': self._args.ifmap_password or 'api-server',
                          '__rabbit_server_ip__': self.rabbit_host,
                          '__rabbit_server_port__': self.rabbit_port,
                          '__contrail_api_server_ip__': self._args.internal_vip or self.cfgm_ip,
