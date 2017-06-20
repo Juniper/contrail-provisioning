@@ -44,12 +44,10 @@ class ConfigBaseSetup(ContrailSetup):
         self.zk_servers_ports = ','.join(['%s:2181' %(s)\
             for s in self._args.zookeeper_ip_list])
 
-        # These changes needs to go after fabric changes go inside. This will be 
-        # uncommented once fabric changes go through.
-        #self.control_node_users = '\n'.join(['%s:%s' %(s, s)\
-        #    for s in self._args.control_ip_list])
-        #self.control_node_dns_users = '\n'.join(['%s.dns:%s.dns' %(s, s)\
-        #    for s in self._args.control_ip_list])
+        self.control_node_users = '\n'.join(['%s:%s' %(s, self._args.ifmap_password)\
+            for s in self._args.control_ip_list])
+        self.control_node_dns_users = '\n'.join(['%s.dns:%s' %(s, self._args.ifmap_password)\
+            for s in self._args.control_ip_list])
         amqp_ip_list = [self.cfgm_ip]
         if self._args.amqp_ip_list:
             amqp_ip_list = self._args.amqp_ip_list
@@ -100,8 +98,9 @@ class ConfigBaseSetup(ContrailSetup):
             # basicauthusers.properties
 
             template_vals = {
-                            # '__contrail_control_node_users__' : self.control_node_users,
-                            # '__contrail_control_node_dns_users__' : self.control_node_dns_users,
+                             '__contrail_control_node_users__' : self.control_node_users,
+                             '__contrail_control_node_dns_users__' : self.control_node_dns_users,
+                             '__ifmap_password__': self._args.ifmap_password,
                             }
             self._template_substitute_write(ifmap_basicauthusers.template,
                                             template_vals, self._temp_dir_name + '/basicauthusers.properties')
