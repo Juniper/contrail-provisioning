@@ -29,6 +29,7 @@ class ControlSetup(ContrailSetup):
             'self_ip': '127.0.0.1',
             'use_certs': False,
             'puppet_server': None,
+            'ifmap_password': 'c0ntrail123',
         }
 
         self.parse_args(args_str)
@@ -49,6 +50,7 @@ class ControlSetup(ContrailSetup):
         parser.add_argument("--use_certs", help = "Use certificates for authentication",
             action="store_true")
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
+        parser.add_argument("--ifmap_password", help = "Ifmap password")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -64,7 +66,7 @@ class ControlSetup(ContrailSetup):
     def fixup_contrail_control(self):
         certdir = '/var/lib/puppet/ssl' if self._args.puppet_server else '/etc/contrail/ssl'
         template_vals = {'__contrail_ifmap_usr__': '%s' %(self.control_ip),
-                         '__contrail_ifmap_paswd__': '%s' %(self.control_ip),
+                         '__contrail_ifmap_paswd__': '%s' %(self._args.ifmap_password),
                          '__contrail_discovery_ip__': self._args.cfgm_ip,
                          '__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
@@ -84,7 +86,7 @@ class ControlSetup(ContrailSetup):
 
     def fixup_dns(self):
         dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(self.control_ip),
-                         '__contrail_ifmap_paswd__': '%s.dns' %(self.control_ip),
+                         '__contrail_ifmap_paswd__': '%s' %(self._args.ifmap_password),
                          '__contrail_discovery_ip__': self._args.cfgm_ip,
                          '__contrail_hostname__': self.hostname,
                          '__contrail_host_ip__': self.control_ip,
