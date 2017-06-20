@@ -48,6 +48,7 @@ class ConfigSetup(ContrailSetup):
             'manage_neutron': 'yes',
             'orchestrator' : 'openstack',
             'amqp_port': '5672',
+            'ifmap_password': 'c0ntrail123'
         }
         self.parse_args(args_str)
 
@@ -115,6 +116,7 @@ class ConfigSetup(ContrailSetup):
             default= None)
         parser.add_argument("--cassandra_password", help = "Cassandra password",
             default= None)
+        parser.add_argument("--ifmap_password", help = "Ifmap password")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:
