@@ -143,10 +143,11 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 NEUTRON_AUTH_URL_FIELD=admin_auth_url
             fi
             if [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
-                openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$CONTRAIL_INTERNAL_VIP:9696/
                 if [ "$INTERNAL_VIP" != "none" ]; then
+                    openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$INTERNAL_VIP:9696/
                     openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$INTERNAL_VIP:35357/$KEYSTONE_VERSION/
                 else
+                    openstack-config --set /etc/nova/nova.conf neutron url ${QUANTUM_PROTOCOL}://$KEYSTONE_SERVER:9696/
                     openstack-config --set /etc/nova/nova.conf neutron $NEUTRON_AUTH_URL_FIELD ${AUTH_PROTOCOL}://$KEYSTONE_SERVER:35357/$KEYSTONE_VERSION/
                 fi
             elif [ "$INTERNAL_VIP" != "none" ]; then
@@ -572,13 +573,13 @@ fi
 if [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 # Contrail HA.
 elif [ "$INTERNAL_VIP" == "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $KEYSTONE_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$KEYSTONE_SERVER:5000/$KEYSTONE_VERSION/
-    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$CONTRAIL_INTERNAL_VIP:9696/
+    openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$KEYSTONE_SERVER:9696/
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 5999
 # Openstack and Contrail in same nodes.
