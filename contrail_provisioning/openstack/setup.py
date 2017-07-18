@@ -279,7 +279,7 @@ class OpenstackSetup(ContrailSetup):
         if os.path.exists("/etc/barbican"):
             local("sudo barbican-server-setup.sh")
         with settings(warn_only=True):
-            if (self.pdist in ['centos'] and
+            if (self.pdist in ['centos', 'centoslinux'] and
                 local("rpm -qa | grep contrail-heat").succeeded):
                 local("sudo heat-server-setup.sh")
             elif (self.pdist in ['Ubuntu'] and
