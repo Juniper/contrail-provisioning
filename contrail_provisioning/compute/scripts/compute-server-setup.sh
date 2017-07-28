@@ -418,6 +418,7 @@ get_pci_whitelist_addresses() {
     IFS=$orig_ifs
 }
 
+source /etc/contrail/agent_param
 openstack-config --del /etc/nova/nova.conf DEFAULT pci_passthrough_whitelist
 if [ ! -z $SRIOV_INTERFACES ] ; then
     OLD_IFS=$IFS
@@ -432,6 +433,9 @@ if [ ! -z $SRIOV_INTERFACES ] ; then
         i=$((i+1))
         phys=($physnets)
         for physnet_name in ${phys[@]}; do
+            if [ "$intf" == "$dev" ]; then
+                continue
+            fi
             pci_addresses=$(get_pci_whitelist_addresses $DPDK_INTERFACE $intf)
             if [ -z $pci_addresses ]; then
                 wl_list=("{ \"devname\": \"$intf\", \"physical_network\": \"$physnet_name\"}")
