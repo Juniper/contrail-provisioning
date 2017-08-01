@@ -495,7 +495,7 @@ if [ $VCENTER_IP ]; then
 fi
 
 openstack-config --set /etc/nova/nova.conf DEFAULT ec2_private_dns_show_ip False
-openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
+openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_enabled true
 
 openstack-config --set /etc/nova/nova.conf DEFAULT vncserver_listen $COMPUTE
@@ -574,20 +574,20 @@ if [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 # Contrail HA.
 elif [ "$INTERNAL_VIP" == "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $KEYSTONE_SERVER
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$KEYSTONE_SERVER:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$KEYSTONE_SERVER:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
     openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 5999
 # Openstack and Contrail in same nodes.
 elif [ "$INTERNAL_VIP" != "none" ] && [ "$CONTRAIL_INTERNAL_VIP" == "none" ]; then
     openstack-config --set /etc/nova/nova.conf keystone_authtoken auth_host $INTERNAL_VIP
     openstack-config --set /etc/nova/nova.conf DEFAULT $ADMIN_AUTH_URL http://$INTERNAL_VIP:5000/$KEYSTONE_VERSION/
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$INTERNAL_VIP:9696/
-    openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$EXTERNAL_VIP:6080/vnc_auto.html
 fi
 
 # Set userspace vhost and hugepages for DPDK vRouter
