@@ -359,7 +359,7 @@ class CollectorSetup(ContrailSetup):
             pint = int(pstr)
             config_vals['DEFAULTS']['partitions'] = pstr
         except:
-            config_vals['DEFAULTS']['partitions'] = ''
+            self.replace_in_file(conf_file, 'partitions', '')
         for section, parameter_values in config_vals.items():
             for parameter, value in parameter_values.items():
                 self.set_config(conf_file, section, parameter, value)
