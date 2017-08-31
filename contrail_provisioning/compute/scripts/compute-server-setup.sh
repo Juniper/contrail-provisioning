@@ -168,7 +168,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
             else
                 openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
-             fi
+            fi
             if [ $AUTH_PROTOCOL == "https" ]; then
                 openstack-config --set /etc/nova/nova.conf neutron insecure True
             fi
@@ -339,6 +339,29 @@ else
             if [[ $hw_acceleration -eq 0 ]]; then
                 contrail-config --set /etc/nova/nova.conf libvirt virt_type qemu
             fi
+        fi
+
+    fi
+    if [ $is_ubuntu -eq 1 ] ; then
+        if [[ $nova_compute_version == *":"* ]]; then
+            nova_compute_version_without_epoch=`echo $nova_compute_version | cut -d':' -f2 | cut -d'-' -f1`
+            nova_compute_top_ver=`echo $nova_compute_version | cut -d':' -f1`
+        else
+            nova_compute_version_without_epoch=`echo $nova_compute_version`
+        fi
+
+        newton_or_above=0
+        if [ "$nova_compute_top_ver" -ne "1" ]; then
+            #For newton, the nova-compute version is 14.y.z
+            dpkg --compare-versions $nova_compute_version_without_epoch ge 14.0.0
+            if [ $? -eq 0 ]; then
+                newton_or_above=1
+            fi
+        fi
+
+        if [ $newton_or_above -eq 1 ]; then
+            openstack-config --del /etc/nova/nova.conf glance host
+            openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
         fi
 
     fi
