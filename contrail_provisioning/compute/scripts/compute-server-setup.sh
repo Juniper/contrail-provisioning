@@ -71,6 +71,45 @@ if [ $is_ubuntu -eq 1 ] ; then
             echo "kvm-amd" >> /etc/modules
         fi
     fi
+    if [[ $nova_compute_version == *":"* ]]; then
+        nova_compute_version_without_epoch=`echo $nova_compute_version | cut -d':' -f2 | cut -d'-' -f1`
+        nova_compute_top_ver=`echo $nova_compute_version | cut -d':' -f1`
+    else
+        nova_compute_version_without_epoch=`echo $nova_compute_version`
+    fi
+
+    kilo_or_above=0
+    liberty_or_above=0
+    mitaka_or_above=0
+    newton_or_above=0
+    # for juno and kilo versions
+    if [ "$nova_compute_top_ver" -eq "1" ]; then
+        # for kilo
+        dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
+        if [ $? -eq 0 ]; then
+            kilo_or_above=1
+        fi
+    else
+        #Starting liberty the package versioning has changed to x.y.z format
+        dpkg --compare-versions $nova_compute_version_without_epoch ge 12.0.0
+        if [ $? -eq 0 ]; then
+            kilo_or_above=1
+        fi
+        dpkg --compare-versions $nova_compute_version_without_epoch ge 12.0.1
+        if [ $? -eq 0 ]; then
+            liberty_or_above=1
+        fi
+        #For mitaka, the nova-compute version is 13.y.z
+        dpkg --compare-versions $nova_compute_version_without_epoch ge 13.0.0
+        if [ $? -eq 0 ]; then
+            mitaka_or_above=1
+        fi
+        #For newton, the nova-compute version is 14.y.z
+        dpkg --compare-versions $nova_compute_version_without_epoch ge 14.0.0
+        if [ $? -eq 0 ]; then
+            newton_or_above=1
+        fi
+    fi
 fi
 
 source /etc/contrail/ctrl-details
@@ -96,45 +135,6 @@ if [ $CONTROLLER != $COMPUTE ] ; then
     if [ $is_ubuntu -eq 1 ] ; then
         openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.${OS_NET}v2.api.API
         openstack-config --set /etc/nova/nova.conf DEFAULT compute_driver libvirt.LibvirtDriver
-        if [[ $nova_compute_version == *":"* ]]; then
-            nova_compute_version_without_epoch=`echo $nova_compute_version | cut -d':' -f2 | cut -d'-' -f1`
-            nova_compute_top_ver=`echo $nova_compute_version | cut -d':' -f1`
-        else
-            nova_compute_version_without_epoch=`echo $nova_compute_version`
-        fi
-
-        kilo_or_above=0
-        liberty_or_above=0
-        mitaka_or_above=0
-        newton_or_above=0
-        # for juno and kilo versions
-        if [ "$nova_compute_top_ver" -eq "1" ]; then
-            # for kilo
-            dpkg --compare-versions $nova_compute_version_without_epoch ge 2015
-            if [ $? -eq 0 ]; then
-                kilo_or_above=1
-            fi
-        else
-            #Starting liberty the package versioning has changed to x.y.z format
-            dpkg --compare-versions $nova_compute_version_without_epoch ge 12.0.0
-            if [ $? -eq 0 ]; then
-                kilo_or_above=1
-            fi
-            dpkg --compare-versions $nova_compute_version_without_epoch ge 12.0.1
-            if [ $? -eq 0 ]; then
-                liberty_or_above=1
-            fi
-            #For mitaka, the nova-compute version is 13.y.z
-            dpkg --compare-versions $nova_compute_version_without_epoch ge 13.0.0
-            if [ $? -eq 0 ]; then
-                mitaka_or_above=1
-            fi
-            #For newton, the nova-compute version is 14.y.z
-            dpkg --compare-versions $nova_compute_version_without_epoch ge 14.0.0
-            if [ $? -eq 0 ]; then
-                newton_or_above=1
-            fi
-        fi
 
         if [ $kilo_or_above -eq 1 ] ; then
             if [ $mitaka_or_above -eq 1 ] ; then
@@ -168,7 +168,7 @@ if [ $CONTROLLER != $COMPUTE ] ; then
                 openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
             else
                 openstack-config --set /etc/nova/nova.conf glance host $CONTROLLER
-             fi
+            fi
             if [ $AUTH_PROTOCOL == "https" ]; then
                 openstack-config --set /etc/nova/nova.conf neutron insecure True
             fi
@@ -341,6 +341,12 @@ else
             fi
         fi
 
+    fi
+    if [ $is_ubuntu -eq 1 ] ; then
+        if [ $newton_or_above -eq 1 ]; then
+            openstack-config --del /etc/nova/nova.conf glance host
+            openstack-config --set /etc/nova/nova.conf glance api_servers http://$CONTROLLER:9292
+        fi
     fi
 fi
 
