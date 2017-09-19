@@ -61,7 +61,7 @@ cat > $CONF_DIR/openstackrc_v3 <<EOF
 export OS_AUTH_URL=${AUTH_PROTOCOL}://$controller_ip:5000/v3
 export OS_USER_DOMAIN_NAME="Default"
 export OS_PROJECT_DOMAIN_NAME="Default"
-export OS_DOMAIN_NAME=Default
+export OS_PROJECT_NAME=admin
 export OS_IDENTITY_API_VERSION="3"
 export OS_USERNAME=admin
 export OS_PASSWORD=$ADMIN_TOKEN
@@ -88,18 +88,42 @@ for svc in $net_svc_name; do
     openstack-config --set /etc/$svc/$svc.conf DEFAULT auth_strategy  keystone
     openstack-config --set /etc/$svc/$svc.conf DEFAULT allow_overlapping_ips True
     openstack-config --set /etc/$svc/$svc.conf DEFAULT dhcp_agent_notification False
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $NEUTRON_PASSWORD
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
-    openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    if [ "$KEYSTONE_VERSION" == "v3" ]; then
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_url $AUTH_PROTOCOL://$CONTROLLER:35357
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_type password
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken username $svc
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken password $NEUTRON_PASSWORD
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken user_domain_name Default
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken project_domain_name Default
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken project_name $SERVICE_TENANT
+
+        openstack-config --set /etc/$svc/$svc.conf nova auth_url $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        openstack-config --set /etc/$svc/$svc.conf nova auth_type password
+        openstack-config --set /etc/$svc/$svc.conf nova username nova
+        openstack-config --set /etc/$svc/$svc.conf nova password $NEUTRON_PASSWORD
+        openstack-config --set /etc/$svc/$svc.conf nova user_domain_name Default
+        openstack-config --set /etc/$svc/$svc.conf nova project_domain_name Default
+        openstack-config --set /etc/$svc/$svc.conf nova project_name $SERVICE_TENANT
+
+    else
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_uri $AUTH_PROTOCOL://$CONTROLLER:35357/$KEYSTONE_VERSION/
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken identity_uri $AUTH_PROTOCOL://$CONTROLLER:5000
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_tenant_name $SERVICE_TENANT
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_user $svc
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_password $NEUTRON_PASSWORD
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken admin_token $SERVICE_TOKEN
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_protocol $AUTH_PROTOCOL
+    fi
     if [ "$AUTH_PROTOCOL" == "https" ]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken certfile $KEYSTONE_CERTFILE
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken keyfile $KEYSTONE_KEYFILE
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken cafile $KEYSTONE_CAFILE
+        if [ "$KEYSTONE_VERSION" == "v3" ]; then
+            openstack-config --set /etc/$svc/$svc.conf nova certfile $KEYSTONE_CERTFILE
+            openstack-config --set /etc/$svc/$svc.conf nova keyfile $KEYSTONE_KEYFILE
+            openstack-config --set /etc/$svc/$svc.conf nova cafile $KEYSTONE_CAFILE
+        fi
     fi
     # Additional configs from Centos7/Mitaka onwards
     if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
