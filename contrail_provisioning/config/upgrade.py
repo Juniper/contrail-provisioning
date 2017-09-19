@@ -141,6 +141,29 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                 self.del_config(conf_file, 'DEFAULTS', 'rabbit_port')
                 self.set_config(conf_file, 'DEFAULTS', 'rabbit_server',
                                 self.config_setup.rabbit_servers)
+        # Correct the neutron config parameter and
+        # contrail keystone auth config file for v3 auth params
+        if (self._args.from_rel < LooseVersion('3.2.6') and
+                self._args.to_rel >= LooseVersion('3.2.6')):
+            confs = {'auth_type':'password',
+                    'user_domain_name': 'Default',
+                    'project_domain_name': 'Default'
+                    }
+            auth_conf = '/etc/contrail/contrail-keystone-auth.conf'
+            for key, val in confs.items():
+                self.set_config(auth_conf, 'KEYSTONE', key, val)
+
+            if self._args.provision_neutron_server == 'yes':
+                neutron_conf = '/etc/neutron/neutron.conf'
+                sec_name = 'keystone_authtoken'
+                confs.update(
+                        {'auth_url': self.get_config(neutron_conf, sec_name, 'auth_uri'),
+                         'username': self.get_config(neutron_conf, sec_name, 'admin_user'),
+                         'password': self.get_config(neutron_conf, sec_name, 'admin_password'),
+                         'project_name': self.get_config(neutron_conf, sec_name, 'admin_tenant_name')
+                        })
+                for key, val in confs.items():
+                    self.set_config(neutron_conf, sec_name, key, val)
 
 
 def main():

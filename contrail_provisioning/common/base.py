@@ -321,6 +321,15 @@ class ContrailSetup(object):
                                         template_vals, self._temp_dir_name + '/contrail-keystone-auth.conf')
         local("sudo mv %s/contrail-keystone-auth.conf /etc/contrail/" %(self._temp_dir_name))
 
+        if self._args.keystone_version in ['v3']:
+            confs = {'auth_type':'password',
+                    'user_domain_name': 'Default',
+                    'project_domain_name': 'Default'
+                    }
+            auth_conf = '/etc/contrail/contrail-keystone-auth.conf'
+            for key, val in confs.items():
+                self.set_config(auth_conf, 'KEYSTONE', key, val)
+
     def fixup_vnc_api_lib_ini(self):
         if hasattr(self, 'contrail_internal_vip'):
             api_server = self.contrail_internal_vip or self.cfgm_ip
