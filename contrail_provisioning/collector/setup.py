@@ -40,6 +40,8 @@ class CollectorSetup(ContrailSetup):
             'apiserver_keyfile': None,
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
+            'aaa_mode': 'cloud-admin',
+            'alarm_gen_num_instances': 1
         }
 
         self.parse_args(args_str)
@@ -125,6 +127,9 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--apiserver_keyfile", help="")
         parser.add_argument("--apiserver_cafile", help="")
         parser.add_argument("--orchestrator", help="Orchestrator used by contrail")
+        parser.add_argument("--alarm_gen_num_instances",
+            help="Number of contrail-alarm-gen instances per analytics node",
+            type=int)
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -141,7 +146,11 @@ class CollectorSetup(ContrailSetup):
         self.fixup_cassandra_config()
         self.fixup_ini_files()
 
-    def fixup_analytics_daemon_ini_file(self, daemon_name, conf_files=None):
+    def fixup_analytics_daemon_ini_file(self, daemon_name, conf_files=None,
+                                        worker_info=None):
+        supervisor_dir = '/etc/contrail/supervisord_analytics_files'
+        bin_dir = '/usr/bin'
+        ini_cmd = os.path.join(bin_dir, daemon_name)
         dconf_files = []
         if conf_files:
             dconf_files.extend(conf_files)
@@ -150,14 +159,32 @@ class CollectorSetup(ContrailSetup):
         if self._args.cassandra_user:
             database_conf = '/etc/contrail/contrail-database.conf'
             dconf_files.append(database_conf)
-        ini_conf_cmd = ''.join([' --conf_file ' + conf_file for \
+        ini_cmd = ini_cmd + ''.join([' --conf_file ' + conf_file for \
             conf_file in dconf_files])
-        supervisor_dir = '/etc/contrail/supervisord_analytics_files'
-        bin_dir = '/usr/bin'
-        self.set_config(os.path.join(supervisor_dir, daemon_name + '.ini'),
-            'program:' + daemon_name, 'command',
-            os.path.join(bin_dir, daemon_name) + ini_conf_cmd)
+        options = {}
+        if worker_info:
+            ini_cmd = ini_cmd + ' --http_server_port %d%%(process_num)01d ' %(
+                worker_info['http_port_prefix']) + \
+                '--worker_id %(process_num)s ' + \
+                '--log_file /var/log/contrail/%s-%%(process_num)s.log' %(
+                daemon_name)
+            options['numprocs'] = str(worker_info['numprocs'])
+            options['process_name'] = '%(process_num)s'
+        options['command'] = ini_cmd
+        for param, val in options.iteritems():
+            self.set_config(os.path.join(supervisor_dir, daemon_name + '.ini'),
+                'program:' + daemon_name, param, val)
     # end fixup_analytics_daemon_ini_file
+
+    def fixup_alarm_gen_ini_file(self):
+        worker_info = None
+        if self._args.alarm_gen_num_instances > 1:
+            worker_info = {}
+            worker_info['numprocs'] = self._args.alarm_gen_num_instances
+            worker_info['http_port_prefix'] = 920
+        self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
+            ['/etc/contrail/contrail-keystone-auth.conf'], worker_info)
+    # end fixup_alarm_gen_ini_file
 
     def fixup_ini_files(self):
         self.fixup_analytics_daemon_ini_file('contrail-collector',
@@ -165,8 +192,7 @@ class CollectorSetup(ContrailSetup):
         self.fixup_analytics_daemon_ini_file('contrail-query-engine')
         self.fixup_analytics_daemon_ini_file('contrail-analytics-api',
             ['/etc/contrail/contrail-keystone-auth.conf'])
-        self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
-            ['/etc/contrail/contrail-keystone-auth.conf'])
+        self.fixup_alarm_gen_ini_file()
     # end fixup_ini_files
 
     def fixup_cassandra_config(self):
