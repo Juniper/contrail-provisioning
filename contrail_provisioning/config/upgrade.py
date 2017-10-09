@@ -143,7 +143,8 @@ class ConfigUpgrade(ContrailUpgrade, ConfigSetup):
                                 self.config_setup.rabbit_servers)
         # Correct the neutron config parameter and
         # contrail keystone auth config file for v3 auth params
-        if (self._args.from_rel < LooseVersion('3.2.6') and
+        if (self._args.keystone_version in ['v3'] and
+                self._args.from_rel < LooseVersion('3.2.6') and
                 self._args.to_rel >= LooseVersion('3.2.6')):
             confs = {'auth_type':'password',
                     'user_domain_name': 'Default',
