@@ -516,7 +516,9 @@ if [ $ocata_or_above -eq 1 ]; then
     # setup. If this value is changed to a different value from 6080, then the
     # ocata configs should be overridden by setting the nova_vnc_port to the
     # same value in kolla_globals.yml (or kolla_globals in the cluster json)
-    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:6080/vnc_auto.html
+    # Also on ocata, the novnc service will be running on
+    # CONTROLLER_CTRL_DATA_IP and not on CONTROLLER_MGMT
+    openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_CTRL_DATA_IP:6080/vnc_auto.html
 else
     openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
 fi
@@ -606,7 +608,7 @@ elif [ "$INTERNAL_VIP" == "none" ] && [ "$CONTRAIL_INTERNAL_VIP" != "none" ]; th
     openstack-config --set /etc/nova/nova.conf DEFAULT $OS_URL http://$KEYSTONE_SERVER:9696/
     if [ $ocata_or_above -eq 1 ]; then
         # For Ocata, always use the default port of 6080
-        openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:6080/vnc_auto.html
+        openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_CTRL_DATA_IP:6080/vnc_auto.html
         openstack-config --set /etc/nova/nova.conf DEFAULT novncproxy_port 6080
     else
         openstack-config --set /etc/nova/nova.conf vnc novncproxy_base_url http://$CONTROLLER_MGMT:5999/vnc_auto.html
