@@ -324,7 +324,7 @@ class ContrailSetup(object):
         if self._args.keystone_version in ['v3']:
             confs = {'auth_type':'password',
                     'user_domain_name': 'Default',
-                    'project_domain_name': 'Default'
+                    'domain_id': 'default'
                     }
             auth_conf = '/etc/contrail/contrail-keystone-auth.conf'
             for key, val in confs.items():
