@@ -47,6 +47,8 @@ class KeepalivedSetup(ContrailSetup, ComputeNetworkSetup):
         vip_for_ips = [(self._args.internal_vip, self._args.self_ip, 'INTERNAL')]
         internal_device=self.get_device_by_ip(self._args.self_ip)
         if self._args.external_vip:
+            if self._args.mgmt_self_ip == self._args.self_ip:
+                sys.exit("\nERROR: mgmt_self_ip and self_ip cannot be the same when you setup external_vip.")
             vip_for_ips.append((self._args.external_vip, self._args.mgmt_self_ip, 'EXTERNAL'))
             ext_device=self.get_device_by_ip(self._args.mgmt_self_ip)
         else:
