@@ -163,6 +163,10 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
             if self._args.alarm_gen_num_instances > 1:
                 self.fixup_alarm_gen_ini_file()
 
+        if self._args.to_rel >= LooseVersion('3.2'):
+            self.fixup_analytics_daemon_ini_file('contrail-snmp-collector',
+                ['/etc/contrail/contrail-keystone-auth.conf'])
+
         # We must ensure that the number of partitions in collector
         # and analytics-api is same as that in alarm-gen
         try:
