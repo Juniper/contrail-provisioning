@@ -142,10 +142,15 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         if (self._args.from_rel < LooseVersion('3.1') and
                 self._args.to_rel >= LooseVersion('3.1')):
             alarm_gen_conf = '/etc/contrail/contrail-alarm-gen.conf'
-            self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_server_list',
-                ','.join(self._args.amqp_ip_list))
-            self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_port',
-                self._args.amqp_port)
+            if self._args.amqp_ip_list:
+                self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_server_list',
+                    ','.join(self._args.amqp_ip_list))
+            if self._args.amqp_port:
+                self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_port',
+                    self._args.amqp_port)
+            if self._args.amqp_password:
+                self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_password',
+                    self._args.amqp_password)
 
         # We must ensure that the number of partitions in collector
         # and analytics-api is same as that in alarm-gen
