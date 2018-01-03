@@ -41,7 +41,10 @@ class CollectorSetup(ContrailSetup):
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
             'aaa_mode': 'cloud-admin',
-            'alarm_gen_num_instances': 1
+            'alarm_gen_num_instances': 1,
+            'amqp_ip_list': '127.0.0.1',
+            'amqp_port': '5672',
+            'amqp_password': ''
         }
 
         self.parse_args(args_str)

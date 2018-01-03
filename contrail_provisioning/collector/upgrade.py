@@ -149,8 +149,11 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
         if (self._args.from_rel < LooseVersion('3.1') and
                 self._args.to_rel >= LooseVersion('3.1')):
             alarm_gen_conf = '/etc/contrail/contrail-alarm-gen.conf'
+            amqp_ip_list = [self._args.cfgm_ip]
+            if self._args.amqp_ip_list:
+                amqp_ip_list = self._args.amqp_ip_list
             self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_server_list',
-                ','.join(self._args.amqp_ip_list))
+                ','.join(amqp_ip_list))
             self.set_config(alarm_gen_conf, 'DEFAULTS', 'rabbitmq_port',
                 self._args.amqp_port)
             self.fixup_analytics_daemon_ini_file('contrail-alarm-gen',
