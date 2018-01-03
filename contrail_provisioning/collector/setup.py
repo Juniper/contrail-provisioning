@@ -41,7 +41,8 @@ class CollectorSetup(ContrailSetup):
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
             'aaa_mode': 'cloud-admin',
-            'alarm_gen_num_instances': 1
+            'alarm_gen_num_instances': 1,
+            'amqp_port': '5672'
         }
 
         self.parse_args(args_str)
@@ -227,12 +228,13 @@ class CollectorSetup(ContrailSetup):
         self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'zk_list',
                         zk_list_str)
 
+        amqp_ip_list = [self._args.cfgm_ip]
         if self._args.amqp_ip_list:
-            self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_server_list',
-                            ','.join(self._args.amqp_ip_list))
-        if self._args.amqp_port:
-            self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_port',
-                            self._args.amqp_port)
+            amqp_ip_list = self._args.amqp_ip_list
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_server_list',
+                        ','.join(amqp_ip_list))
+        self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_port',
+                        self._args.amqp_port)
         if self._args.amqp_password:
             self.set_config(ALARM_GEN_CONF_FILE, 'DEFAULTS', 'rabbitmq_password',
                             self._args.amqp_password)
