@@ -157,6 +157,8 @@ class CollectorUpgrade(ContrailUpgrade, CollectorSetup):
                 ['/etc/contrail/contrail-keystone-auth.conf'])
             self.fixup_analytics_daemon_ini_file('contrail-collector',
                 ['/etc/contrail/contrail-keystone-auth.conf'])
+            if self._args.alarm_gen_num_instances > 1:
+                self.fixup_alarm_gen_ini_file()
 
         # We must ensure that the number of partitions in collector
         # and analytics-api is same as that in alarm-gen
