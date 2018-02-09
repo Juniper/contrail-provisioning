@@ -139,6 +139,7 @@ for svc in heat; do
         openstack-config --set /etc/$svc/$svc.conf heat_api bind_port 8005
     fi
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
+    openstack-config --set /etc/$svc/$svc.conf DEFAULT rpc_response_timeout 300
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_host $AMQP_SERVER
     openstack-config --set /etc/$svc/$svc.conf DEFAULT rabbit_port $AMQP_PORT
     PYDIST=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
