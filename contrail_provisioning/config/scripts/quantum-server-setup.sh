@@ -129,6 +129,7 @@ for svc in $net_svc_name; do
     if [[ $rpm_mitaka_or_higher -eq 1 ]]; then
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken username $svc
         openstack-config --set /etc/$svc/$svc.conf keystone_authtoken password $NEUTRON_PASSWORD
+        openstack-config --set /etc/$svc/$svc.conf keystone_authtoken auth_host $CONTROLLER
     fi
 done
 
