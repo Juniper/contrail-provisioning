@@ -42,7 +42,10 @@ class CollectorSetup(ContrailSetup):
             'orchestrator' : 'openstack',
             'aaa_mode': 'cloud-admin',
             'alarm_gen_num_instances': 1,
-            'amqp_port': '5672'
+            'amqp_port': '5672',
+            'discovery_certfile': None,
+            'discovery_keyfile': None,
+            'discovery_cafile': None,
         }
 
         self.parse_args(args_str)
@@ -65,6 +68,10 @@ class CollectorSetup(ContrailSetup):
         if (self._args.keystone_keyfile and
                 self._args.keystone_certfile and self._args.keystone_cafile):
             self.keystone_ssl_enabled = True
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
 
     def parse_args(self, args_str):
@@ -132,6 +139,9 @@ class CollectorSetup(ContrailSetup):
         parser.add_argument("--alarm_gen_num_instances",
             help="Number of contrail-alarm-gen instances per analytics node",
             type=int)
+        parser.add_argument("--discovery_certfile", help="")
+        parser.add_argument("--discovery_keyfile", help="")
+        parser.add_argument("--discovery_cafile", help="")
         self._args = parser.parse_args(self.remaining_argv)
 
     def fixup_config_files(self):
@@ -243,6 +253,14 @@ class CollectorSetup(ContrailSetup):
                         self._args.cfgm_ip)
         self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', 'disc_server_port',
                         '5998')
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(ALARM_GEN_CONF_FILE, 'DISCOVERY', param, value)
 
     def fixup_contrail_snmp_collector(self):
         conf_fl = '/etc/contrail/contrail-snmp-collector.conf'
@@ -263,6 +281,14 @@ class CollectorSetup(ContrailSetup):
                         '/usr/bin/contrail-snmp-collector --conf_file ' + \
                         conf_fl + ' --conf_file ' + \
                         '/etc/contrail/contrail-keystone-auth.conf')
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_fl, 'DISCOVERY', param, value)
 
     def fixup_contrail_analytics_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
@@ -271,6 +297,15 @@ class CollectorSetup(ContrailSetup):
         self._template_substitute_write(contrail_analytics_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-analytics-nodemgr.conf')
         local("sudo mv %s/contrail-analytics-nodemgr.conf /etc/contrail/contrail-analytics-nodemgr.conf" %(self._temp_dir_name))
+         conf_fl = "/etc/contrail/contrail-analytics-nodemgr.conf"
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_fl, 'DISCOVERY', param, value)
 
     def fixup_contrail_topology(self):
         conf_fl = '/etc/contrail/contrail-topology.conf'
@@ -291,6 +326,14 @@ class CollectorSetup(ContrailSetup):
                         '/etc/contrail/contrail-keystone-auth.conf')
         if self._args.internal_vip:
                self.set_config(conf_fl, 'DEFAULTS', 'analytics_api', '%s:8081' %(self._args.internal_vip))
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile, 
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_fl, 'DISCOVERY', param, value)
 
     def fixup_contrail_collector(self):
         ALARM_GEN_CONF_FILE = '/etc/contrail/contrail-alarm-gen.conf'
@@ -340,6 +383,14 @@ class CollectorSetup(ContrailSetup):
             self.set_config(COLLECTOR_CONF_FILE, 'DEFAULT', 'partitions', pstr)
         except:
             self.replace_in_file(COLLECTOR_CONF_FILE, 'partitions', '')
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(COLLECTOR_CONF_FILE, 'DISCOVERY', param, value)
 
     def fixup_contrail_query_engine(self):
         template_vals = {'__contrail_log_file__' : '/var/log/contrail/contrail-query-engine.log',
@@ -400,6 +451,14 @@ class CollectorSetup(ContrailSetup):
         for section, parameter_values in config_vals.items():
             for parameter, value in parameter_values.items():
                 self.set_config(conf_file, section, parameter, value)
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
         # pickup the number of partitions from alarmgen conf
         # if it isn't there, analytics-api conf should use defaults too

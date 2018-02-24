@@ -75,9 +75,16 @@ class ComputeSetup(ContrailSetup):
             'priority_id': None,
             'priority_scheduling': None,
             'priority_bandwidth': None,
+            'discovery_certfile': None,
+            'discovery_keyfile': None,
+            'discovery_cafile': None,
         }
 
         self.parse_args(args_str)
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
     def parse_args(self, args_str):
         '''
@@ -159,6 +166,9 @@ class ComputeSetup(ContrailSetup):
                             nargs='+', type=str)
         parser.add_argument("--priority_bandwidth", help = "Maximum bandwidth for priority group",
                             nargs='+', type=str)
+        parser.add_argument("--discovery_certfile", help="")
+        parser.add_argument("--discovery_keyfile", help="")
+        parser.add_argument("--discovery_cafile", help="")
 
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
