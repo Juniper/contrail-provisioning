@@ -30,10 +30,17 @@ class ControlSetup(ContrailSetup):
             'use_certs': False,
             'puppet_server': None,
             'ifmap_password': None,
+            'discovery_certfile': None,
+            'discovery_keyfile': None,
+            'discovery_cafile': None,
         }
 
         self.parse_args(args_str)
         self.control_ip = self._args.self_ip
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
     def parse_args(self, args_str):
         '''
@@ -51,6 +58,9 @@ class ControlSetup(ContrailSetup):
             action="store_true")
         parser.add_argument("--puppet_server", help = "FQDN of Puppet Master")
         parser.add_argument("--ifmap_password", help = "Ifmap password")
+        parser.add_argument("--discovery_certfile", help="")
+        parser.add_argument("--discovery_keyfile", help="")
+        parser.add_argument("--discovery_cafile", help="")
 
         self._args = parser.parse_args(self.remaining_argv)
 
@@ -75,6 +85,15 @@ class ControlSetup(ContrailSetup):
         self._template_substitute_write(contrail_control_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-control.conf')
         local("sudo mv %s/contrail-control.conf /etc/contrail/contrail-control.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-control.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def fixup_contrail_control_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self._args.cfgm_ip,
@@ -83,6 +102,15 @@ class ControlSetup(ContrailSetup):
         self._template_substitute_write(contrail_control_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-control-nodemgr.conf')
         local("sudo mv %s/contrail-control-nodemgr.conf /etc/contrail/contrail-control-nodemgr.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-control-nodemgr.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def fixup_dns(self):
         dns_template_vals = {'__contrail_ifmap_usr__': '%s.dns' %(self.control_ip),
@@ -99,6 +127,15 @@ class ControlSetup(ContrailSetup):
             local("".join(["sed -i 's/secret \"secret123\"",
                            ";/secret \"xvysmOR8lnUQRBcunkC6vg==\";/g'",
                            " /etc/contrail/dns/%s.conf" % confl]))
+        conf_file = '/etc/contrail/contrail-dns.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def run_services(self):
         local("sudo control-server-setup.sh")
