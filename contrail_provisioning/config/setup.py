@@ -61,6 +61,9 @@ class ConfigSetup(ContrailSetup):
             'apiserver_keyfile': None,
             'apiserver_cafile': None,
             'ifmap_password': None,
+            'discovery_certfile': None,
+            'discovery_keyfile': None,
+            'discovery_cafile': None,
         }
         self.parse_args(args_str)
 
@@ -117,6 +120,9 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--apiserver_certfile", help="")
         parser.add_argument("--apiserver_keyfile", help="")
         parser.add_argument("--apiserver_cafile", help="")
+        parser.add_argument("--discovery_certfile", help="")
+        parser.add_argument("--discovery_keyfile", help="")
+        parser.add_argument("--discovery_cafile", help="")
 
         parser.add_argument("--nworkers",
             help = "Number of worker processes for api and discovery services",

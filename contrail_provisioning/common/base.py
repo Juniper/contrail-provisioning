@@ -300,6 +300,15 @@ class ContrailSetup(object):
                 os.path.basename(self._args.apiserver_keyfile))
         return (certfile, cafile, keyfile)
 
+    def _get_discovery_certs(self, ssl_path='/etc/contrail/ssl/certs/'):
+        cafile = os.path.join(ssl_path,
+                os.path.basename(self._args.discovery_cafile))
+        certfile = os.path.join(ssl_path,
+                os.path.basename(self._args.discovery_certfile))
+        keyfile = os.path.join(os.path.dirname(ssl_path).replace('certs', 'private'),
+                os.path.basename(self._args.discovery_keyfile))
+        return (certfile, cafile, keyfile)
+
     def fixup_keystone_auth_config_file(self, configure_memcache):
         # Keystone auth config ini
         template_vals = {
