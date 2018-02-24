@@ -61,6 +61,10 @@ class ConfigBaseSetup(ContrailSetup):
                 self._args.apiserver_certfile and self._args.apiserver_cafile):
             self.api_ssl_enabled = True
         self.keystone_ssl_enabled = False
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
     def fixup_config_files(self):
         self.fixup_cassandra_config()
@@ -143,6 +147,15 @@ class ConfigBaseSetup(ContrailSetup):
         local("sudo mv %s/contrail-api.conf /etc/contrail/" %(self._temp_dir_name))
         if self.amqp_password:
             local("sudo openstack-config --set /etc/contrail/contrail-api.conf DEFAULTS rabbit_password %s" % self.amqp_password)
+        conf_file = '/etc/contrail/contrail-api.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DEFAULTS', param, value)
 
     def fixup_contrail_api_supervisor_ini(self, config_files=['/etc/contrail/contrail-api.conf', '/etc/contrail/contrail-database.conf']):
         # supervisor contrail-api.ini
@@ -206,6 +219,15 @@ class ConfigBaseSetup(ContrailSetup):
         local("sudo chmod a+x /etc/init.d/contrail-schema")
         if self.amqp_password:
             local("sudo openstack-config --set /etc/contrail/contrail-schema.conf DEFAULTS rabbit_password %s" % self.amqp_password)
+        conf_file = '/etc/contrail/contrail-schema.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DEFAULTS', param, value)
 
     def fixup_device_manager_ini(self,config_files=
                                       ['/etc/contrail/contrail-device-manager.conf',
@@ -233,12 +255,28 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
                         }
+        if self.disc_ssl_enabled:
+            template_vals.update({
+                         '__contrail_discovery__': self.disc_ssl_enabled,
+                         '__contrail_disc_server_cert__': self._args.discovery_certfile,
+                         '__contrail_disc_server_key__': self._args.discovery_keyfile,
+                         '__contrail_disc_server_cacert__': self._args.discovery_cafile,
+                       })
         self._template_substitute_write(contrail_device_manager_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-device-manager.conf')
         local("sudo mv %s/contrail-device-manager.conf /etc/contrail/contrail-device-manager.conf" %(self._temp_dir_name))
         #local("sudo chmod a+x /etc/init.d/contrail-device-manager")
         if self.amqp_password:
             local("sudo openstack-config --set /etc/contrail/contrail-device-manager.conf DEFAULTS rabbit_password %s" % self.amqp_password)
+        conf_file = '/etc/contrail/contrail-device-manager.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DEFAULTS', param, value)
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
@@ -262,11 +300,27 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_disc_server_port__': '5998',
                          '__contrail_region_name__': self._args.region_name,
                         }
+        if self.disc_ssl_enabled:
+            template_vals.update({
+                         '__contrail_discovery__': self.disc_ssl_enabled,
+                         '__contrail_disc_server_cert__': self._args.discovery_certfile,
+                         '__contrail_disc_server_key__': self._args.discovery_keyfile,
+                         '__contrail_disc_server_cacert__': self._args.discovery_cafile,
+                       })
         self._template_substitute_write(contrail_svc_monitor_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-svc-monitor.conf')
         local("sudo mv %s/contrail-svc-monitor.conf /etc/contrail/contrail-svc-monitor.conf" %(self._temp_dir_name))
         if self.amqp_password:
             local("sudo openstack-config --set /etc/contrail/contrail-svc-monitor.conf DEFAULTS rabbit_password %s" % self.amqp_password)
+        conf_file = '/etc/contrail/contrail-svc-monitor.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'disc_server_ssl': self.disc_ssl_enabled,
+                       'disc_server_cert': certfile,
+                       'disc_server_key': keyfile,
+                       'disc_server_cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DEFAULTS', param, value)
 
     def fixup_discovery_config_file(self):
         # discovery.conf_
@@ -336,10 +390,19 @@ class ConfigBaseSetup(ContrailSetup):
     def fixup_contrail_config_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_discovery_port__': '5998'
-                       }
+                        }
         self._template_substitute_write(contrail_config_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
         local("sudo mv %s/contrail-config-nodemgr.conf /etc/contrail/contrail-config-nodemgr.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-config-nodemgr.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def fixup_cassandra_config(self):
         if self._args.cassandra_user is not None:
