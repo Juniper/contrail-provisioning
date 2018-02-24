@@ -27,12 +27,19 @@ class DatabaseSetup(DatabaseCommon):
             'database_listen_ip' : '127.0.0.1',
             'cfgm_ip': '127.0.0.1',
             'minimum_diskGB': '256',
+            'discovery_certfile': None,
+            'discovery_keyfile': None,
+            'discovery_cafile': None,
         }
         self.parse_args(args_str)
 
         self.database_listen_ip = self._args.self_ip
         self.database_seed_list = self._args.seed_list
         self.database_dir = self._args.dir
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
     def parse_args(self, args_str):
         '''
@@ -67,6 +74,9 @@ class DatabaseSetup(DatabaseCommon):
         parser.add_argument("--cassandra_user", help = "Cassandra user name if provided")
         parser.add_argument("--cassandra_password", help = "Cassandra password if provided")
         parser.add_argument("--opscenter_ip", help = "IP Address of webui/opscenter node")
+        parser.add_argument("--discovery_certfile", help="")
+        parser.add_argument("--discovery_keyfile", help="")
+        parser.add_argument("--discovery_cafile", help="")
         self._args = parser.parse_args(self.remaining_argv)
 
     def create_analytics_data_dir(self, data_dir, cass_data_dir,
@@ -205,6 +215,15 @@ class DatabaseSetup(DatabaseCommon):
         self._template_substitute_write(contrail_database_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-database-nodemgr.conf')
         local("sudo mv %s/contrail-database-nodemgr.conf /etc/contrail/contrail-database-nodemgr.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-database-nodemgr.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def create_cassandra_user(self):
         template_vals = {

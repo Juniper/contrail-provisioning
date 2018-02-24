@@ -55,6 +55,10 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             # Deduce the phy interface from ip, if configured
             self.dev = self.get_device_by_ip(self.vhost_ip)
         self.config_nova = not(getattr(self._args, 'no_nova_config', False))
+        self.disc_ssl_enabled = False
+        if (self._args.discovery_keyfile and
+                self._args.discovery_certfile and self._args.discovery_cafile):
+            self.disc_ssl_enabled = True
 
     def enable_kernel_core(self): 
         self.enable_kernel_core()
@@ -106,6 +110,15 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self._template_substitute_write(contrail_vrouter_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-vrouter-nodemgr.conf')
         local("sudo mv %s/contrail-vrouter-nodemgr.conf /etc/contrail/contrail-vrouter-nodemgr.conf" %(self._temp_dir_name))
+        conf_file = '/etc/contrail/contrail-vrouter-nodemgr.conf'
+        if self.disc_ssl_enabled:
+            certfile, cafile, keyfile = self._get_discovery_certs()
+            configs = {'ssl': self.disc_ssl_enabled,
+                       'cert': certfile,
+                       'key': keyfile,
+                       'cacert': cafile}
+            for param, value in configs.items():
+                self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def fixup_contrail_vrouter_agent(self):
         keystone_ip = self._args.keystone_ip
@@ -291,6 +304,15 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
 
             local("sudo cp %s/vnswad.conf /etc/contrail/contrail-vrouter-agent.conf" %(self._temp_dir_name))
             local("sudo rm %s/vnswad.conf*" %(self._temp_dir_name))
+            conf_file = '/etc/contrail/contrail-vrouter-agent.conf'
+            if self.disc_ssl_enabled:
+                certfile, cafile, keyfile = self._get_discovery_certs()
+                configs = {'ssl': self.disc_ssl_enabled,
+                           'cert': certfile,
+                           'key': keyfile,
+                           'cacert': cafile}
+                for param, value in configs.items():
+                    self.set_config(conf_file, 'DISCOVERY', param, value)
 
             self.fixup_vhost0_interface_configs()
 
