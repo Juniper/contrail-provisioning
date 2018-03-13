@@ -95,6 +95,9 @@ class ConfigSetup(ContrailSetup):
             help = "Enable RBAC")
         parser.add_argument("--cassandra_ip_list", help = "List of IP Addresses of cassandra nodes",
                             nargs='+', type=str)
+        parser.add_argument("--cassandra_ssl", help = "Enable SSL connections to Cassandra",
+                            action="store_true")
+        parser.add_argument("--cassandra_ssl_cacert", help = "Path to the Cassandra CA certs")
         parser.add_argument("--zookeeper_ip_list", help = "List of IP Addresses of zookeeper servers",
                             nargs='+', type=str)
         parser.add_argument("--control_ip_list", help = "List of IP Addresses of Control nodes",
