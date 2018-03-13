@@ -18,6 +18,15 @@ from fabric.api import *
 from contrail_provisioning.common.templates import contrail_keystone_auth_conf
 from contrail_provisioning.config.templates import vnc_api_lib_ini
 
+class ArgsToDict(argparse.Action):
+    def __call__(self, parser, namespace, values, option_strings=None):
+        _dest = dict(zip(values[::2], values[1::2]))
+        _dest_tmp = _dest.copy()
+        _default = {} if self.dest not in parser._defaults else parser._defaults[self.dest]
+        _dest.update(_default)
+        _dest.update(_dest_tmp)
+        setattr(namespace, self.dest, _dest)
+
 class ContrailSetup(object):
     def __init__(self):
         (self.pdist, self.pdistversion, self.pdistrelease) = platform.dist()

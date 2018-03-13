@@ -30,6 +30,7 @@ from contrail_provisioning.config.templates import contrail_discovery_svc
 from contrail_provisioning.config.templates import contrail_sudoers
 from contrail_provisioning.config.templates import contrail_config_nodemgr_template
 from contrail_provisioning.common.templates import contrail_database_template
+from contrail_provisioning.common.templates import casssandra_cqlsh_template
 from contrail_provisioning.config.templates import contrail_device_manager_ini
 
 class ConfigBaseSetup(ContrailSetup):
@@ -156,6 +157,11 @@ class ConfigBaseSetup(ContrailSetup):
                        'disc_server_cacert': cafile}
             for param, value in configs.items():
                 self.set_config(conf_file, 'DEFAULTS', param, value)
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_contrail_api_supervisor_ini(self, config_files=['/etc/contrail/contrail-api.conf', '/etc/contrail/contrail-database.conf']):
         # supervisor contrail-api.ini
@@ -228,6 +234,11 @@ class ConfigBaseSetup(ContrailSetup):
                        'disc_server_cacert': cafile}
             for param, value in configs.items():
                 self.set_config(conf_file, 'DEFAULTS', param, value)
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_device_manager_ini(self,config_files=
                                       ['/etc/contrail/contrail-device-manager.conf',
@@ -277,6 +288,11 @@ class ConfigBaseSetup(ContrailSetup):
                        'disc_server_cacert': cafile}
             for param, value in configs.items():
                 self.set_config(conf_file, 'DEFAULTS', param, value)
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_svc_monitor_config_file(self):
         # contrail-svc-monitor.conf
@@ -321,6 +337,11 @@ class ConfigBaseSetup(ContrailSetup):
                        'disc_server_cacert': cafile}
             for param, value in configs.items():
                 self.set_config(conf_file, 'DEFAULTS', param, value)
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_discovery_config_file(self):
         # discovery.conf_
@@ -337,6 +358,12 @@ class ConfigBaseSetup(ContrailSetup):
         self._template_substitute_write(contrail_discovery_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-discovery.conf')
         local("sudo mv %s/contrail-discovery.conf /etc/contrail/" %(self._temp_dir_name))
+        conf_file = os.path.join('/', 'etc', 'contrail', 'contrail-discovery.conf')
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_discovery_supervisor_ini(self, config_files= ['/etc/contrail/contrail-discovery.conf']):
         # supervisor contrail-discovery.ini
@@ -403,17 +430,36 @@ class ConfigBaseSetup(ContrailSetup):
                        'cacert': cafile}
             for param, value in configs.items():
                 self.set_config(conf_file, 'DISCOVERY', param, value)
+        if self._args.cassandra_ssl_options['enabled']:
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+            self.set_config(conf_file, 'DEFAULTS',
+                'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
 
     def fixup_cassandra_config(self):
+        # create ca certs if cassandra_ssl is true
         if self._args.cassandra_user is not None:
             if os.path.isfile('/etc/contrail/contrail-database.conf') is not True:
-                 # Create conf file
-                 template_vals = {'__cassandra_user__': self._args.cassandra_user,
-                                  '__cassandra_password__': self._args.cassandra_password
-                                 }
-                 self._template_substitute_write(contrail_database_template.template,
-                                        template_vals, self._temp_dir_name + '/contrail-config-database.conf')
-                 local("sudo mv %s/contrail-config-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
+                # Create conf file
+                template_vals = {'__cassandra_user__': self._args.cassandra_user,
+                                 '__cassandra_password__': self._args.cassandra_password
+                                }
+                self._template_substitute_write(contrail_database_template.template,
+                template_vals, self._temp_dir_name + '/contrail-config-database.conf')
+                local("sudo mv %s/contrail-config-database.conf /etc/contrail/contrail-database.conf" %(self._temp_dir_name))
+                conf_file = os.path.join('/', 'etc', 'contrail', 'contrail-database.conf')
+                if self._args.cassandra_ssl_options['enabled']:
+                    self.set_config(conf_file, 'DEFAULTS',
+                        'cassandra_use_ssl', self._args.cassandra_ssl_options['enabled'])
+                    self.set_config(conf_file, 'DEFAULTS',
+                        'cassandra_ca_certs', self._args.cassandra_ssl_options['contrail_rootCa'])
+                    # create .cqlshrc to use csqlsh commands when Cassandra SSL is enabled
+                    template_vals = {'__certfile__': self._args.cassandra_ssl_options['contrail_rootCa']}
+                    self._template_substitute_write(casssandra_cqlsh_template.template,
+                        template_vals, self._temp_dir_name + '/.cqlshrc')
+                    local("sudo mkdir -p /var/lib/contrail/.cassandra/")
+                    local("sudo mv %s/.cqlshrc /var/lib/contrail/.cassandra/" % self._temp_dir_name)
+                    local("sudo chown contrail:contrail /var/lib/contrail/.cassandra/.cqlshrc")
  
     def restart_config(self):
         local('sudo service supervisor-config restart')
@@ -447,13 +493,15 @@ class ConfigBaseSetup(ContrailSetup):
                                    self._args.cfgm_index)
         db_services = ['zookeeper']
         if self._args.manage_db:
+            print 'config_common_np1'; import pdb; pdb.set_trace()
             db.create_data_dir(self._args.data_dir)
             db.fixup_etc_hosts_file(self._args.self_ip, self.hostname)
             db.fixup_cassandra_config_file(self._args.self_ip,
-                                           self._args.seed_list,
-                                           self._args.data_dir,
-                                           self._args.ssd_data_dir,
-                                           cluster_name='ContrailConfigDB')
+                self._args.seed_list,
+                self._args.data_dir,
+                self._args.ssd_data_dir,
+                cluster_name='ContrailConfigDB',
+                cassandra_ssl_options=self._args.cassandra_ssl_options)
             db.fixup_cassandra_env_config()
             db_services.append('contrail-database')
         for svc in db_services:

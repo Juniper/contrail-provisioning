@@ -7,7 +7,7 @@ import os
 import sys
 from fabric.api import local
 
-from contrail_provisioning.common.base import ContrailSetup
+from contrail_provisioning.common.base import ContrailSetup, ArgsToDict
 from contrail_provisioning.config.common import ConfigBaseSetup
 from contrail_provisioning.config.openstack import ConfigOpenstackSetup
 
@@ -64,6 +64,19 @@ class ConfigSetup(ContrailSetup):
             'discovery_certfile': None,
             'discovery_keyfile': None,
             'discovery_cafile': None,
+            'cassandra_ssl_options': {
+                'enabled': False,
+                'config_dir': '/usr/local/lib/cassandra/conf',
+                'truststore': '/usr/local/lib/cassandra/conf/truststore.jks',
+                'rootCa': '/usr/local/lib/cassandra/conf/rootCa.crt',
+                'contrail_rootCa': '/opt/contrail/ssl/cassandra/rootCa.crt',
+                'keystore_password': 'c0ntrail123',
+                'truststore_password': 'c0ntrail123',
+                'protocol': 'TLS',
+                'algorithm': 'SunX509',
+                'store_type': 'JKS',
+                'cipher_suites': '["TLS_RSA_WITH_AES_256_CBC_SHA"]',
+            }
         }
         self.parse_args(args_str)
 
@@ -157,10 +170,24 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--cassandra_password", help = "Cassandra password",
             default= None)
         parser.add_argument("--ifmap_password", help = "Ifmap password")
+        parser.add_argument("--cassandra_ssl_options", nargs="*",
+            action=ArgsToDict,
+            help = "Cassandra SSL Options. Format "
+                   "<option1> <value1>.. <optionN> <valueN>")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:
             self._args.neutron_password = self._args.keystone_admin_passwd
+        # Using cassandra rootCa
+        if (self._args.cassandra_ssl_options['enabled'] and
+            not os.path.isfile(self._args.cassandra_ssl_options['contrail_rootCa'])):
+                local("ls %s" % self._args.cassandra_ssl_options['rootCa'])
+                rootca_dir = os.path.dirname(self._args.cassandra_ssl_options['contrail_rootCa'])
+                local("mkdir -p %s" % rootca_dir)
+                local("cp -af %s %s" % (
+                    self._args.cassandra_ssl_options['rootCa'],
+                    self._args.cassandra_ssl_options['contrail_rootCa']))
+                local("chown contrail:contrail %s" % self._args.cassandra_ssl_options['contrail_rootCa'])
 
 
 def main(args_str = None):
