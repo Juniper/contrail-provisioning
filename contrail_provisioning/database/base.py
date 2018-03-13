@@ -5,6 +5,8 @@
 
 import os
 import subprocess
+import shutil
+from tempfile import NamedTemporaryFile
 from fabric.api import local, settings
 
 from contrail_provisioning.common.base import ContrailSetup
@@ -55,7 +57,7 @@ class DatabaseCommon(ContrailSetup):
     
     def fixup_cassandra_config_file(self, listen_ip, seed_list, data_dir,
                                     ssd_data_dir, cluster_name='Contrail',
-                                    user=None):
+                                    user=None, cassandra_ssl_options=None):
 
         if not os.path.exists(self.cassandra.conf_dir):
             raise RuntimeError('%s does not appear to be a cassandra conf',
@@ -104,6 +106,34 @@ class DatabaseCommon(ContrailSetup):
                     conf_file,
                     '          - seeds: ',
                     '          - seeds: "' + ", ".join(seed_list) + '"')
+
+        if cassandra_ssl_options:
+            print 'np_database_1'; import pdb; pdb.set_trace()
+            kwords = ['enabled', 'optional', 'keystore',
+                      'keystore_password', 'truststore',
+                      'truststore_password', 'protocol',
+                      'algorithm', 'store_type', 'cipher_suites']
+            # work on a copy of cassandra.yaml
+            tempfile = NamedTemporaryFile()
+            if not os.path.isfile('%s.org' % conf_file):
+                local("sudo cp -f %s %s.org" % (conf_file, conf_file))
+            local("sudo cp -f %s %s" % (conf_file, tempfile.name))
+            with open(tempfile.name, 'r') as fid:
+                contents = fid.read().split('\n')
+                fid.flush()
+            start_index = contents.index('client_encryption_options:')
+            end_index = contents[start_index:].index('')
+            for index in range(start_index+1, (start_index+end_index)):
+                line = contents[index].split(':', 1)
+                for kword in kwords:
+                    if "%s:" % kword in contents[index]:
+                        contents[index] = "%s: %s" % (line[0].replace('# ', ''),
+                                                   cassandra_ssl_options[kword])
+            with open(tempfile.name, 'w') as fid:
+                fid.write("\n".join(contents))
+                fid.flush()
+            local("sudo cp -f %s %s" % (tempfile.name, conf_file))
+
 
     def fixup_cassandra_env_config(self):
         env_file = os.path.join(self.cassandra.conf_dir,
