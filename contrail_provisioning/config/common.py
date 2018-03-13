@@ -135,6 +135,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_use_certs__': self._args.use_certs,
                          '__rabbit_server_ip__': self.rabbit_servers,
                          '__contrail_log_file__': '/var/log/contrail/contrail-api.log',
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
@@ -208,6 +210,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_certfile_location__': '/etc/contrail/ssl/certs/schema_xfer.pem',
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-schema.log',
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
@@ -251,6 +255,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__api_server_use_ssl__': 'True' if self.api_ssl_enabled else 'False',
                          '__contrail_zookeeper_server_ip__': self.zk_servers_ports,
                          '__contrail_log_file__' : '/var/log/contrail/contrail-device-manager.log',
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
@@ -295,6 +301,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_certfile_location__': '/etc/contrail/ssl/certs/svc_monitor.pem',
                          '__contrail_cacertfile_location__': '/etc/contrail/ssl/certs/ca.pem',
                          '__contrail_log_file__' : '/var/log/contrail/contrail-svc-monitor.log',
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                          '__contrail_disc_server_ip__': self.contrail_internal_vip or self.cfgm_ip,
                          '__contrail_disc_server_port__': '5998',
@@ -332,6 +340,8 @@ class ConfigBaseSetup(ContrailSetup):
                          '__contrail_log_local__': 'True',
                          '__contrail_log_file__': '/var/log/contrail/contrail-discovery.log',
                          '__contrail_healthcheck_interval__': 5,
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                          '__contrail_cassandra_server_list__' : ' '.join('%s:%s' % cassandra_server for cassandra_server in self.cassandra_server_list),
                         }
         self._template_substitute_write(contrail_discovery_conf.template,
@@ -389,7 +399,9 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_contrail_config_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_discovery_port__': '5998'
+                         '__contrail_discovery_port__': '5998',
+                         '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                         '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                         }
         self._template_substitute_write(contrail_config_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
@@ -405,11 +417,14 @@ class ConfigBaseSetup(ContrailSetup):
                 self.set_config(conf_file, 'DISCOVERY', param, value)
 
     def fixup_cassandra_config(self):
+        # create ca certs if cassandra_ssl is true
         if self._args.cassandra_user is not None:
             if os.path.isfile('/etc/contrail/contrail-database.conf') is not True:
                  # Create conf file
                  template_vals = {'__cassandra_user__': self._args.cassandra_user,
-                                  '__cassandra_password__': self._args.cassandra_password
+                                  '__cassandra_password__': self._args.cassandra_password,
+                                  '__cassandra_use_ssl__': self._args.cassandra_ssl,
+                                  '__cassandra_ca_certs__': self._args.cassandra_ssl_cacert,
                                  }
                  self._template_substitute_write(contrail_database_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-config-database.conf')
