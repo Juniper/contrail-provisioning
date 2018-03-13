@@ -81,6 +81,7 @@ setup(
                'contrail_provisioning/config/scripts/config-server-cleanup.sh',
                'contrail_provisioning/config/scripts/quantum-server-setup.sh',
                'contrail_provisioning/config/scripts/create-api-ssl-certs.sh',
+               'contrail_provisioning/config/scripts/create-cassandra-ssl-keys.sh',
                # Collector executables
                'contrail_provisioning/collector/scripts/collector-server-setup.sh',
                'contrail_provisioning/collector/scripts/collector-server-cleanup.sh',
