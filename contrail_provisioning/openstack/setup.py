@@ -36,7 +36,7 @@ class OpenstackSetup(ContrailSetup):
             'quantum_service_protocol': 'http',
             'quantum_port': 9696,
             'haproxy': False,
-            'osapi_compute_workers': 40,
+            'osapi_compute_workers': None,
             'conductor_workers': 40,
             'sriov':False,
             'service_dbpass' : 'c0ntrail123',
@@ -49,6 +49,10 @@ class OpenstackSetup(ContrailSetup):
         if not args_str:
             args_str = ' '.join(sys.argv[1:])
         self.parse_args(args_str)
+
+        if not self._args.osapi_compute_workers:
+            num_cores=local("cat /proc/cpuinfo | grep -c processor")
+            self._args.osapi_compute_workers = num_cores
 
         if self.pdist in ['Ubuntu'] and self.pdistversion == '16.04':
             self.mysql_conf = '/etc/mysql/my.cnf'
