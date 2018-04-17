@@ -41,7 +41,8 @@ class CollectorSetup(ContrailSetup):
             'apiserver_cafile': None,
             'orchestrator' : 'openstack',
             'aaa_mode': 'cloud-admin',
-            'alarm_gen_num_instances': 1
+            'alarm_gen_num_instances': 1,
+            'disable_uve_cache': True
         }
 
         self.parse_args(args_str)
