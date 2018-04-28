@@ -62,6 +62,13 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
                 self._args.to_rel >= LooseVersion('2.20')):
             self.fixup_contrail_database_nodemgr()
 
+        # MessageTablev2 schema was defined in R4.1.0 but not used
+        # schema changed in R4.1.1, hence dropping the table
+        if (self._args.from_rel == LooseVersion('4.1.0') and
+                self._args.to_rel >= LooseVersion('4.1.1')):
+            local("cqlsh %s -e 'DROP TABLE \"ContrailAnalyticsCql\".MessageTablev2;'" %
+                  (self.database_listen_ip))
+
         # Change DEFAULT to DEFAULTS in contrail-database-nodemgr.conf
         dn_conf_file = '/etc/contrail/contrail-database-nodemgr.conf'
         self._change_section(dn_conf_file, 'DEFAULT', 'DEFAULTS')
