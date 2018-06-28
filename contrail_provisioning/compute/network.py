@@ -372,10 +372,11 @@ HWADDR=%s
             local("echo '    pre-up ethtool --offload %s lro off' >> %s" %(intf, temp_intf_file))
 
         # populte vhost0 as static
+        pre_up_vhost_file = '%s/if-vhost0' %(self.contrail_bin_dir)
         local("echo '' >> %s" %(temp_intf_file))
         local("echo 'auto vhost0' >> %s" %(temp_intf_file))
         local("echo 'iface vhost0 inet static' >> %s" %(temp_intf_file))
-        local("echo '    pre-up %s/if-vhost0' >> %s" %(self.contrail_bin_dir, temp_intf_file))
+        local("echo '    pre-up %s' >> %s" %(pre_up_vhost_file, temp_intf_file))
         local("echo '    netmask %s' >> %s" %(netmask, temp_intf_file))
         local("echo '    network_name application' >> %s" %(temp_intf_file))
         if esxi_vm and datapg_mtu:
@@ -399,3 +400,7 @@ HWADDR=%s
 
         # move it to right place
         local("sudo mv -f %s %s" %(temp_intf_file, dev_cfgfile))
+
+        if self._args.dpdk:
+            local("echo 'sleep 10' >> %s" %(pre_up_vhost_file))
+
