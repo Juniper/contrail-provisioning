@@ -307,7 +307,7 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
             conf_file = '/etc/contrail/contrail-vrouter-agent.conf'
             if self.disc_ssl_enabled:
                 certfile, cafile, keyfile = self._get_discovery_certs()
-                configs = {'ssl': self.disc_ssl_enabled.lower(),
+                configs = {'ssl': str(self.disc_ssl_enabled).lower(),
                            'cert': certfile,
                            'key': keyfile,
                            'cacert': cafile}
