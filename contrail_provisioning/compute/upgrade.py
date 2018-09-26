@@ -101,6 +101,43 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
             local("sed -i 's$^kmod[ ]*=[ ]*/lib/modules/[^/]*/extra/net/vrouter/vrouter.ko$kmod=vrouter$g' /tmp/np-agent-param")
         local("grep '^kmod[ ]*=[ ]*vrouter' /etc/contrail/agent_param")
 
+    def fixup_apparmor(self):
+        global LIBVIRT_QEMU_HELPER_TMP_FILE
+        LIBVIRT_QEMU_HELPER_TMP_FILE = '/tmp/libvirt-qemu'
+        global LIBVIRT_QEMU_HELPER_FILE
+        LIBVIRT_QEMU_HELPER_FILE = '/etc/apparmor.d/abstractions/libvirt-qemu'
+        virt_qemu_present=local('sudo ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE), capture=True)
+        if virt_qemu_present != '0':
+            global_virt_tmp_helper=local('sudo cat %s | \
+                                    grep -n "deny \/tmp\/" | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE), capture=True)
+            if global_virt_tmp_helper != '0':
+                snap_lineno=int(local('sudo cat %s | \
+                                    grep -n "deny \/tmp\/" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_QEMU_HELPER_FILE), capture=True))
+                local('sudo head -n %d %s > %s' %(snap_lineno-1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  capability mknod," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/ceph/* r," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/qemu-ifup ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/qemu-ifdown ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  owner /tmp/* rw," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /tmp/memfd-* rwk," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo cp -f %s %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE,
+                                    LIBVIRT_QEMU_HELPER_FILE))
+
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
@@ -126,6 +163,8 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         if ('v3' in self._args.keystone_version and
                 self._args.from_rel <= LooseVersion('3.1.2.0')):
             self.fix_nova_config_kv3_params()
+        if self._args.dpdk:
+            self.fixup_apparmor()
         self.enable_apt_get_auto_start()
 
 def main():
