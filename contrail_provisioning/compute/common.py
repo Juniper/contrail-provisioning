@@ -70,6 +70,8 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self.fixup_contrail_vrouter_agent()
         self.fixup_contrail_vrouter_nodemgr()
         self.fixup_contrail_lbaas()
+        if self._args.dpdk:
+            self.fixup_apparmor()
 
     def setup_lbaas_prereq(self):
         if self.pdist in ['centos', 'redhat']:
@@ -328,6 +330,43 @@ class ComputeBaseSetup(ContrailSetup, ComputeNetworkSetup):
         self._template_substitute_write(contrail_lbaas_auth_conf.template,
                                         template_vals, self._temp_dir_name + '/contrail-lbaas-auth.conf')
         local("sudo mv %s/contrail-lbaas-auth.conf /etc/contrail/contrail-lbaas-auth.conf" %(self._temp_dir_name))
+
+    def fixup_apparmor(self):
+        global LIBVIRT_QEMU_HELPER_TMP_FILE
+        LIBVIRT_QEMU_HELPER_TMP_FILE = '/tmp/libvirt-qemu'
+        global LIBVIRT_QEMU_HELPER_FILE
+        LIBVIRT_QEMU_HELPER_FILE = '/etc/apparmor.d/abstractions/libvirt-qemu'
+        virt_qemu_present=local('sudo ls %s 2>/dev/null | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE))
+        if virt_qemu_present != '0':
+            global_virt_tmp_helper=local('sudo cat %s | \
+                                    grep -n "deny \/tmp\/" | wc -l'
+                                    %(LIBVIRT_QEMU_HELPER_FILE))
+            if global_virt_tmp_helper != '0':
+                snap_lineno=int(local('sudo cat %s | \
+                                    grep -n "deny \/tmp\/" | \
+                                    cut -d \':\' -f 1'
+                                    %(LIBVIRT_QEMU_HELPER_FILE)))
+                local('sudo head -n %d %s > %s' %(snap_lineno-1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo tail -n +%d %s >> %s' %(snap_lineno+1,
+                                    LIBVIRT_QEMU_HELPER_FILE,
+                                    LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  capability mknod," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/ceph/* r," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/qemu-ifup ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /etc/qemu-ifdown ixr," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  owner /tmp/* rw," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo echo "  /tmp/memfd-* rwk," \
+                                    >> %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE))
+                local('sudo cp -f %s %s' %(LIBVIRT_QEMU_HELPER_TMP_FILE,
+                                    LIBVIRT_QEMU_HELPER_FILE))
 
     def fixup_vhost0_interface_configs(self):
         if self.pdist in ['centos', 'fedora', 'redhat']:
