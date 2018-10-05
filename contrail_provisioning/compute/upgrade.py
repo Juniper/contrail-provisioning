@@ -141,6 +141,7 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
     def upgrade(self):
         self.disable_apt_get_auto_start()
         self._upgrade()
+        self._upgrade_all_package()
         if ((self.pdist not in ['Ubuntu']) and
             ('running' in local('service supervisor-vrouter status',
                                 capture=True))):

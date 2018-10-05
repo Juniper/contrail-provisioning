@@ -97,7 +97,17 @@ class ContrailUpgrade(object):
             cmd = 'yum -y --nogpgcheck '
             cmd += ' install %s' % pkgs
         local(cmd)
-    
+
+    def _upgrade_all_package(self):
+        if not self.upgrade_data['upgrade']:
+            return
+        if self.pdist in ['Ubuntu']:
+            cmd = 'DEBIAN_FRONTEND=noninteractive apt-get -y --force-yes'
+            cmd += ' -o Dpkg::Options::="--force-overwrite"'
+            cmd += ' -o Dpkg::Options::="--force-confnew" --with-new-pkgs'
+            cmd += ' upgrade'
+            local(cmd)
+
     def _backup_config(self):
         self.backup_dir = "/var/tmp/contrail-%s-%s-upgradesave" % \
                            (self._args.to_rel, self.get_build().split('~')[0])
