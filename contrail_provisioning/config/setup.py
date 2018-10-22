@@ -64,6 +64,7 @@ class ConfigSetup(ContrailSetup):
             'discovery_certfile': None,
             'discovery_keyfile': None,
             'discovery_cafile': None,
+            'minimum_diskGB': '64',
         }
         self.parse_args(args_str)
 
@@ -157,6 +158,7 @@ class ConfigSetup(ContrailSetup):
         parser.add_argument("--cassandra_password", help = "Cassandra password",
             default= None)
         parser.add_argument("--ifmap_password", help = "Ifmap password")
+        parser.add_argument("--minimum_diskGB", help = "Required minimum disk space for config database")
         self._args = parser.parse_args(self.remaining_argv)
         # Using keystone admin password for nova/neutron if not supplied
         if not self._args.neutron_password:

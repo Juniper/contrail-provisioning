@@ -389,7 +389,9 @@ class ConfigBaseSetup(ContrailSetup):
 
     def fixup_contrail_config_nodemgr(self):
         template_vals = {'__contrail_discovery_ip__' : self.contrail_internal_vip or self.cfgm_ip,
-                         '__contrail_discovery_port__': '5998'
+                         '__contrail_discovery_port__': '5998',
+                         '__contrail_config_database_ip__': self.cfgm_ip,
+                         '__contrail_config_minimum_disk__': int(self._args.minimum_diskGB)
                         }
         self._template_substitute_write(contrail_config_nodemgr_template.template,
                                         template_vals, self._temp_dir_name + '/contrail-config-nodemgr.conf')
