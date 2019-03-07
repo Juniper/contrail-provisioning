@@ -70,7 +70,7 @@ class DatabaseMigrate(DatabaseCommon):
                 cassandra_version = local(cmd, capture=True)
             else:
                 #for rpms the package name changes w/ every version
-                cassandra_pkgs = ["cassandra12", "cassandra20", "cassandra21", "cassandra22"]
+                cassandra_pkgs = ["cassandra12", "cassandra20", "cassandra21", "cassandra22", "cassandra"]
                 for cassandra_pkg in cassandra_pkgs:
                     cmd = "rpm -q --queryformat '%{VERSION}' " + cassandra_pkg
                     cassandra_version = local(cmd, capture=True)
