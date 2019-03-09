@@ -99,12 +99,12 @@ class DatabaseMigrate(DatabaseCommon):
                 return '2.2'
             return '.'.join(ver.group().split('.')[0:2])
         else:
-            cmd = 'yum deplist ' + repo + '/contrail-database-* | grep "dependency:" | grep cassandra'
+            cmd = 'rpm -qp --requires %s/contrail-database-[0-9].* | grep cassandra' % repo
             cmd_out = local(cmd, capture=True)
             if cmd_out.failed:
                 return '2.2'
             try:
-               ver = '.'.join(list(cmd_out.split()[1][-2:]))
+               ver = cmd_out.split()[-1]
             except:
                raise RuntimeError('Failed to get final cassandra version')
             return ver
@@ -165,13 +165,8 @@ class DatabaseMigrate(DatabaseCommon):
             inter_pkgs = self._get_inter_pkgs(final_ver)
 
         current_version = self._get_cassandra_version()
-        try:
-            current_version = '.'.join(current_version.split('.')[0:2])
-        except:
-            raise RuntimeError('Cassandra version parse failed')
-
         print 'Request to migrate cassandra from %s to %s...' % (current_version, final_ver)
-        if current_version == final_ver:
+        if LooseVersion(current_version) == LooseVersion(final_ver):
             return
 
         # run nodetool upgradesstables
