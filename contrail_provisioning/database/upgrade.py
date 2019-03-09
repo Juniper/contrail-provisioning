@@ -17,6 +17,13 @@ class DatabaseUpgrade(ContrailUpgrade, DatabaseSetup):
         self.update_upgrade_data()
 
     def update_upgrade_data(self):
+        self.upgrade_data['backup'].append(
+            '/etc/cassandra/conf/cassandra.yaml',
+            '/etc/cassandra/conf/cassandra-env.sh')
+        if (self._args.from_rel <= LooseVersion('3.2.11') and
+            self._args.to_rel >= LooseVersion('3.2.12')):
+            self.upgrade_data['replace'].append(('cassandra22', 'cassandra'))
+
         self.upgrade_data['upgrade'] = self._args.packages
         self.upgrade_data['restore'].append(
              '/etc/contrail/contrail-database-nodemgr.conf')
