@@ -143,7 +143,8 @@ class ComputeUpgrade(ContrailUpgrade, ComputeSetup):
         self._upgrade()
         self._upgrade_all_package()
         if ((self.pdist not in ['Ubuntu']) and
-            ('running' in local('service supervisor-vrouter status',
+            ('running' in
+            local('service supervisor-vrouter status || echo IGNORE_EXITCODE',
                                 capture=True))):
             local("service supervisor-vrouter stop")
         if self.pdist not in ['Ubuntu'] and \
