@@ -107,7 +107,8 @@ class DatabaseCommon(ContrailSetup):
                     '          - seeds: ',
                     '          - seeds: "' + ", ".join(seed_list) + '"')
 
-        if cassandra_ssl_options:
+        if (isinstance(cassandra_ssl_options, dict) and
+            cassandra_ssl_options.get('enabled', False)):
             kwords = ['enabled', 'optional', 'keystore',
                       'keystore_password', 'truststore',
                       'truststore_password', 'protocol',
