@@ -209,7 +209,7 @@ class DatabaseSetup(DatabaseCommon):
         KAFKA_RUN_FILE='/usr/share/kafka/bin/kafka-run-class.sh'
         cnd = os.path.exists(KAFKA_RUN_FILE)
         if cnd:
-            local("sudo sed -i 's/+UseG1GC/+UseG1GC -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M/g' %s" % KAFKA_RUN_FILE)
+            local("sudo sed -i 's/+UseG1GC/+UseG1GC -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M/g' %s" % KAFKA_RUN_FILE)
 
 
     def fixup_contrail_database_nodemgr(self):
