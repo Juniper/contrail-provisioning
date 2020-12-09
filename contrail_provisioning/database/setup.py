@@ -148,7 +148,7 @@ class DatabaseSetup(DatabaseCommon):
 
     def fixup_kafka_server_properties(self, listen_ip):
         #Update the broker id of the /usr/share/kafka/config/server.properties
-        KAFKA_SERVER_PROPERTIES='/usr/share/kafka/config/server.properties'
+        KAFKA_SERVER_PROPERTIES='/opt/kafka/config/server.properties'
         cnd = os.path.exists(KAFKA_SERVER_PROPERTIES)
         if not cnd:
             raise RuntimeError('%s does not appear to be a kafka config directory' % KAFKA_SERVER_PROPERTIES)
@@ -185,6 +185,7 @@ class DatabaseSetup(DatabaseCommon):
 
         # Set log compaction and topic delete options
         self.replace_in_file(KAFKA_SERVER_PROPERTIES, 'log.cleaner.enable=false','log.cleaner.enable=true')
+        local ("sudo echo >> %s" % KAFKA_SERVER_PROPERTIES)
         if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'log.cleanup.policy=delete'):
             local('sudo echo "log.cleanup.policy=delete" >> %s' % KAFKA_SERVER_PROPERTIES)
         if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'delete.topic.enable=true'):
