@@ -162,7 +162,7 @@ class DatabaseCommon(ContrailSetup):
                              # change < to -lt for numeric comparison
                              ('if \\[ \\\"\\$JVM_VERSION\\\" \\\\< \\\"1.8\\\" \\] && \\[ \\\"\\$JVM_PATCH_VERSION\\\" \\\\< \\\"25\\\" \\] ; then',
                               'if [ \"\\$JVM_VERSION\" \\\\< \"1.8\" ] \\&\\& [ \"\\$JVM_PATCH_VERSION\" -lt \"25\" ] ; then'),
-                             ('MaxTenuringThreshold=.*\"', 'MaxTenuringThreshold=30\"'), ]
+                             ('MaxTenuringThreshold=.*\"', 'MaxTenuringThreshold=15\"'), ]
 
         if (self.pdist == 'centos' and self.pdistversion >= '6.5') or self.pdist == 'redhat':
             env_file_settings.append(('JVM_OPTS=\"\$JVM_OPTS -Xss.*\"', 'JVM_OPTS=\"\$JVM_OPTS -Xss228k\"'))
