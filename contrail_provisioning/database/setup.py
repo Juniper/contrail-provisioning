@@ -199,7 +199,7 @@ class DatabaseSetup(DatabaseCommon):
         if (len(self._args.seed_list) > 1 or len(self._args.seed_list[0].split(','))>1):
             if not self.file_pattern_check(KAFKA_SERVER_PROPERTIES, 'default.replication.factor'):
                 local('sudo echo "default.replication.factor=2" >> %s' % (KAFKA_SERVER_PROPERTIES))
-        KAFKA_LOG4J_PROPERTIES='/usr/share/kafka/config/log4j.properties'
+        KAFKA_LOG4J_PROPERTIES='/opt/kafka/config/log4j.properties'
         cnd = os.path.exists(KAFKA_LOG4J_PROPERTIES)
         if not cnd:
             raise RuntimeError('%s does not appear to be a kafka logs config' % KAFKA_LOG4J_PROPERTIES)
@@ -207,7 +207,7 @@ class DatabaseSetup(DatabaseCommon):
         local("sudo sed -i \"s/DatePattern='.'yyyy-MM-dd-HH/MaxBackupIndex=10/g\" %s" % KAFKA_LOG4J_PROPERTIES)
 
         # set parameters to limit GC file size
-        KAFKA_RUN_FILE='/usr/share/kafka/bin/kafka-run-class.sh'
+        KAFKA_RUN_FILE='/opt/kafka/bin/kafka-run-class.sh'
         cnd = os.path.exists(KAFKA_RUN_FILE)
         if cnd:
             local("sudo sed -i 's/+UseG1GC/+UseG1GC -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M/g' %s" % KAFKA_RUN_FILE)
